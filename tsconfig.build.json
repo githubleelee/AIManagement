@@ -7,5 +7,12 @@
     "sourceMap": true
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist", "web", "src/**/*.test.ts"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "web",
+    "src/**/*.test.ts",
+    "src/**/test-fixtures.ts",
+    "src/**/*-fixtures.ts"
+  ]
 }
