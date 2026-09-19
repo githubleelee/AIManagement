@@ -3,17 +3,23 @@ import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
 
 /**
- * 前端（React + Vite）配置。
- * root 固定为 web/，因此 `vite` 从仓库根启动也能找到 web/index.html。
- * dev 时把后端路径代理到后端，避免本地跨域配置。
+ * 前端（React + Vite）配置。root 固定为 web/。
  *
- * 注意：契约（决策 I-8）的 30 个业务端点都在**根路径**（/auth、/projects、
- * /goals、/activities、/stories、/tasks），只代理 /health 与 /api 会让
- * `fetch('/projects')` 打到 Vite 而非后端。这里逐个列出契约路径前缀，
- * **不使用 `/` 全量代理**，以免吞掉静态资源与 HMR。
+ * 关键：SPA 使用 History 路由，其路径（/projects/:id/overview 等）与后端契约路径
+ * （/projects 等）**同名**。若像早期那样逐个代理 /projects、/auth，会把前端深链
+ * 也转发到后端，导致刷新/直达 404。因此前端 API 统一走 `/api` 前缀，这里只代理
+ * `/api` 并 rewrite 去掉前缀，后端契约路径保持不变（见 docs/frontend-routes.md）。
  */
 const webRoot = fileURLToPath(new URL('.', import.meta.url))
 const backendTarget = `http://localhost:${process.env.PORT ?? 3000}`
+
+const apiProxy = {
+  '/api': {
+    target: backendTarget,
+    changeOrigin: true,
+    rewrite: (path: string) => path.replace(/^\/api/, ''),
+  },
+}
 
 export default defineConfig({
   root: webRoot,
@@ -21,17 +27,11 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: false,
-    proxy: {
-      '/health': backendTarget,
-      '/api': backendTarget,
-      // 契约 I-8 的根路径端点前缀
-      '/auth': backendTarget,
-      '/projects': backendTarget,
-      '/goals': backendTarget,
-      '/activities': backendTarget,
-      '/stories': backendTarget,
-      '/tasks': backendTarget,
-    },
+    proxy: apiProxy,
+  },
+  preview: {
+    port: 4173,
+    proxy: apiProxy,
   },
   build: {
     outDir: fileURLToPath(new URL('../dist/web', import.meta.url)),

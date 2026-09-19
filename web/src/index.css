@@ -9,42 +9,30 @@
     sans-serif;
 }
 
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
-  display: grid;
-  place-items: center;
   background: #0f172a;
   color: #e2e8f0;
 }
 
-.shell {
-  text-align: center;
-  padding: 2rem 3rem;
-  border-radius: 16px;
-  background: rgba(30, 41, 59, 0.8);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-}
-
-.shell.wide {
-  text-align: left;
-  width: min(900px, 92vw);
-  padding: 1.75rem 2rem;
-}
-
-.shell h1 {
+h1,
+h2,
+h3 {
   margin: 0 0 0.25rem;
-  font-size: 1.75rem;
 }
 
-.shell h2 {
-  font-size: 1.15rem;
-  margin: 0 0 0.75rem;
+a {
+  color: #93c5fd;
+  text-decoration: none;
 }
 
-.tagline {
-  margin: 0;
-  color: #94a3b8;
+a:hover {
+  text-decoration: underline;
 }
 
 .muted {
@@ -56,7 +44,68 @@ body {
   margin: 0.5rem 0;
 }
 
-.topbar {
+.link {
+  color: #93c5fd;
+}
+
+/* ---------- 顶栏与外壳 ---------- */
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid #1e293b;
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.brand {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.app-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.app-body {
+  flex: 1;
+  width: min(1100px, 100%);
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+/* ---------- 登录 / 404 卡片 ---------- */
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+}
+
+.card {
+  width: min(360px, 92vw);
+  padding: 2rem;
+  border-radius: 16px;
+  background: rgba(30, 41, 59, 0.8);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  text-align: left;
+}
+
+.login-card h1 {
+  font-size: 1.6rem;
+}
+
+/* ---------- 页面与标题 ---------- */
+.page-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -64,42 +113,33 @@ body {
   margin-bottom: 1.25rem;
 }
 
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin: 1.25rem auto 0;
-  max-width: 320px;
-  text-align: left;
+.page-header h2 {
+  font-size: 1.4rem;
 }
 
-.form.inline {
-  flex-direction: row;
-  flex-wrap: wrap;
-  max-width: none;
-  margin: 0 0 1rem;
+.page-header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.page-loading {
+  padding: 2rem;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.project-notfound {
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  gap: 1rem;
+  padding: 3rem 1rem;
 }
 
-.form label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-  color: #cbd5e1;
-}
-
-input,
-select {
-  padding: 0.5rem 0.65rem;
-  border-radius: 8px;
-  border: 1px solid #334155;
-  background: #0b1220;
-  color: #e2e8f0;
-  font-size: 0.95rem;
-}
-
-button {
+/* ---------- 按钮与表单 ---------- */
+button,
+.button {
+  display: inline-block;
   padding: 0.55rem 0.9rem;
   border-radius: 8px;
   border: 1px solid transparent;
@@ -107,6 +147,13 @@ button {
   color: #f8fafc;
   font-size: 0.95rem;
   cursor: pointer;
+  text-decoration: none;
+}
+
+button:hover,
+.button:hover {
+  text-decoration: none;
+  filter: brightness(1.05);
 }
 
 button:disabled {
@@ -120,30 +167,77 @@ button.ghost {
   color: #cbd5e1;
 }
 
-.list {
+input,
+select {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #0b1220;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin-top: 1rem;
+}
+
+.form.narrow {
+  max-width: 420px;
+}
+
+.form.inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 1.25rem;
+}
+
+.form.inline .form-field {
+  min-width: 180px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: #cbd5e1;
+}
+
+/* ---------- 项目列表卡片 ---------- */
+.project-cards {
   list-style: none;
   padding: 0;
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: grid;
+  gap: 0.75rem;
 }
 
-.row {
-  width: 100%;
+.project-card {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  text-align: left;
-  background: rgba(15, 23, 42, 0.6);
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
   border: 1px solid #1e293b;
+  background: rgba(30, 41, 59, 0.5);
+  color: #e2e8f0;
 }
 
-.row-title {
+.project-card:hover {
+  border-color: #2563eb;
+  text-decoration: none;
+}
+
+.project-card-title {
   font-weight: 600;
 }
 
-.row-desc {
+.project-card-desc {
   margin-left: auto;
   font-size: 0.85rem;
 }
@@ -156,6 +250,95 @@ button.ghost {
   color: #e0e7ff;
 }
 
+/* ---------- 项目工作台 ---------- */
+.project-layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.project-sidebar {
+  position: sticky;
+  top: 1rem;
+}
+
+.project-sidebar-head {
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid #1e293b;
+  margin-bottom: 0.5rem;
+}
+
+.project-sidebar-head h1 {
+  font-size: 1.1rem;
+}
+
+.project-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.nav-item {
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  color: #cbd5e1;
+}
+
+.nav-item:hover {
+  background: #1e293b;
+  text-decoration: none;
+}
+
+.nav-item.active {
+  background: #1d4ed8;
+  color: #f8fafc;
+}
+
+/* ---------- 概览 ---------- */
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin: 0 0 1.5rem;
+}
+
+.meta-grid div {
+  padding: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid #1e293b;
+  background: rgba(30, 41, 59, 0.45);
+}
+
+.meta-grid dt {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.meta-grid dd {
+  margin: 0.25rem 0 0;
+  font-size: 1.05rem;
+}
+
+.placeholder-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.75rem;
+}
+
+.placeholder-card {
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px dashed #334155;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.placeholder-card h3 {
+  font-size: 1rem;
+  margin-bottom: 0.35rem;
+}
+
+/* ---------- 表格与空状态 ---------- */
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -172,4 +355,17 @@ button.ghost {
 .table th {
   color: #94a3b8;
   font-weight: 500;
+}
+
+.empty {
+  padding: 2rem;
+  text-align: center;
+  border-radius: 10px;
+  border: 1px dashed #334155;
+  background: rgba(15, 23, 42, 0.4);
+  color: #cbd5e1;
+}
+
+.empty p {
+  margin: 0.4rem 0 0;
 }

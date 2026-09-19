@@ -47,7 +47,9 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
-  const res = await fetch(path, { ...init, headers })
+  // 统一走 /api 前缀：SPA 的路由（/projects/:id/...）与后端契约路径（/projects）同名，
+  // 若直接代理会劫持前端深链。Vite 只代理 /api 并 rewrite 去掉前缀，后端路径保持契约不变。
+  const res = await fetch(`/api${path}`, { ...init, headers })
   if (res.status === 204) return undefined as T
 
   const text = await res.text()

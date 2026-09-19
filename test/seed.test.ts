@@ -18,7 +18,7 @@ afterAll(async () => {
 })
 
 describe('seed 脚本', () => {
-  it('创建演示账号、口令可校验，并建出带 4 名成员的演示项目', async () => {
+  it('创建演示账号、口令可校验，演示项目含 4 名成员', async () => {
     const result = await seedDatabase(db.prisma)
 
     const users = await db.prisma.user.findMany()
@@ -33,6 +33,19 @@ describe('seed 脚本', () => {
     })
     expect(members).toHaveLength(4)
     expect(members.map((m) => m.role).sort()).toEqual(['MEMBER', 'MEMBER', 'PM', 'VIEWER'])
+
+    // outsider 不属于演示项目，用于非成员 404 演示
+    const outsider = users.find((u) => u.account === 'outsider')
+    expect(outsider).toBeTruthy()
+    const outsiderInDemo = members.some((m) => m.userId === outsider!.id)
+    expect(outsiderInDemo).toBe(false)
+
+    // outsider 有自己的项目，用于列表隔离演示
+    const outsiderMembers = await db.prisma.projectMember.findMany({
+      where: { projectId: result.outsiderProjectId },
+    })
+    expect(outsiderMembers).toHaveLength(1)
+    expect(outsiderMembers[0]?.userId).toBe(outsider!.id)
   })
 
   it('可重复执行（幂等）：账号与项目不重复', async () => {
@@ -40,7 +53,8 @@ describe('seed 脚本', () => {
     const second = await seedDatabase(db.prisma)
 
     expect(await db.prisma.user.count()).toBe(SEED_ACCOUNTS.length)
-    expect(await db.prisma.project.count()).toBe(1)
+    expect(await db.prisma.project.count()).toBe(2)
     expect(second.projectId).toBe(first.projectId)
+    expect(second.outsiderProjectId).toBe(first.outsiderProjectId)
   })
 })
