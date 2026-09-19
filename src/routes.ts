@@ -24,6 +24,7 @@
  */
 import type { FastifyInstance } from 'fastify'
 import type { PrismaClient } from '@prisma/client'
+import { registerAuthRoutes } from './auth/routes.js'
 import { registerProjectRoutes } from './modules/project/routes.js'
 
 /** 路由注册所需的依赖集合。模块插件通过它取得数据库，而非 import 全局单例。 */
@@ -39,6 +40,7 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
   // 模块路由挂载点（后续工单填充，各模块只导出插件、不自行 app.listen）
   // -------------------------------------------------------------------------
   // M1 身份与会话（T0-04/T0-03）→ src/auth
+  registerAuthRoutes(app, context) // 端点 1/2：登录与当前用户
   registerProjectRoutes(app, context) // M2 项目与成员（T1.1–T1.7，端点 3–9）
   // M3 授权与敏感可见（T2.x）   → src/modules/authz
   // M4 需求层级（T3.x）         → src/modules/requirement
