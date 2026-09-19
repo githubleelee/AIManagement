@@ -1,0 +1,52 @@
+# ---------- 依赖 ----------
+node_modules/
+.pnpm-store/
+.yarn/
+
+# ---------- 构建产物 ----------
+dist/
+build/
+*.tsbuildinfo
+vite.config.ts.timestamp-*
+
+# ---------- 测试与覆盖率 ----------
+coverage/
+.nyc_output/
+
+# ---------- 环境变量与密钥 ----------
+# 真实凭据绝不提交（见规划方案 7.4 / 8.4）
+.env
+.env.*
+!.env.example
+
+# ---------- 本地数据库（SQLite 开发库） ----------
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# ---------- Prisma 生成物 ----------
+src/generated/
+prisma/generated/
+
+# ---------- 日志 ----------
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------- 编辑器与操作系统 ----------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- 临时与草稿 ----------
+tmp/
+temp/
+.scratch/
