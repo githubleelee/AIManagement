@@ -24,8 +24,9 @@
  */
 import type { FastifyInstance } from 'fastify'
 import type { PrismaClient } from '@prisma/client'
-import { registerAuthRoutes } from './auth/routes.js'
-import { registerProjectRoutes } from './modules/project/routes.js'
+import { registerAuthRoutes } from './auth/plugin.js'
+import { registerRequirementRoutes } from './modules/requirement/plugin.js'
+import { registerProjectRoutes } from './modules/project/plugin.js'
 
 /** 路由注册所需的依赖集合。模块插件通过它取得数据库，而非 import 全局单例。 */
 export type RouteContext = {
@@ -37,12 +38,22 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
   app.get('/health', async () => ({ status: 'ok' }))
 
   // -------------------------------------------------------------------------
-  // 模块路由挂载点（后续工单填充，各模块只导出插件、不自行 app.listen）
+  // 模块路由挂载点（各模块只导出插件、不自行 app.listen）
+  //
+  // 各模块插件统一签名：(app: FastifyInstance, ctx: RouteContext) => void
   // -------------------------------------------------------------------------
-  // M1 身份与会话（T0-04/T0-03）→ src/auth
-  registerAuthRoutes(app, context) // 端点 1/2：登录与当前用户
-  registerProjectRoutes(app, context) // M2 项目与成员（T1.1–T1.7，端点 3–9）
-  // M3 授权与敏感可见（T2.x）   → src/modules/authz
-  // M4 需求层级（T3.x）         → src/modules/requirement
-  // M5 任务（T5.x）             → src/modules/task
+
+  // M1 身份与会话（T0-04，端点 1/2）：登录与当前用户
+  registerAuthRoutes(app, context)
+
+  // M2 项目与成员（T1.1–T1.7，端点 3–9）
+  registerProjectRoutes(app, context)
+
+  // M3 授权与敏感可见（T2.x）→ src/modules/authz（仅提供 can()/visibilityScope()，无独立端点）
+
+  // M4 需求层级（T3.1–T3.10，端点 10–22）
+  // 注册此行前，本模块的端点在生产 app 上一律 404（模块只导出插件、不自挂路由）。
+  registerRequirementRoutes(app, context)
+
+  // M5 任务（T5.x）→ src/modules/task
 }

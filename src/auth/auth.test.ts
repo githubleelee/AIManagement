@@ -9,7 +9,7 @@ import {
   makeUser,
   TEST_PASSWORD,
   type HttpTestContext,
-} from './http-support.js'
+} from '../../test/http-support.js'
 
 let ctx: HttpTestContext
 

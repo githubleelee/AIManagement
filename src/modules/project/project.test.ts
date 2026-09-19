@@ -10,8 +10,9 @@ import {
   makeProject,
   makeUser,
   type HttpTestContext,
-} from './http-support.js'
-import type { ProjectView } from '../src/shared/types.js'
+} from '../../../test/http-support.js'
+import type { ProjectView } from '../../shared/types.js'
+import { PROJECT_NAME_MAX_LENGTH } from './schemas.js'
 
 let ctx: HttpTestContext
 
@@ -95,7 +96,7 @@ describe('T1.1 端点 3：POST /projects', () => {
     const res = await ctx
       .asUser(ctx.loginAs(pmId))
       .post('/projects')
-      .send({ name: 'x'.repeat(51) })
+      .send({ name: 'x'.repeat(PROJECT_NAME_MAX_LENGTH + 1) })
 
     expect(res.status).toBe(422)
     expect(res.body.error.details).toContainEqual({ field: 'name', code: 'TOO_LONG' })

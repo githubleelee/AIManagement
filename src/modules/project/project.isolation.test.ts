@@ -6,7 +6,12 @@
  * 越权用例必须直接打接口，不能用「前端不显示按钮」代替。
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { createHttpTestContext, makeProject, makeUser, type HttpTestContext } from './http-support.js'
+import {
+  createHttpTestContext,
+  makeProject,
+  makeUser,
+  type HttpTestContext,
+} from '../../../test/http-support.js'
 
 let ctx: HttpTestContext
 

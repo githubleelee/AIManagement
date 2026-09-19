@@ -5,7 +5,11 @@
  * 越权与不存在统一经 can() → 404 / 403。
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { createHttpTestContext, makeUser, type HttpTestContext } from './http-support.js'
+import {
+  createHttpTestContext,
+  makeUser,
+  type HttpTestContext,
+} from '../../../test/http-support.js'
 
 let ctx: HttpTestContext
 
