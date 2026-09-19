@@ -159,6 +159,27 @@ export const reorderActivitiesSchema = z.object({
 export type ReorderActivitiesInput = z.infer<typeof reorderActivitiesSchema>
 
 // ---------------------------------------------------------------------------
+// 端点 14 —— PUT /projects/:projectId/goals/order
+// ---------------------------------------------------------------------------
+
+/**
+ * 业务目标排序请求体（全量替换，契约 I-8 端点 14）。
+ *
+ * 形状与端点 18 的 `reorderActivitiesSchema` 相同，但**刻意独立命名**：
+ * 两者是契约里两个独立端点（作用域分别是「项目内所有目标」与「目标下所有活动」），
+ * 将来若其中一个增加了额外字段（例如排序前的乐观校验），独立命名不会牵连另一个。
+ * 理由与端点 11/16 各自持有独立 schema 一致。
+ *
+ * 与端点 18 一样，这里只校验**形状**；「集合是否与本项目现有目标集合一致」
+ * 是需查库的业务规则，按决策 I-2b 由 service 在事务内判定。
+ */
+export const reorderGoalsSchema = z.object({
+  orderedIds: z.array(z.string()),
+})
+
+export type ReorderGoalsInput = z.infer<typeof reorderGoalsSchema>
+
+// ---------------------------------------------------------------------------
 // 校验助手
 // ---------------------------------------------------------------------------
 

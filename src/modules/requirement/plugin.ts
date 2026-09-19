@@ -1,5 +1,5 @@
 /**
- * 需求层级模块 —— HTTP 路由插件（M4 / US-03，端点 11、12、15、16、18）
+ * 需求层级模块 —— HTTP 路由插件（M4 / US-03，端点 11、12、14、15、16、18）
  *
  * 契约依据
  *   - 决策 I-9「模块依赖方向」：`M2 / M4 / M5 ──→ 通过 can() / visibilityScope() 使用 M3，
@@ -28,6 +28,7 @@ import type { RouteContext } from '../../routes.js'
 import {
   createBusinessGoal,
   createUserActivity,
+  reorderBusinessGoals,
   reorderUserActivities,
   updateBusinessGoal,
   updateUserActivity,
@@ -38,6 +39,7 @@ import {
   fieldError,
   parseBody,
   reorderActivitiesSchema,
+  reorderGoalsSchema,
   updateBusinessGoalSchema,
   updateUserActivitySchema,
   validationFailedWith,
@@ -62,6 +64,18 @@ const GOAL_NOT_FOUND_MESSAGE = '目标不存在'
  * 否则调用方能靠文案差异探出活动是否存在（决策 I-3）。
  */
 const ACTIVITY_NOT_FOUND_MESSAGE = '用户活动不存在'
+
+/**
+ * 端点 14 的 404 文案（**单一定义处**）。理由同前两个常量。
+ *
+ * 【本次顺带统一了端点 11 的两处字面量】端点 11 原先在两处各写了一次 `'项目不存在'`
+ * （第 1 步的项目存在性检查、第 2 步 can() 拒绝分支），并配了注释说明两者必须一致 ——
+ * 但「必须一致」当时只是**恰好成立**，靠的是两处字面量没有被改歪。
+ * 既然本任务需要同一个文案常量，就把它提为唯一来源并让端点 11 也引用它：
+ * 契约 I-3 的「不可区分」从此是**结构上**成立，而不是靠人记得同步。
+ * 该改动是纯常量替换、行为零变化，端点 11 的 404 路径由对抗测试的 79 例覆盖。
+ */
+const PROJECT_NOT_FOUND_MESSAGE = '项目不存在'
 
 /**
  * 注册需求层级模块的全部路由。
@@ -105,7 +119,7 @@ export function registerRequirementRoutes(app: FastifyInstance, ctx: RouteContex
         select: { id: true },
       })
       if (!project) {
-        throw new AppError(404, 'NOT_FOUND', '项目不存在')
+        throw new AppError(404, 'NOT_FOUND', PROJECT_NOT_FOUND_MESSAGE)
       }
 
       // ---------------------------------------------------------------------
@@ -122,7 +136,7 @@ export function registerRequirementRoutes(app: FastifyInstance, ctx: RouteContex
       })
       if (!decision.allow) {
         // 直接使用 can() 给出的 status / code，调用方不改写（决策 I-5 约束 2）
-        throw new AppError(decision.status, decision.code, '项目不存在')
+        throw new AppError(decision.status, decision.code, PROJECT_NOT_FOUND_MESSAGE)
       }
 
       // ---------------------------------------------------------------------
@@ -435,7 +449,62 @@ export function registerRequirementRoutes(app: FastifyInstance, ctx: RouteContex
     },
   )
 
-  // 供后续任务使用的占位注释：端点 13/14 属 T3.9 / T3.3，
+  // ===========================================================================
+  // 端点 14 —— PUT /projects/:projectId/goals/order —— 权限：requirement.write
+  //
+  // 请求  { orderedIds: string[] }
+  // 响应  200 ListResponse<BusinessGoal>
+  // 错误  403 FORBIDDEN
+  //       404 NOT_FOUND
+  //       422 VALIDATION_FAILED（orderedIds: INVALID_VALUE
+  //                              —— 集合与本项目现有目标集合不一致）
+  // 语义  全量替换顺序：第 i 个 id 的 sortOrder 置为 i；幂等，可重复调用
+  // ===========================================================================
+  app.put(
+    '/projects/:projectId/goals/order',
+    { preHandler: requireAuth },
+    async (req, reply) => {
+      const actorUserId = currentUserId(req)
+      const { projectId } = req.params as { projectId: string }
+
+      // 第 1 步：项目必须先存在
+      // 理由同端点 11：can() 对「项目不存在」与「非成员」都会给 404，
+      // 显式判一次使两条路径在代码里可见，且都满足契约的 404 要求。
+      const project = await ctx.prisma.project.findUnique({
+        where: { id: projectId },
+        select: { id: true },
+      })
+      if (!project) {
+        throw new AppError(404, 'NOT_FOUND', PROJECT_NOT_FOUND_MESSAGE)
+      }
+
+      // 第 2 步：唯一鉴权入口（决策 I-5）。非成员 → 404；MEMBER / VIEWER → 403。
+      const decision = await can(actorUserId, 'requirement.write', {
+        kind: 'project',
+        projectId,
+      })
+      if (!decision.allow) {
+        // 直接使用 can() 给出的 status / code，调用方不改写（决策 I-5 约束 2）
+        throw new AppError(decision.status, decision.code, PROJECT_NOT_FOUND_MESSAGE)
+      }
+
+      // 第 3 步：形状校验（必须是字符串数组；集合一致性属业务规则）
+      const input = parseBody(reorderGoalsSchema, req.body ?? {})
+
+      // 第 4 步：全量替换（校验与写入在同一个事务内，见 service 的说明）
+      const result = await reorderBusinessGoals(ctx.prisma, projectId, input.orderedIds)
+      if (!result.ok) {
+        // 契约 I-8 端点 14：集合与本项目现有目标集合不一致 → 422 orderedIds: INVALID_VALUE。
+        // 此处**没有发生任何写入**（校验在写入之前、同一事务内），失败零副作用。
+        validationFailedWith([fieldError('orderedIds', 'INVALID_VALUE')])
+      }
+
+      // 契约 I-3 的 ListResponse 包装
+      return reply.status(200).send({ items: result.goals })
+    },
+  )
+
+  // 供后续任务使用的占位注释：端点 13 属 T3.9，
   // 端点 10 属 T3.8 / T3.10，端点 17 属 T3.9，端点 19 属 T3.6，
   // 端点 20–22 属 T3.7 / T3.9。均在本文件内按任务逐步追加。
 }

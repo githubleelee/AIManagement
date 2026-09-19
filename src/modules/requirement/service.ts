@@ -542,5 +542,71 @@ export async function reorderUserActivities(
   })
 }
 
+// ---------------------------------------------------------------------------
+// 端点 14 —— 业务目标排序（全量替换）
+//
+// 【本节为什么写在端点 18 之后】本文件按**任务顺序**追加（T3.1 → T3.2 → T3.5 → T3.3），
+// 不按端点号排序，这样每次任务只往文件末尾追加，diff 干净、历史可追溯。
+// 本节的实现与端点 18 **同型**（同一套 `isSameIdSet` 判据、同样的单事务包裹），
+// 差别只有两处：作用域是「项目内所有目标」而非「目标下所有活动」；
+// 返回类型是 `BusinessGoal` 而非 `UserActivity`。
+// ---------------------------------------------------------------------------
+
+/**
+ * 端点 14 的结果类型。设计取向同 `ReorderActivitiesResult`：
+ * service 只报告「发生了什么」，由 handler 决定「回什么码」。
+ */
+export type ReorderGoalsResult =
+  | { ok: true; goals: BusinessGoal[] }
+  | { ok: false; reason: 'SET_MISMATCH' }
+
+/**
+ * 全量替换某项目内业务目标的顺序（端点 14）。
+ *
+ * 语义（契约 I-8 端点 14）：第 i 个 id 的 `sortOrder` 置为 i；幂等，可重复调用。
+ *
+ * 【为什么整段包在同一个事务里】理由与端点 18 完全相同，此处不重复展开：
+ * 这是「读出现有集合作一致性校验 → 批量写序号」的读-改-写，分两次独立访问会出现
+ * ① 校验通过后集合被端点 11 改变，② 逐条 update 中途失败留下半应用的顺序。
+ *
+ * 【为什么不加唯一约束兜底】契约 I-8 端点 14 的全量替换存在**合法中间态**：
+ * 把 [A,B] 换成 [B,A] 时，置 A:=1 的那一刻 B 仍为 1。`@@unique([projectId, sortOrder])`
+ * 会拒绝这个中间态，使排序功能根本无法实现。这条结论由代码审查智能体独立提出、
+ * 被 T3.1 的并发修复采纳，记录在表五序号 42。序号唯一性只能由事务保证。
+ * ---------------------------------------------------------------------------
+ */
+export async function reorderBusinessGoals(
+  prisma: PrismaClient,
+  projectId: string,
+  orderedIds: string[],
+): Promise<ReorderGoalsResult> {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.businessGoal.findMany({
+      where: { projectId },
+      select: { id: true },
+    })
+    const existingIds = existing.map((row) => row.id)
+
+    if (!isSameIdSet(existingIds, orderedIds)) {
+      return { ok: false, reason: 'SET_MISMATCH' } as const
+    }
+
+    for (const [index, goalId] of orderedIds.entries()) {
+      await tx.businessGoal.update({
+        where: { id: goalId },
+        data: { sortOrder: index },
+      })
+    }
+
+    const rows = await tx.businessGoal.findMany({
+      where: { projectId },
+      orderBy: { sortOrder: 'asc' },
+      select: BUSINESS_GOAL_FIELDS,
+    })
+
+    return { ok: true, goals: rows.map(toBusinessGoal) } as const
+  })
+}
+
 /** 供测试与后续任务使用的类型导出（避免测试直接依赖 Prisma 生成类型）。 */
 export type { Prisma }
