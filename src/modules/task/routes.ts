@@ -121,6 +121,27 @@ function notFound(): AppError {
   return new AppError(404, 'NOT_FOUND', '资源不存在')
 }
 
+/**
+ * 判断 Prisma 的「记录不存在」错误（P2025）。
+ *
+ * 并发删除竞态：handler 在鉴权 / 校验期间读到任务后，另一个请求可能在 `update` /
+ * `delete` 落库前删掉该行，此时 Prisma 抛 `PrismaClientKnownRequestError`，其 `code`
+ * 为 `P2025`。按契约 I-3，这类「对象已不存在」必须返回与「任务不存在」逐字一致的
+ * 404，而不是 500。
+ *
+ * 只匹配 P2025 这一种「记录不存在」；其它 Prisma 错误（约束冲突、连接失败等）
+ * 一律原样抛出，交给统一错误处理器转 500，不得误吞。这里按 `code` 字段判断而不
+ * `instanceof`，以免测试 / 多实例场景下构造器身份不一致。
+ */
+function isRecordNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'P2025'
+  )
+}
+
 /** 对象可见但操作不允许：403。 */
 function forbidden(): AppError {
   return new AppError(403, 'FORBIDDEN', '没有权限执行该操作')
@@ -449,18 +470,31 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
 
     // 第四步：写回合并结果。projectId / storyId / isSensitive / createdAt 不在 data 中，
     // 因此任务不可跨项目挂载，且敏感标记与创建时间不会被 PATCH 改动（决策 I-10）。
-    const updated = await prisma.task.update({
-      where: { id: task.id },
-      data: {
-        title: merged.title,
-        description: merged.description,
-        ownerUserId: merged.ownerUserId,
-        acceptorUserId: merged.acceptorUserId,
-        planStart: merged.planStart,
-        planEnd: merged.planEnd,
-        status: merged.status,
-      },
-    })
+    //
+    // ★ 并发删除竞态：鉴权 / 校验期间任务可能已被另一个请求删除，此时 `task.update`
+    //   抛 Prisma P2025。按契约 I-3，必须映射为与「任务不存在」逐字一致的 404
+    //   （notFound() 的 code / message / 空字段结构完全一致），不得落到 500。
+    //   只捕获 P2025，其它错误仍原样抛出转 500。
+    let updated: TaskRow
+    try {
+      updated = await prisma.task.update({
+        where: { id: task.id },
+        data: {
+          title: merged.title,
+          description: merged.description,
+          ownerUserId: merged.ownerUserId,
+          acceptorUserId: merged.acceptorUserId,
+          planStart: merged.planStart,
+          planEnd: merged.planEnd,
+          status: merged.status,
+        },
+      })
+    } catch (error) {
+      if (isRecordNotFoundError(error)) {
+        throw notFound()
+      }
+      throw error
+    }
 
     const view = await loadTaskView(updated)
     return reply.status(200).send(view)
@@ -498,12 +532,24 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
     //
     // 删除顺序：可见性记录 → 任务。数组形式 `$transaction` 在一个事务内按顺序执行，
     // 任一步失败则整体回滚，因此不会出现「任务已删但可见性记录残留」或反向的中间态。
-    await prisma.$transaction([
-      prisma.objectVisibility.deleteMany({
-        where: { objectType: 'task', objectId: task.id },
-      }),
-      prisma.task.delete({ where: { id: task.id } }),
-    ])
+    //
+    // ★ 并发双删竞态：第二个请求的 `task.delete` 会因行已被删而抛 Prisma P2025。
+    //   按契约 I-3，映射为与「任务不存在」逐字一致的 404；`$transaction` 会自动
+    //   回滚第一步的 `deleteMany`，可见性记录不会被误删（事务语义由测试断言）。
+    //   只捕获 P2025，其它错误仍原样抛出转 500。
+    try {
+      await prisma.$transaction([
+        prisma.objectVisibility.deleteMany({
+          where: { objectType: 'task', objectId: task.id },
+        }),
+        prisma.task.delete({ where: { id: task.id } }),
+      ])
+    } catch (error) {
+      if (isRecordNotFoundError(error)) {
+        throw notFound()
+      }
+      throw error
+    }
 
     // 契约决策 I-3：删除成功返回 HTTP 204，无响应体。
     return reply.status(204).send()

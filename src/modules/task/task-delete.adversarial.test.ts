@@ -147,6 +147,28 @@ function countTaskVisibility(id: string): Promise<number> {
   return countVisibility('task', id)
 }
 
+/**
+ * 故障注入（D3 原子性断言）：把共享 Prisma 单例上的 `task.delete` 换成一条必然失败的
+ * 原始 SQL（访问不存在的表），使端点 29 事务的第二句炸掉。
+ *
+ * 注：Prisma 6.19.3 已移除 `$use` 中间件，这里用「替换委托方法为等价 PrismaPromise」
+ * 的方式注入 —— 注入的是数据库客户端边界上的故障，而非 mock 应用内部函数。
+ * 返回的仍是真正的 PrismaPromise，会被 `$transaction` 当作**同一事务的第二句**执行；
+ * 失败后第一步的 `deleteMany` 会被整体回滚（这正是 A4 要断言的事务语义）。
+ *
+ * 返回 restore 函数，务必在 finally 中调用。
+ */
+function installFailingTaskDelete(): () => void {
+  const delegate = ctx.prisma.task as unknown as {
+    delete: (...args: unknown[]) => unknown
+  }
+  const original = delegate.delete
+  delegate.delete = () => ctx.prisma.$queryRawUnsafe('SELECT * FROM "__t5_injected_missing_table__"')
+  return () => {
+    delegate.delete = original
+  }
+}
+
 // ===========================================================================
 // A. ★ 引用完整性（决策 I-7）
 // ===========================================================================
@@ -220,26 +242,37 @@ describe('A 引用完整性：ObjectVisibility 同事务清理', () => {
     expect(await ctx.prisma.task.count({ where: { id: siblingTask.id } })).toBe(1)
   })
 
-  it('A4 事务原子性：任务删除失败时，同事务内先执行的可见性清理必须回滚', async () => {
-    // 对一个「只有可见性记录、没有任务行」的幽灵 id 执行与实现完全相同的 $transaction：
-    // 第一步 deleteMany 会删掉记录，第二步 task.delete 抛 P2025，整体必须回滚。
-    const ghostTaskId = 'ghost-task-without-row'
-    await grantVisibility('task', ghostTaskId, member.id)
-    const before = await countTaskVisibility(ghostTaskId)
-    expect(before).toBe(1)
+  it('A4 事务原子性（真正经端点 29）：task.delete 注入未预期失败 → 500，且可见性清理回滚（实测 count 不变）', async () => {
+    // 断言语义：端点 29 的 `$transaction([deleteMany(visibility), delete(task)])` 是
+    // 一个原子单元。这里用故障注入让第二句 `task.delete` 以**未预期错误**失败，从而：
+    //   (a) 端点必须返回 500（未预期错误不得被 P2025 映射误吞成 404）；
+    //   (b) 第一句 `deleteMany` 必须回滚，可见性记录保持删除前后一致的**真实 count**。
+    //
+    // 为什么必须经端点：此前 A4 只是在测试里复刻 `$transaction`（模式验证），
+    // 没有走真实 handler，无法证明实现确实使用了事务。这里改为真实 HTTP 请求 +
+    // 真实断言的组合。
+    await grantVisibility('task', taskId, member.id)
+    await grantVisibility('task', taskId, viewer.id)
+    const before = await countTaskVisibility(taskId)
+    expect(before).toBe(2) // 实测：删除前 2 条
 
-    await expect(
-      ctx.prisma.$transaction([
-        ctx.prisma.objectVisibility.deleteMany({
-          where: { objectType: 'task', objectId: ghostTaskId },
-        }),
-        ctx.prisma.task.delete({ where: { id: ghostTaskId } }),
-      ]),
-    ).rejects.toMatchObject({ code: 'P2025' })
+    const restore = installFailingTaskDelete()
+    let response: request.Response
+    try {
+      response = await deleteTask()
+    } finally {
+      restore()
+    }
 
-    // 回滚生效：可见性记录仍在，幽灵任务仍然不存在。
-    expect(await countTaskVisibility(ghostTaskId)).toBe(before)
-    expect(await ctx.prisma.task.count({ where: { id: ghostTaskId } })).toBe(0)
+    // (a) 未预期错误 → 500 INTERNAL_ERROR（不是 404，证明只映射 P2025）
+    expect(response.status).toBe(500)
+    expect((response.body as ErrorBody).error.code).toBe('INTERNAL_ERROR')
+
+    // (b) 回滚生效：可见性记录仍为 2 条（若事务未回滚，deleteMany 已把它删成 0）
+    expect(await countTaskVisibility(taskId)).toBe(before)
+    // 注入的失败操作没有删除任务，任务行原样保留（若未回滚也不影响此断言，
+    // 但与可见性 count 一起构成「事务原子性」的完整证据）
+    expect(await ctx.prisma.task.count({ where: { id: taskId } })).toBe(1)
   })
 })
 
