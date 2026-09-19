@@ -136,6 +136,60 @@ export async function makeStory(
 }
 
 /**
+ * 造一个任务，返回其 id。
+ *
+ * 为什么在 T3.9 补上：端点 22（删除用户故事）的 `HAS_CHILDREN` 分支要求故事下
+ * **存在任务**，否则无法触发外键 RESTRICT。契约「测试数据工厂」清单里本就有
+ * `makeTask`，只是 T3.1 当时用不到，故此前未实现。
+ *
+ * 契约要求：`makeTask` **必须在内部满足「验收人 ≠ 负责人」**，否则所有下游测试
+ * 都要各自重复处理这个前置条件。本函数的两个 id 由调用方给出，因此改为**显式拒绝**
+ * 相等的情形 —— 与其让下游写出一条违反端点 25 约束的脏数据，不如立刻失败。
+ *
+ * `planStart` / `planEnd` 缺省给合法的 `YYYY-MM-DD`（决策 I-10 的固定格式）；
+ * 任务状态不显式写入，依赖表默认值 `'TODO'`（决策 I-7）。
+ */
+export async function makeTask(
+  db: Db,
+  projectId: string,
+  storyId: string,
+  ownerUserId: string,
+  acceptorUserId: string,
+  options: {
+    title?: string
+    description?: string | null
+    planStart?: string
+    planEnd?: string
+    status?: 'TODO' | 'DOING' | 'DONE'
+    isSensitive?: boolean
+  } = {},
+): Promise<string> {
+  if (ownerUserId === acceptorUserId) {
+    throw new Error(
+      'makeTask：负责人与验收人不能是同一人（契约「测试数据工厂」要求夹具内部满足该约束）',
+    )
+  }
+
+  const task = await db.task.create({
+    data: {
+      projectId,
+      storyId,
+      title: options.title ?? '测试任务',
+      description: options.description ?? null,
+      ownerUserId,
+      acceptorUserId,
+      planStart: options.planStart ?? '2026-01-01',
+      planEnd: options.planEnd ?? '2026-01-02',
+      // status / isSensitive 不显式写入时由表默认值决定（TODO / false）
+      ...(options.status === undefined ? {} : { status: options.status }),
+      ...(options.isSensitive === undefined ? {} : { isSensitive: options.isSensitive }),
+    },
+    select: { id: true },
+  })
+  return task.id
+}
+
+/**
  * 把某个故事或任务标记为敏感，并指定可见成员白名单。
  *
  * 注意 `ObjectVisibility` 的 `objectId` 是**多态列、无真实外键**（决策 I-7 特殊约定），

@@ -1,5 +1,5 @@
 /**
- * 需求层级模块 —— HTTP 路由插件（M4 / US-03，端点 11、12、14、15、16、18）
+ * 需求层级模块 —— HTTP 路由插件（M4 / US-03，端点 11、12、13、14、15、16、17、18、22）
  *
  * 契约依据
  *   - 决策 I-9「模块依赖方向」：`M2 / M4 / M5 ──→ 通过 can() / visibilityScope() 使用 M3，
@@ -28,6 +28,9 @@ import type { RouteContext } from '../../routes.js'
 import {
   createBusinessGoal,
   createUserActivity,
+  deleteBusinessGoal,
+  deleteUserActivity,
+  deleteUserStory,
   reorderBusinessGoals,
   reorderUserActivities,
   updateBusinessGoal,
@@ -76,6 +79,51 @@ const ACTIVITY_NOT_FOUND_MESSAGE = '用户活动不存在'
  * 该改动是纯常量替换、行为零变化，端点 11 的 404 路径由对抗测试的 79 例覆盖。
  */
 const PROJECT_NOT_FOUND_MESSAGE = '项目不存在'
+
+/** 端点 22 的 404 文案（**单一定义处**）。理由同前三个常量。 */
+const STORY_NOT_FOUND_MESSAGE = '用户故事不存在'
+
+/**
+ * 构造 `409 CONFLICT / HAS_CHILDREN`（端点 13/17/22 共用）。
+ *
+ * 【字段级错误码里 `field` 取什么值 —— 契约空白，本实现的选择与依据】
+ *   契约决策 I-4 把 `HAS_CHILDREN` 列在**字段级错误码**表里（即 `details[].code`），
+ *   但该表的「典型字段」栏写的是「—」，且端点 13/17/22 的括号写法是
+ *   「409 CONFLICT（HAS_CHILDREN，……）」——**没有** `field:` 前缀
+ *   （对比端点 6 写的是「409 CONFLICT（account: DUPLICATE，……）」，那个有前缀）。
+ *   也就是说：契约把 HAS_CHILDREN 归入字段级，却没有给它天然字段，
+ *   而 `FieldError.field` 的类型是必填 string。
+ *
+ *   本实现取**被拒绝对象的 id 参数名**（goalId / activityId / storyId），理由：
+ *     ① I-4 把它归入字段级，说明契约希望它在 `details[].code` 里机器可读；
+ *     ② `field` 指向「哪个对象还有子项」，对客户端有实际信息量；
+ *     ③ 与端点 6 的 `account: DUPLICATE` 同构。
+ *   若团队裁决应为「无字段」（例如空字符串），只需改这一个函数 —— 三个端点共用它。
+ *   该空白已记入表五，留 Sprint 2 澄清。
+ *
+ * message 采用基线 AC-US-03-05 的原话「请先处理子项」。
+ */
+function hasChildrenError(field: string): AppError {
+  return new AppError(409, 'CONFLICT', '仍有下级对象，请先处理子项', [
+    fieldError(field, 'HAS_CHILDREN'),
+  ])
+}
+
+/**
+ * 把删除结果翻译成要抛的 `AppError`（端点 13/17/22 共用）。
+ *
+ * `reason !== 'HAS_CHILDREN'` 只剩 `NOT_FOUND`，对应「`can()` 之后、删除之前
+ * 被别人删掉」这一 TOCTOU 窗口 —— 转 404 而不是让 Prisma 的 P2025 变成 500。
+ */
+function deleteFailureError(
+  result: { ok: false; reason: 'HAS_CHILDREN' | 'NOT_FOUND' },
+  field: string,
+  notFoundMessage: string,
+): AppError {
+  return result.reason === 'HAS_CHILDREN'
+    ? hasChildrenError(field)
+    : new AppError(404, 'NOT_FOUND', notFoundMessage)
+}
 
 /**
  * 注册需求层级模块的全部路由。
@@ -504,7 +552,144 @@ export function registerRequirementRoutes(app: FastifyInstance, ctx: RouteContex
     },
   )
 
-  // 供后续任务使用的占位注释：端点 13 属 T3.9，
-  // 端点 10 属 T3.8 / T3.10，端点 17 属 T3.9，端点 19 属 T3.6，
-  // 端点 20–22 属 T3.7 / T3.9。均在本文件内按任务逐步追加。
+  // ===========================================================================
+  // 端点 13 —— DELETE /goals/:goalId —— 权限：requirement.write
+  //
+  // 请求  —
+  // 响应  204（无响应体）
+  // 错误  403 FORBIDDEN
+  //       404 NOT_FOUND
+  //       409 CONFLICT（HAS_CHILDREN，该目标下仍有用户活动）
+  // 说明  由外键 RESTRICT 保证，不依赖应用层判断（决策 I-7 / 契约 I-8 端点 13）
+  // ===========================================================================
+  app.delete(
+    '/goals/:goalId',
+    { preHandler: requireAuth },
+    async (req, reply) => {
+      const actorUserId = currentUserId(req)
+      const { goalId } = req.params as { goalId: string }
+
+      // 第 1 步 / 第 2 步：存在性 + 唯一鉴权入口（同端点 12/15）
+      const goal = await ctx.prisma.businessGoal.findUnique({
+        where: { id: goalId },
+        select: { id: true, projectId: true },
+      })
+      if (!goal) {
+        throw new AppError(404, 'NOT_FOUND', GOAL_NOT_FOUND_MESSAGE)
+      }
+
+      const decision = await can(actorUserId, 'requirement.write', {
+        kind: 'goal',
+        projectId: goal.projectId,
+        objectId: goalId,
+      })
+      if (!decision.allow) {
+        throw new AppError(decision.status, decision.code, GOAL_NOT_FOUND_MESSAGE)
+      }
+
+      // 第 3 步：删除。有子项时由数据库拒绝（P2003）→ 409，不是应用层 count 判断。
+      const result = await deleteBusinessGoal(ctx.prisma, goalId)
+      if (!result.ok) {
+        throw deleteFailureError(result, 'goalId', GOAL_NOT_FOUND_MESSAGE)
+      }
+
+      // 契约 I-3：删除成功 → HTTP 204，无响应体
+      return reply.status(204).send()
+    },
+  )
+
+  // ===========================================================================
+  // 端点 17 —— DELETE /activities/:activityId —— 权限：requirement.write
+  //
+  // 请求  —
+  // 响应  204
+  // 错误  403 FORBIDDEN
+  //       404 NOT_FOUND
+  //       409 CONFLICT（HAS_CHILDREN，该活动下仍有用户故事）
+  // ===========================================================================
+  app.delete(
+    '/activities/:activityId',
+    { preHandler: requireAuth },
+    async (req, reply) => {
+      const actorUserId = currentUserId(req)
+      const { activityId } = req.params as { activityId: string }
+
+      const activity = await ctx.prisma.userActivity.findUnique({
+        where: { id: activityId },
+        select: { id: true, projectId: true },
+      })
+      if (!activity) {
+        throw new AppError(404, 'NOT_FOUND', ACTIVITY_NOT_FOUND_MESSAGE)
+      }
+
+      const decision = await can(actorUserId, 'requirement.write', {
+        kind: 'activity',
+        projectId: activity.projectId,
+        objectId: activityId,
+      })
+      if (!decision.allow) {
+        throw new AppError(decision.status, decision.code, ACTIVITY_NOT_FOUND_MESSAGE)
+      }
+
+      const result = await deleteUserActivity(ctx.prisma, activityId)
+      if (!result.ok) {
+        throw deleteFailureError(result, 'activityId', ACTIVITY_NOT_FOUND_MESSAGE)
+      }
+
+      return reply.status(204).send()
+    },
+  )
+
+  // ===========================================================================
+  // 端点 22 —— DELETE /stories/:storyId —— 权限：requirement.write
+  //
+  // 请求  —
+  // 响应  204
+  // 错误  403 FORBIDDEN
+  //       404 NOT_FOUND
+  //       409 CONFLICT（HAS_CHILDREN，该故事下仍有任务）
+  // 副作用 同一事务内清理 ObjectVisibility(objectType='story', objectId=storyId)
+  //        —— 决策 I-7 的多态列无外键，必须人工保证
+  // ===========================================================================
+  app.delete(
+    '/stories/:storyId',
+    { preHandler: requireAuth },
+    async (req, reply) => {
+      const actorUserId = currentUserId(req)
+      const { storyId } = req.params as { storyId: string }
+
+      // 存在性检查与 can()：注意 can() 对敏感故事的判定在 M3 接管前后会变化
+      // （T0.4 骨架为非 PM 保守 404，T2.3/T2.4 放开为白名单成员可见）。
+      // 本 handler 不做任何角色判断，只使用 can() 给的结论（决策 I-5 约束 2）。
+      const story = await ctx.prisma.userStory.findUnique({
+        where: { id: storyId },
+        select: { id: true, projectId: true },
+      })
+      if (!story) {
+        throw new AppError(404, 'NOT_FOUND', STORY_NOT_FOUND_MESSAGE)
+      }
+
+      const decision = await can(actorUserId, 'requirement.write', {
+        kind: 'story',
+        projectId: story.projectId,
+        objectId: storyId,
+      })
+      if (!decision.allow) {
+        throw new AppError(decision.status, decision.code, STORY_NOT_FOUND_MESSAGE)
+      }
+
+      // 删除 + 同事务清理可见性记录（见 service 的说明）
+      const result = await deleteUserStory(ctx.prisma, storyId)
+      if (!result.ok) {
+        throw deleteFailureError(result, 'storyId', STORY_NOT_FOUND_MESSAGE)
+      }
+
+      return reply.status(204).send()
+    },
+  )
+
+  // 供后续任务使用的占位注释：
+  // 端点 10 属 T3.8 / T3.10，端点 19 属 T3.6，端点 20–21 属 T3.7。
+  // 端点 13、17、22（含 HAS_CHILDREN）已由 T3.9 交付。
+  // 均在本文件内按任务逐步追加。
 }

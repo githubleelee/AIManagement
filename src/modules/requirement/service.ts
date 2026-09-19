@@ -608,5 +608,112 @@ export async function reorderBusinessGoals(
   })
 }
 
+// ---------------------------------------------------------------------------
+// 端点 13 / 17 / 22 —— 删除与 HAS_CHILDREN
+//
+// 【为什么这三个删除端点不需要应用层判断子项】
+//   契约 I-8 端点 13 的说明写着：「由外键 RESTRICT 保证，不依赖应用层判断」。
+//   决策 I-7 为 UserActivity.goalId / UserStory.activityId / Task.storyId 都设了
+//   `onDelete: Restrict`，因此删除仍有子项的行时，数据库会直接拒绝（Prisma 抛 P2003）。
+//   这是**比应用层 count() 更可靠**的实现方式：它不依赖本模块的代码正确性，
+//   也不存在「先查后删」之间的竞态窗口（查到没有子项、删之前别人插入了一个子项）。
+//
+//   顺带说明：`hasChildren` 这类判断若用「先 count 再 delete」实现，就又是一次
+//   读-改-写竞态 —— 与本模块 T3.1 的 sortOrder 竞态同型，只是后果从「序号重复」
+//   变成「误删有子项的节点」。下沉到数据库层后该窗口不存在。
+// ---------------------------------------------------------------------------
+
+/** 删除类端点（13/17/22）的结果。设计取向同其他 service：只报告发生了什么。 */
+export type DeleteResult = { ok: true } | { ok: false; reason: 'HAS_CHILDREN' | 'NOT_FOUND' }
+
+/**
+ * 读出 Prisma 的**已知错误码**（形如 `P2003`），非 Prisma 错误返回 `null`。
+ *
+ * 用鸭子类型而不是 `instanceof Prisma.PrismaClientKnownRequestError`：本文件对
+ * `@prisma/client` 只做 `import type`，引入运行时导入会让数据访问层与 Prisma 的
+ * 运行时类耦合（也让 mock 变难）。正则 `/^P\d{4}$/` 保证只认 Prisma 的码形状，
+ * 不会把恰好带 `code` 字段的其它错误误判成外键失败。
+ */
+function prismaErrorCode(error: unknown): string | null {
+  if (typeof error !== 'object' || error === null) return null
+  const code: unknown = (error as { code?: unknown }).code
+  return typeof code === 'string' && /^P\d{4}$/.test(code) ? code : null
+}
+
+/**
+ * 把删除失败的异常翻译成 `DeleteResult`。
+ *
+ * - `P2003`（外键约束失败）→ `HAS_CHILDREN`：目标行仍被下级引用（决策 I-7 的 RESTRICT）；
+ * - `P2025`（待操作记录不存在）→ `NOT_FOUND`：`can()` 之后、删除之前被别人删掉了；
+ * - 其它异常**原样抛出**：本函数只解释它能解释的两种情况，其余交给统一错误处理器
+ *   转 500。把不认识的情况也吞成 409/404 会掩盖真实缺陷 —— 那是比崩溃更糟的事。
+ */
+function classifyDeleteFailure(error: unknown): DeleteResult {
+  const code = prismaErrorCode(error)
+  if (code === 'P2003') return { ok: false, reason: 'HAS_CHILDREN' }
+  if (code === 'P2025') return { ok: false, reason: 'NOT_FOUND' }
+  throw error
+}
+
+/** 删除业务目标（端点 13）。有用户活动时由外键 RESTRICT 拒绝 → `HAS_CHILDREN`。 */
+export async function deleteBusinessGoal(prisma: PrismaClient, goalId: string): Promise<DeleteResult> {
+  try {
+    // 单条 DELETE，无需事务：要么删掉、要么被外键拒绝，不存在中间态。
+    await prisma.businessGoal.delete({ where: { id: goalId } })
+    return { ok: true }
+  } catch (error) {
+    return classifyDeleteFailure(error)
+  }
+}
+
+/** 删除用户活动（端点 17）。有用户故事时由外键 RESTRICT 拒绝 → `HAS_CHILDREN`。 */
+export async function deleteUserActivity(
+  prisma: PrismaClient,
+  activityId: string,
+): Promise<DeleteResult> {
+  try {
+    await prisma.userActivity.delete({ where: { id: activityId } })
+    return { ok: true }
+  } catch (error) {
+    return classifyDeleteFailure(error)
+  }
+}
+
+/**
+ * 删除用户故事（端点 22）。有任务时由外键 RESTRICT 拒绝 → `HAS_CHILDREN`。
+ *
+ * ---------------------------------------------------------------------------
+ * 【为什么这个删除必须包事务，而端点 13/17 不用】
+ *
+ * 决策 I-7 的「`ObjectVisibility` 的特殊约定」：`objectId` 是**多态列、无法建立真实外键**，
+ * 数据库不会替你清理。因此删除故事时必须由本模块**在同一事务内**手动清理
+ * `ObjectVisibility(objectType='story', objectId=storyId)`。这是全文档唯一需要人工
+ * 保证的引用完整性。
+ *
+ * 两件事必须同成同败：
+ *   - 若删了故事却没清可见性 → 留下**悬挂记录**。它不会报错，只会在将来某个
+ *     恰好复用了同一 id 的对象上造成错误的可见性判定（静默损坏，最难查的一类）；
+ *   - 若清了可见性却没能删故事（例如故事仍有任务，DELETE 抛 P2003）→ 故事的可见
+ *     名单被清空，等于**擅自修改了敏感配置**。
+ * 包在同一个 `$transaction` 里后，第二种情况自动成立：DELETE 抛 P2003 → 整体回滚，
+ * 可见性记录一条都不会少。测试里对此有专门用例（409 之后可见性记录逐行不变）。
+ *
+ * 注意 delete 放在 deleteMany 之前：故事删不掉时就短路，连碰都不碰 ObjectVisibility。
+ * ---------------------------------------------------------------------------
+ */
+export async function deleteUserStory(prisma: PrismaClient, storyId: string): Promise<DeleteResult> {
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.userStory.delete({ where: { id: storyId } })
+      await tx.objectVisibility.deleteMany({
+        where: { objectType: 'story', objectId: storyId },
+      })
+    })
+    return { ok: true }
+  } catch (error) {
+    return classifyDeleteFailure(error)
+  }
+}
+
 /** 供测试与后续任务使用的类型导出（避免测试直接依赖 Prisma 生成类型）。 */
 export type { Prisma }
