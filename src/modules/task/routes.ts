@@ -1,7 +1,12 @@
 /**
- * M5 任务模块 —— 端点 24 / 25 / 27 / 28
+ * M5 任务模块 —— 端点 24 / 25 / 27 / 28 / 29
  *
- * 权威来源：`docs/sprint1-spec-interface-contract.md` 决策 I-8 端点 24、25、27、28。
+ * 权威来源：`docs/sprint1-spec-interface-contract.md` 决策 I-8 端点 24、25、27、28、29。
+ *
+ * T5-04 新增端点 29（`DELETE /tasks/:taskId`）：204 无响应体；权限 `task.write`。
+ * ★ 关键副作用：`ObjectVisibility` 是多态表（`objectType` + `objectId`，无外键），
+ * 数据库不会级联清理。必须在**同一事务**内先删可见性记录、再删任务，否则会留下悬空数据
+ * （决策 I-7「ObjectVisibility 的特殊约定」）。
  *
  * T5-01 做**形状校验**（Zod）：必填、标题长度上限、日期格式 YYYY-MM-DD；
  * T5-02 在形状校验之后调用 `./rules.js` 的 `assertTaskAssignment`，落地成员归属、
@@ -349,5 +354,48 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
 
     const view = await loadTaskView(updated)
     return reply.status(200).send(view)
+  })
+
+  // -------------------------------------------------------------------------
+  // 端点 29：DELETE /tasks/:taskId —— 权限 task.write
+  // -------------------------------------------------------------------------
+  app.delete('/tasks/:taskId', async (request, reply) => {
+    const actorUserId = requireActorUserId(request)
+    const { taskId } = request.params as { taskId: string }
+
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { id: true, projectId: true },
+    })
+    if (!task) {
+      // 任务不存在 → 404；与「非项目成员」「敏感未授权」使用同一个 notFound()，
+      // 三者状态码与响应体结构完全一致（契约端点 29 / 决策 I-3）。
+      throw notFound()
+    }
+
+    const decision = await can(actorUserId, 'task.write', {
+      kind: 'task',
+      projectId: task.projectId,
+      objectId: task.id,
+    })
+    if (!decision.allow) {
+      // MEMBER / VIEWER → 403 FORBIDDEN；非项目成员 / 敏感未授权 → 404 NOT_FOUND。
+      throw denied(decision)
+    }
+
+    // ★ 契约决策 I-7「ObjectVisibility 的特殊约定」：objectId 是多态列、无真实外键，
+    // 数据库不会替我们清理。必须在**同一事务**内手动清理，漏掉不会报错、只会留下悬空数据。
+    //
+    // 删除顺序：可见性记录 → 任务。数组形式 `$transaction` 在一个事务内按顺序执行，
+    // 任一步失败则整体回滚，因此不会出现「任务已删但可见性记录残留」或反向的中间态。
+    await prisma.$transaction([
+      prisma.objectVisibility.deleteMany({
+        where: { objectType: 'task', objectId: task.id },
+      }),
+      prisma.task.delete({ where: { id: task.id } }),
+    ])
+
+    // 契约决策 I-3：删除成功返回 HTTP 204，无响应体。
+    return reply.status(204).send()
   })
 }
