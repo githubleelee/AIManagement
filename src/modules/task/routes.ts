@@ -1,12 +1,16 @@
 /**
- * M5 任务模块 —— 端点 24 / 25（T5-01 行走骨架）
+ * M5 任务模块 —— 端点 24 / 25 / 27 / 28
  *
- * 权威来源：`docs/sprint1-spec-interface-contract.md` 决策 I-8 端点 24、25。
+ * 权威来源：`docs/sprint1-spec-interface-contract.md` 决策 I-8 端点 24、25、27、28。
  *
  * T5-01 做**形状校验**（Zod）：必填、标题长度上限、日期格式 YYYY-MM-DD；
  * T5-02 在形状校验之后调用 `./rules.js` 的 `assertTaskAssignment`，落地成员归属、
  * 成员数 ≥ 2、验收人 ≠ 负责人、结束 ≥ 开始等业务规则（契约决策 I-2b 的职责边界）。
  * 该函数是创建（端点 25）与编辑（端点 28，T5-03）共用的单一入口，入参为「合并后的最终值」。
+ *
+ * T5-03 新增端点 27（任务详情，内嵌 owner/acceptor）与端点 28（部分更新）。
+ * 端点 28 严格遵循契约决策 I-10「部分更新语义」：先合并「现有值 + 请求体覆盖」，
+ * 再把合并结果交给 `assertTaskAssignment`，**不**只校验请求体中出现的字段。
  *
  * 依赖：Actor 注入 / can() / visibilityScope() 暂由 `./_t0-stubs.js` 提供；
  * T0-04、T0-05 合入后改这里的 import 指向 src/auth 与 src/modules/authz 即可。
@@ -14,7 +18,7 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { AppError } from '../../shared/errors.js'
-import { dateSchema, toFieldErrors } from '../../shared/validation.js'
+import { dateSchema, taskStatusSchema, toFieldErrors } from '../../shared/validation.js'
 import type { TaskStatus, TaskView, UserBrief } from '../../shared/types.js'
 import { prisma } from '../../db/client.js'
 import { can, requireActorUserId, visibilityScope } from './_t0-stubs.js'
@@ -36,6 +40,27 @@ const createTaskSchema = z.object({
   acceptorUserId: z.string().min(1),
   planStart: dateSchema,
   planEnd: dateSchema,
+})
+
+/**
+ * 编辑任务的请求体 schema（端点 28，部分更新）。
+ *
+ * - 全部字段可选：未出现的字段保持原值（契约决策 I-10）。
+ * - **不含 `isSensitive`**：Zod object 默认剥离未知键，因此请求体里带 `isSensitive`
+ *   也不会被写入，该字段只能通过端点 30（T5-05）修改（契约决策 I-10 的敏感字段写入路径）。
+ * - 单字段形状仍由 Zod 负责（决策 I-2b）；跳字段比较与查库规则交给 `assertTaskAssignment`。
+ * - `status` 只接受 TODO / DOING / DONE，其它取值（BLOCKED / SUSPENDED / CLOSED）
+ *   由 Zod 枚举产出 `INVALID_VALUE`（Sprint 1 只做三态，见工单 §1.3）。
+ */
+const updateTaskSchema = z.object({
+  title: z.string().trim().min(1).max(TASK_TITLE_MAX_LENGTH).optional(),
+  // description 在 Task 类型中可空：传 null 表示清空，未出现则保持原值。
+  description: z.string().nullable().optional(),
+  ownerUserId: z.string().min(1).optional(),
+  acceptorUserId: z.string().min(1).optional(),
+  planStart: dateSchema.optional(),
+  planEnd: dateSchema.optional(),
+  status: taskStatusSchema.optional(),
 })
 
 type UserRow = { id: string; account: string; displayName: string }
@@ -216,5 +241,113 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
 
     const view = await loadTaskView(task)
     return reply.status(201).send(view)
+  })
+
+  // -------------------------------------------------------------------------
+  // 端点 27：GET /tasks/:taskId —— 权限 project.read
+  // -------------------------------------------------------------------------
+  app.get('/tasks/:taskId', async (request, reply) => {
+    const actorUserId = requireActorUserId(request)
+    const { taskId } = request.params as { taskId: string }
+
+    const task = await prisma.task.findUnique({ where: { id: taskId } })
+    if (!task) {
+      // 不存在 → 404，响应体不含任务任何字段（契约 I-3）。
+      throw notFound()
+    }
+
+    // can() 自己按 id 重新加载目标对象并判定敏感可见性；本路由已先取到 projectId，
+    // 但仍必须走唯一鉴权入口，不得自行判断角色（契约 I-5）。
+    const decision = await can(actorUserId, 'project.read', {
+      kind: 'task',
+      projectId: task.projectId,
+      objectId: task.id,
+    })
+    if (!decision.allow) {
+      // 非项目成员 / 敏感未授权 → 与「任务不存在」完全一致的 404。
+      throw denied(decision)
+    }
+
+    const view = await loadTaskView(task)
+    return reply.status(200).send(view)
+  })
+
+  // -------------------------------------------------------------------------
+  // 端点 28：PATCH /tasks/:taskId —— 权限 task.write（部分更新）
+  // -------------------------------------------------------------------------
+  app.patch('/tasks/:taskId', async (request, reply) => {
+    const actorUserId = requireActorUserId(request)
+    const { taskId } = request.params as { taskId: string }
+
+    const task = await prisma.task.findUnique({ where: { id: taskId } })
+    if (!task) {
+      throw notFound()
+    }
+
+    const decision = await can(actorUserId, 'task.write', {
+      kind: 'task',
+      projectId: task.projectId,
+      objectId: task.id,
+    })
+    if (!decision.allow) {
+      throw denied(decision)
+    }
+
+    // 第一步：形状校验（Zod 只负责单字段形状，契约决策 I-2b）。
+    const parsed = updateTaskSchema.safeParse(request.body)
+    if (!parsed.success) {
+      throw new AppError(
+        422,
+        'VALIDATION_FAILED',
+        '字段校验失败',
+        toFieldErrors(parsed.error.issues),
+      )
+    }
+    const body = parsed.data
+
+    // 第二步（★ 本工单核心）：先算出「现有值 + 请求体覆盖」的合并结果，
+    // 再把**合并结果**交给共用校验入口。绝不能只校验请求体中出现的字段，
+    // 否则「只改 owner 使其等于现有 acceptor」这条绕过路径会被放行。
+    //
+    // 部分更新语义（决策 I-10）：用 `!== undefined` 判断字段是否出现，
+    // 未出现的字段保留原值（允许显式传 null 清空 description）。
+    const merged = {
+      title: body.title ?? task.title,
+      description: body.description !== undefined ? body.description : task.description,
+      ownerUserId: body.ownerUserId ?? task.ownerUserId,
+      acceptorUserId: body.acceptorUserId ?? task.acceptorUserId,
+      planStart: body.planStart ?? task.planStart,
+      planEnd: body.planEnd ?? task.planEnd,
+      status: body.status ?? toTaskStatus(task.status),
+    }
+
+    // 第三步：业务规则校验以合并结果为入参。校验顺序仍是
+    // 成员归属 → 成员数 ≥ 2 → 验收人 ≠ 负责人 → 日期先后（契约端点 25）。
+    // 这一步同时覆盖「只改 planStart」「只改 title 但库中已有非法数据」等情形：
+    // 只要合并后不满足约束就拒绝，不会因为字段没出现在请求体里而被跳过。
+    await assertTaskAssignment(prisma, task.projectId, {
+      ownerUserId: merged.ownerUserId,
+      acceptorUserId: merged.acceptorUserId,
+      planStart: merged.planStart,
+      planEnd: merged.planEnd,
+    })
+
+    // 第四步：写回合并结果。projectId / storyId / isSensitive / createdAt 不在 data 中，
+    // 因此任务不可跨项目挂载，且敏感标记与创建时间不会被 PATCH 改动（决策 I-10）。
+    const updated = await prisma.task.update({
+      where: { id: task.id },
+      data: {
+        title: merged.title,
+        description: merged.description,
+        ownerUserId: merged.ownerUserId,
+        acceptorUserId: merged.acceptorUserId,
+        planStart: merged.planStart,
+        planEnd: merged.planEnd,
+        status: merged.status,
+      },
+    })
+
+    const view = await loadTaskView(updated)
+    return reply.status(200).send(view)
   })
 }
