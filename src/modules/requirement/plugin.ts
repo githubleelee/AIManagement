@@ -797,8 +797,20 @@ export function registerRequirementRoutes(app: FastifyInstance, ctx: RouteContex
       const actorUserId = currentUserId(req)
       const { storyId } = req.params as { storyId: string }
 
-      const story = await getUserStory(ctx.prisma, storyId)
-      if (!story) {
+      // 【纵深防御】鉴权之前只读 `id` + `projectId` 两个字段，**不读故事正文**。
+      //   `getUserStory()` 会一次性把 13 个字段（title / roleText / capabilityText /
+      //   valueText / businessValue / acceptanceCriteria 等敏感内容）全部读进进程内存，
+      //   而鉴权要等 `can()` 返回之后才发生 —— 一旦将来有人把 `reply.send()` 挪到鉴权
+      //   之前（这类改动很容易顺手做出来），故事正文就会泄漏给非项目成员。
+      //   本端点先用窄读建立 ObjectRef、完成鉴权，**通过之后**才读整行用于响应，
+      //   使「未授权时正文不出库」成为结构上的性质，而不是靠代码顺序的巧合。
+      //   （该改造采纳自代码审查智能体的建议 S1；端点 12/15/16/18/13/17/22 本来就是
+      //   窄读，只有端点 20/21 是整行读。）
+      const ref = await ctx.prisma.userStory.findUnique({
+        where: { id: storyId },
+        select: { id: true, projectId: true },
+      })
+      if (!ref) {
         throw new AppError(404, 'NOT_FOUND', STORY_NOT_FOUND_MESSAGE)
       }
 
@@ -806,13 +818,23 @@ export function registerRequirementRoutes(app: FastifyInstance, ctx: RouteContex
       // （决策 I-5 约束 1：调用方无法通过传入敏感标记影响判定）。
       // 本轮 T0.4 骨架对敏感对象的非 PM 一律 404（保守实现，由 T2.3/T2.4 放开为
       // 白名单成员可见），本 handler 不做任何角色或敏感判断，只使用 can() 的结论。
+      //
+      // 注意：`can()` 自己必须读 isSensitive 才能做判定，这是契约 I-5 约束 1 的要求，
+      // 不属本端点的读放大；本端点能做的是**不额外读出故事的正文内容**。
       const decision = await can(actorUserId, 'project.read', {
         kind: 'story',
-        projectId: story.projectId,
+        projectId: ref.projectId,
         objectId: storyId,
       })
       if (!decision.allow) {
         throw new AppError(decision.status, decision.code, STORY_NOT_FOUND_MESSAGE)
+      }
+
+      // 鉴权通过后读取完整行用于响应（多一次主键窄查询，换取「未授权不出正文」）
+      const story = await getUserStory(ctx.prisma, storyId)
+      if (!story) {
+        // TOCTOU：can() 之后、读取之前故事被删除（端点 22 已交付，该窗口真实可达）
+        throw new AppError(404, 'NOT_FOUND', STORY_NOT_FOUND_MESSAGE)
       }
 
       return reply.status(200).send(story)
@@ -836,14 +858,21 @@ export function registerRequirementRoutes(app: FastifyInstance, ctx: RouteContex
       const actorUserId = currentUserId(req)
       const { storyId } = req.params as { storyId: string }
 
-      const story = await getUserStory(ctx.prisma, storyId)
-      if (!story) {
+      // 【纵深防御】同端点 20：鉴权前只读 `id` + `projectId`，不读故事正文
+      // （采纳自代码审查智能体的建议 S1）。
+      // 本端点**本来就只需窄读** —— 写入由 `updateUserStory` 完成并返回更新后的整行，
+      // 因此这里换成窄读后查询次数不变（仍是一次主键查询），却不再把正文读进内存。
+      const ref = await ctx.prisma.userStory.findUnique({
+        where: { id: storyId },
+        select: { id: true, projectId: true },
+      })
+      if (!ref) {
         throw new AppError(404, 'NOT_FOUND', STORY_NOT_FOUND_MESSAGE)
       }
 
       const decision = await can(actorUserId, 'requirement.write', {
         kind: 'story',
-        projectId: story.projectId,
+        projectId: ref.projectId,
         objectId: storyId,
       })
       if (!decision.allow) {
