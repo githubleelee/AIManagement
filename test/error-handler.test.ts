@@ -1,9 +1,14 @@
 /**
  * 统一错误处理器接口测试（T0-01）
  *
- * 契约要求（决策 I-2b / I-3）：
- *   - 抛 AppError → 契约的 ErrorResponse 结构，details[].field / code 透传
- *   - 未知异常 → 500，且响应体不含堆栈 / 原始错误文案
+ * 契约要求（决策 I-2b / I-3 / I-4）：
+ *   - 抛 AppError → 契约的 ErrorResponse 结构；status / code / message / details 透传
+ *   - 四个 status（403/404/409/422）各自映射到正确的 HTTP 状态码，不得一律 500
+ *   - details 为可选：无字段错误时不得输出 `[]` 或 `null`
+ *   - 未知异常 → 500，且响应体不含堆栈 / 原始错误文案 / 文件路径
+ *   - 未知路由 → 404，结构与其它失败一致
+ *   - 非法 JSON 请求体 → 4xx（契约 I-3 规定失败响应为 4xx），
+ *     且以 I-4 唯一的「格式非法」顶层码 VALIDATION_FAILED(422) 呈现
  *
  * 本测试通过 HTTP seam（supertest）验证，不断言内部实现。
  */
@@ -15,11 +20,27 @@ import { AppError } from '../src/shared/errors.js'
 const app = buildApp({ logger: false })
 
 // 探针端点：只用于验证错误处理器；生产路由仍集中在 src/routes.ts 注册。
-app.get('/__test__/app-error', async () => {
+app.get('/__test__/app-error-403', async () => {
+  throw new AppError(403, 'FORBIDDEN', '对象可见但该操作不允许')
+})
+
+app.get('/__test__/app-error-404', async () => {
+  throw new AppError(404, 'NOT_FOUND', '资源不存在')
+})
+
+app.get('/__test__/app-error-409', async () => {
+  throw new AppError(409, 'CONFLICT', '状态冲突')
+})
+
+app.get('/__test__/app-error-422', async () => {
   throw new AppError(422, 'VALIDATION_FAILED', '字段校验失败', [
     { field: 'name', code: 'REQUIRED' },
     { field: 'priority', code: 'INVALID_VALUE' },
   ])
+})
+
+app.get('/__test__/app-error-empty-details', async () => {
+  throw new AppError(422, 'VALIDATION_FAILED', '空 details', [])
 })
 
 app.get('/__test__/app-error-no-details', async () => {
@@ -30,6 +51,8 @@ app.get('/__test__/boom', async () => {
   const secret = 'password=topsecret-at-internal-db'
   throw new Error(`未预期异常：${secret}`)
 })
+
+app.post('/__test__/echo', async (req) => ({ got: req.body }))
 
 beforeAll(async () => {
   await app.ready()
@@ -50,7 +73,7 @@ describe('健康检查', () => {
 
 describe('AppError → ErrorResponse', () => {
   it('422 VALIDATION_FAILED 带 details，字段与错误码与契约一致', async () => {
-    const response = await request(app.server).get('/__test__/app-error')
+    const response = await request(app.server).get('/__test__/app-error-422')
 
     expect(response.status).toBe(422)
     expect(response.body).toEqual({
@@ -65,6 +88,20 @@ describe('AppError → ErrorResponse', () => {
     })
   })
 
+  // 探针 5：AppError.status 必须被真正使用，四个状态各自映射到正确 HTTP 码
+  it.each([
+    ['/__test__/app-error-403', 403, 'FORBIDDEN'],
+    ['/__test__/app-error-404', 404, 'NOT_FOUND'],
+    ['/__test__/app-error-409', 409, 'CONFLICT'],
+    ['/__test__/app-error-422', 422, 'VALIDATION_FAILED'],
+  ])('%s 返回 %i 且 code=%s（而非一律 500）', async (path, status, code) => {
+    const response = await request(app.server).get(path)
+
+    expect(response.status).toBe(status)
+    expect(response.body.error.code).toBe(code)
+  })
+
+  // 探针 2：details 为可选，无字段错误时不得输出 [] / null
   it('无 details 时不输出空的 details 字段', async () => {
     const response = await request(app.server).get('/__test__/app-error-no-details')
 
@@ -73,6 +110,17 @@ describe('AppError → ErrorResponse', () => {
       error: { code: 'FORBIDDEN', message: '没有权限执行该操作' },
     })
     expect(response.body.error).not.toHaveProperty('details')
+  })
+
+  it('显式传入空 details 数组时也不输出 details', async () => {
+    const response = await request(app.server).get('/__test__/app-error-empty-details')
+
+    expect(response.status).toBe(422)
+    expect(response.body).toEqual({
+      error: { code: 'VALIDATION_FAILED', message: '空 details' },
+    })
+    expect(response.body.error).not.toHaveProperty('details')
+    expect(response.body.error.details).toBeUndefined()
   })
 })
 
@@ -90,6 +138,18 @@ describe('未知异常 → 500 且不泄漏堆栈', () => {
     expect(serialized).not.toContain('未预期异常')
     expect(serialized).not.toContain('at ')
   })
+
+  // 探针 4：直接对原始响应文本断言，覆盖堆栈 / 文件路径 / 源码后缀
+  it('原始响应文本不含堆栈帧、node_modules 或 .ts 源码路径', async () => {
+    const response = await request(app.server).get('/__test__/boom')
+    const raw = response.text
+
+    expect(raw).not.toContain('\n    at ')
+    expect(raw).not.toContain('node_modules')
+    expect(raw).not.toContain('.ts:')
+    expect(raw).not.toContain('/src/')
+    expect(raw).not.toContain('Error:')
+  })
 })
 
 describe('未知路由 → 统一 404 信封', () => {
@@ -100,5 +160,41 @@ describe('未知路由 → 统一 404 信封', () => {
     expect(response.body).toEqual({
       error: { code: 'NOT_FOUND', message: '资源不存在' },
     })
+  })
+
+  it('未匹配路径的失败结构只有 error.code / error.message 两个键', async () => {
+    const response = await request(app.server).post('/not-exist-either')
+
+    expect(response.status).toBe(404)
+    expect(Object.keys(response.body)).toEqual(['error'])
+    expect(Object.keys(response.body.error).sort()).toEqual(['code', 'message'])
+  })
+})
+
+describe('非法 JSON 请求体 → 4xx 统一信封（不得误报 500）', () => {
+  it('malformed JSON 返回 422 VALIDATION_FAILED，而非 500', async () => {
+    const response = await request(app.server)
+      .post('/__test__/echo')
+      .set('content-type', 'application/json')
+      .send('{"name": ')
+
+    // 契约 I-3：所有失败响应为 4xx；I-4 唯一的格式错误顶层码为 VALIDATION_FAILED(422)
+    expect(response.status).toBe(422)
+    expect(response.status).toBeLessThan(500)
+    expect(response.body).toEqual({
+      error: { code: 'VALIDATION_FAILED', message: '请求格式非法' },
+    })
+  })
+
+  it('非法 JSON 的响应不泄漏解析器内部信息', async () => {
+    const response = await request(app.server)
+      .post('/__test__/echo')
+      .set('content-type', 'application/json')
+      .send('{"name": ')
+
+    expect(response.text).not.toContain('node_modules')
+    expect(response.text).not.toContain('FST_ERR_CTP')
+    expect(response.text).not.toContain('.ts:')
+    expect(response.text).not.toContain('\n    at ')
   })
 })
