@@ -1,5 +1,23 @@
+/*
+ * 全局样式（T0-01 / US-01 工作台）。
+ *
+ * 视觉基准沿用 T0-01 的应用外壳：暗色背景 #0f172a、卡片面板 rgba(30,41,59,.8)
+ * 与投影 0 20px 60px rgba(0,0,0,.35)、强调色 #38bdf8、成功色 #4ade80。
+ * 工作台需要的侧栏 / 表格 / 表单等类在此扩展，颜色统一走 :root 变量。
+ */
 :root {
   color-scheme: light dark;
+  --bg: #0f172a;
+  --panel: rgba(30, 41, 59, 0.8);
+  --panel-soft: rgba(30, 41, 59, 0.45);
+  --panel-solid: #1e293b;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --accent: #38bdf8;
+  --accent-strong: #0ea5e9;
+  --success: #4ade80;
+  --danger: #fca5a5;
+  --border: #334155;
   font-family:
     system-ui,
     -apple-system,
@@ -16,8 +34,8 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: #0f172a;
-  color: #e2e8f0;
+  background: var(--bg);
+  color: var(--text);
 }
 
 h1,
@@ -27,7 +45,7 @@ h3 {
 }
 
 a {
-  color: #93c5fd;
+  color: var(--accent);
   text-decoration: none;
 }
 
@@ -36,19 +54,19 @@ a:hover {
 }
 
 .muted {
-  color: #94a3b8;
+  color: var(--muted);
 }
 
 .error {
-  color: #fca5a5;
+  color: var(--danger);
   margin: 0.5rem 0;
 }
 
 .link {
-  color: #93c5fd;
+  color: var(--accent);
 }
 
-/* ---------- 顶栏与外壳 ---------- */
+/* ---------- 应用外壳（对齐 T0-01 的 .shell 观感） ---------- */
 .app {
   min-height: 100vh;
   display: flex;
@@ -60,14 +78,15 @@ a:hover {
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem 1.5rem;
-  border-bottom: 1px solid #1e293b;
-  background: rgba(15, 23, 42, 0.9);
+  border-bottom: 1px solid var(--panel-solid);
+  background: var(--panel);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
 }
 
 .brand {
   font-size: 1.15rem;
   font-weight: 700;
-  color: #e2e8f0;
+  color: var(--text);
 }
 
 .app-topbar-right {
@@ -95,16 +114,15 @@ a:hover {
   width: min(360px, 92vw);
   padding: 2rem;
   border-radius: 16px;
-  background: rgba(30, 41, 59, 0.8);
+  background: var(--panel);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-  text-align: left;
 }
 
 .login-card h1 {
   font-size: 1.6rem;
 }
 
-/* ---------- 页面与标题 ---------- */
+/* ---------- 页面标题 ---------- */
 .page-header {
   display: flex;
   align-items: flex-start;
@@ -125,7 +143,7 @@ a:hover {
 .page-loading {
   padding: 2rem;
   text-align: center;
-  color: #94a3b8;
+  color: var(--muted);
 }
 
 .project-notfound {
@@ -143,9 +161,10 @@ button,
   padding: 0.55rem 0.9rem;
   border-radius: 8px;
   border: 1px solid transparent;
-  background: #2563eb;
-  color: #f8fafc;
+  background: var(--accent);
+  color: #0b1220;
   font-size: 0.95rem;
+  font-weight: 600;
   cursor: pointer;
   text-decoration: none;
 }
@@ -163,8 +182,9 @@ button:disabled {
 
 button.ghost {
   background: transparent;
-  border-color: #334155;
-  color: #cbd5e1;
+  border-color: var(--border);
+  color: var(--text);
+  font-weight: 500;
 }
 
 input,
@@ -172,9 +192,9 @@ select {
   width: 100%;
   padding: 0.5rem 0.65rem;
   border-radius: 8px;
-  border: 1px solid #334155;
-  background: #0b1220;
-  color: #e2e8f0;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
   font-size: 0.95rem;
 }
 
@@ -205,7 +225,7 @@ select {
   flex-direction: column;
   gap: 0.3rem;
   font-size: 0.85rem;
-  color: #cbd5e1;
+  color: var(--text);
 }
 
 /* ---------- 项目列表卡片 ---------- */
@@ -223,13 +243,14 @@ select {
   gap: 0.75rem;
   padding: 0.9rem 1rem;
   border-radius: 10px;
-  border: 1px solid #1e293b;
-  background: rgba(30, 41, 59, 0.5);
-  color: #e2e8f0;
+  border: 1px solid var(--panel-solid);
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
 }
 
 .project-card:hover {
-  border-color: #2563eb;
+  border-color: var(--accent);
   text-decoration: none;
 }
 
@@ -246,8 +267,8 @@ select {
   font-size: 0.75rem;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
-  background: #1d4ed8;
-  color: #e0e7ff;
+  background: rgba(56, 189, 248, 0.2);
+  color: var(--accent);
 }
 
 /* ---------- 项目工作台 ---------- */
@@ -265,7 +286,7 @@ select {
 
 .project-sidebar-head {
   padding: 0.75rem 0.5rem;
-  border-bottom: 1px solid #1e293b;
+  border-bottom: 1px solid var(--panel-solid);
   margin-bottom: 0.5rem;
 }
 
@@ -282,17 +303,18 @@ select {
 .nav-item {
   padding: 0.5rem 0.65rem;
   border-radius: 8px;
-  color: #cbd5e1;
+  color: var(--text);
 }
 
 .nav-item:hover {
-  background: #1e293b;
+  background: var(--panel-solid);
   text-decoration: none;
 }
 
 .nav-item.active {
-  background: #1d4ed8;
-  color: #f8fafc;
+  background: var(--accent);
+  color: #0b1220;
+  font-weight: 600;
 }
 
 /* ---------- 概览 ---------- */
@@ -306,13 +328,13 @@ select {
 .meta-grid div {
   padding: 0.75rem;
   border-radius: 10px;
-  border: 1px solid #1e293b;
-  background: rgba(30, 41, 59, 0.45);
+  border: 1px solid var(--panel-solid);
+  background: var(--panel-soft);
 }
 
 .meta-grid dt {
   font-size: 0.8rem;
-  color: #94a3b8;
+  color: var(--muted);
 }
 
 .meta-grid dd {
@@ -329,8 +351,8 @@ select {
 .placeholder-card {
   padding: 1rem;
   border-radius: 10px;
-  border: 1px dashed #334155;
-  background: rgba(15, 23, 42, 0.5);
+  border: 1px dashed var(--border);
+  background: var(--panel-soft);
 }
 
 .placeholder-card h3 {
@@ -348,12 +370,12 @@ select {
 .table td {
   text-align: left;
   padding: 0.5rem 0.65rem;
-  border-bottom: 1px solid #1e293b;
+  border-bottom: 1px solid var(--panel-solid);
   font-size: 0.9rem;
 }
 
 .table th {
-  color: #94a3b8;
+  color: var(--muted);
   font-weight: 500;
 }
 
@@ -361,9 +383,9 @@ select {
   padding: 2rem;
   text-align: center;
   border-radius: 10px;
-  border: 1px dashed #334155;
-  background: rgba(15, 23, 42, 0.4);
-  color: #cbd5e1;
+  border: 1px dashed var(--border);
+  background: var(--panel-soft);
+  color: var(--text);
 }
 
 .empty p {
