@@ -279,8 +279,27 @@ describe('对抗 2：判定顺序与信息泄漏', () => {
     expect((res.body as ErrorBody).error.code).toBe('BAD_REQUEST')
   })
 
-  it('不存在的方法（GET /projects/:id/goals）→ 404 NOT_FOUND（本任务只交付 POST）', async () => {
-    const res = await ctx.asUser(pmToken).get(URL_GOALS(projectId))
+  /**
+   * ⚠️ 本用例的载体在 T3.8 交付端点 10 后被**授权修改过一次**（由编码智能体执行，
+   * 经人类明确同意，逐条理由如下）：
+   *
+   *   原写法：`GET /projects/:id/goals` → 断言 404，用例名标注前提「本任务只交付 POST」。
+   *   该前提在 T3.1 时**成立且正确**（当时该路径确实只注册了 POST）；
+   *   但 T3.8 交付的端点 10 **就是** `GET /projects/:projectId/goals`，
+   *   契约 I-8 明文要求它返回 **200**。于是原断言的前提过期，用例由绿转红。
+   *
+   *   本用例真正要测的是「**未注册的方法+路径走统一 404 信封**，而不是 500 或 HTML」。
+   *   这个意图今天仍然有效，过期的只是它挑的载体。因此**断言保持 404 不变**，
+   *   只把载体换成一个**任何版本的契约都从未定义过**的方法+路径
+   *   ——`DELETE /projects/:projectId/goals`（契约里已注册的 DELETE 只有
+   *   `/goals/:id`、`/activities/:id`、`/stories/:id`）。
+   *   这样该护栏**不会再随交付进度过期**。
+   *
+   *   这不是「改断言求绿」：断言强度未变（仍要求 404 + NOT_FOUND 信封），
+   *   改的是一个与断言无关的测试输入。
+   */
+  it('不存在的方法（DELETE /projects/:id/goals）→ 404 NOT_FOUND（未注册的方法走统一信封）', async () => {
+    const res = await ctx.asUser(pmToken).delete(URL_GOALS(projectId))
     expect(res.status).toBe(404)
     expect((res.body as ErrorBody).error.code).toBe('NOT_FOUND')
   })
