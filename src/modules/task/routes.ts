@@ -3,8 +3,10 @@
  *
  * 权威来源：`docs/sprint1-spec-interface-contract.md` 决策 I-8 端点 24、25。
  *
- * 本工单只做**形状校验**（Zod）：必填、标题长度上限、日期格式 YYYY-MM-DD；
- * 成员归属、验收人 ≠ 负责人、结束 ≥ 开始等业务规则属 T5-02，本文件不实现。
+ * T5-01 做**形状校验**（Zod）：必填、标题长度上限、日期格式 YYYY-MM-DD；
+ * T5-02 在形状校验之后调用 `./rules.js` 的 `assertTaskAssignment`，落地成员归属、
+ * 成员数 ≥ 2、验收人 ≠ 负责人、结束 ≥ 开始等业务规则（契约决策 I-2b 的职责边界）。
+ * 该函数是创建（端点 25）与编辑（端点 28，T5-03）共用的单一入口，入参为「合并后的最终值」。
  *
  * 依赖：Actor 注入 / can() / visibilityScope() 暂由 `./_t0-stubs.js` 提供；
  * T0-04、T0-05 合入后改这里的 import 指向 src/auth 与 src/modules/authz 即可。
@@ -16,6 +18,7 @@ import { dateSchema, toFieldErrors } from '../../shared/validation.js'
 import type { TaskStatus, TaskView, UserBrief } from '../../shared/types.js'
 import { prisma } from '../../db/client.js'
 import { can, requireActorUserId, visibilityScope } from './_t0-stubs.js'
+import { assertTaskAssignment } from './rules.js'
 
 /**
  * 任务标题长度上限。
@@ -173,7 +176,7 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
       throw denied(decision)
     }
 
-    // 只做形状校验；业务规则（成员归属、验收人 ≠ 负责人、结束 ≥ 开始）留 T5-02。
+    // 第一步：只做形状校验（Zod 负责单字段形状，契约决策 I-2b）。
     const parsed = createTaskSchema.safeParse(request.body)
     if (!parsed.success) {
       throw new AppError(
@@ -185,6 +188,16 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const body = parsed.data
+
+    // 第二步：业务规则（跳字段比较 / 查库）。创建时形状校验已保证各字段存在，
+    // 「合并后的最终值」即请求体本身；T5-03 的 PATCH 只需先合并再调用同一函数。
+    await assertTaskAssignment(prisma, story.projectId, {
+      ownerUserId: body.ownerUserId,
+      acceptorUserId: body.acceptorUserId,
+      planStart: body.planStart,
+      planEnd: body.planEnd,
+    })
+
     const task = await prisma.task.create({
       data: {
         // projectId 从 storyId 所属故事推导，不接受请求体传入（契约决策 I-10）
