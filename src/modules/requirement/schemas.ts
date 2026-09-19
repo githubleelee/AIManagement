@@ -18,7 +18,7 @@
  *   该歧义已在表五记录，留 Sprint 2 澄清。
  */
 import * as z from 'zod'
-import { toFieldErrors } from '../../shared/validation.js'
+import { goalStatusSchema, toFieldErrors } from '../../shared/validation.js'
 import { AppError } from '../../shared/errors.js'
 import type { FieldError } from '../../shared/types.js'
 
@@ -85,6 +85,35 @@ export const createUserActivitySchema = z.object({
 })
 
 export type CreateUserActivityInput = z.infer<typeof createUserActivitySchema>
+
+// ---------------------------------------------------------------------------
+// 端点 12 —— PATCH /goals/:goalId
+// ---------------------------------------------------------------------------
+
+/**
+ * 更新业务目标请求体（**部分更新**，决策 I-10）。
+ *
+ * 三个字段**全部可选**：未出现的字段保持原值。因此这里**不能**复用
+ * `createBusinessGoalSchema` —— 那个 schema 的 `name` 是必填的，用它会让
+ * 「只改 status」的合法请求被判 422。
+ *
+ * `status` 用共享层的 `goalStatusSchema`（决策 I-1/I-2b 的唯一取值来源），
+ * 非法取值产出 `invalid_enum_value` → 契约要求的字段级错误码 `INVALID_VALUE`。
+ * 这里刻意**不**用 `z.string()` 自己写枚举：取值约束必须只有一处定义，
+ * 否则将来 `GoalStatus` 增删取值时会出现两处不一致。
+ *
+ * `description` 的类型是 `z.string()`（可选），**不含 `null`** —— 契约 I-8 端点 12
+ * 的请求形状是 `description?: string`。因此传 `null` 会得到 422 而非把描述清空。
+ * 「如何清空 description」在契约里**没有入口**，属契约空白，已记入表五；
+ * 本实现按契约字面执行，不自行发明 `null` 语义。
+ */
+export const updateBusinessGoalSchema = z.object({
+  name: z.string().min(1).max(GOAL_NAME_MAX_LENGTH).optional(),
+  description: z.string().optional(),
+  status: goalStatusSchema.optional(),
+})
+
+export type UpdateBusinessGoalInput = z.infer<typeof updateBusinessGoalSchema>
 
 // ---------------------------------------------------------------------------
 // 校验助手

@@ -285,5 +285,102 @@ export async function createUserActivity(
   return toUserActivity(row)
 }
 
+// ---------------------------------------------------------------------------
+// 端点 12 —— 更新业务目标（部分更新）
+// ---------------------------------------------------------------------------
+
+/**
+ * 端点 12 可修改字段的**白名单**。
+ *
+ * `projectId`（决策 I-10：子对象归属只能从父级推导）与 `sortOrder`
+ * （决策 I-10：排序只能走端点 14 的全量替换）都**刻意不在其中** ——
+ * 用类型白名单而不是靠 handler 手工挑字段，可以让「本端点改不了归属与排序」
+ * 这条约束在编译器层面成立。
+ */
+export type BusinessGoalPatch = {
+  name?: string
+  description?: string
+  status?: GoalStatus
+}
+
+/**
+ * 端点 12 的返回列集合。
+ *
+ * 与 `createBusinessGoal` 里的 `select` 内容相同（契约 I-2 的 BusinessGoal 共 6 字段）。
+ * **刻意不去抽公共常量复用**：端点 11 的实现已通过 79 例对抗测试与只读代码审查，
+ * 为一个 6 字段的字面量去动它，会让 T3.2 的差异扩散到已验收的 T3.1 代码上，
+ * 得不偿失。等 T3.x 全部落地后再统一收敛。
+ */
+const BUSINESS_GOAL_FIELDS = {
+  id: true,
+  projectId: true,
+  name: true,
+  description: true,
+  status: true,
+  sortOrder: true,
+} as const
+
+/**
+ * 更新业务目标（端点 12）。
+ *
+ * 职责边界同端点 11/15：**只做数据写入**，不查目标是否存在、不做权限判定
+ * （那两件事属于 handler + `can()`）。
+ *
+ * ---------------------------------------------------------------------------
+ * 【为什么这里不需要事务】—— 与端点 11/15 的 sortOrder 竞态不同
+ *
+ * 端点 11/15 必须包事务，是因为它们要「读最大值 → 写新行」，属读-改-写。
+ * 端点 12 只写**请求体明确给出的字段**，新值不依赖任何读取结果，
+ * 因此单条 `UPDATE` 本身就是原子的，包事务只是徒增开销。
+ * 且 `sortOrder` 不在可改字段白名单内，本端点**根本不触碰**那个不变量，
+ * 也就不存在与端点 11/15/14 的竞态。
+ *
+ * ---------------------------------------------------------------------------
+ * 【部分更新语义怎么实现才是对的】（决策 I-10）
+ *
+ * 只把请求体中**出现**的字段放进 `data`，而不是「先读出旧行、在内存里合并、
+ * 再整行写回」。后者会引入读-改-写窗口：两个并发 PATCH 各改一个字段时，
+ * 后写者会拿自己读到的旧值把前者的改动覆盖掉（经典的丢失更新）。
+ * 只提交被改字段，则两次并发 PATCH 各写各的列，互不干扰。
+ *
+ * 契约 I-10 的「校验以合并后的结果为准」在本端点**无事可做**：端点 12 的校验
+ * 全是单字段形状校验，没有跨字段规则。那条规则是为端点 28 的
+ * `acceptor !== owner` 写的（只改一个字段也要拿另一个字段的现值比较）。
+ * 此点显式写明，以免代码审查把它误判成漏实现。
+ *
+ * ---------------------------------------------------------------------------
+ * 【空补丁】请求体为 `{}`（或只含被剥除的未知字段）时，本函数**不执行写操作**，
+ * 改为读一次并原样返回。契约未定义该情形的状态码，本实现取「200 + 资源不变」：
+ * 部分更新的字面语义就是「没提到的字段保持不变」，全都没提到即什么都没变。
+ * 为什么不直接 `update({ data: {} })`：Prisma 对空 `data` 的行为属未定义区域，
+ * 依赖它不如显式分支 —— 行为可预期，也便于测试钉住。
+ * ---------------------------------------------------------------------------
+ */
+export async function updateBusinessGoal(
+  prisma: PrismaClient,
+  goalId: string,
+  patch: BusinessGoalPatch,
+): Promise<BusinessGoal | null> {
+  // 只提交请求体明确给出的字段（见上方「部分更新语义」）
+  const data: Prisma.BusinessGoalUpdateInput = {
+    ...(patch.name === undefined ? {} : { name: patch.name }),
+    ...(patch.description === undefined ? {} : { description: patch.description }),
+    ...(patch.status === undefined ? {} : { status: patch.status }),
+  }
+
+  // 补丁为空 → 不写，只读（见上方「空补丁」）
+  const row =
+    Object.keys(data).length === 0
+      ? await prisma.businessGoal.findUnique({ where: { id: goalId }, select: BUSINESS_GOAL_FIELDS })
+      : await prisma.businessGoal.update({ where: { id: goalId }, data, select: BUSINESS_GOAL_FIELDS })
+
+  // 返回 `null` 只可能来自 TOCTOU：`can()` 已确认目标存在，但从它查到本行之间
+  // 目标可能被删除（端点 13 属 T3.9，实现后这个窗口才真正可达）。
+  // 交给 handler 转 404，而不是让 Prisma 抛 P2025 变成 500 ——
+  // 后者会把「对象已不存在」误报成「服务端故障」。
+  // 本函数刻意**不抛 AppError**：AppError 属 HTTP 层，数据访问层只返回数据。
+  return row ? toBusinessGoal(row) : null
+}
+
 /** 供测试与后续任务使用的类型导出（避免测试直接依赖 Prisma 生成类型）。 */
 export type { Prisma }

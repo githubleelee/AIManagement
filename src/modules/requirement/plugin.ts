@@ -1,5 +1,5 @@
 /**
- * 需求层级模块 —— HTTP 路由插件（M4 / US-03，端点 11、15）
+ * 需求层级模块 —— HTTP 路由插件（M4 / US-03，端点 11、12、15）
  *
  * 契约依据
  *   - 决策 I-9「模块依赖方向」：`M2 / M4 / M5 ──→ 通过 can() / visibilityScope() 使用 M3，
@@ -25,12 +25,13 @@ import { currentUserId, requireAuth } from '../../auth/actor.js'
 import { AppError } from '../../shared/errors.js'
 import { createAuthorization } from '../authz/permissions.js'
 import type { RouteContext } from '../../routes.js'
-import { createBusinessGoal, createUserActivity } from './service.js'
+import { createBusinessGoal, createUserActivity, updateBusinessGoal } from './service.js'
 import {
   createBusinessGoalSchema,
   createUserActivitySchema,
   fieldError,
   parseBody,
+  updateBusinessGoalSchema,
   validationFailedWith,
 } from './schemas.js'
 
@@ -221,7 +222,87 @@ export function registerRequirementRoutes(app: FastifyInstance, ctx: RouteContex
     },
   )
 
-  // 供后续任务使用的占位注释：端点 12/13/14 属 T3.2 / T3.9 / T3.3，
+  // ===========================================================================
+  // 端点 12 —— PATCH /goals/:goalId —— 权限：requirement.write
+  //
+  // 请求  { name?: string, description?: string, status?: GoalStatus }
+  // 响应  200 BusinessGoal
+  // 错误  403 FORBIDDEN
+  //       404 NOT_FOUND
+  //       422 VALIDATION_FAILED（name: REQUIRED | TOO_LONG
+  //                              status: INVALID_VALUE）
+  // 说明  部分更新：请求体中未出现的字段保持不变（决策 I-10）
+  // ===========================================================================
+  app.patch(
+    '/goals/:goalId',
+    { preHandler: requireAuth },
+    async (req, reply) => {
+      const actorUserId = currentUserId(req)
+      const { goalId } = req.params as { goalId: string }
+
+      // ---------------------------------------------------------------------
+      // 第 1 步：目标必须先存在，并取出它所属的 projectId
+      // （理由同端点 15：ObjectRef 的 kind:'goal' 要求真实 projectId）
+      // ---------------------------------------------------------------------
+      const goal = await ctx.prisma.businessGoal.findUnique({
+        where: { id: goalId },
+        select: { id: true, projectId: true },
+      })
+      if (!goal) {
+        throw new AppError(404, 'NOT_FOUND', GOAL_NOT_FOUND_MESSAGE)
+      }
+
+      // ---------------------------------------------------------------------
+      // 第 2 步：唯一鉴权入口（决策 I-5）。非成员 → 404；MEMBER / VIEWER → 403。
+      // 两类 404 共用同一文案，不可区分（决策 I-3）。
+      // ---------------------------------------------------------------------
+      const decision = await can(actorUserId, 'requirement.write', {
+        kind: 'goal',
+        projectId: goal.projectId,
+        objectId: goalId,
+      })
+      if (!decision.allow) {
+        // 直接使用 can() 给出的 status / code，调用方不改写（决策 I-5 约束 2）
+        throw new AppError(decision.status, decision.code, GOAL_NOT_FOUND_MESSAGE)
+      }
+
+      // ---------------------------------------------------------------------
+      // 第 3 步：字段校验（部分更新 —— 只校验请求体中**出现**的字段）
+      // ---------------------------------------------------------------------
+      const input = parseBody(updateBusinessGoalSchema, req.body ?? {})
+
+      // ⚠️ `name` 在端点 12 是**可选**字段：只有出现时才需要判纯空白。
+      // 若照端点 11 的写法无条件 `trim()` 后判空，那么 `{ status: 'DONE' }`
+      // 这种合法请求会被误判成 422 —— 这是部分更新最容易写错的一处。
+      let name: string | undefined
+      if (input.name !== undefined) {
+        const trimmed = input.name.trim()
+        if (trimmed === '') {
+          validationFailedWith([fieldError('name', 'REQUIRED')])
+        }
+        name = trimmed
+      }
+
+      // ---------------------------------------------------------------------
+      // 第 4 步：写入。只提交请求体明确给出的字段，未出现的保持原值（决策 I-10）；
+      // `projectId` 与 `sortOrder` 不在可改白名单内，本端点无法改动它们。
+      // ---------------------------------------------------------------------
+      const updated = await updateBusinessGoal(ctx.prisma, goalId, {
+        ...(name === undefined ? {} : { name }),
+        ...(input.description === undefined ? {} : { description: input.description }),
+        ...(input.status === undefined ? {} : { status: input.status }),
+      })
+      if (!updated) {
+        // TOCTOU：can() 之后、写入之前目标被删除（端点 13 属 T3.9）。
+        // 转 404 而不是让 Prisma 的 P2025 变成 500。
+        throw new AppError(404, 'NOT_FOUND', GOAL_NOT_FOUND_MESSAGE)
+      }
+
+      return reply.status(200).send(updated)
+    },
+  )
+
+  // 供后续任务使用的占位注释：端点 13/14 属 T3.9 / T3.3，
   // 端点 10 属 T3.8 / T3.10，端点 16–19 属 T3.5 / T3.6，
   // 端点 20–22 属 T3.7 / T3.9。均在本文件内按任务逐步追加。
 }
