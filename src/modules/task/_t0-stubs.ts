@@ -154,7 +154,10 @@ export type Scope =
  * 列表可见性作用域。
  *
  * 最小实现：PM → all；MEMBER / VIEWER → subset =（非敏感对象 ∪ 白名单内的敏感对象）。
- * 真实 T0-05 落地后替换为查询层过滤实现。
+ *
+ * ★ 查询层过滤（决策 I-6）：本函数内部也**不得**「取出全量再在内存里 filter」——
+ * 非敏感对象与白名单命中的敏感对象分别用 WHERE 条件在数据库里筛出，且只 select id。
+ * 真实 T0-05 落地后替换为等价实现。
  */
 export async function visibilityScope(
   actorUserId: string,
@@ -171,26 +174,43 @@ export async function visibilityScope(
     return { mode: 'all' }
   }
 
-  const rows =
-    objectType === 'task'
-      ? await prisma.task.findMany({
-          where: { projectId },
-          select: { id: true, isSensitive: true },
-        })
-      : await prisma.userStory.findMany({
-          where: { projectId },
-          select: { id: true, isSensitive: true },
-        })
-
+  // 白名单：该调用者在本项目该对象类型下被显式授权的 objectId（仅取 id）。
   const whitelist = await prisma.objectVisibility.findMany({
     where: { projectId, objectType, userId: actorUserId },
     select: { objectId: true },
   })
-  const allowed = new Set(whitelist.map((row) => row.objectId))
+  const whitelistIds = whitelist.map((row) => row.objectId)
+
+  // 非敏感对象：数据库 WHERE isSensitive = false，不把敏感行取回内存。
+  const publicRows =
+    objectType === 'task'
+      ? await prisma.task.findMany({
+          where: { projectId, isSensitive: false },
+          select: { id: true },
+        })
+      : await prisma.userStory.findMany({
+          where: { projectId, isSensitive: false },
+          select: { id: true },
+        })
+
+  // 白名单命中的敏感对象：数据库 WHERE isSensitive = true AND id IN (...)。
+  // 白名单为空时直接短路，避免 `id IN ()` 这类无意义查询。
+  const whitelistedRows =
+    whitelistIds.length === 0
+      ? []
+      : objectType === 'task'
+        ? await prisma.task.findMany({
+            where: { projectId, isSensitive: true, id: { in: whitelistIds } },
+            select: { id: true },
+          })
+        : await prisma.userStory.findMany({
+            where: { projectId, isSensitive: true, id: { in: whitelistIds } },
+            select: { id: true },
+          })
 
   return {
     mode: 'subset',
-    ids: rows.filter((row) => !row.isSensitive || allowed.has(row.id)).map((row) => row.id),
+    ids: [...publicRows, ...whitelistedRows].map((row) => row.id),
   }
 }
 
