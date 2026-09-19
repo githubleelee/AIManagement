@@ -4,15 +4,21 @@ import { prisma } from '../../db/client'
 import { requireAuth } from '../../auth/actor'
 import { can } from '../authz/can'
 import { AppError } from '../../shared/errors'
-import type { Project, ProjectRole, ProjectView } from '../../shared/types'
+import { projectRoleSchema } from '../../shared/validation'
+import type { Project, ProjectMemberView, ProjectRole, ProjectView } from '../../shared/types'
 
-// M2 项目与成员。当前实现端点 3（建项目）、端点 4/5（我的项目列表与项目详情）。
+// M2 项目与成员。当前实现端点 3（建项目）、端点 4/5（我的项目列表与项目详情）、端点 6（加成员）。
 
 // 单字段形状由 Zod 负责（决策 I-2b）：name 必填、去空白后非空、最长 50。
 // 业务规则（如 LAST_PM）需要查库，由处理器抛 AppError，不塞进 schema。
 const createProjectBody = z.object({
   name: z.string().trim().min(1).max(50),
   description: z.string().optional(),
+})
+
+const addMemberBody = z.object({
+  account: z.string().trim().min(1),
+  role: projectRoleSchema,
 })
 
 const projectParams = z.object({ projectId: z.string().min(1) })
@@ -45,6 +51,24 @@ function toProjectView(
   myRole: string,
 ): ProjectView {
   return { ...toProject(project), myRole: myRole as ProjectRole }
+}
+
+function toMemberView(member: {
+  userId: string
+  role: string
+  joinedAt: Date
+  user: { id: string; account: string; displayName: string }
+}): ProjectMemberView {
+  return {
+    userId: member.userId,
+    role: member.role as ProjectRole,
+    joinedAt: member.joinedAt.toISOString(),
+    user: {
+      id: member.user.id,
+      account: member.user.account,
+      displayName: member.user.displayName,
+    },
+  }
 }
 
 export function registerProjectRoutes(app: FastifyInstance): void {
@@ -97,5 +121,50 @@ export function registerProjectRoutes(app: FastifyInstance): void {
     if (!membership || !project) throw new AppError(404, 'NOT_FOUND', '项目不存在')
 
     return toProjectView(project, membership.role)
+  })
+
+  // 端点 6：POST /projects/:projectId/members —— 权限：project.manage_members
+  // 账号查询、角色校验、重复添加拦截。非成员 → 404，MEMBER/VIEWER → 403（由 can() 统一给出）
+  app.post('/projects/:projectId/members', { preHandler: requireAuth }, async (request, reply) => {
+    const { projectId } = projectParams.parse(request.params)
+    const actorUserId = request.actorUserId as string
+
+    // 先鉴权再校验请求体，避免向无权者暴露字段级信息
+    const decision = await can(actorUserId, 'project.manage_members', {
+      kind: 'project',
+      projectId,
+    })
+    if (!decision.allow) {
+      throw new AppError(
+        decision.status,
+        decision.code,
+        decision.status === 404 ? '项目不存在' : '该操作需要项目经理权限',
+      )
+    }
+
+    const body = addMemberBody.parse(request.body)
+
+    const target = await prisma.user.findUnique({ where: { account: body.account } })
+    if (!target) {
+      throw new AppError(422, 'VALIDATION_FAILED', '账号对应的用户不存在', [
+        { field: 'account', code: 'USER_NOT_FOUND' },
+      ])
+    }
+
+    const existing = await prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId: target.id } },
+    })
+    if (existing) {
+      throw new AppError(409, 'CONFLICT', '该用户已是项目成员', [
+        { field: 'account', code: 'DUPLICATE' },
+      ])
+    }
+
+    const member = await prisma.projectMember.create({
+      data: { projectId, userId: target.id, role: body.role },
+      include: { user: true },
+    })
+
+    return reply.status(201).send(toMemberView(member))
   })
 }
