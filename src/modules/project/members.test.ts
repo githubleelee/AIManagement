@@ -179,3 +179,73 @@ describe('T1.3 端点 6：POST /projects/:projectId/members', () => {
     expect(res.body.error.code).toBe('UNAUTHENTICATED')
   })
 })
+
+// T1.4：端点 7 GET /projects/:projectId/members
+// 成员列表按 joinedAt 升序；成员可读，非成员 404。
+describe('T1.4 端点 7：GET /projects/:projectId/members', () => {
+  it('返回成员列表，含创建者与新增成员，字段齐全且按 joinedAt 升序', async () => {
+    const app = await getApp()
+    const pm = await makeUser('pm-1', '项目经理')
+    await makeUser('dev-1', '开发者')
+    const projectId = await createProjectAs(pm.token)
+    await request(app.server)
+      .post(`/projects/${projectId}/members`)
+      .set(bearer(pm.token))
+      .send({ account: 'dev-1', role: 'MEMBER' })
+
+    const res = await request(app.server)
+      .get(`/projects/${projectId}/members`)
+      .set(bearer(pm.token))
+
+    expect(res.status).toBe(200)
+    expect(res.body.items).toHaveLength(2)
+    const accounts = res.body.items.map((i: { user: { account: string } }) => i.user.account)
+    expect(accounts).toContain('pm-1')
+    expect(accounts).toContain('dev-1')
+
+    const joinedAt = res.body.items.map((i: { joinedAt: string }) => Date.parse(i.joinedAt))
+    expect(joinedAt).toEqual([...joinedAt].sort((a: number, b: number) => a - b))
+
+    const pmRow = res.body.items.find((i: { user: { account: string } }) => i.user.account === 'pm-1')
+    expect(pmRow).toMatchObject({ role: 'PM', user: { displayName: '项目经理' } })
+  })
+
+  it('普通 MEMBER 也能读取成员列表（project.read）', async () => {
+    const app = await getApp()
+    const pm = await makeUser('pm-2', '项目经理')
+    const member = await makeUser('member-2', '普通成员')
+    const projectId = await createProjectAs(pm.token)
+    await request(app.server)
+      .post(`/projects/${projectId}/members`)
+      .set(bearer(pm.token))
+      .send({ account: 'member-2', role: 'MEMBER' })
+
+    const res = await request(app.server)
+      .get(`/projects/${projectId}/members`)
+      .set(bearer(member.token))
+
+    expect(res.status).toBe(200)
+    expect(res.body.items).toHaveLength(2)
+  })
+
+  it('非项目成员 → 404 NOT_FOUND', async () => {
+    const app = await getApp()
+    const pm = await makeUser('pm-3', '项目经理')
+    const outsider = await makeUser('outsider-3', '局外人')
+    const projectId = await createProjectAs(pm.token)
+
+    const res = await request(app.server)
+      .get(`/projects/${projectId}/members`)
+      .set(bearer(outsider.token))
+
+    expect(res.status).toBe(404)
+    expect(res.body.error.code).toBe('NOT_FOUND')
+  })
+
+  it('未登录 → 401 UNAUTHENTICATED', async () => {
+    const app = await getApp()
+    const res = await request(app.server).get('/projects/whatever/members')
+    expect(res.status).toBe(401)
+    expect(res.body.error.code).toBe('UNAUTHENTICATED')
+  })
+})

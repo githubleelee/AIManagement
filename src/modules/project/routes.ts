@@ -167,4 +167,21 @@ export function registerProjectRoutes(app: FastifyInstance): void {
 
     return reply.status(201).send(toMemberView(member))
   })
+
+  // 端点 7：GET /projects/:projectId/members —— 权限：project.read
+  // 成员列表按 joinedAt 升序；非成员统一 404
+  app.get('/projects/:projectId/members', { preHandler: requireAuth }, async (request) => {
+    const { projectId } = projectParams.parse(request.params)
+    const actorUserId = request.actorUserId as string
+
+    const decision = await can(actorUserId, 'project.read', { kind: 'project', projectId })
+    if (!decision.allow) throw new AppError(decision.status, decision.code, '项目不存在')
+
+    const members = await prisma.projectMember.findMany({
+      where: { projectId },
+      include: { user: true },
+      orderBy: { joinedAt: 'asc' },
+    })
+    return { items: members.map(toMemberView) }
+  })
 }
