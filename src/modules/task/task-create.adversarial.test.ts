@@ -335,11 +335,12 @@ describe('C. 输入边界', () => {
     expect(fieldCode(b.body as ErrorBody, 'planEnd')).toBe('REQUIRED')
   })
 
-  it('C5 非法日历日期被 Zod 正则放行（契约与实现的空白，非实现缺陷）', async () => {
+  it('C5 非法日历日期仅被 Zod 正则放行（形状层空白，T5-02 未引入日历校验）', async () => {
     // 正则 /^\d{4}-\d{2}-\d{2}$/ 只保证形状，不保证日历合法性。
-    // 记录：2026-13-01（13 月）与 2026-02-30（不存在的 2 月 30 日）当前均被接受。
+    // 注意：T5-02 的 planEnd >= planStart 业务规则会在 planStart 取值较大时先行拒绝，
+    // 因此这里把 planEnd 设为同值，隔离出「形状层是否接受」这一点。
     for (const value of ['2026-13-01', '2026-02-30', '2026-00-00', '2026-99-99']) {
-      const response = await postTask(validBody({ planStart: value }))
+      const response = await postTask(validBody({ planStart: value, planEnd: value }))
       expect(response.status, `planStart=${value}`).toBe(201)
       const persisted = await ctx.prisma.task.findFirst({ where: { planStart: value } })
       expect(persisted, `planStart=${value}`).not.toBeNull()
@@ -518,34 +519,44 @@ describe('D. 响应契约', () => {
 })
 
 // ===========================================================================
-// G. 观察项：T5-01 范围外（T5-02 处理），记录当前实现行为
-//    这些断言在 T5-02 合入后必须改为「拒绝」，此处仅作为对抗性验证证据留档。
+// G. T5-02 业务规则强制（原 T5-01 缺口断言已翻转）
+//    T5-01 时这里断言「当前接受」作为缺口留档；合并 T5-02 后改为断言拒绝
+//    与字段级错误码，并确认被拒请求不落库。
 // ===========================================================================
-describe('G. 观察项：T5-01 范围外业务规则（T5-02 缺口，当前接受）', () => {
-  it('G1 验收人 = 负责人 → 当前 201（T5-02 应 422 ACCEPTOR_EQUALS_OWNER）', async () => {
+describe('G. T5-02 业务规则强制（原 T5-01 缺口断言已翻转）', () => {
+  it('G1 验收人 = 负责人 → 422 acceptorUserId: ACCEPTOR_EQUALS_OWNER，且不落库', async () => {
     const response = await postTask(validBody({ ownerUserId: member.id, acceptorUserId: member.id }))
 
-    expect(response.status).toBe(201)
-    const persisted = await ctx.prisma.task.findFirst()
-    expect(persisted?.ownerUserId).toBe(persisted?.acceptorUserId)
+    expect(response.status).toBe(422)
+    expect((response.body as ErrorBody).error.code).toBe('VALIDATION_FAILED')
+    expect(fieldCode(response.body as ErrorBody, 'acceptorUserId')).toBe('ACCEPTOR_EQUALS_OWNER')
+    expect(await ctx.prisma.task.count()).toBe(0)
   })
 
-  it('G2 负责人非本项目成员但用户存在 → 当前 201（T5-02 应 422 NOT_PROJECT_MEMBER）', async () => {
+  it('G2 负责人非本项目成员但用户存在 → 422 ownerUserId: NOT_PROJECT_MEMBER，且不落库', async () => {
     const response = await postTask(validBody({ ownerUserId: outsider.id }))
 
-    expect(response.status).toBe(201)
+    expect(response.status).toBe(422)
+    expect((response.body as ErrorBody).error.code).toBe('VALIDATION_FAILED')
+    expect(fieldCode(response.body as ErrorBody, 'ownerUserId')).toBe('NOT_PROJECT_MEMBER')
+    expect(await ctx.prisma.task.count()).toBe(0)
   })
 
-  it('G3 planEnd 早于 planStart → 当前 201（T5-02 应 422 END_BEFORE_START）', async () => {
+  it('G3 planEnd 早于 planStart → 422 planEnd: END_BEFORE_START，且不落库', async () => {
     const response = await postTask(validBody({ planStart: '2026-09-10', planEnd: '2026-09-01' }))
 
-    expect(response.status).toBe(201)
+    expect(response.status).toBe(422)
+    expect((response.body as ErrorBody).error.code).toBe('VALIDATION_FAILED')
+    expect(fieldCode(response.body as ErrorBody, 'planEnd')).toBe('END_BEFORE_START')
+    expect(await ctx.prisma.task.count()).toBe(0)
   })
 
-  it('G4 负责人 id 在 User 表不存在 → 当前 500（外键失败，非契约错误码）', async () => {
+  it('G4 负责人 id 在 User 表不存在 → 422 ownerUserId: NOT_PROJECT_MEMBER（校验先于写库）', async () => {
     const response = await postTask(validBody({ ownerUserId: 'ghost-user-id' }))
 
-    // 记录：T5-02 的成员归属校验（且校验先于写库）应把它变成 422 NOT_PROJECT_MEMBER
-    expect(response.status).toBe(500)
+    expect(response.status).toBe(422)
+    expect((response.body as ErrorBody).error.code).toBe('VALIDATION_FAILED')
+    expect(fieldCode(response.body as ErrorBody, 'ownerUserId')).toBe('NOT_PROJECT_MEMBER')
+    expect(await ctx.prisma.task.count()).toBe(0)
   })
 })
