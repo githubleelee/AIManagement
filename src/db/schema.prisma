@@ -1,0 +1,148 @@
+// 爱管理 Sprint 1 数据模型（接口契约决策 I-7，冻结）
+//
+// SQLite 工程约束：Prisma 在 SQLite 上不支持原生 enum，枚举列一律 String，
+// 取值合法性由 src/shared/validation.ts 的 Zod 枚举在写入前保证。
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  account      String   @unique
+  displayName  String
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  memberships   ProjectMember[]
+  ownedProjects Project[]          @relation("ProjectOwner")
+  ownedTasks    Task[]             @relation("TaskOwner")
+  acceptedTasks Task[]             @relation("TaskAcceptor")
+  visibility    ObjectVisibility[]
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  ownerUserId String
+  createdAt   DateTime @default(now())
+
+  owner      User            @relation("ProjectOwner", fields: [ownerUserId], references: [id])
+  members    ProjectMember[]
+  goals      BusinessGoal[]
+  stories    UserStory[]
+  tasks      Task[]
+  visibility ObjectVisibility[]
+  auditLogs  AuditLog[]
+}
+
+model ProjectMember {
+  projectId String
+  userId    String
+  role      String // ProjectRole
+  joinedAt  DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+}
+
+model BusinessGoal {
+  id          String  @id @default(uuid())
+  projectId   String
+  name        String
+  description String?
+  status      String  @default("ACTIVE") // GoalStatus
+  sortOrder   Int
+
+  project    Project        @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  activities UserActivity[]
+}
+
+model UserActivity {
+  id          String  @id @default(uuid())
+  projectId   String
+  goalId      String
+  name        String
+  description String?
+  status      String  @default("ACTIVE") // GoalStatus
+  sortOrder   Int
+
+  goal    BusinessGoal @relation(fields: [goalId], references: [id], onDelete: Restrict)
+  stories UserStory[]
+}
+
+model UserStory {
+  id                 String   @id @default(uuid())
+  projectId          String
+  activityId         String
+  title              String
+  roleText           String
+  capabilityText     String
+  valueText          String
+  businessValue      String
+  priority           String // Priority
+  status             String   @default("DRAFT") // StoryStatus
+  acceptanceCriteria String?
+  isSensitive        Boolean  @default(false)
+  createdAt          DateTime @default(now())
+
+  project  Project      @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  activity UserActivity @relation(fields: [activityId], references: [id], onDelete: Restrict)
+  tasks    Task[]
+}
+
+model Task {
+  id             String   @id @default(uuid())
+  projectId      String
+  storyId        String
+  title          String
+  description    String?
+  ownerUserId    String
+  acceptorUserId String
+  planStart      String // 'YYYY-MM-DD'
+  planEnd        String // 'YYYY-MM-DD'
+  status         String   @default("TODO") // TaskStatus
+  isSensitive    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  story    UserStory @relation(fields: [storyId], references: [id], onDelete: Restrict)
+  owner    User      @relation("TaskOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  acceptor User      @relation("TaskAcceptor", fields: [acceptorUserId], references: [id], onDelete: Restrict)
+}
+
+model ObjectVisibility {
+  projectId  String
+  objectType String // VisibilityObjectType: 'story' | 'task'
+  objectId   String // 多态列，无外键：删除故事/任务时必须由模块手动清理
+  userId     String
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([objectType, objectId, userId])
+  @@index([objectType, objectId])
+  @@index([projectId, objectType])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  projectId   String
+  actorUserId String
+  action      String
+  objectType  String
+  objectId    String
+  before      String?
+  after       String?
+  createdAt   DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
