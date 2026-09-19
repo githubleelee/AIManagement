@@ -11,9 +11,10 @@
  *   2. 不修改冻结文件（`src/shared/`、`src/db/schema.prisma`、`src/routes.ts`）。
  *   3. 不修改已有测试文件；夹具写在本文件内部，不碰 `test/http-support.ts`。
  *   4. **只断言错误码与字段级 code，不断言中文文案。**
- *   5. 用 `createHttpTestContext()` 指向独立临时库，并用
- *      `ctx.app.register(registerRequirementRoutes, { prisma: ctx.db })` 挂插件
- *      （生产注册行在冻结文件 `src/routes.ts`，本分支不存在）。
+ *   5. 用 `createHttpTestContext()` 指向独立临时库。
+ *      插件的注册由 `buildApp()` → `registerRoutes()` → `registerRequirementRoutes()`
+ *      完成（生产注册行已在冻结文件 `src/routes.ts` 接上），本文件**不手动注册**：
+ *      重复注册会触发 Fastify 的 `FST_ERR_DUPLICATED_ROUTE`。
  *
  * 契约依据：决策 I-2（共享类型）、I-3（响应信封）、I-4（错误码表）、
  *           I-5（can() 判定顺序）、I-8 端点 11、I-10（projectId 推导）。
@@ -26,7 +27,6 @@ import {
   makeUser,
   type HttpTestContext,
 } from '../../../test/http-support.js'
-import { registerRequirementRoutes } from './plugin.js'
 import { GOAL_NAME_MAX_LENGTH } from './schemas.js'
 import { makeGoal } from './test-fixtures.js'
 
@@ -80,8 +80,12 @@ function expectFieldError(body: ErrorBody, field: string, code: string): void {
 
 beforeAll(async () => {
   ctx = await createHttpTestContext()
-  // 生产注册行不在本分支（冻结文件 src/routes.ts），必须在临时库上自挂插件
-  await ctx.app.register(registerRequirementRoutes, { prisma: ctx.db })
+  // 【重要】不再手动 register 插件。
+  // 生产注册行已在冻结文件 `src/routes.ts` 接上（T3.1 收尾时补），
+  // 因此 `createHttpTestContext()` → `buildApp()` → `registerRoutes()` 已完成注册。
+  // 再手动注册一次会因重复路由抛 `FST_ERR_DUPLICATED_ROUTE`
+  // （已核实于 fastify/lib/route.js:365），导致本文件全挂。
+  // 附带收益：本文件现在验证的是真实生产注册路径。
   await ctx.app.ready()
 }, 120_000)
 

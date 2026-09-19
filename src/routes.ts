@@ -24,13 +24,14 @@
  */
 import type { FastifyInstance } from 'fastify'
 import type { PrismaClient } from '@prisma/client'
+import { registerRequirementRoutes } from './modules/requirement/plugin.js'
 
 /** 路由注册所需的依赖集合。模块插件通过它取得数据库，而非 import 全局单例。 */
 export type RouteContext = {
   prisma: PrismaClient
 }
 
-export function registerRoutes(app: FastifyInstance, _context: RouteContext): void {
+export function registerRoutes(app: FastifyInstance, context: RouteContext): void {
   // 基础设施端点：健康检查（不属于决策 I-8 的 30 个业务端点）
   app.get('/health', async () => ({ status: 'ok' }))
 
@@ -48,5 +49,9 @@ export function registerRoutes(app: FastifyInstance, _context: RouteContext): vo
   // 示例（待各模块就绪后启用）：
   //   registerProjectRoutes(app, context)
   //   registerAuthzRoutes(app, context)
-  //   registerRequirementRoutes(app, context)   ← US-03（T3.1–T3.10，端点 10–22）
+
+  // US-03 需求层级（T3.1–T3.10，端点 10–22）
+  // 已于 T3.1 交付端点 11；端点 12–22 随 T3.2–T3.10 陆续加入同一插件。
+  // 注册此行前，本模块的端点在生产 app 上一律 404（模块只导出插件、不自挂路由）。
+  registerRequirementRoutes(app, context)
 }

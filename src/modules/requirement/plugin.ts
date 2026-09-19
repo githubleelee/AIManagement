@@ -14,8 +14,11 @@
  *   本文件属 M4 独占，只新增、不触碰冻结文件。
  *   本模块**只导出插件**，不自行为 `app.get/post` 挂载生产路由：正式注册行
  *   （`registerRequirementRoutes(app, context)`）位于冻结文件 `src/routes.ts`，
- *   由**技术负责人**在合并时统一添加。
- *   测试通过 `app.register(registerRequirementRoutes, { prisma })` 在独立临时库上加载。
+ *   由**技术负责人**统一添加（T3.1 收尾时已授权补上）。
+ *   测试**不手动注册**：`createHttpTestContext()` 内部的 `buildApp()` →
+ *   `registerRoutes()` 已完成注册；重复注册会抛 Fastify 的
+ *   `FST_ERR_DUPLICATED_ROUTE`（核实于 fastify/lib/route.js:365）。
+ *   因此测试走的是真实生产注册路径，而非测试自搭的旁路。
  */
 import type { FastifyInstance } from 'fastify'
 import { currentUserId, requireAuth } from '../../auth/actor.js'

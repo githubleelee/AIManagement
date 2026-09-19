@@ -10,9 +10,13 @@
  *   - **越权用例必须打接口**：MEMBER / VIEWER / 非成员的拒绝全部真实发请求断言状态码。
  *
  * 关于路由挂载位置（决策 I-0）
- *   生产注册行位于**冻结文件** `src/routes.ts`，由技术负责人在合并时添加，本模块不得自行修改。
- *   因此本测试用 `app.register(registerRequirementRoutes, { prisma })` 在**独立临时库**上加载插件，
- *   使端点在合并前即可被真实验证；这也保证了「HTTP 是唯一 seam」不被破坏。
+ *   生产注册行位于 `src/routes.ts`（冻结文件），本模块只导出插件、不自挂路由。
+ *   T3.1 收尾时该注册行已由技术负责人授权补上：
+ *       registerRoutes(app, context) → registerRequirementRoutes(app, context)
+ *   因此本测试**不再手动 register 插件**——`createHttpTestContext()` 内部的
+ *   `buildApp()` 已经完成注册。手动再注册一次会触发 Fastify 的
+ *   `FST_ERR_DUPLICATED_ROUTE`（已在 fastify/lib/route.js:365 核实该行为）。
+ *   副作用是本测试走的是**真实生产注册路径**，而非测试自搭的旁路。
  *
  * 契约依据：决策 I-8 端点 11
  *   请求  { name: string, description?: string }
@@ -30,7 +34,6 @@ import {
   makeUser,
   type HttpTestContext,
 } from '../../../test/http-support.js'
-import { registerRequirementRoutes } from './plugin.js'
 import { makeGoal } from './test-fixtures.js'
 import { GOAL_NAME_MAX_LENGTH } from './schemas.js'
 
@@ -49,8 +52,15 @@ const URL_GOALS = (id: string) => `/projects/${id}/goals`
 beforeAll(async () => {
   ctx = await createHttpTestContext()
 
-  // 关键：把本模块插件挂到「指向独立临时库」的 app 上（不是 dev.db）
-  await ctx.app.register(registerRequirementRoutes, { prisma: ctx.db })
+  // 【重要】这里**不再**手动 register 本模块插件。
+  //
+  // 原因：`createHttpTestContext()` 内部调用 `buildApp({ prisma: tempDb.prisma })`，
+  // 而 `buildApp` → `registerRoutes(app, context)` → `registerRequirementRoutes(app, context)`
+  // 已经完成了注册（T3.1 收尾时在冻结文件 `src/routes.ts` 中接上）。
+  // Fastify 对重复路由会抛 `FST_ERR_DUPLICATED_ROUTE`，再手动注册一次会让本文件全挂。
+  //
+  // 这个变化带来一个额外好处：测试现在走的是**真实生产注册路径**
+  // （routes.ts 里那一行），而不是测试自己搭的旁路，因此能顺带验证该注册行确实生效。
   await ctx.app.ready()
 }, 120_000)
 
