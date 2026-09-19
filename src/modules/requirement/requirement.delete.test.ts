@@ -77,12 +77,44 @@ async function goalExists(id: string) {
   return (await ctx.db.businessGoal.count({ where: { id } })) === 1
 }
 
-/** 造一个可被删除的完整层级：目标 → 活动 → 故事（无子项）。 */
-async function makeEmptyChain() {
-  const g = await makeGoal(ctx.db, projectId, '空目标')
-  const a = await makeActivity(ctx.db, projectId, g, '空活动')
+/**
+ * 造一条**完整链路**：目标 → 活动 → 故事。
+ *
+ * ⚠️ 命名陷阱的教训（T3.9 首轮 2 条红用例的根因，已记入提交与表五）
+ *   本函数原先叫 `makeEmptyChain`、注释写「无子项」，但它**显式造了一个故事** ——
+ *   于是返回的 `goal` 有子活动、`activity` 有子故事，**两者都不是「无下级」**。
+ *   两条正例（「PM 删除无下级的目标 → 204」「PM 删除无下级故事的活动 → 204」）
+ *   拿它当可删除对象用，删除时实现**正确地**返回了 409，却被报成缺陷。
+ *
+ *   修法不是放宽断言（断言仍是契约要求的 204，一个字没改），而是**让数据匹配用例的前提**：
+ *   需要「无下级、可删除」的对象时，请用下面的 `makeDeletableGoal` /
+ *   `makeDeletableActivity`，不要再靠本函数猜自己有没有子项。
+ *
+ * 本链路中故事下没有任务，因此 `story` 是可删除的（端点 22 的正例用它）。
+ */
+async function makeFullChain() {
+  const g = await makeGoal(ctx.db, projectId, '链路目标')
+  const a = await makeActivity(ctx.db, projectId, g, '链路活动')
   const s = await makeStory(ctx.db, projectId, a)
   return { goal: g, activity: a, story: s }
+}
+
+/**
+ * 造一个**下无活动**的目标 —— 端点 13 的删除成功路径（204）用它。
+ * 与 `makeFullChain` 的唯一区别：不造子活动。
+ */
+async function makeDeletableGoal(): Promise<string> {
+  return makeGoal(ctx.db, projectId, '可删除的目标')
+}
+
+/**
+ * 造一条「目标 → 活动」且**活动下无故事**的链路 —— 端点 17 的删除成功路径（204）用它。
+ * 与 `makeFullChain` 的唯一区别：不造子故事。
+ */
+async function makeDeletableActivity(): Promise<{ goal: string; activity: string }> {
+  const goal = await makeGoal(ctx.db, projectId, '可删除的目标')
+  const activity = await makeActivity(ctx.db, projectId, goal, '可删除的活动')
+  return { goal, activity }
 }
 
 beforeAll(async () => {
@@ -124,24 +156,29 @@ beforeEach(async () => {
 
 describe('端点 13 正例：删除业务目标', () => {
   it('PM 删除无下级的目标 → 204，响应体为空，库中已不存在', async () => {
-    const chain = await makeEmptyChain()
-    // 先把新建链路整体删掉，避免影响断言：这里只关心 removeMe 这个目标
-    const res = await ctx.asUser(pmToken).delete(URL_GOAL(chain.goal))
+    // 用 makeDeletableGoal（该目标下没有任何活动）——
+    // 不能用含子活动的链路，否则实现会正确返回 409（见 makeFullChain 的注释）
+    const deletableGoalId = await makeDeletableGoal()
+    const res = await ctx.asUser(pmToken).delete(URL_GOAL(deletableGoalId))
 
     expect(res.status).toBe(204)
     expect(res.text).toBe('')
-    expect(await goalExists(chain.goal)).toBe(false)
+    expect(await goalExists(deletableGoalId)).toBe(false)
   })
 
   it('删除只作用于该目标：同项目其它目标逐行不变', async () => {
-    const chain = await makeEmptyChain()
+    const deletableGoalId = await makeDeletableGoal()
     const survivorBefore = await ctx.db.businessGoal.findUnique({
       where: { id: goalId },
       select: { id: true, projectId: true, name: true, description: true, status: true, sortOrder: true },
     })
 
-    await ctx.asUser(pmToken).delete(URL_GOAL(chain.goal))
+    const res = await ctx.asUser(pmToken).delete(URL_GOAL(deletableGoalId))
 
+    // ⚠️ 必须先断言删除**真的成功了**：否则若上一步被 409 拒绝，
+    // 后面的「其它目标不变」会在「什么都没发生」的前提下平凡成立，用例就失去了意义。
+    expect(res.status).toBe(204)
+    expect(await goalExists(deletableGoalId)).toBe(false)
     expect(await goalExists(goalId)).toBe(true)
     expect(
       await ctx.db.businessGoal.findUnique({
@@ -185,7 +222,7 @@ describe('端点 13 反例：HAS_CHILDREN 与权限', () => {
   })
 
   it('MEMBER 删除 → 403 FORBIDDEN', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     const res = await ctx.asUser(memberToken).delete(URL_GOAL(chain.goal))
 
     expect(res.status).toBe(403)
@@ -193,7 +230,7 @@ describe('端点 13 反例：HAS_CHILDREN 与权限', () => {
   })
 
   it('VIEWER 删除 → 403 FORBIDDEN（本轮 VIEWER 与 MEMBER 同待遇）', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     const res = await ctx.asUser(viewerToken).delete(URL_GOAL(chain.goal))
 
     expect(res.status).toBe(403)
@@ -201,7 +238,7 @@ describe('端点 13 反例：HAS_CHILDREN 与权限', () => {
   })
 
   it('非项目成员删除 → 404 NOT_FOUND，且目标仍在', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     const res = await ctx.asUser(outsiderToken).delete(URL_GOAL(chain.goal))
 
     expect(res.status).toBe(404)
@@ -210,7 +247,7 @@ describe('端点 13 反例：HAS_CHILDREN 与权限', () => {
   })
 
   it('未登录 → 401 UNAUTHENTICATED，且目标仍在', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     const res = await ctx.asUser(null).delete(URL_GOAL(chain.goal))
 
     expect(res.status).toBe(401)
@@ -219,7 +256,7 @@ describe('端点 13 反例：HAS_CHILDREN 与权限', () => {
   })
 
   it('Authorization 头是垃圾令牌 → 401 UNAUTHENTICATED', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     const res = await ctx.asUser('not-a-real-token').delete(URL_GOAL(chain.goal))
 
     expect(res.status).toBe(401)
@@ -260,27 +297,32 @@ describe('端点 13 反例：HAS_CHILDREN 与权限', () => {
 
 describe('端点 17 正例：删除用户活动', () => {
   it('PM 删除无下级故事的活动 → 204，库中已不存在', async () => {
-    const chain = await makeEmptyChain()
-    const res = await ctx.asUser(pmToken).delete(URL_ACTIVITY(chain.activity))
+    // 用 makeDeletableActivity（该活动下没有任何故事）——
+    // 不能用完整链路，否则实现会正确返回 409（见 makeFullChain 的注释）
+    const deletable = await makeDeletableActivity()
+    const res = await ctx.asUser(pmToken).delete(URL_ACTIVITY(deletable.activity))
 
     expect(res.status).toBe(204)
     expect(res.text).toBe('')
-    expect(await activityExists(chain.activity)).toBe(false)
+    expect(await activityExists(deletable.activity)).toBe(false)
   })
 
   it('删除活动不影响其父目标：目标的 6 个字段逐字段不变', async () => {
-    const chain = await makeEmptyChain()
+    const deletable = await makeDeletableActivity()
     const goalBefore = await ctx.db.businessGoal.findUnique({
-      where: { id: chain.goal },
+      where: { id: deletable.goal },
       select: { id: true, projectId: true, name: true, description: true, status: true, sortOrder: true },
     })
 
-    await ctx.asUser(pmToken).delete(URL_ACTIVITY(chain.activity))
+    const res = await ctx.asUser(pmToken).delete(URL_ACTIVITY(deletable.activity))
 
-    expect(await goalExists(chain.goal)).toBe(true)
+    // ⚠️ 同样必须先断言删除真的成功，否则「父目标不变」会在未发生删除时平凡成立
+    expect(res.status).toBe(204)
+    expect(await activityExists(deletable.activity)).toBe(false)
+    expect(await goalExists(deletable.goal)).toBe(true)
     expect(
       await ctx.db.businessGoal.findUnique({
-        where: { id: chain.goal },
+        where: { id: deletable.goal },
         select: { id: true, projectId: true, name: true, description: true, status: true, sortOrder: true },
       }),
     ).toEqual(goalBefore)
@@ -314,7 +356,7 @@ describe('端点 17 反例：HAS_CHILDREN 与权限', () => {
   })
 
   it('MEMBER 删除 → 403 FORBIDDEN', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     const res = await ctx.asUser(memberToken).delete(URL_ACTIVITY(chain.activity))
 
     expect(res.status).toBe(403)
@@ -322,14 +364,14 @@ describe('端点 17 反例：HAS_CHILDREN 与权限', () => {
   })
 
   it('VIEWER 删除 → 403 FORBIDDEN', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     const res = await ctx.asUser(viewerToken).delete(URL_ACTIVITY(chain.activity))
 
     expect(res.status).toBe(403)
   })
 
   it('非项目成员删除 → 404，且活动仍在', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     const res = await ctx.asUser(outsiderToken).delete(URL_ACTIVITY(chain.activity))
 
     expect(res.status).toBe(404)
@@ -338,7 +380,7 @@ describe('端点 17 反例：HAS_CHILDREN 与权限', () => {
   })
 
   it('未登录 → 401，且活动仍在', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     const res = await ctx.asUser(null).delete(URL_ACTIVITY(chain.activity))
 
     expect(res.status).toBe(401)
@@ -407,7 +449,7 @@ describe('端点 17 反例：HAS_CHILDREN 与权限', () => {
 
 describe('端点 22 正例：删除用户故事', () => {
   it('PM 删除无任务的故事 → 204，库中已不存在', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     const res = await ctx.asUser(pmToken).delete(URL_STORY(chain.story))
 
     expect(res.status).toBe(204)
@@ -416,7 +458,7 @@ describe('端点 22 正例：删除用户故事', () => {
   })
 
   it('删除故事不影响其父活动与目标', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
 
     await ctx.asUser(pmToken).delete(URL_STORY(chain.story))
 
@@ -425,7 +467,7 @@ describe('端点 22 正例：删除用户故事', () => {
   })
 
   it('PM 可以删除敏感故事（PM 对自己项目内的敏感对象可见，不受敏感白名单限制）', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     await makeSensitive(ctx.db, projectId, 'story', chain.story, [memberId])
 
     const res = await ctx.asUser(pmToken).delete(URL_STORY(chain.story))
@@ -437,7 +479,7 @@ describe('端点 22 正例：删除用户故事', () => {
 
 describe('端点 22 副作用：同一事务内清理 ObjectVisibility', () => {
   it('删除故事后，该故事的可见性记录必须被清理为 0（决策 I-7 的多态列无外键）', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     await makeSensitive(ctx.db, projectId, 'story', chain.story, [memberId])
     expect(await visibilityCount('story', chain.story)).toBe(1)
 
@@ -450,8 +492,8 @@ describe('端点 22 副作用：同一事务内清理 ObjectVisibility', () => {
   })
 
   it('清理只针对该故事的 story 记录：别的故事与 task 类型的记录逐行不变', async () => {
-    const doomed = await makeEmptyChain()
-    const survivor = await makeEmptyChain()
+    const doomed = await makeFullChain()
+    const survivor = await makeFullChain()
     // 幸存故事下挂一个任务，并给任务也写可见性记录（多态列的另一维）
     const taskId = await makeTask(ctx.db, projectId, survivor.story, pmId, memberId)
 
@@ -478,7 +520,7 @@ describe('端点 22 副作用：同一事务内清理 ObjectVisibility', () => {
   })
 
   it('故事仍有任务 → 409 时**可见性记录一条都不能少**（同事务回滚的直接证据）', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     await makeTask(ctx.db, projectId, chain.story, pmId, memberId)
     await makeSensitive(ctx.db, projectId, 'story', chain.story, [memberId])
     const before = await ctx.db.objectVisibility.findMany({
@@ -497,7 +539,7 @@ describe('端点 22 副作用：同一事务内清理 ObjectVisibility', () => {
   })
 
   it('HAS_CHILDREN 可解除：移除任务后再删 → 204，且可见性一并被清理', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     const taskId = await makeTask(ctx.db, projectId, chain.story, pmId, memberId)
     await makeSensitive(ctx.db, projectId, 'story', chain.story, [memberId])
 
@@ -513,7 +555,7 @@ describe('端点 22 副作用：同一事务内清理 ObjectVisibility', () => {
 
 describe('端点 22 反例：HAS_CHILDREN 与权限', () => {
   it('故事下仍有任务 → 409 CONFLICT，details 含 HAS_CHILDREN', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     await makeTask(ctx.db, projectId, chain.story, pmId, memberId)
 
     const res = await ctx.asUser(pmToken).delete(URL_STORY(chain.story))
@@ -525,7 +567,7 @@ describe('端点 22 反例：HAS_CHILDREN 与权限', () => {
   })
 
   it('409 之后故事与任务都仍在', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     const taskId = await makeTask(ctx.db, projectId, chain.story, pmId, memberId)
 
     await ctx.asUser(pmToken).delete(URL_STORY(chain.story))
@@ -535,7 +577,7 @@ describe('端点 22 反例：HAS_CHILDREN 与权限', () => {
   })
 
   it('MEMBER 删除 → 403 FORBIDDEN', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     const res = await ctx.asUser(memberToken).delete(URL_STORY(chain.story))
 
     expect(res.status).toBe(403)
@@ -543,14 +585,14 @@ describe('端点 22 反例：HAS_CHILDREN 与权限', () => {
   })
 
   it('VIEWER 删除 → 403 FORBIDDEN', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     const res = await ctx.asUser(viewerToken).delete(URL_STORY(chain.story))
 
     expect(res.status).toBe(403)
   })
 
   it('非项目成员删除 → 404，且故事与可见性记录都不变', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     await makeSensitive(ctx.db, projectId, 'story', chain.story, [memberId])
 
     const res = await ctx.asUser(outsiderToken).delete(URL_STORY(chain.story))
@@ -562,7 +604,7 @@ describe('端点 22 反例：HAS_CHILDREN 与权限', () => {
   })
 
   it('未登录 → 401，且故事仍在', async () => {
-    const chain = await makeEmptyChain()
+    const chain = await makeFullChain()
     const res = await ctx.asUser(null).delete(URL_STORY(chain.story))
 
     expect(res.status).toBe(401)
