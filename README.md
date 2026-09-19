@@ -26,6 +26,17 @@
 
 React + TypeScript + Vite　/　Node + TypeScript + Fastify　/　SQLite + Prisma　/　Zod　/　Vitest + supertest
 
+## 快速开始
+
+```bash
+npm install    # 安装依赖
+npm run dev    # 同时启动后端（http://localhost:3000）与前端（http://localhost:5173）
+npm test       # 运行 Vitest + supertest 测试
+```
+
+辅助命令：`npm run typecheck`（前后端类型检查）、`npm run build`（产出 `dist/`）、`npm start`（运行已构建的后端）。
+后端健康检查：`GET http://localhost:3000/health` 返回 `{ "status": "ok" }`。
+
 ## 工作约定
 
 ### 接口契约

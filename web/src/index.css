@@ -1,0 +1,48 @@
+:root {
+  color-scheme: light dark;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    'PingFang SC',
+    'Microsoft YaHei',
+    sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.shell {
+  text-align: center;
+  padding: 2rem 3rem;
+  border-radius: 16px;
+  background: rgba(30, 41, 59, 0.8);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.shell h1 {
+  margin: 0 0 0.25rem;
+  font-size: 2rem;
+}
+
+.tagline {
+  margin: 0;
+  color: #94a3b8;
+}
+
+.flow {
+  margin: 1.25rem 0;
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
+  color: #38bdf8;
+}
+
+.health strong {
+  color: #4ade80;
+}
