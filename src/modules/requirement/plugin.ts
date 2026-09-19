@@ -1,5 +1,6 @@
 /**
- * 需求层级模块 —— HTTP 路由插件（M4 / US-03，端点 11、12、13、14、15、16、17、18、22）
+ * 需求层级模块 —— HTTP 路由插件
+ * （M4 / US-03，端点 10–22；截至 T3.7 已交付 11–22，端点 10 属 T3.8/T3.10）
  *
  * 契约依据
  *   - 决策 I-9「模块依赖方向」：`M2 / M4 / M5 ──→ 通过 can() / visibilityScope() 使用 M3，
@@ -28,23 +29,28 @@ import type { RouteContext } from '../../routes.js'
 import {
   createBusinessGoal,
   createUserActivity,
+  createUserStory,
   deleteBusinessGoal,
   deleteUserActivity,
   deleteUserStory,
+  getUserStory,
   reorderBusinessGoals,
   reorderUserActivities,
   updateBusinessGoal,
   updateUserActivity,
+  updateUserStory,
 } from './service.js'
 import {
   createBusinessGoalSchema,
   createUserActivitySchema,
+  createUserStorySchema,
   fieldError,
   parseBody,
   reorderActivitiesSchema,
   reorderGoalsSchema,
   updateBusinessGoalSchema,
   updateUserActivitySchema,
+  updateUserStorySchema,
   validationFailedWith,
 } from './schemas.js'
 
@@ -688,8 +694,196 @@ export function registerRequirementRoutes(app: FastifyInstance, ctx: RouteContex
     },
   )
 
-  // 供后续任务使用的占位注释：
-  // 端点 10 属 T3.8 / T3.10，端点 19 属 T3.6，端点 20–21 属 T3.7。
-  // 端点 13、17、22（含 HAS_CHILDREN）已由 T3.9 交付。
-  // 均在本文件内按任务逐步追加。
+  // ===========================================================================
+  // 端点 19 —— POST /activities/:activityId/stories —— 权限：requirement.write
+  //
+  // 请求  { title, roleText, capabilityText, valueText, businessValue: string
+  //         priority: Priority
+  //         acceptanceCriteria?: string }
+  // 响应  201 UserStory
+  // 错误  403 FORBIDDEN
+  //       404 NOT_FOUND
+  //       422 VALIDATION_FAILED（title / roleText / capabilityText / valueText /
+  //                              businessValue: REQUIRED | TOO_LONG
+  //                              priority: REQUIRED | INVALID_VALUE）
+  // 副作用 projectId 取自 activityId 所属活动；
+  //        status 默认 'DRAFT'；isSensitive 默认 false
+  // 契约依据：决策 I-8 端点 19；基线 AC-US-03-03「必须在某用户活动下创建；
+  //           三段式、业务价值、优先级均可填写并持久化」
+  // ===========================================================================
+  app.post(
+    '/activities/:activityId/stories',
+    { preHandler: requireAuth },
+    async (req, reply) => {
+      const actorUserId = currentUserId(req)
+      const { activityId } = req.params as { activityId: string }
+
+      // 第 1 步：父级活动必须存在，并取出它所属的 projectId（同端点 15/16）
+      const activity = await ctx.prisma.userActivity.findUnique({
+        where: { id: activityId },
+        select: { id: true, projectId: true },
+      })
+      if (!activity) {
+        throw new AppError(404, 'NOT_FOUND', ACTIVITY_NOT_FOUND_MESSAGE)
+      }
+
+      // 第 2 步：唯一鉴权入口（决策 I-5）
+      const decision = await can(actorUserId, 'requirement.write', {
+        kind: 'activity',
+        projectId: activity.projectId,
+        objectId: activityId,
+      })
+      if (!decision.allow) {
+        throw new AppError(decision.status, decision.code, ACTIVITY_NOT_FOUND_MESSAGE)
+      }
+
+      // 第 3 步：字段校验
+      const input = parseBody(createUserStorySchema, req.body ?? {})
+
+      // 五个必填文本字段都要判纯空白（`.min(1)` 拦不住 `'   '`），且**一次报全部**，
+      // 而不是遇到第一个就返回 —— 客户端应当一轮就拿到所有问题（决策 I-4）。
+      const title = input.title.trim()
+      const roleText = input.roleText.trim()
+      const capabilityText = input.capabilityText.trim()
+      const valueText = input.valueText.trim()
+      const businessValue = input.businessValue.trim()
+
+      const blankFields: string[] = []
+      if (title === '') blankFields.push('title')
+      if (roleText === '') blankFields.push('roleText')
+      if (capabilityText === '') blankFields.push('capabilityText')
+      if (valueText === '') blankFields.push('valueText')
+      if (businessValue === '') blankFields.push('businessValue')
+      if (blankFields.length > 0) {
+        validationFailedWith(blankFields.map((field) => fieldError(field, 'REQUIRED')))
+      }
+
+      // 第 4 步：写入。projectId 取自父级活动（决策 I-10）；
+      // status / isSensitive 交给表默认值，请求体里也没有这两个字段。
+      const story = await createUserStory(ctx.prisma, activityId, activity.projectId, {
+        title,
+        roleText,
+        capabilityText,
+        valueText,
+        businessValue,
+        priority: input.priority,
+        ...(input.acceptanceCriteria === undefined
+          ? {}
+          : { acceptanceCriteria: input.acceptanceCriteria }),
+      })
+
+      return reply.status(201).send(story)
+    },
+  )
+
+  // ===========================================================================
+  // 端点 20 —— GET /stories/:storyId —— 权限：project.read
+  //
+  // 请求  —
+  // 响应  200 UserStory
+  // 错误  404 NOT_FOUND（不存在、非项目成员、或敏感且未授权 —— 三者响应一致）
+  //
+  // ⚠️ 本端点是**读**动作，因此正确结果里没有 403：
+  //    项目成员读非敏感故事应当允许（决策 I-5 判定顺序第 6 条），
+  //    所以「拒绝」只有 404 一种形态，且三种原因必须完全不可区分（契约 I-8 端点 20）。
+  // ===========================================================================
+  app.get(
+    '/stories/:storyId',
+    { preHandler: requireAuth },
+    async (req, reply) => {
+      const actorUserId = currentUserId(req)
+      const { storyId } = req.params as { storyId: string }
+
+      const story = await getUserStory(ctx.prisma, storyId)
+      if (!story) {
+        throw new AppError(404, 'NOT_FOUND', STORY_NOT_FOUND_MESSAGE)
+      }
+
+      // 唯一鉴权入口：`kind: 'story'` 会让 can() **自己现查** isSensitive
+      // （决策 I-5 约束 1：调用方无法通过传入敏感标记影响判定）。
+      // 本轮 T0.4 骨架对敏感对象的非 PM 一律 404（保守实现，由 T2.3/T2.4 放开为
+      // 白名单成员可见），本 handler 不做任何角色或敏感判断，只使用 can() 的结论。
+      const decision = await can(actorUserId, 'project.read', {
+        kind: 'story',
+        projectId: story.projectId,
+        objectId: storyId,
+      })
+      if (!decision.allow) {
+        throw new AppError(decision.status, decision.code, STORY_NOT_FOUND_MESSAGE)
+      }
+
+      return reply.status(200).send(story)
+    },
+  )
+
+  // ===========================================================================
+  // 端点 21 —— PATCH /stories/:storyId —— 权限：requirement.write
+  //
+  // 请求  { title?, roleText?, capabilityText?, valueText?, businessValue?,
+  //         priority?, status?, acceptanceCriteria? }
+  //         —— **不含 isSensitive**（该字段只能通过端点 23 修改）
+  // 响应  200 UserStory
+  // 错误  403 FORBIDDEN / 404 NOT_FOUND / 422 VALIDATION_FAILED
+  // 说明  部分更新：请求体中未出现的字段保持不变（决策 I-10）
+  // ===========================================================================
+  app.patch(
+    '/stories/:storyId',
+    { preHandler: requireAuth },
+    async (req, reply) => {
+      const actorUserId = currentUserId(req)
+      const { storyId } = req.params as { storyId: string }
+
+      const story = await getUserStory(ctx.prisma, storyId)
+      if (!story) {
+        throw new AppError(404, 'NOT_FOUND', STORY_NOT_FOUND_MESSAGE)
+      }
+
+      const decision = await can(actorUserId, 'requirement.write', {
+        kind: 'story',
+        projectId: story.projectId,
+        objectId: storyId,
+      })
+      if (!decision.allow) {
+        throw new AppError(decision.status, decision.code, STORY_NOT_FOUND_MESSAGE)
+      }
+
+      const input = parseBody(updateUserStorySchema, req.body ?? {})
+
+      // 五个文本字段都是**可选**的：只有出现时才判纯空白并 trim
+      // （同端点 12/16 —— 部分更新最容易写错的地方就是无条件判空）。
+      const trimmed: Record<string, string> = {}
+      for (const field of ['title', 'roleText', 'capabilityText', 'valueText', 'businessValue'] as const) {
+        const raw = input[field]
+        if (raw !== undefined) {
+          const value = raw.trim()
+          if (value === '') {
+            validationFailedWith([fieldError(field, 'REQUIRED')])
+          }
+          trimmed[field] = value
+        }
+      }
+
+      const updated = await updateUserStory(ctx.prisma, storyId, {
+        ...(trimmed.title === undefined ? {} : { title: trimmed.title }),
+        ...(trimmed.roleText === undefined ? {} : { roleText: trimmed.roleText }),
+        ...(trimmed.capabilityText === undefined ? {} : { capabilityText: trimmed.capabilityText }),
+        ...(trimmed.valueText === undefined ? {} : { valueText: trimmed.valueText }),
+        ...(trimmed.businessValue === undefined ? {} : { businessValue: trimmed.businessValue }),
+        ...(input.priority === undefined ? {} : { priority: input.priority }),
+        ...(input.status === undefined ? {} : { status: input.status }),
+        ...(input.acceptanceCriteria === undefined
+          ? {}
+          : { acceptanceCriteria: input.acceptanceCriteria }),
+      })
+      if (!updated) {
+        // TOCTOU：can() 之后、写入之前故事被删除（端点 22 已由 T3.9 交付，该窗口真实可达）
+        throw new AppError(404, 'NOT_FOUND', STORY_NOT_FOUND_MESSAGE)
+      }
+
+      return reply.status(200).send(updated)
+    },
+  )
+
+  // 供后续任务使用的占位注释：端点 10 属 T3.8 / T3.10（层级树 + visibilityScope 接线）。
+  // 端点 11–22 其余部分均已由 T3.1–T3.9 交付，本文件按任务顺序追加。
 }

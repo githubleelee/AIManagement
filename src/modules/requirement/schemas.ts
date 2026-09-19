@@ -18,7 +18,12 @@
  *   该歧义已在表五记录，留 Sprint 2 澄清。
  */
 import * as z from 'zod'
-import { goalStatusSchema, toFieldErrors } from '../../shared/validation.js'
+import {
+  goalStatusSchema,
+  prioritySchema,
+  storyStatusSchema,
+  toFieldErrors,
+} from '../../shared/validation.js'
 import { AppError } from '../../shared/errors.js'
 import type { FieldError } from '../../shared/types.js'
 
@@ -178,6 +183,92 @@ export const reorderGoalsSchema = z.object({
 })
 
 export type ReorderGoalsInput = z.infer<typeof reorderGoalsSchema>
+
+// ---------------------------------------------------------------------------
+// 端点 19 —— POST /activities/:activityId/stories
+// ---------------------------------------------------------------------------
+
+/**
+ * 用户故事五个文本字段的长度上限。
+ *
+ * 【契约空白】契约 I-8 端点 19 对 `title` / `roleText` / `capabilityText` / `valueText` /
+ * `businessValue` 五个字段**都**要求产出 `REQUIRED | TOO_LONG`，但**同样没有给任何数值**。
+ * 唯一的数值线索仍是决策 I-4 的字段级错误码表里「name（50）」这个**举例**。
+ *
+ * 本实现取 50、并让五个字段**共用一个**上限，而不是给每个字段各编一个数：
+ * 各编一个数会让「上限」变成五处无从追溯的猜测，而共用一个数至少口径单一、
+ * 将来只需改这一个常量。若契约澄清为别的数值（或分字段不同），改这里即可。
+ *
+ * `acceptanceCriteria` **不在**上限之列：契约对它的写法只有 `acceptanceCriteria?: string`，
+ * 未列 `TOO_LONG`；这与 `description` 在端点 11/12/15/16 的待遇一致（可选且无上限）。
+ */
+export const STORY_TEXT_MAX_LENGTH = 50
+
+/** 端点 19 的单个必填文本字段：非空 + 有上限（Zod 层先拦空串与超长）。 */
+const storyTextField = z.string().min(1).max(STORY_TEXT_MAX_LENGTH)
+
+/**
+ * 创建用户故事请求体。
+ *
+ * 三段式按契约**分字段存储**（「作为〈角色〉，我要〈能力〉，以便〈价值〉」对应
+ * `roleText` / `capabilityText` / `valueText`），不是拼成一个字符串 —— 契约 I-2 的
+ * `UserStory` 类型就是三个独立字段，页面要能独立检索与展示。
+ *
+ * `priority` 引共享层的 `prioritySchema`（决策 I-1/I-2b 的唯一取值来源），
+ * 非法取值产出 `invalid_enum_value` → 契约要求的 `INVALID_VALUE`。
+ *
+ * `status` / `isSensitive` / `projectId` / `activityId` **刻意不在形状内**：
+ * 前两者由表默认值决定（端点 19 的副作用是「status 默认 'DRAFT'；isSensitive 默认 false」），
+ * 后两者由 URL 父级推导（决策 I-10）。`z.object` 默认剥除未声明字段，
+ * 因此请求体里塞入这些字段会被静默丢弃 —— 这是结构性保证，不是靠校验去拦。
+ *
+ * 纯空白（如 `'   '`）长度不为 0，会通过 Zod 的 `.min(1)`，必须由处理器 trim 后判空
+ * （决策 I-4：REQUIRED 含**纯空白**）。五个字段都要判，且一次报全部。
+ */
+export const createUserStorySchema = z.object({
+  title: storyTextField,
+  roleText: storyTextField,
+  capabilityText: storyTextField,
+  valueText: storyTextField,
+  businessValue: storyTextField,
+  priority: prioritySchema,
+  acceptanceCriteria: z.string().optional(),
+})
+
+export type CreateUserStoryInput = z.infer<typeof createUserStorySchema>
+
+// ---------------------------------------------------------------------------
+// 端点 21 —— PATCH /stories/:storyId
+// ---------------------------------------------------------------------------
+
+/**
+ * 更新用户故事请求体（**部分更新**，决策 I-10）。
+ *
+ * ⚠️ **`status` 必须用 `storyStatusSchema`（DRAFT / PLANNING / DONE），不能用
+ * `goalStatusSchema`（ACTIVE / DONE）。** 决策 I-1 专门警告过这个陷阱：
+ * `GoalStatus`、`StoryStatus`、`TaskStatus` 三者都存在取值 `DONE`，语义不同且互相
+ * 不可赋值，禁止共用同一个类型别名、也禁止把三者的状态值互相传递。
+ * 端点 12/16 用的是 `goalStatusSchema`，本端点**不一样** —— 这是端点 21 最容易
+ * 顺手抄错的一处。
+ *
+ * ⚠️ **不含 `isSensitive`**：契约 I-8 端点 21 明写「不含 isSensitive —— 该字段只能通过
+ * 端点 23 修改」。因此本 schema 里没有它，`UserStoryPatch` 里也没有 —— 敏感标记的
+ * 写入路径只有 `PUT /stories/:storyId/sensitivity` 一条。
+ *
+ * 八个字段全部可选；未出现的字段保持原值（部分更新）。
+ */
+export const updateUserStorySchema = z.object({
+  title: z.string().min(1).max(STORY_TEXT_MAX_LENGTH).optional(),
+  roleText: z.string().min(1).max(STORY_TEXT_MAX_LENGTH).optional(),
+  capabilityText: z.string().min(1).max(STORY_TEXT_MAX_LENGTH).optional(),
+  valueText: z.string().min(1).max(STORY_TEXT_MAX_LENGTH).optional(),
+  businessValue: z.string().min(1).max(STORY_TEXT_MAX_LENGTH).optional(),
+  priority: prioritySchema.optional(),
+  status: storyStatusSchema.optional(),
+  acceptanceCriteria: z.string().optional(),
+})
+
+export type UpdateUserStoryInput = z.infer<typeof updateUserStorySchema>
 
 // ---------------------------------------------------------------------------
 // 校验助手

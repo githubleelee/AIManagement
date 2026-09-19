@@ -715,5 +715,164 @@ export async function deleteUserStory(prisma: PrismaClient, storyId: string): Pr
   }
 }
 
+// ---------------------------------------------------------------------------
+// 端点 19 —— 创建用户故事
+//
+// 端点 20 —— 读取用户故事（GET /stories/:storyId）
+// 端点 21 —— 更新用户故事（部分更新）
+//
+// 这三个端点共用 `USER_STORY_FIELDS` 与 `toUserStory`（后者在 T3.1 就已写好，
+// 当时没有调用方，还被审查智能体作为 E9 类隐患登记过「已导出但无人调用的危险 API」——
+// 现在端点 19/20/21 三个调用方到位，该隐患自然消除，`toUserStory` 从「可疑导出」
+// 变成「三处共用的映射函数」）。
+// ---------------------------------------------------------------------------
+
+/**
+ * 用户故事的返回列集合（契约 I-2 的 UserStory 共 13 字段，含 createdAt 与 isSensitive）。
+ *
+ * 与 `BUSINESS_GOAL_FIELDS` / `USER_ACTIVITY_FIELDS` 同理：独立常量、不抽公共工具，
+ * 避免把本任务的差异扩散到已验收的端点。
+ */
+const USER_STORY_FIELDS = {
+  id: true,
+  projectId: true,
+  activityId: true,
+  title: true,
+  roleText: true,
+  capabilityText: true,
+  valueText: true,
+  businessValue: true,
+  priority: true,
+  status: true,
+  acceptanceCriteria: true,
+  isSensitive: true,
+  createdAt: true,
+} as const
+
+/**
+ * 创建用户故事（端点 19）。
+ *
+ * 职责边界同其他 service：只做数据写入，不查活动是否存在、不做权限判定。
+ * `projectId` 必须由调用方**从 `activityId` 所属活动推导**后传入（决策 I-10）。
+ *
+ * ---------------------------------------------------------------------------
+ * 【为什么这里不需要事务】—— 与端点 11/15/18/14 都不同
+ *
+ * `UserStory` 表**没有 `sortOrder` 列**：契约 I-10 规定「用户故事与任务使用固定字段
+ * 排序（`createdAt` / `planStart`），不提供手工排序」。因此创建故事时**没有任何
+ * 需要读现有行才能算出的值** —— 不存在「读-改-写」，也就没有序号竞态。
+ * `createdAt` 由数据库 `@default(now())` 生成，`status` / `isSensitive` 由表默认值决定。
+ * 单条 `INSERT` 本身就是原子的，包事务只是徒增开销。
+ *
+ * 反过来说：若将来给故事加了手工排序字段，这里就必须补事务 —— 判据是
+ * 「新值是否依赖读取结果」，而不是「是不是创建操作」。
+ * ---------------------------------------------------------------------------
+ */
+export async function createUserStory(
+  prisma: PrismaClient,
+  activityId: string,
+  projectId: string,
+  input: {
+    title: string
+    roleText: string
+    capabilityText: string
+    valueText: string
+    businessValue: string
+    priority: Priority
+    acceptanceCriteria?: string
+  },
+): Promise<UserStory> {
+  const row = await prisma.userStory.create({
+    data: {
+      activityId,
+      projectId,
+      title: input.title,
+      roleText: input.roleText,
+      capabilityText: input.capabilityText,
+      valueText: input.valueText,
+      businessValue: input.businessValue,
+      priority: input.priority,
+      // 可选字段：未提供时置 null（契约 I-2 中 acceptanceCriteria 的类型是 `string | null`）
+      acceptanceCriteria: input.acceptanceCriteria ?? null,
+      // status / isSensitive 不显式写入，依赖表默认值（决策 I-7：'DRAFT' / false）。
+      // 这样端点 19 的「status 默认 'DRAFT'；isSensitive 默认 false」与数据层默认值
+      // 只有一处真相。也正因如此，端点 23 未实现前不存在「从创建接口偷偷标敏感」的路径。
+    },
+    select: USER_STORY_FIELDS,
+  })
+
+  return toUserStory(row)
+}
+
+/**
+ * 读取用户故事（端点 20）。
+ *
+ * 返回 `null` 表示不存在，由 handler 转 404 —— 与「敏感且未授权」「非项目成员」
+ * 的 404 共用同一文案，三者不可区分（契约 I-8 端点 20 明写「三者响应一致」）。
+ */
+export async function getUserStory(prisma: PrismaClient, storyId: string): Promise<UserStory | null> {
+  const row = await prisma.userStory.findUnique({
+    where: { id: storyId },
+    select: USER_STORY_FIELDS,
+  })
+  return row ? toUserStory(row) : null
+}
+
+/**
+ * 端点 21 可修改字段的**白名单**。
+ *
+ * ⚠️ **不含 `isSensitive`** —— 契约 I-8 端点 21 明写「该字段只能通过端点 23 修改」。
+ * 用类型白名单而不是靠 handler 手工挑字段，让这条约束在编译器层面成立：
+ * 任何人都无法在端点 21 里写出 `{ isSensitive: ... }` 而不被 tsc 拦住。
+ *
+ * 同样不含 `projectId` / `activityId`（归属只能从父级推导，决策 I-10）与 `createdAt`
+ * （服务端生成，决策 I-10）。
+ */
+export type UserStoryPatch = {
+  title?: string
+  roleText?: string
+  capabilityText?: string
+  valueText?: string
+  businessValue?: string
+  priority?: Priority
+  status?: StoryStatus
+  acceptanceCriteria?: string
+}
+
+/**
+ * 更新用户故事（端点 21，部分更新）。
+ *
+ * 实现与端点 12/16 **完全同型**（只提交请求体出现的字段、空补丁走只读分支、
+ * 返回 `null` 表示目标已不存在），此处不重复展开理由，只说明差异：
+ *   - 可改字段从 3 个变成 8 个，其中 `status` 是 **`StoryStatus`**（DRAFT/PLANNING/DONE）
+ *     而不是 `GoalStatus`（决策 I-1 的三 DONE 陷阱）；
+ *   - 不含 `isSensitive`（见 `UserStoryPatch`）。
+ */
+export async function updateUserStory(
+  prisma: PrismaClient,
+  storyId: string,
+  patch: UserStoryPatch,
+): Promise<UserStory | null> {
+  // 只提交请求体明确给出的字段（避免读-改-写窗口造成的丢失更新）
+  const data: Prisma.UserStoryUpdateInput = {
+    ...(patch.title === undefined ? {} : { title: patch.title }),
+    ...(patch.roleText === undefined ? {} : { roleText: patch.roleText }),
+    ...(patch.capabilityText === undefined ? {} : { capabilityText: patch.capabilityText }),
+    ...(patch.valueText === undefined ? {} : { valueText: patch.valueText }),
+    ...(patch.businessValue === undefined ? {} : { businessValue: patch.businessValue }),
+    ...(patch.priority === undefined ? {} : { priority: patch.priority }),
+    ...(patch.status === undefined ? {} : { status: patch.status }),
+    ...(patch.acceptanceCriteria === undefined ? {} : { acceptanceCriteria: patch.acceptanceCriteria }),
+  }
+
+  // 补丁为空 → 不写，只读（同端点 12/16）
+  const row =
+    Object.keys(data).length === 0
+      ? await prisma.userStory.findUnique({ where: { id: storyId }, select: USER_STORY_FIELDS })
+      : await prisma.userStory.update({ where: { id: storyId }, data, select: USER_STORY_FIELDS })
+
+  return row ? toUserStory(row) : null
+}
+
 /** 供测试与后续任务使用的类型导出（避免测试直接依赖 Prisma 生成类型）。 */
 export type { Prisma }
