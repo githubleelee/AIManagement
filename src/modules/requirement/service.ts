@@ -13,7 +13,16 @@
  *   本文件是 `src/modules/requirement/` 内的新增文件，属 M4 独占，不触碰任何冻结文件。
  */
 import type { Prisma, PrismaClient } from '@prisma/client'
-import type { BusinessGoal, GoalStatus, Priority, StoryStatus, UserActivity, UserStory } from '../../shared/types.js'
+import type {
+  BusinessGoal,
+  GoalNode,
+  GoalStatus,
+  Priority,
+  Scope,
+  StoryStatus,
+  UserActivity,
+  UserStory,
+} from '../../shared/types.js'
 
 // ---------------------------------------------------------------------------
 // 行 → 契约响应类型的映射（时间字段在此完成序列化）
@@ -872,6 +881,104 @@ export async function updateUserStory(
       : await prisma.userStory.update({ where: { id: storyId }, data, select: USER_STORY_FIELDS })
 
   return row ? toUserStory(row) : null
+}
+
+// ---------------------------------------------------------------------------
+// 端点 10 —— 需求层级树（GET /projects/:projectId/goals）
+//
+// 契约 I-8 端点 10：
+//   响应 200 ListResponse<GoalNode>；goals 按 sortOrder 升序、activities 按 sortOrder 升序、
+//   stories 按 createdAt 升序；敏感用户故事按 visibilityScope(actor, projectId, 'story') 过滤，
+//   被过滤掉的 story 不出现在 stories 数组中，其父级 activity 与 goal 仍正常返回。
+//
+// 本函数同时承担 T3.8（层级树组装）与 T3.10（可见性接线）——
+// 两者是同一个查询的「组装」与「过滤」两半，无法拆成两个可独立交付的版本：
+// 契约「常见拼装失败与预防」表明确写着「不可保留一个未过滤的版本」。
+// ---------------------------------------------------------------------------
+
+/**
+ * 组装某项目的完整需求层级树（目标 → 活动 → 故事）。
+ *
+ * ---------------------------------------------------------------------------
+ * 【为什么过滤必须下推到查询层】（决策 I-6，全文档最要紧的一条约束之一）
+ *
+ * 契约禁止「取出全量再在内存里过滤」，理由不是性能而是**存在性泄漏**：
+ * 内存过滤会让「不该看见敏感故事」的调用者仍能从**数量**上推断出敏感对象的存在
+ * （例如列表长度、下级数量），从而违反 AC-US-02-06 / AC-US-03-08 的「不泄漏存在性」。
+ * 因此这里把可见性条件写进 `stories.where`，由数据库完成过滤 ——
+ * 被过滤掉的故事**根本不会离开数据库**。
+ *
+ * 三种 scope 的落地方式（决策 I-6 的使用约定）：
+ *   - `{mode:'all'}`          → `where: {}`，不加可见性条件；
+ *   - `{mode:'subset'; ids}`  → `where: { id: { in: ids } }`；`ids` 为空数组时
+ *     Prisma 的 `in: []` 恒假 → 该层返回空集合，正是契约要求的
+ *     「若 ids 为空则该列表返回空集合」。
+ *
+ * ⚠️ 【排序口径的两个补充判断 —— 契约未定义处，本实现的选择与依据】
+ *
+ *   1. **每个排序都加了 `id` 次级键**（`[{ sortOrder:'asc' }, { id:'asc' }]`、
+ *      `[{ createdAt:'asc' }, { id:'asc' }]`）。
+ *      契约只规定「按 sortOrder 升序」「按 createdAt 升序」，**没有规定并列时怎么排**，
+ *      而并列是真实存在的：
+ *        - `sortOrder` 并列：端点 14/18 的全量替换存在**合法中间态**（把 [A,B] 换成 [B,A]
+ *          时置 A:=1 于 B 尚为 1 之时），夹具也可能造出并列；而 `schema.prisma` 上
+ *          **没有唯一约束**（表五序号 42 已论证为何不能加）。
+ *        - `createdAt` 并列：**这是本端点最容易被忽略的一处** —— 迁移里的列定义是
+ *          `"createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP`，SQLite 的
+ *          `CURRENT_TIMESTAMP` 只有**秒级精度、没有毫秒**。因此同一秒内创建的多条故事
+ *          `createdAt` **完全相同**，纯按 `createdAt` 排序时它们的相对顺序由数据库的
+ *          物理顺序决定，**不可预期也不可复现**。
+ *      加 `id` 次级键后：顺序虽不等于「业务上有意义的顺序」，但**确定、可复现**，
+ *      这比未定义要好；契约的四字规定（升序）依然被满足。
+ *      真正的修法在冻结区：`createdAt` 应使用毫秒精度（或改由 Prisma 客户端生成
+ *      `now()`），或由技术负责人在契约里补一条次级排序规则。已记入表五，
+ *      并请在 Sprint 回顾中提出 —— 该问题在**评审演示的主链路脚本**里最容易暴露
+ *      （脚本在同一秒内连续建多条故事）。
+ *   2. 排序全部下推到查询层（`orderBy`），不用 JS 排序 —— 与过滤下推同一理由。
+ * ---------------------------------------------------------------------------
+ *
+ * ⚠️ 现状说明（T3.10 的诚实边界）：`visibilityScope()` 目前是 T0.4 骨架，
+ * 对**非 PM 的成员**返回 `{mode:'all'}`（T2.5 待实现）。因此本函数的 subset 分支
+ * 在 T2.5 落地前**不可能被 HTTP 请求触发**（端点 10 会先用 can() 把非成员挡成 404），
+ * 其效果也就无法通过接口测试观测。这不影响接线本身的正确性，但意味着
+ * 「敏感故事对未授权成员不可见」这条验收标准**今天演不出来**，需记录为跨模块依赖。
+ */
+export async function getGoalTree(
+  prisma: PrismaClient,
+  projectId: string,
+  storyScope: Scope,
+): Promise<GoalNode[]> {
+  // 可见性过滤下推到查询层（见上方说明）
+  const storyWhere: Prisma.UserStoryWhereInput =
+    storyScope.mode === 'all' ? {} : { id: { in: storyScope.ids } }
+
+  const rows = await prisma.businessGoal.findMany({
+    where: { projectId },
+    orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+    select: {
+      ...BUSINESS_GOAL_FIELDS,
+      activities: {
+        orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+        select: {
+          ...USER_ACTIVITY_FIELDS,
+          stories: {
+            where: storyWhere,
+            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+            select: USER_STORY_FIELDS,
+          },
+        },
+      },
+    },
+  })
+
+  // 行 → 契约类型（ActivityNode = UserActivity & { stories }；GoalNode = BusinessGoal & { activities }）
+  return rows.map((goal) => ({
+    ...toBusinessGoal(goal),
+    activities: goal.activities.map((activity) => ({
+      ...toUserActivity(activity),
+      stories: activity.stories.map(toUserStory),
+    })),
+  }))
 }
 
 /** 供测试与后续任务使用的类型导出（避免测试直接依赖 Prisma 生成类型）。 */

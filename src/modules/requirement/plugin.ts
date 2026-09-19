@@ -1,6 +1,6 @@
 /**
  * 需求层级模块 —— HTTP 路由插件
- * （M4 / US-03，端点 10–22；截至 T3.7 已交付 11–22，端点 10 属 T3.8/T3.10）
+ * （M4 / US-03，端点 10–22 全部 13 个端点，T3.1–T3.10）
  *
  * 契约依据
  *   - 决策 I-9「模块依赖方向」：`M2 / M4 / M5 ──→ 通过 can() / visibilityScope() 使用 M3，
@@ -33,6 +33,7 @@ import {
   deleteBusinessGoal,
   deleteUserActivity,
   deleteUserStory,
+  getGoalTree,
   getUserStory,
   reorderBusinessGoals,
   reorderUserActivities,
@@ -139,7 +140,9 @@ function deleteFailureError(
  * 否则测试无法把 app 指向独立临时库。
  */
 export function registerRequirementRoutes(app: FastifyInstance, ctx: RouteContext): void {
-  const { can } = createAuthorization(ctx.prisma)
+  // 唯一鉴权入口与列表可见性作用域都来自 M3（决策 I-9：M4 通过 can() / visibilityScope()
+  // 使用 M3，不复制其逻辑）。两者签名冻结，本模块只调用、不实现。
+  const { can, visibilityScope } = createAuthorization(ctx.prisma)
 
   // ===========================================================================
   // 端点 11 —— POST /projects/:projectId/goals —— 权限：requirement.write
@@ -884,6 +887,60 @@ export function registerRequirementRoutes(app: FastifyInstance, ctx: RouteContex
     },
   )
 
-  // 供后续任务使用的占位注释：端点 10 属 T3.8 / T3.10（层级树 + visibilityScope 接线）。
-  // 端点 11–22 其余部分均已由 T3.1–T3.9 交付，本文件按任务顺序追加。
+  // ===========================================================================
+  // 端点 10 —— GET /projects/:projectId/goals —— 权限：project.read
+  //
+  // 请求  —
+  // 响应  200 ListResponse<GoalNode>
+  // 说明  返回完整层级树；goals 按 sortOrder 升序，activities 按 sortOrder 升序，
+  //       stories 按 createdAt 升序
+  //       敏感用户故事按 visibilityScope(actor, projectId, 'story') 过滤；
+  //       被过滤掉的 story 不出现在 stories 数组中，其父级 activity 与 goal 仍正常返回
+  // 错误  404 NOT_FOUND（非项目成员）
+  //
+  // 契约依据：决策 I-8 端点 10；决策 I-6（列表可见性作用域）；
+  //           基线 AC-US-03-04（四层结构一致性）、AC-US-03-08（敏感联动）
+  // ===========================================================================
+  app.get(
+    '/projects/:projectId/goals',
+    { preHandler: requireAuth },
+    async (req, reply) => {
+      const actorUserId = currentUserId(req)
+      const { projectId } = req.params as { projectId: string }
+
+      // 第 1 步：项目必须存在（理由同端点 11：让两条 404 路径在代码里可见）
+      const project = await ctx.prisma.project.findUnique({
+        where: { id: projectId },
+        select: { id: true },
+      })
+      if (!project) {
+        throw new AppError(404, 'NOT_FOUND', PROJECT_NOT_FOUND_MESSAGE)
+      }
+
+      // 第 2 步：唯一鉴权入口。`project.read` 是读动作 —— 成员与 VIEWER 都允许，
+      // 所以本端点不会出现 403，拒绝只有 404 一种形态。
+      const decision = await can(actorUserId, 'project.read', { kind: 'project', projectId })
+      if (!decision.allow) {
+        throw new AppError(decision.status, decision.code, PROJECT_NOT_FOUND_MESSAGE)
+      }
+
+      // 第 3 步（T3.10）：取列表可见性作用域，交给 service 下推到查询层。
+      //
+      // ⚠️ 本调用今天**必然是空操作**：T0.4 骨架的 visibilityScope() 对非 PM 的成员
+      // 返回 `{mode:'all'}`（第 4 条的敏感白名单属 T2.3/T2.4，`visibilityScope` 的
+      // 真正实现属 T2.5）。而能走到这一步的调用者一定是项目成员（非成员已被上面
+      // 的 can() 判成 404），所以永远拿到 'all'。
+      // 接线本身是正确的、也是必须的（契约 I-6 要求所有返回敏感对象集合的端点都必须
+      // 调用它）；只是它的效果在 T2.5 落地前无法通过接口观测，已记入表五。
+      const scope = await visibilityScope(actorUserId, projectId, 'story')
+
+      // 第 4 步：组装层级树（过滤与排序都在查询层完成，见 service 的说明）
+      const goals = await getGoalTree(ctx.prisma, projectId, scope)
+
+      // 契约 I-3 的 ListResponse 包装；元素是 GoalNode（BusinessGoal + activities[]）
+      return reply.status(200).send({ items: goals })
+    },
+  )
+
+  // 端点 11–22 均已交付（T3.1–T3.9）。本文件按任务顺序追加，到此 US-03 的 13 个端点全部就位。
 }
