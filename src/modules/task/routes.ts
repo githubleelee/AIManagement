@@ -1,7 +1,15 @@
 /**
- * M5 任务模块 —— 端点 24 / 25 / 27 / 28 / 29 / 30
+ * M5 任务模块 —— 端点 24 / 25 / 26 / 27 / 28 / 29 / 30
  *
- * 权威来源：`docs/sprint1-spec-interface-contract.md` 决策 I-8 端点 24、25、27、28、29、30。
+ * 权威来源：`docs/sprint1-spec-interface-contract.md` 决策 I-8 端点 24、25、26、27、28、29、30。
+ *
+ * T5-06 新增端点 26（`GET /projects/:projectId/tasks`，查询参数 `ownerUserId?`）：
+ * 权限 `project.read`；按项目列出任务，可选用负责人附加过滤。★ 这是敏感任务的
+ * **第四条**独立查询路径（其余三条：端点 24 故事任务列表、端点 27 详情、端点 30 写路径），
+ * 因此必须与端点 24 一样接入 `visibilityScope()`，且可见性与负责人两个条件都要在
+ * **查询层**拼进 `where`（决策 I-6），禁止「取出全量再在内存里 filter」。
+ * 该路径前缀 `/projects/` 归属 M2 项目模块，未来在冻结的 `src/routes.ts` 集中注册时
+ * 需与 M2 核对是否重复注册同一 method+path，避免 Fastify 路由冲突。
  *
  * T5-05 新增端点 30（`PUT /tasks/:taskId/sensitivity`）：权限 `sensitivity.manage`。
  * ★ 语义与副作用同端点 23：全量覆盖名单；`isSensitive: false` 时忽略请求名单但**保留**
@@ -213,6 +221,70 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
           ? { storyId: story.id }
           : { storyId: story.id, id: { in: scope.ids } },
       // 排序：planStart 升序，相同则 createdAt 升序（契约端点 24）
+      orderBy: [{ planStart: 'asc' }, { createdAt: 'asc' }],
+    })
+
+    const items = await Promise.all(tasks.map((task) => loadTaskView(task)))
+    return reply.status(200).send({ items })
+  })
+
+  // -------------------------------------------------------------------------
+  // 端点 26：GET /projects/:projectId/tasks —— 权限 project.read（T5-06）
+  //
+  // ★ 这是敏感任务的**第四条**独立查询路径。按项目（而非故事）列出任务，
+  //   并可用 ownerUserId 按负责人附加过滤。可见性过滤与负责人过滤都必须在
+  //   **查询层**完成（决策 I-6）：scope 与 ownerUserId 合并进同一个 `where`，
+  //   不得「先查出全量、再在内存里 filter」。
+  // -------------------------------------------------------------------------
+  app.get('/projects/:projectId/tasks', async (request, reply) => {
+    const actorUserId = requireActorUserId(request)
+    const { projectId } = request.params as { projectId: string }
+
+    // 唯一鉴权入口（决策 I-5）：PM / MEMBER / VIEWER 均可读；非项目成员 → 404。
+    // 项目不存在时不存在任何成员关系，同样落到 404，两者响应完全一致（决策 I-3）。
+    const decision = await can(actorUserId, 'project.read', { kind: 'project', projectId })
+    if (!decision.allow) {
+      throw denied(decision)
+    }
+
+    // 查询参数形状：只接受单个字符串。重复传参 `?ownerUserId=a&ownerUserId=b`
+    // 会被 Fastify 解析成数组，显式拒绝以免把数组塞进 Prisma 造成 500。
+    // 契约只冻结了「非本项目成员 → NOT_PROJECT_MEMBER」，此处形状非法取 INVALID_VALUE。
+    const rawOwnerUserId = (request.query as Record<string, unknown>).ownerUserId
+    if (rawOwnerUserId !== undefined && typeof rawOwnerUserId !== 'string') {
+      throw new AppError(422, 'VALIDATION_FAILED', '字段校验失败', [
+        { field: 'ownerUserId', code: 'INVALID_VALUE' },
+      ])
+    }
+    const ownerUserId = rawOwnerUserId
+
+    // 业务规则（需查库，按决策 I-2b 抛 AppError）：ownerUserId 必须是**本项目**成员。
+    // 用项目成员唯一键查询，天然覆盖「非本项目成员」与「别的项目的成员」两种变体。
+    if (ownerUserId !== undefined) {
+      const membership = await prisma.projectMember.findUnique({
+        where: { projectId_userId: { projectId, userId: ownerUserId } },
+        select: { userId: true },
+      })
+      if (!membership) {
+        throw new AppError(422, 'VALIDATION_FAILED', '负责人必须是本项目成员', [
+          { field: 'ownerUserId', code: 'NOT_PROJECT_MEMBER' },
+        ])
+      }
+    }
+
+    // ★ 查询层可见性过滤（决策 I-6）：PM → all（不加条件）；
+    //   MEMBER / VIEWER → subset（附加 `id IN (...)`）。
+    const scope = await visibilityScope(actorUserId, projectId, 'task')
+
+    // 负责人过滤与可见性过滤组合进**同一个 WHERE**：
+    // 即使传入敏感任务负责人的 ownerUserId，也不会把该敏感任务捞出来。
+    const tasks = await prisma.task.findMany({
+      where: {
+        projectId,
+        ...(ownerUserId !== undefined ? { ownerUserId } : {}),
+        ...(scope.mode === 'subset' ? { id: { in: scope.ids } } : {}),
+      },
+      // 排序与端点 24 一致：planStart 升序，相同则 createdAt 升序（契约端点 26）。
       orderBy: [{ planStart: 'asc' }, { createdAt: 'asc' }],
     })
 
