@@ -400,3 +400,118 @@ describe('T1.5 端点 8：PATCH /projects/:projectId/members/:userId', () => {
     expect(res.body.error.code).toBe('UNAUTHENTICATED')
   })
 })
+
+// T1.6：端点 9 DELETE /projects/:projectId/members/:userId
+// 移除成员；不能移除自己（SELF_REMOVAL_FORBIDDEN）；移除后立即失去访问权。
+describe('T1.6 端点 9：DELETE /projects/:projectId/members/:userId', () => {
+  async function addMember(
+    pmToken: string,
+    projectId: string,
+    account: string,
+    role: string,
+  ): Promise<string> {
+    const app = await getApp()
+    const res = await request(app.server)
+      .post(`/projects/${projectId}/members`)
+      .set(bearer(pmToken))
+      .send({ account, role })
+    expect(res.status).toBe(201)
+    return res.body.userId as string
+  }
+
+  it('PM 移除成员 → 204，且被移除者立即失去访问权', async () => {
+    const app = await getApp()
+    const pm = await makeUser('pm-1', '项目经理')
+    const dev = await makeUser('dev-1', '开发者')
+    const projectId = await createProjectAs(pm.token)
+    await addMember(pm.token, projectId, 'dev-1', 'MEMBER')
+
+    const del = await request(app.server)
+      .delete(`/projects/${projectId}/members/${dev.id}`)
+      .set(bearer(pm.token))
+    expect(del.status).toBe(204)
+    expect(del.body).toEqual({})
+
+    const prisma = await getPrisma()
+    const gone = await prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId: dev.id } },
+    })
+    expect(gone).toBeNull()
+
+    // 移除即时生效：无需重新登录，下一次请求即被拒（决策 I-10）
+    const after = await request(app.server)
+      .get(`/projects/${projectId}`)
+      .set(bearer(dev.token))
+    expect(after.status).toBe(404)
+
+    const list = await request(app.server).get('/projects').set(bearer(dev.token))
+    expect(list.body.items).toHaveLength(0)
+  })
+
+  it('移除自己 → 422 / userId SELF_REMOVAL_FORBIDDEN', async () => {
+    const app = await getApp()
+    const pm = await makeUser('pm-2', '项目经理')
+    const projectId = await createProjectAs(pm.token)
+
+    const res = await request(app.server)
+      .delete(`/projects/${projectId}/members/${pm.id}`)
+      .set(bearer(pm.token))
+
+    expect(res.status).toBe(422)
+    expect(res.body.error.code).toBe('VALIDATION_FAILED')
+    expect(res.body.error.details).toContainEqual({
+      field: 'userId',
+      code: 'SELF_REMOVAL_FORBIDDEN',
+    })
+  })
+
+  it('目标 userId 不是本项目成员 → 404 NOT_FOUND', async () => {
+    const app = await getApp()
+    const pm = await makeUser('pm-3', '项目经理')
+    const outsider = await makeUser('outsider-3', '局外人')
+    const projectId = await createProjectAs(pm.token)
+
+    const res = await request(app.server)
+      .delete(`/projects/${projectId}/members/${outsider.id}`)
+      .set(bearer(pm.token))
+
+    expect(res.status).toBe(404)
+    expect(res.body.error.code).toBe('NOT_FOUND')
+  })
+
+  it('MEMBER 调用 → 403 FORBIDDEN', async () => {
+    const app = await getApp()
+    const pm = await makeUser('pm-4', '项目经理')
+    const member = await makeUser('member-4', '普通成员')
+    const projectId = await createProjectAs(pm.token)
+    await addMember(pm.token, projectId, 'member-4', 'MEMBER')
+
+    const res = await request(app.server)
+      .delete(`/projects/${projectId}/members/${pm.id}`)
+      .set(bearer(member.token))
+
+    expect(res.status).toBe(403)
+    expect(res.body.error.code).toBe('FORBIDDEN')
+  })
+
+  it('非项目成员调用 → 404 NOT_FOUND', async () => {
+    const app = await getApp()
+    const pm = await makeUser('pm-5', '项目经理')
+    const outsider = await makeUser('outsider-5', '局外人')
+    const projectId = await createProjectAs(pm.token)
+
+    const res = await request(app.server)
+      .delete(`/projects/${projectId}/members/${pm.id}`)
+      .set(bearer(outsider.token))
+
+    expect(res.status).toBe(404)
+    expect(res.body.error.code).toBe('NOT_FOUND')
+  })
+
+  it('未登录 → 401 UNAUTHENTICATED', async () => {
+    const app = await getApp()
+    const res = await request(app.server).delete('/projects/whatever/members/someone')
+    expect(res.status).toBe(401)
+    expect(res.body.error.code).toBe('UNAUTHENTICATED')
+  })
+})

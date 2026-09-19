@@ -230,4 +230,52 @@ export function registerProjectRoutes(app: FastifyInstance): void {
     })
     return toMemberView(updated)
   })
+
+  // 端点 9：DELETE /projects/:projectId/members/:userId —— 权限：project.manage_members
+  // 不能移除自己（避免项目失去唯一管理者）；移除后该用户立即失去本项目访问权（每次请求查库，无需重新登录）
+  app.delete(
+    '/projects/:projectId/members/:userId',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { projectId, userId } = memberParams.parse(request.params)
+      const actorUserId = request.actorUserId as string
+
+      const decision = await can(actorUserId, 'project.manage_members', {
+        kind: 'project',
+        projectId,
+      })
+      if (!decision.allow) {
+        throw new AppError(
+          decision.status,
+          decision.code,
+          decision.status === 404 ? '项目不存在' : '该操作需要项目经理权限',
+        )
+      }
+
+      const target = await prisma.projectMember.findUnique({
+        where: { projectId_userId: { projectId, userId } },
+      })
+      if (!target) throw new AppError(404, 'NOT_FOUND', '该成员不存在')
+
+      if (userId === actorUserId) {
+        throw new AppError(422, 'VALIDATION_FAILED', '不能移除自己', [
+          { field: 'userId', code: 'SELF_REMOVAL_FORBIDDEN' },
+        ])
+      }
+
+      if (target.role === 'PM') {
+        const pmCount = await prisma.projectMember.count({ where: { projectId, role: 'PM' } })
+        if (pmCount <= 1) {
+          throw new AppError(422, 'VALIDATION_FAILED', '不能移除最后一个项目经理', [
+            { field: 'userId', code: 'LAST_PM' },
+          ])
+        }
+      }
+
+      await prisma.projectMember.delete({
+        where: { projectId_userId: { projectId, userId } },
+      })
+      return reply.status(204).send()
+    },
+  )
 }
