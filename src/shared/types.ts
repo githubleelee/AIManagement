@@ -196,3 +196,54 @@ export type FieldErrorCode =
 
 /** 字段级错误条目，由 Zod issue 映射而来（见 shared/validation.ts） */
 export type FieldError = { field: string; code: FieldErrorCode }
+
+// ---------------------------------------------------------------------------
+// 鉴权入口类型（契约决策 I-5 / I-6）
+//
+// 【本次补录】契约决策 I-5 把 `Action` / `ObjectRef` / `Decision` 作为 `can()`
+// 签名的组成部分**明文给出**，决策 I-6 同样给出 `Scope`；但 `shared/types.ts`
+// 此前只落地了决策 I-1 / I-2 / I-3 / I-4 的类型，**遗漏这四个**。
+// 后果：任何模块想按契约调用 `can()`，都会因「模块没有导出成员 Action」而编译失败，
+// 即「统一鉴权入口」在类型层面无法被调用。
+//
+// 现按契约原文补录（字段与取值逐一对应契约，未自行增删）。这些类型属冻结件，
+// 改动需走契约变更流程；本次仅为补齐契约**已定义却未被写入**的内容。
+// ---------------------------------------------------------------------------
+
+/** `can()` 的动作集合（决策 I-5）。 */
+export type Action =
+  | 'project.read' // 读取项目及其下需求与任务
+  | 'project.manage_members' // 增删成员、改角色
+  | 'requirement.write' // 业务目标 / 用户活动 / 用户故事的增删改
+  | 'task.write' // 任务的增删改
+  | 'sensitivity.manage' // 设置敏感标记与可见成员
+
+/**
+ * `can()` 的目标引用（决策 I-5）。
+ *
+ * 调用方**只传 id，不传任何权限相关字段** —— 否则越权就变成了改一个请求体字段的事。
+ */
+export type ObjectRef =
+  | { kind: 'project'; projectId: string }
+  | { kind: 'goal'; projectId: string; objectId: string }
+  | { kind: 'activity'; projectId: string; objectId: string }
+  | { kind: 'story'; projectId: string; objectId: string }
+  | { kind: 'task'; projectId: string; objectId: string }
+
+/**
+ * `can()` 的判定结果（决策 I-5）。
+ *
+ * 关键：**由 `can()` 直接给出 status 与 code**，调用方不得自行判断 403 还是 404。
+ * 这消除了同一越权行为在不同端点产生不同状态码的可能。
+ */
+export type Decision =
+  | { allow: true }
+  | { allow: false; status: 403 | 404; code: 'FORBIDDEN' | 'NOT_FOUND' }
+
+/**
+ * 列表可见性作用域（决策 I-6）。
+ *
+ * `mode === 'all'` → 查询不加可见性条件；
+ * `mode === 'subset'` → 查询追加 `id IN (:ids)`，ids 为空则列表返回空集合。
+ */
+export type Scope = { mode: 'all' } | { mode: 'subset'; ids: string[] }
