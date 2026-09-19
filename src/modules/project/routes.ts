@@ -21,7 +21,10 @@ const addMemberBody = z.object({
   role: projectRoleSchema,
 })
 
+const updateMemberRoleBody = z.object({ role: projectRoleSchema })
+
 const projectParams = z.object({ projectId: z.string().min(1) })
+const memberParams = z.object({ projectId: z.string().min(1), userId: z.string().min(1) })
 
 // 响应序列化：createdAt 由 Date 转 ISO 8601 UTC 字符串（决策 I-7 第 4 条）。
 function toProject(project: {
@@ -183,5 +186,48 @@ export function registerProjectRoutes(app: FastifyInstance): void {
       orderBy: { joinedAt: 'asc' },
     })
     return { items: members.map(toMemberView) }
+  })
+
+  // 端点 8：PATCH /projects/:projectId/members/:userId —— 权限：project.manage_members
+  // 修改成员角色；不能把最后一个 PM 降级（LAST_PM）
+  app.patch('/projects/:projectId/members/:userId', { preHandler: requireAuth }, async (request) => {
+    const { projectId, userId } = memberParams.parse(request.params)
+    const actorUserId = request.actorUserId as string
+
+    const decision = await can(actorUserId, 'project.manage_members', {
+      kind: 'project',
+      projectId,
+    })
+    if (!decision.allow) {
+      throw new AppError(
+        decision.status,
+        decision.code,
+        decision.status === 404 ? '项目不存在' : '该操作需要项目经理权限',
+      )
+    }
+
+    const body = updateMemberRoleBody.parse(request.body)
+
+    const target = await prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId } },
+    })
+    if (!target) throw new AppError(404, 'NOT_FOUND', '该成员不存在')
+
+    // 把 PM 降级前确认项目仍有其他 PM，避免项目失去唯一管理者
+    if (target.role === 'PM' && body.role !== 'PM') {
+      const pmCount = await prisma.projectMember.count({ where: { projectId, role: 'PM' } })
+      if (pmCount <= 1) {
+        throw new AppError(422, 'VALIDATION_FAILED', '不能把最后一个项目经理降级', [
+          { field: 'userId', code: 'LAST_PM' },
+        ])
+      }
+    }
+
+    const updated = await prisma.projectMember.update({
+      where: { projectId_userId: { projectId, userId } },
+      data: { role: body.role },
+      include: { user: true },
+    })
+    return toMemberView(updated)
   })
 }

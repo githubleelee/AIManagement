@@ -249,3 +249,154 @@ describe('T1.4 端点 7：GET /projects/:projectId/members', () => {
     expect(res.body.error.code).toBe('UNAUTHENTICATED')
   })
 })
+
+// T1.5：端点 8 PATCH /projects/:projectId/members/:userId
+// 修改角色；不能把最后一个 PM 降级（LAST_PM）。
+describe('T1.5 端点 8：PATCH /projects/:projectId/members/:userId', () => {
+  async function addMember(
+    pmToken: string,
+    projectId: string,
+    account: string,
+    role: string,
+  ): Promise<string> {
+    const app = await getApp()
+    const res = await request(app.server)
+      .post(`/projects/${projectId}/members`)
+      .set(bearer(pmToken))
+      .send({ account, role })
+    expect(res.status).toBe(201)
+    return res.body.userId as string
+  }
+
+  it('PM 修改成员角色 MEMBER → VIEWER，返回更新后的成员', async () => {
+    const app = await getApp()
+    const pm = await makeUser('pm-1', '项目经理')
+    const dev = await makeUser('dev-1', '开发者')
+    const projectId = await createProjectAs(pm.token)
+    await addMember(pm.token, projectId, 'dev-1', 'MEMBER')
+
+    const res = await request(app.server)
+      .patch(`/projects/${projectId}/members/${dev.id}`)
+      .set(bearer(pm.token))
+      .send({ role: 'VIEWER' })
+
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({ userId: dev.id, role: 'VIEWER', user: { account: 'dev-1' } })
+  })
+
+  it('可以把成员提升为 PM', async () => {
+    const app = await getApp()
+    const pm = await makeUser('pm-2', '项目经理')
+    const dev = await makeUser('dev-2', '开发者')
+    const projectId = await createProjectAs(pm.token)
+    await addMember(pm.token, projectId, 'dev-2', 'MEMBER')
+
+    const res = await request(app.server)
+      .patch(`/projects/${projectId}/members/${dev.id}`)
+      .set(bearer(pm.token))
+      .send({ role: 'PM' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.role).toBe('PM')
+  })
+
+  it('把最后一个 PM 降级 → 422 / userId LAST_PM', async () => {
+    const app = await getApp()
+    const pm = await makeUser('pm-3', '项目经理')
+    const projectId = await createProjectAs(pm.token)
+
+    const res = await request(app.server)
+      .patch(`/projects/${projectId}/members/${pm.id}`)
+      .set(bearer(pm.token))
+      .send({ role: 'MEMBER' })
+
+    expect(res.status).toBe(422)
+    expect(res.body.error.code).toBe('VALIDATION_FAILED')
+    expect(res.body.error.details).toContainEqual({ field: 'userId', code: 'LAST_PM' })
+  })
+
+  it('项目存在第二个 PM 时，降级其中一个成功', async () => {
+    const app = await getApp()
+    const pm = await makeUser('pm-4', '项目经理')
+    await makeUser('dev-4', '开发者')
+    const projectId = await createProjectAs(pm.token)
+    await addMember(pm.token, projectId, 'dev-4', 'PM')
+
+    const res = await request(app.server)
+      .patch(`/projects/${projectId}/members/${pm.id}`)
+      .set(bearer(pm.token))
+      .send({ role: 'MEMBER' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.role).toBe('MEMBER')
+  })
+
+  it('目标 userId 不是本项目成员 → 404 NOT_FOUND', async () => {
+    const app = await getApp()
+    const pm = await makeUser('pm-5', '项目经理')
+    const outsider = await makeUser('outsider-5', '局外人')
+    const projectId = await createProjectAs(pm.token)
+
+    const res = await request(app.server)
+      .patch(`/projects/${projectId}/members/${outsider.id}`)
+      .set(bearer(pm.token))
+      .send({ role: 'MEMBER' })
+
+    expect(res.status).toBe(404)
+    expect(res.body.error.code).toBe('NOT_FOUND')
+  })
+
+  it('角色取值非法 → 422 role INVALID_VALUE', async () => {
+    const app = await getApp()
+    const pm = await makeUser('pm-6', '项目经理')
+    const projectId = await createProjectAs(pm.token)
+
+    const res = await request(app.server)
+      .patch(`/projects/${projectId}/members/${pm.id}`)
+      .set(bearer(pm.token))
+      .send({ role: 'OWNER' })
+
+    expect(res.status).toBe(422)
+    expect(res.body.error.details).toContainEqual({ field: 'role', code: 'INVALID_VALUE' })
+  })
+
+  it('MEMBER 调用 → 403 FORBIDDEN', async () => {
+    const app = await getApp()
+    const pm = await makeUser('pm-7', '项目经理')
+    const member = await makeUser('member-7', '普通成员')
+    const projectId = await createProjectAs(pm.token)
+    await addMember(pm.token, projectId, 'member-7', 'MEMBER')
+
+    const res = await request(app.server)
+      .patch(`/projects/${projectId}/members/${pm.id}`)
+      .set(bearer(member.token))
+      .send({ role: 'MEMBER' })
+
+    expect(res.status).toBe(403)
+    expect(res.body.error.code).toBe('FORBIDDEN')
+  })
+
+  it('非项目成员调用 → 404 NOT_FOUND', async () => {
+    const app = await getApp()
+    const pm = await makeUser('pm-8', '项目经理')
+    const outsider = await makeUser('outsider-8', '局外人')
+    const projectId = await createProjectAs(pm.token)
+
+    const res = await request(app.server)
+      .patch(`/projects/${projectId}/members/${pm.id}`)
+      .set(bearer(outsider.token))
+      .send({ role: 'MEMBER' })
+
+    expect(res.status).toBe(404)
+    expect(res.body.error.code).toBe('NOT_FOUND')
+  })
+
+  it('未登录 → 401 UNAUTHENTICATED', async () => {
+    const app = await getApp()
+    const res = await request(app.server)
+      .patch('/projects/whatever/members/someone')
+      .send({ role: 'MEMBER' })
+    expect(res.status).toBe(401)
+    expect(res.body.error.code).toBe('UNAUTHENTICATED')
+  })
+})
