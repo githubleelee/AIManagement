@@ -4,7 +4,8 @@
 import { buildApp } from './app.js'
 
 const PORT = Number(process.env.PORT ?? 3000)
-const HOST = process.env.HOST ?? '0.0.0.0'
+// 默认只绑定回环地址，避免开发机服务暴露到局域网；需要对外暴露时显式设 HOST。
+const HOST = process.env.HOST ?? '127.0.0.1'
 
 const app = buildApp()
 

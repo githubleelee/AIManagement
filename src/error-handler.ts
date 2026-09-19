@@ -3,11 +3,14 @@
  *
  * 规则：
  *   1. 抛 AppError → 转成契约的 ErrorResponse（透传 status / code / message / details）。
- *   2. Fastify 自身的客户端错误（如非法 JSON 请求体、不支持的媒体类型）→ 4xx，
- *      使用 VALIDATION_FAILED(422)。契约 I-3 规定所有失败响应为 4xx；若落到 500，
- *      会把客户端输入错误误报为服务端故障（且触发无意义的错误日志）。
- *   3. 未知异常 → 500，响应体**不含堆栈**，只给稳定的 INTERNAL_ERROR 与通用文案。
- *   4. 未知路由 → 404，同样使用 ErrorResponse 结构，保证失败响应只有一种形状。
+ *   2. Fastify 请求体**解析层**错误（FST_ERR_CTP_INVALID_JSON_BODY /
+ *      FST_ERR_CTP_EMPTY_JSON_BODY）→ 400 BAD_REQUEST。只按 Fastify 的错误码匹配，
+ *      **不按 statusCode 区间匹配**，避免把其它 4xx 一律改写。
+ *   3. 其它 Fastify 客户端错误（401 / 403 / 413 / 415 / 429 等）→ **保持原始状态码**。
+ *      例如 T0-04 的 requireAuth 以 `throw errorWithStatus(401)` 报错时，若被改写成
+ *      422 会破坏契约 I-4 的 UNAUTHENTICATED 流程。
+ *   4. 未知异常 → 500，响应体**不含堆栈**，只给稳定的 INTERNAL_ERROR 与通用文案。
+ *   5. 未知路由 → 404，同样使用 ErrorResponse 结构，保证失败响应只有一种形状。
  *
  * 这是唯一允许拼装 ErrorResponse 的地方（唯一错误出口）。
  */
@@ -25,13 +28,45 @@ function toErrorResponse(
     : { error: { code, message } }
 }
 
-/** 读取 Fastify 赋在错误对象上的 4xx statusCode（error 参数类型为 unknown）。 */
+/**
+ * 请求体解析层错误：仅这两个 Fastify 错误码属于「请求体语法非法」，
+ * 由解析层产生、没有可归属的字段，按契约 I-4 归 400 BAD_REQUEST。
+ */
+const PARSE_ERROR_CODES = new Set([
+  'FST_ERR_CTP_INVALID_JSON_BODY',
+  'FST_ERR_CTP_EMPTY_JSON_BODY',
+])
+
+/** 读取 Fastify 赋在错误对象上的 code（error 参数类型为 unknown）。 */
+function fastifyErrorCode(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null || !('code' in error)) {
+    return undefined
+  }
+  const { code } = error as { code?: unknown }
+  return typeof code === 'string' ? code : undefined
+}
+
+/** 读取 Fastify 赋在错误对象上的 statusCode（error 参数类型为 unknown）。 */
 function clientStatusCode(error: unknown): number | undefined {
   if (typeof error !== 'object' || error === null || !('statusCode' in error)) {
     return undefined
   }
   const { statusCode } = error as { statusCode?: unknown }
   return typeof statusCode === 'number' ? statusCode : undefined
+}
+
+/**
+ * 已知客户端状态码 → 契约 I-4 顶层码。
+ * 未列出的 4xx（如 413 / 415 / 429）本轮不新增错误码，
+ * 用通用的 BAD_REQUEST 承载，是否单列留 Sprint 2 评估（状态码本身保持不变）。
+ */
+const STATUS_TO_CODE: Record<number, ErrorCode> = {
+  400: 'BAD_REQUEST',
+  401: 'UNAUTHENTICATED',
+  403: 'FORBIDDEN',
+  404: 'NOT_FOUND',
+  409: 'CONFLICT',
+  422: 'VALIDATION_FAILED',
 }
 
 export function registerErrorHandler(app: FastifyInstance): void {
@@ -42,20 +77,25 @@ export function registerErrorHandler(app: FastifyInstance): void {
       return reply.status(error.status).send(body)
     }
 
-    // 2) Fastify 自身的客户端错误（FST_ERR_CTP_* 等）：带 4xx statusCode
-    //    契约 I-3 要求失败响应为 4xx；I-4 中唯一能承载「格式非法」的顶层码是
-    //    VALIDATION_FAILED(422)。不透传 error.message，避免泄漏库内部信息。
-    const statusCode = clientStatusCode(error)
-    if (typeof statusCode === 'number' && statusCode >= 400 && statusCode < 500) {
-      return reply.status(422).send(toErrorResponse('VALIDATION_FAILED', '请求格式非法'))
+    // 2) 请求体解析层错误：只匹配 Fastify 的错误码，不透传解析器内部信息
+    if (PARSE_ERROR_CODES.has(fastifyErrorCode(error) ?? '')) {
+      return reply.status(400).send(toErrorResponse('BAD_REQUEST', '请求体不是合法的 JSON'))
     }
 
-    // 3) 未知异常：不把 error.message 与堆栈暴露给调用方，仅服务端记录
+    // 3) 其它 Fastify 客户端错误：保持原始状态码，禁止按 4xx 区间改写。
+    //    401/403/413/415/429 等必须原样透出，避免劫持鉴权与传输层语义。
+    const statusCode = clientStatusCode(error)
+    if (typeof statusCode === 'number' && statusCode >= 400 && statusCode < 500) {
+      const code = STATUS_TO_CODE[statusCode] ?? 'BAD_REQUEST'
+      return reply.status(statusCode).send(toErrorResponse(code, '请求无法处理'))
+    }
+
+    // 4) 未知异常：不把 error.message 与堆栈暴露给调用方，仅服务端记录
     app.log.error(error)
     return reply.status(500).send(toErrorResponse('INTERNAL_ERROR', '服务器内部错误'))
   })
 
-  // 4) 未匹配的路径也返回统一信封
+  // 5) 未匹配的路径也返回统一信封
   app.setNotFoundHandler((_request, reply) => {
     return reply.status(404).send(toErrorResponse('NOT_FOUND', '资源不存在'))
   })

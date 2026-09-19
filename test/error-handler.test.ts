@@ -7,8 +7,8 @@
  *   - details 为可选：无字段错误时不得输出 `[]` 或 `null`
  *   - 未知异常 → 500，且响应体不含堆栈 / 原始错误文案 / 文件路径
  *   - 未知路由 → 404，结构与其它失败一致
- *   - 非法 JSON 请求体 → 4xx（契约 I-3 规定失败响应为 4xx），
- *     且以 I-4 唯一的「格式非法」顶层码 VALIDATION_FAILED(422) 呈现
+ *   - 非法 JSON 请求体（请求体解析层错误）→ 400 BAD_REQUEST
+ *   - 非解析层 4xx（401 / 403 / 413 / 415）保持原始状态码，不得被改写为 422
  *
  * 本测试通过 HTTP seam（supertest）验证，不断言内部实现。
  */
@@ -18,6 +18,13 @@ import { buildApp } from '../src/app.js'
 import { AppError } from '../src/shared/errors.js'
 
 const app = buildApp({ logger: false })
+
+/** 模拟后续中间件（如 T0-04 的 requireAuth）以 `throw errorWithStatus(...)` 报错。 */
+function errorWithStatus(statusCode: number, message: string): Error {
+  const error = new Error(message)
+  ;(error as Error & { statusCode: number }).statusCode = statusCode
+  return error
+}
 
 // 探针端点：只用于验证错误处理器；生产路由仍集中在 src/routes.ts 注册。
 app.get('/__test__/app-error-403', async () => {
@@ -50,6 +57,23 @@ app.get('/__test__/app-error-no-details', async () => {
 app.get('/__test__/boom', async () => {
   const secret = 'password=topsecret-at-internal-db'
   throw new Error(`未预期异常：${secret}`)
+})
+
+// 回归探针（B1）：带 4xx statusCode 的 Fastify 风格错误，必须保持原始状态码。
+app.get('/__test__/thrown-401', async () => {
+  throw errorWithStatus(401, '未认证')
+})
+
+app.get('/__test__/thrown-403', async () => {
+  throw errorWithStatus(403, '禁止访问')
+})
+
+app.get('/__test__/thrown-415', async () => {
+  throw errorWithStatus(415, '不支持的媒体类型')
+})
+
+app.get('/__test__/thrown-413', async () => {
+  throw errorWithStatus(413, '请求体过大')
 })
 
 app.post('/__test__/echo', async (req) => ({ got: req.body }))
@@ -171,18 +195,18 @@ describe('未知路由 → 统一 404 信封', () => {
   })
 })
 
-describe('非法 JSON 请求体 → 4xx 统一信封（不得误报 500）', () => {
-  it('malformed JSON 返回 422 VALIDATION_FAILED，而非 500', async () => {
+describe('非法 JSON 请求体 → 400 BAD_REQUEST（不得误报 500，也不得劫持其它 4xx）', () => {
+  it('malformed JSON 返回 400 BAD_REQUEST，而非 500', async () => {
     const response = await request(app.server)
       .post('/__test__/echo')
       .set('content-type', 'application/json')
       .send('{"name": ')
 
-    // 契约 I-3：所有失败响应为 4xx；I-4 唯一的格式错误顶层码为 VALIDATION_FAILED(422)
-    expect(response.status).toBe(422)
+    // 契约 I-4：请求体无法解析为 JSON 是语法层错误，归 400 BAD_REQUEST
+    expect(response.status).toBe(400)
     expect(response.status).toBeLessThan(500)
     expect(response.body).toEqual({
-      error: { code: 'VALIDATION_FAILED', message: '请求格式非法' },
+      error: { code: 'BAD_REQUEST', message: '请求体不是合法的 JSON' },
     })
   })
 
@@ -196,5 +220,36 @@ describe('非法 JSON 请求体 → 4xx 统一信封（不得误报 500）', () 
     expect(response.text).not.toContain('FST_ERR_CTP')
     expect(response.text).not.toContain('.ts:')
     expect(response.text).not.toContain('\n    at ')
+  })
+})
+
+describe('非解析层 4xx 保持原始状态码（回归 B1，禁止按状态码区间改写）', () => {
+  it.each([
+    ['/__test__/thrown-401', 401],
+    ['/__test__/thrown-403', 403],
+    ['/__test__/thrown-415', 415],
+    ['/__test__/thrown-413', 413],
+  ])('%s 保持原状态码 %i，而非 422', async (path, status) => {
+    const response = await request(app.server).get(path)
+
+    expect(response.status).toBe(status)
+    expect(response.status).not.toBe(422)
+    // 仍走统一 ErrorResponse 信封（形状不变）
+    expect(response.body.error).toBeDefined()
+    expect(typeof response.body.error.code).toBe('string')
+  })
+
+  it('statusCode=401 映射到 UNAUTHENTICATED（不破坏后续鉴权流程）', async () => {
+    const response = await request(app.server).get('/__test__/thrown-401')
+
+    expect(response.status).toBe(401)
+    expect(response.body.error.code).toBe('UNAUTHENTICATED')
+  })
+
+  it('statusCode=403 映射到 FORBIDDEN', async () => {
+    const response = await request(app.server).get('/__test__/thrown-403')
+
+    expect(response.status).toBe(403)
+    expect(response.body.error.code).toBe('FORBIDDEN')
   })
 })
