@@ -3,19 +3,24 @@
  *
  * 规则：
  *   1. 抛 AppError → 转成契约的 ErrorResponse（透传 status / code / message / details）。
- *   2. Fastify 请求体**解析层**错误（FST_ERR_CTP_INVALID_JSON_BODY /
+ *   2. Zod 校验失败 → 422 VALIDATION_FAILED，字段级错误码由 shared/validation.ts 的
+ *      toFieldErrors 映射。契约 I-2b 要求「Zod 校验失败自动转换」，业务处理器只需
+ *      `schema.parse(...)`，不自行拼装错误响应。
+ *   3. Fastify 请求体**解析层**错误（FST_ERR_CTP_INVALID_JSON_BODY /
  *      FST_ERR_CTP_EMPTY_JSON_BODY）→ 400 BAD_REQUEST。只按 Fastify 的错误码匹配，
  *      **不按 statusCode 区间匹配**，避免把其它 4xx 一律改写。
- *   3. 其它 Fastify 客户端错误（401 / 403 / 413 / 415 / 429 等）→ **保持原始状态码**。
+ *   4. 其它 Fastify 客户端错误（401 / 403 / 413 / 415 / 429 等）→ **保持原始状态码**。
  *      例如 T0-04 的 requireAuth 以 `throw errorWithStatus(401)` 报错时，若被改写成
  *      422 会破坏契约 I-4 的 UNAUTHENTICATED 流程。
- *   4. 未知异常 → 500，响应体**不含堆栈**，只给稳定的 INTERNAL_ERROR 与通用文案。
- *   5. 未知路由 → 404，同样使用 ErrorResponse 结构，保证失败响应只有一种形状。
+ *   5. 未知异常 → 500，响应体**不含堆栈**，只给稳定的 INTERNAL_ERROR 与通用文案。
+ *   6. 未知路由 → 404，同样使用 ErrorResponse 结构，保证失败响应只有一种形状。
  *
  * 这是唯一允许拼装 ErrorResponse 的地方（唯一错误出口）。
  */
 import type { FastifyInstance } from 'fastify'
+import { ZodError } from 'zod'
 import { AppError } from './shared/errors.js'
+import { toFieldErrors } from './shared/validation.js'
 import type { ErrorCode, ErrorResponse } from './shared/types.js'
 
 function toErrorResponse(
@@ -77,12 +82,18 @@ export function registerErrorHandler(app: FastifyInstance): void {
       return reply.status(error.status).send(body)
     }
 
-    // 2) 请求体解析层错误：只匹配 Fastify 的错误码，不透传解析器内部信息
+    // 2) Zod 校验失败：自动转 422，字段级错误码来自 toFieldErrors
+    if (error instanceof ZodError) {
+      const body = toErrorResponse('VALIDATION_FAILED', '字段校验失败', toFieldErrors(error.issues))
+      return reply.status(422).send(body)
+    }
+
+    // 3) 请求体解析层错误：只匹配 Fastify 的错误码，不透传解析器内部信息
     if (PARSE_ERROR_CODES.has(fastifyErrorCode(error) ?? '')) {
       return reply.status(400).send(toErrorResponse('BAD_REQUEST', '请求体不是合法的 JSON'))
     }
 
-    // 3) 其它 Fastify 客户端错误：保持原始状态码，禁止按 4xx 区间改写。
+    // 4) 其它 Fastify 客户端错误：保持原始状态码，禁止按 4xx 区间改写。
     //    401/403/413/415/429 等必须原样透出，避免劫持鉴权与传输层语义。
     const statusCode = clientStatusCode(error)
     if (typeof statusCode === 'number' && statusCode >= 400 && statusCode < 500) {
@@ -90,12 +101,12 @@ export function registerErrorHandler(app: FastifyInstance): void {
       return reply.status(statusCode).send(toErrorResponse(code, '请求无法处理'))
     }
 
-    // 4) 未知异常：不把 error.message 与堆栈暴露给调用方，仅服务端记录
+    // 5) 未知异常：不把 error.message 与堆栈暴露给调用方，仅服务端记录
     app.log.error(error)
     return reply.status(500).send(toErrorResponse('INTERNAL_ERROR', '服务器内部错误'))
   })
 
-  // 5) 未匹配的路径也返回统一信封
+  // 6) 未匹配的路径也返回统一信封
   app.setNotFoundHandler((_request, reply) => {
     return reply.status(404).send(toErrorResponse('NOT_FOUND', '资源不存在'))
   })
