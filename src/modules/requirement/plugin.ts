@@ -1,5 +1,5 @@
 /**
- * 需求层级模块 —— HTTP 路由插件（M4 / US-03，端点 11、12、15）
+ * 需求层级模块 —— HTTP 路由插件（M4 / US-03，端点 11、12、15、16、18）
  *
  * 契约依据
  *   - 决策 I-9「模块依赖方向」：`M2 / M4 / M5 ──→ 通过 can() / visibilityScope() 使用 M3，
@@ -25,13 +25,21 @@ import { currentUserId, requireAuth } from '../../auth/actor.js'
 import { AppError } from '../../shared/errors.js'
 import { createAuthorization } from '../authz/permissions.js'
 import type { RouteContext } from '../../routes.js'
-import { createBusinessGoal, createUserActivity, updateBusinessGoal } from './service.js'
+import {
+  createBusinessGoal,
+  createUserActivity,
+  reorderUserActivities,
+  updateBusinessGoal,
+  updateUserActivity,
+} from './service.js'
 import {
   createBusinessGoalSchema,
   createUserActivitySchema,
   fieldError,
   parseBody,
+  reorderActivitiesSchema,
   updateBusinessGoalSchema,
+  updateUserActivitySchema,
   validationFailedWith,
 } from './schemas.js'
 
@@ -47,6 +55,13 @@ import {
  * 而不是依赖两处字面量恰好一直保持相同。
  */
 const GOAL_NOT_FOUND_MESSAGE = '目标不存在'
+
+/**
+ * 端点 16 的 404 文案（**单一定义处**）。理由同 `GOAL_NOT_FOUND_MESSAGE`：
+ * 「activityId 不存在」与「活动存在但调用者不是项目成员」必须用同一个字符串，
+ * 否则调用方能靠文案差异探出活动是否存在（决策 I-3）。
+ */
+const ACTIVITY_NOT_FOUND_MESSAGE = '用户活动不存在'
 
 /**
  * 注册需求层级模块的全部路由。
@@ -302,7 +317,125 @@ export function registerRequirementRoutes(app: FastifyInstance, ctx: RouteContex
     },
   )
 
+  // ===========================================================================
+  // 端点 16 —— PATCH /activities/:activityId —— 权限：requirement.write
+  //
+  // 请求  { name?: string, description?: string, status?: GoalStatus }
+  // 响应  200 UserActivity
+  // 错误  同端点 12（403 FORBIDDEN / 404 NOT_FOUND /
+  //       422 VALIDATION_FAILED（name: REQUIRED | TOO_LONG；status: INVALID_VALUE））
+  // 说明  部分更新：请求体中未出现的字段保持不变（决策 I-10）
+  // ===========================================================================
+  app.patch(
+    '/activities/:activityId',
+    { preHandler: requireAuth },
+    async (req, reply) => {
+      const actorUserId = currentUserId(req)
+      const { activityId } = req.params as { activityId: string }
+
+      // 第 1 步：活动必须存在，并取出它所属的 projectId
+      // （理由同端点 15/12：ObjectRef 的 kind:'activity' 要求真实 projectId）
+      const activity = await ctx.prisma.userActivity.findUnique({
+        where: { id: activityId },
+        select: { id: true, projectId: true },
+      })
+      if (!activity) {
+        throw new AppError(404, 'NOT_FOUND', ACTIVITY_NOT_FOUND_MESSAGE)
+      }
+
+      // 第 2 步：唯一鉴权入口（决策 I-5）。非成员 → 404；MEMBER / VIEWER → 403。
+      const decision = await can(actorUserId, 'requirement.write', {
+        kind: 'activity',
+        projectId: activity.projectId,
+        objectId: activityId,
+      })
+      if (!decision.allow) {
+        // 直接使用 can() 给出的 status / code，调用方不改写（决策 I-5 约束 2）
+        throw new AppError(decision.status, decision.code, ACTIVITY_NOT_FOUND_MESSAGE)
+      }
+
+      // 第 3 步：字段校验（只校验请求体中**出现**的字段）
+      const input = parseBody(updateUserActivitySchema, req.body ?? {})
+
+      // `name` 是可选字段：只有出现时才判纯空白（同端点 12，部分更新最易写错处）
+      let name: string | undefined
+      if (input.name !== undefined) {
+        const trimmed = input.name.trim()
+        if (trimmed === '') {
+          validationFailedWith([fieldError('name', 'REQUIRED')])
+        }
+        name = trimmed
+      }
+
+      // 第 4 步：写入。goalId / projectId / sortOrder 不在可改白名单内。
+      const updated = await updateUserActivity(ctx.prisma, activityId, {
+        ...(name === undefined ? {} : { name }),
+        ...(input.description === undefined ? {} : { description: input.description }),
+        ...(input.status === undefined ? {} : { status: input.status }),
+      })
+      if (!updated) {
+        // TOCTOU：can() 之后、写入之前活动被删除（端点 17 属 T3.9）
+        throw new AppError(404, 'NOT_FOUND', ACTIVITY_NOT_FOUND_MESSAGE)
+      }
+
+      return reply.status(200).send(updated)
+    },
+  )
+
+  // ===========================================================================
+  // 端点 18 —— PUT /goals/:goalId/activities/order —— 权限：requirement.write
+  //
+  // 请求  { orderedIds: string[] }
+  // 响应  200 ListResponse<UserActivity>
+  // 错误  403 FORBIDDEN
+  //       404 NOT_FOUND
+  //       422 VALIDATION_FAILED（orderedIds: INVALID_VALUE
+  //                              —— 集合与该目标下现有活动集合不一致）
+  // 语义  同端点 14，范围限定在该目标下的用户活动：
+  //       第 i 个 id 的 sortOrder 置为 i；幂等，可重复调用
+  // ===========================================================================
+  app.put(
+    '/goals/:goalId/activities/order',
+    { preHandler: requireAuth },
+    async (req, reply) => {
+      const actorUserId = currentUserId(req)
+      const { goalId } = req.params as { goalId: string }
+
+      // 第 1 步 / 第 2 步：父级目标存在性 + 唯一鉴权入口（同端点 15）
+      const goal = await ctx.prisma.businessGoal.findUnique({
+        where: { id: goalId },
+        select: { id: true, projectId: true },
+      })
+      if (!goal) {
+        throw new AppError(404, 'NOT_FOUND', GOAL_NOT_FOUND_MESSAGE)
+      }
+
+      const decision = await can(actorUserId, 'requirement.write', {
+        kind: 'goal',
+        projectId: goal.projectId,
+        objectId: goalId,
+      })
+      if (!decision.allow) {
+        throw new AppError(decision.status, decision.code, GOAL_NOT_FOUND_MESSAGE)
+      }
+
+      // 第 3 步：形状校验（必须是字符串数组；集合一致性属业务规则，在 service 内判）
+      const input = parseBody(reorderActivitiesSchema, req.body ?? {})
+
+      // 第 4 步：全量替换（校验与写入在同一个事务内，见 service 的说明）
+      const result = await reorderUserActivities(ctx.prisma, goalId, input.orderedIds)
+      if (!result.ok) {
+        // 契约 I-8 端点 18「同端点 14」：集合不一致 → 422 orderedIds: INVALID_VALUE。
+        // 此处**没有发生任何写入**（校验在写入之前、同一事务内），失败零副作用。
+        validationFailedWith([fieldError('orderedIds', 'INVALID_VALUE')])
+      }
+
+      // 契约 I-3 的 ListResponse 包装：列表端点的响应体是 { items: [...] }
+      return reply.status(200).send({ items: result.activities })
+    },
+  )
+
   // 供后续任务使用的占位注释：端点 13/14 属 T3.9 / T3.3，
-  // 端点 10 属 T3.8 / T3.10，端点 16–19 属 T3.5 / T3.6，
+  // 端点 10 属 T3.8 / T3.10，端点 17 属 T3.9，端点 19 属 T3.6，
   // 端点 20–22 属 T3.7 / T3.9。均在本文件内按任务逐步追加。
 }

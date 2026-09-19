@@ -382,5 +382,165 @@ export async function updateBusinessGoal(
   return row ? toBusinessGoal(row) : null
 }
 
+// ---------------------------------------------------------------------------
+// 端点 16 —— 更新用户活动（部分更新）
+// ---------------------------------------------------------------------------
+
+/**
+ * 端点 16 可修改字段的**白名单**。
+ *
+ * `goalId`（父级归属）与 `projectId`（从父级推导，决策 I-10）都不在其中；
+ * `sortOrder` 也不在其中 —— 活动排序只能走端点 18 的全量替换（决策 I-10）。
+ * 与 `BusinessGoalPatch` 同理：用类型白名单让「本端点改不了归属与排序」在编译器层面成立。
+ */
+export type UserActivityPatch = {
+  name?: string
+  description?: string
+  status?: GoalStatus
+}
+
+/**
+ * 端点 16 的返回列集合（契约 I-2 的 UserActivity 共 7 字段，无 createdAt）。
+ * 同 `BUSINESS_GOAL_FIELDS`：刻意不抽公共常量，避免把 T3.5 的差异扩散到已验收的端点。
+ */
+const USER_ACTIVITY_FIELDS = {
+  id: true,
+  projectId: true,
+  goalId: true,
+  name: true,
+  description: true,
+  status: true,
+  sortOrder: true,
+} as const
+
+/**
+ * 更新用户活动（端点 16）。
+ *
+ * 职责边界、部分更新语义、空补丁处理、以及「为什么不需要事务」的推理
+ * **与端点 12 完全同型**（见 `updateBusinessGoal` 的注释），此处不重复展开，
+ * 只说明两处**不同**点：
+ *
+ *   1. 返回类型是 `UserActivity`（7 字段），比 `BusinessGoal` 多 `goalId`、少 `createdAt`；
+ *   2. 返回 `null` 的 TOCTOU 窗口来自端点 17（删除活动，属 T3.9），而不是端点 13。
+ */
+export async function updateUserActivity(
+  prisma: PrismaClient,
+  activityId: string,
+  patch: UserActivityPatch,
+): Promise<UserActivity | null> {
+  // 只提交请求体明确给出的字段（避免读-改-写窗口造成的丢失更新）
+  const data: Prisma.UserActivityUpdateInput = {
+    ...(patch.name === undefined ? {} : { name: patch.name }),
+    ...(patch.description === undefined ? {} : { description: patch.description }),
+    ...(patch.status === undefined ? {} : { status: patch.status }),
+  }
+
+  // 补丁为空 → 不写，只读（同端点 12）
+  const row =
+    Object.keys(data).length === 0
+      ? await prisma.userActivity.findUnique({ where: { id: activityId }, select: USER_ACTIVITY_FIELDS })
+      : await prisma.userActivity.update({
+          where: { id: activityId },
+          data,
+          select: USER_ACTIVITY_FIELDS,
+        })
+
+  return row ? toUserActivity(row) : null
+}
+
+// ---------------------------------------------------------------------------
+// 端点 18 —— 用户活动排序（全量替换）
+// ---------------------------------------------------------------------------
+
+/**
+ * 端点 18 的结果类型。
+ *
+ * 用**可判别联合**而不是直接抛异常：集合不一致属**客户端输入错误**（要转 422），
+ * 不是服务端故障；而 `AppError` 属 HTTP 层，数据访问层不该知道状态码。
+ * 于是 service 只报告「发生了什么」，由 handler 决定「回什么码」——
+ * 与端点 12 用 `null` 表示「目标已不存在」是同一个设计取向。
+ */
+export type ReorderActivitiesResult =
+  | { ok: true; activities: UserActivity[] }
+  | { ok: false; reason: 'SET_MISMATCH' }
+
+/**
+ * 判断请求的 id 序列与库内现有 id 集合是否**完全一致**。
+ *
+ * 契约 I-8 端点 14（端点 18 沿用）：集合与本项目/本目标现有集合不一致 → 422。
+ * 三条判据合起来才充分：
+ *   - 长度相同、且请求序列内部**无重复**（有重复则长度相同也会漏掉某个 id）；
+ *   - 库内每个 id 都出现在请求里（配合长度相同 ⇒ 两集合相等）。
+ */
+function isSameIdSet(existingIds: string[], requestedIds: string[]): boolean {
+  if (requestedIds.length !== existingIds.length) return false
+  const requested = new Set(requestedIds)
+  if (requested.size !== requestedIds.length) return false
+  return existingIds.every((id) => requested.has(id))
+}
+
+/**
+ * 全量替换某目标下用户活动的顺序（端点 18）。
+ *
+ * 语义（契约 I-8 端点 18「同端点 14」，范围限定在该目标下）：
+ *   第 i 个 id 的 `sortOrder` 置为 i；幂等，可重复调用。
+ *
+ * ---------------------------------------------------------------------------
+ * 【为什么整个操作必须在同一个事务里】—— 这是端点 12/16 所没有的
+ *
+ * 本操作是**读-改-写**：先读出现有活动集合用于一致性校验，再逐条改 `sortOrder`。
+ * 若读与写分成两次独立访问，会出现两类问题：
+ *   ① 校验通过之后、写入之前，集合被端点 15 改变（新增/删除了活动），
+ *      于是「校验时成立的集合」与「写入时实际的集合」不一致 —— 写完后序号不再连续；
+ *   ② 逐条 update 若中途失败，会留下**半应用的顺序**（一部分新序号、一部分旧序号），
+ *      而排序功能最忌讳的就是这种静默的中间态。
+ * 放进单个 `$transaction` 后，SQLite 单写者模型的写锁把并发事务串行化，
+ * 且整体要么全成、要么全不成。
+ *
+ * 【为什么不加唯一约束兜底】同端点 11/15 的结论（表五序号 42）：
+ * 全量替换**必然经过合法中间态** —— 把 [A,B] 换成 [B,A] 时，置 A:=1 的那一刻 B 仍为 1。
+ * `@@unique([goalId, sortOrder])` 会拒绝这个中间态，使排序根本无法实现。
+ * 所以序号唯一性这条不变量只能由事务保证，不能由约束保证。
+ *
+ * 【集合不一致时不写入任何东西】校验在写入之前、且在同一事务内完成，
+ * 返回 `SET_MISMATCH` 时事务内没有任何写操作，因此失败请求零副作用。
+ * ---------------------------------------------------------------------------
+ */
+export async function reorderUserActivities(
+  prisma: PrismaClient,
+  goalId: string,
+  orderedIds: string[],
+): Promise<ReorderActivitiesResult> {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.userActivity.findMany({
+      where: { goalId },
+      select: { id: true },
+    })
+    const existingIds = existing.map((row) => row.id)
+
+    if (!isSameIdSet(existingIds, orderedIds)) {
+      return { ok: false, reason: 'SET_MISMATCH' } as const
+    }
+
+    // 用 `entries()` 而不是 `orderedIds[i]`：后者在 noUncheckedIndexedAccess 下
+    // 类型是 `string | undefined`，会诱使写出非空断言；`entries()` 直接给 `string`。
+    for (const [index, activityId] of orderedIds.entries()) {
+      await tx.userActivity.update({
+        where: { id: activityId },
+        data: { sortOrder: index },
+      })
+    }
+
+    // 响应按新序号升序返回（端点 10 的层级树同样按 sortOrder 升序）
+    const rows = await tx.userActivity.findMany({
+      where: { goalId },
+      orderBy: { sortOrder: 'asc' },
+      select: USER_ACTIVITY_FIELDS,
+    })
+
+    return { ok: true, activities: rows.map(toUserActivity) } as const
+  })
+}
+
 /** 供测试与后续任务使用的类型导出（避免测试直接依赖 Prisma 生成类型）。 */
 export type { Prisma }

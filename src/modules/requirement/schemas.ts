@@ -116,6 +116,49 @@ export const updateBusinessGoalSchema = z.object({
 export type UpdateBusinessGoalInput = z.infer<typeof updateBusinessGoalSchema>
 
 // ---------------------------------------------------------------------------
+// 端点 16 —— PATCH /activities/:activityId
+// ---------------------------------------------------------------------------
+
+/**
+ * 更新用户活动请求体（**部分更新**，决策 I-10）。
+ *
+ * 契约 I-8 端点 16 的「错误 同端点 12」意味着字段级错误码也同端点 12：
+ * `name: REQUIRED | TOO_LONG`、`status: INVALID_VALUE`。
+ *
+ * `status` 同样引共享层的 `goalStatusSchema` —— 用户活动的状态在契约里就是
+ * `GoalStatus`（决策 I-2 的 `UserActivity.status: GoalStatus`，不是独立枚举），
+ * 所以这里必须复用同一个 schema，而不是另写一份 `z.enum(['ACTIVE','DONE'])`。
+ *
+ * `goalId` 与 `projectId` 刻意不在形状内：前者是父级归属，后者从父级推导（决策 I-10），
+ * 都不接受请求体传入。`sortOrder` 也不在其中 —— 活动排序只能走端点 18 的全量替换。
+ */
+export const updateUserActivitySchema = z.object({
+  name: z.string().min(1).max(ACTIVITY_NAME_MAX_LENGTH).optional(),
+  description: z.string().optional(),
+  status: goalStatusSchema.optional(),
+})
+
+export type UpdateUserActivityInput = z.infer<typeof updateUserActivitySchema>
+
+// ---------------------------------------------------------------------------
+// 端点 18 —— PUT /goals/:goalId/activities/order
+// ---------------------------------------------------------------------------
+
+/**
+ * 用户活动排序请求体（全量替换，契约 I-8 端点 18「同端点 14」）。
+ *
+ * 这里只校验**形状**（必须是字符串数组）。「集合是否与该目标下现有活动集合一致」
+ * 是**业务规则**（需查库），按决策 I-2b 的职责边界不塞进 Zod —— 塞进去会让
+ * schema 依赖数据库，破坏测试的独立性。该规则由 service 在事务内判定，
+ * 由 handler 转成契约要求的 `422 VALIDATION_FAILED（orderedIds: INVALID_VALUE）`。
+ */
+export const reorderActivitiesSchema = z.object({
+  orderedIds: z.array(z.string()),
+})
+
+export type ReorderActivitiesInput = z.infer<typeof reorderActivitiesSchema>
+
+// ---------------------------------------------------------------------------
 // 校验助手
 // ---------------------------------------------------------------------------
 
