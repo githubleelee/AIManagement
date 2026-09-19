@@ -1,5 +1,5 @@
 /**
- * 需求层级模块 —— HTTP 路由插件（M4 / US-03，端点 11）
+ * 需求层级模块 —— HTTP 路由插件（M4 / US-03，端点 11、15）
  *
  * 契约依据
  *   - 决策 I-9「模块依赖方向」：`M2 / M4 / M5 ──→ 通过 can() / visibilityScope() 使用 M3，
@@ -25,8 +25,27 @@ import { currentUserId, requireAuth } from '../../auth/actor.js'
 import { AppError } from '../../shared/errors.js'
 import { createAuthorization } from '../authz/permissions.js'
 import type { RouteContext } from '../../routes.js'
-import { createBusinessGoal } from './service.js'
-import { createBusinessGoalSchema, fieldError, parseBody, validationFailedWith } from './schemas.js'
+import { createBusinessGoal, createUserActivity } from './service.js'
+import {
+  createBusinessGoalSchema,
+  createUserActivitySchema,
+  fieldError,
+  parseBody,
+  validationFailedWith,
+} from './schemas.js'
+
+/**
+ * 端点 15 的 404 文案（**单一定义处**）。
+ *
+ * 契约决策 I-3：当对象对调用者不可见时，`message` 必须与「对象不存在」的文案**完全
+ * 一致**，不得出现「无权限」「敏感」等字样。端点 15 有两条会产生 404 的路径
+ * ——「goalId 不存在」与「目标存在但调用者不是项目成员」—— 二者必须是同一个字符串，
+ * 否则调用方能靠文案差异探出某个目标是否存在。
+ *
+ * 之所以提成模块级常量而不是在两处各写一个字面量：让这条约束在代码里只有一处可改，
+ * 而不是依赖两处字面量恰好一直保持相同。
+ */
+const GOAL_NOT_FOUND_MESSAGE = '目标不存在'
 
 /**
  * 注册需求层级模块的全部路由。
@@ -115,7 +134,94 @@ export function registerRequirementRoutes(app: FastifyInstance, ctx: RouteContex
     },
   )
 
+  // ===========================================================================
+  // 端点 15 —— POST /goals/:goalId/activities —— 权限：requirement.write
+  //
+  // 请求  { name: string, description?: string }
+  // 响应  201 UserActivity
+  // 错误  403 FORBIDDEN（MEMBER / VIEWER）
+  //       404 NOT_FOUND（非项目成员；goalId 不存在时同为 404）
+  //       422 VALIDATION_FAILED（name: REQUIRED | TOO_LONG）
+  // 副作用 projectId 取自 goalId 所属目标（不接受请求体传入，防止 CROSS_PROJECT_REF）
+  //       status 默认 'ACTIVE'；sortOrder = 该目标下最大值 + 1
+  //
+  // 契约依据：决策 I-8 端点 15；基线 AC-US-03-02「必须在某业务目标下创建；
+  //           不允许无归属的用户活动」。
+  // ===========================================================================
+  app.post(
+    '/goals/:goalId/activities',
+    { preHandler: requireAuth },
+    async (req, reply) => {
+      const actorUserId = currentUserId(req)
+      const { goalId } = req.params as { goalId: string }
+
+      // ---------------------------------------------------------------------
+      // 第 1 步：父级目标必须先存在，并**取出它所属的 projectId**
+      //
+      // 端点 11 在 can() 之前只查「项目是否存在」，这里必须查得更实一点：
+      //   (a) 端点 15 的 projectId **只能**由父级目标推导（决策 I-10），不查就无从得知，
+      //       而请求体里没有、也不允许有这个字段；
+      //   (b) can() 的 ObjectRef 对 `kind: 'goal'` 要求同时给出 projectId 与 objectId，
+      //       但 URL 里只有 goalId。这里填**目标真实的** projectId 而不是占位值，是因为
+      //       can() 将来可能用该字段做「主键查到的行归属必须与 URL 父级一致」的校验；
+      //       填真值则无论 M3 将来是否启用该校验，本端点都正确。
+      // ---------------------------------------------------------------------
+      const goal = await ctx.prisma.businessGoal.findUnique({
+        where: { id: goalId },
+        select: { id: true, projectId: true },
+      })
+      if (!goal) {
+        throw new AppError(404, 'NOT_FOUND', GOAL_NOT_FOUND_MESSAGE)
+      }
+
+      // ---------------------------------------------------------------------
+      // 第 2 步：唯一鉴权入口（决策 I-5）。不自行判断任何角色。
+      //
+      // 判定顺序短路：非项目成员在第 2 条即 404；MEMBER / VIEWER 对写类动作
+      // 落到第 5 条 → 403，两者不会混淆。
+      // 本条 404 与上一条 404 使用**同一个** GOAL_NOT_FOUND_MESSAGE，
+      // 使「目标不存在」与「目标存在但我是外人」不可区分（决策 I-3）。
+      // ---------------------------------------------------------------------
+      const decision = await can(actorUserId, 'requirement.write', {
+        kind: 'goal',
+        projectId: goal.projectId,
+        objectId: goalId,
+      })
+      if (!decision.allow) {
+        // 直接使用 can() 给出的 status / code，调用方不改写（决策 I-5 约束 2）
+        throw new AppError(decision.status, decision.code, GOAL_NOT_FOUND_MESSAGE)
+      }
+
+      // ---------------------------------------------------------------------
+      // 第 3 步：字段校验（决策 I-2b：单字段形状归 Zod）
+      //
+      // 顺序与端点 11 一致：存在性与权限判定都在字段校验**之前** ——
+      // 越权请求不得通过 422 的 details 探出字段规则。
+      // ---------------------------------------------------------------------
+      const input = parseBody(createUserActivitySchema, req.body ?? {})
+
+      // 纯空白名称：`.min(1)` 拦不住（长度不为 0），必须 trim 后判空。
+      // 决策 I-4 对 REQUIRED 的定义是「必填缺失或**纯空白**」。
+      const name = input.name.trim()
+      if (name === '') {
+        validationFailedWith([fieldError('name', 'REQUIRED')])
+      }
+
+      // ---------------------------------------------------------------------
+      // 第 4 步：写入。projectId **取自父级目标**，不接受请求体传入（决策 I-10）——
+      // 这从结构上消除了 CROSS_PROJECT_REF，而不是靠校验去拦。
+      // ---------------------------------------------------------------------
+      const activity = await createUserActivity(ctx.prisma, goalId, goal.projectId, {
+        name,
+        // description 允许为纯空白字符串（契约未要求 trim 描述），仅在提供时写入
+        ...(input.description === undefined ? {} : { description: input.description }),
+      })
+
+      return reply.status(201).send(activity)
+    },
+  )
+
   // 供后续任务使用的占位注释：端点 12/13/14 属 T3.2 / T3.9 / T3.3，
-  // 端点 10 属 T3.8 / T3.10，端点 15–19 属 T3.4 / T3.5 / T3.6，
+  // 端点 10 属 T3.8 / T3.10，端点 16–19 属 T3.5 / T3.6，
   // 端点 20–22 属 T3.7 / T3.9。均在本文件内按任务逐步追加。
 }

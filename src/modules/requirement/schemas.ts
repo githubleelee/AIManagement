@@ -29,6 +29,18 @@ import type { FieldError } from '../../shared/types.js'
 /** 业务目标名称上限。契约未规定数值，按决策 I-2b 的举例「name（50）」取 50。 */
 export const GOAL_NAME_MAX_LENGTH = 50
 
+/**
+ * 用户活动名称上限（端点 15，T3.4）。
+ *
+ * 与 `GOAL_NAME_MAX_LENGTH` **同源**：契约对端点 15 同样只规定了错误码
+ * `TOO_LONG`、**不给数值**（决策 I-8 端点 15；决策 I-4 的字段级错误码表
+ * 仅以「name（50）」举例）。取 50 使「目标名」与「活动名」两个 `name` 字段口径一致。
+ *
+ * 刻意不合并成一个共用常量：两者是契约里两个独立端点的字段，将来若只调整其中
+ * 一个，独立常量不会牵连另一端点。该空白同样记入表五，留 Sprint 2 澄清。
+ */
+export const ACTIVITY_NAME_MAX_LENGTH = 50
+
 // ---------------------------------------------------------------------------
 // 端点 11 —— POST /projects/:projectId/goals
 // ---------------------------------------------------------------------------
@@ -50,6 +62,29 @@ export const createBusinessGoalSchema = z.object({
 })
 
 export type CreateBusinessGoalInput = z.infer<typeof createBusinessGoalSchema>
+
+// ---------------------------------------------------------------------------
+// 端点 15 —— POST /goals/:goalId/activities
+// ---------------------------------------------------------------------------
+
+/**
+ * 创建用户活动请求体。
+ *
+ * 与端点 11 的请求体同形（`{ name, description? }`），但**刻意不复用同一个 schema 对象**：
+ * 两者是契约里两个独立端点的字段，长度上限将来可能分开调整，共用一个对象会让
+ * 「为了端点 11 的调整顺手改掉端点 15 的校验」变成可能。
+ *
+ * `z.object` 默认**剥除**未声明字段（非 strict），因此请求体里塞入的
+ * `projectId` / `goalId` / `status` / `sortOrder` 会被静默丢弃。这正是端点 15
+ * 「不接受请求体传入 `projectId`」的结构性保证（决策 I-10「`projectId` 的推导」）：
+ * 请求体**没有**能表达归属的字段，而不是靠校验去拦。
+ */
+export const createUserActivitySchema = z.object({
+  name: z.string().min(1).max(ACTIVITY_NAME_MAX_LENGTH),
+  description: z.string().optional(),
+})
+
+export type CreateUserActivityInput = z.infer<typeof createUserActivitySchema>
 
 // ---------------------------------------------------------------------------
 // 校验助手

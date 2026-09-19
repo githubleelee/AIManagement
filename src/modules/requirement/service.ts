@@ -13,7 +13,7 @@
  *   本文件是 `src/modules/requirement/` 内的新增文件，属 M4 独占，不触碰任何冻结文件。
  */
 import type { Prisma, PrismaClient } from '@prisma/client'
-import type { BusinessGoal, GoalStatus, Priority, StoryStatus, UserStory } from '../../shared/types.js'
+import type { BusinessGoal, GoalStatus, Priority, StoryStatus, UserActivity, UserStory } from '../../shared/types.js'
 
 // ---------------------------------------------------------------------------
 // 行 → 契约响应类型的映射（时间字段在此完成序列化）
@@ -31,6 +31,34 @@ function toBusinessGoal(row: {
   return {
     id: row.id,
     projectId: row.projectId,
+    name: row.name,
+    description: row.description,
+    // 枚举列在库里是 String（决策 I-0：SQLite 不支持原生 enum），
+    // 取值合法性由写入前的 Zod 校验 + 表默认值共同保证。
+    status: row.status as GoalStatus,
+    sortOrder: row.sortOrder,
+  }
+}
+
+/** `UserActivity` 表行 → 决策 I-2 的 `UserActivity` 类型。
+ *
+ * 刻意**不导出**：T3.1 的代码审查指出「已导出但无人调用的函数属于可被误用的危险 API」
+ * （表五序号 44 登记的 E9 类隐患）。本模块的测试全部走 HTTP seam，不需要它，
+ * 因此保持模块私有，等真有第二个调用方时再决定是否导出。
+ */
+function toUserActivity(row: {
+  id: string
+  projectId: string
+  goalId: string
+  name: string
+  description: string | null
+  status: string
+  sortOrder: number
+}): UserActivity {
+  return {
+    id: row.id,
+    projectId: row.projectId,
+    goalId: row.goalId,
     name: row.name,
     description: row.description,
     // 枚举列在库里是 String（决策 I-0：SQLite 不支持原生 enum），
@@ -166,6 +194,95 @@ export async function createBusinessGoal(
   })
 
   return toBusinessGoal(row)
+}
+
+// ---------------------------------------------------------------------------
+// 端点 15 —— 创建用户活动
+//
+// 【sortOrder 的口径，单一定义处】
+//   与端点 11 **同源但作用域不同**：
+//     - 端点 11 的作用域是「项目内所有目标」；
+//     - 端点 15 的作用域是「**该目标下的所有活动**」（契约 I-8 端点 15 原文：
+//       「sortOrder = 该目标下最大值 + 1」）。
+//   空集合把最大值视作 -1，于是某目标下的第一条活动得到 0。依据同端点 11：
+//   端点 18 规定「第 i 个 id 的 sortOrder 置为 i」，即排序是从 0 开始的下标，
+//   两条规则必须同源，否则排序后 sortOrder 集合会突变。
+//   注意 `aggregate` 在空集合上返回 `_max.sortOrder === null`（不是 0），
+//   必须用 `=== null` 显式判断，写成 `?? 0` 会让第一条活动从 1 开始。
+//
+//   与端点 11 一样，计算逻辑**内联在事务里**、不单独导出函数：任何独立的公开
+//   函数都会诱使调用方在事务外使用它，从而重新引入竞态。
+// ---------------------------------------------------------------------------
+
+/**
+ * 创建用户活动。
+ *
+ * 职责边界：本函数**只做数据写入**，不查目标是否存在、不做权限判定
+ * （那两件事属于 handler + `can()`）。
+ *
+ * 参数口径：`goalId` 是 URL 父级；`projectId` **必须由调用方从 `goalId` 所属目标
+ * 推导**后传入，绝不来自请求体（决策 I-10「`projectId` 的推导」，基线 AC-US-03-02
+ * 「必须在某业务目标下创建；不允许无归属的用户活动」）。把它做成显式参数而不是在
+ * 函数内再查一次目标，是为了让「归属只能来自父级」这条规则在**签名上可见** ——
+ * 数据层不知道「请求体」的存在，所以它无从被污染。
+ *
+ * ---------------------------------------------------------------------------
+ * 【并发】为什么必须放在同一个事务里（同端点 11 的 B1 缺陷）
+ *
+ * 「读该目标下的最大值」与「插入」若是两次独立查询，并发请求会**读到同一个最大值**，
+ * 从而算出相同的 `sortOrder`。T3.1 实测过该竞态的形态：并发 5 条 → `[0,0,1,1,1]`、
+ * 并发 8 条 → `[0,0,0,0,0,1,1,1]`，而串行 8 条严格为 `[0..7]`。
+ * 端点 15 的契约同样是「最大值 + 1」，因此同样必须纳入单个 `$transaction`，
+ * 依赖 SQLite 单写者模型的写锁把并发事务串行化。
+ *
+ * 同样**不加** `@@unique([goalId, sortOrder])` 兜底：端点 18 的全量替换存在
+ * **合法中间态**（把 [A,B] 换成 [B,A] 时置 A:=1 于 B 尚为 1 之时），唯一约束会拒绝
+ * 该中间态而使排序功能不可实现。
+ *
+ * 残余边界（同表五序号 42 记录的端点 11 结论）：本修法依赖 SQLite 单写者模型。
+ * 若将来换成 Postgres（默认 READ COMMITTED），两个事务仍可能读到同一最大值，
+ * 届时需要 `SELECT ... FOR UPDATE` 或唯一约束 + 冲突重试。
+ * ---------------------------------------------------------------------------
+ */
+export async function createUserActivity(
+  prisma: PrismaClient,
+  goalId: string,
+  projectId: string,
+  input: { name: string; description?: string },
+): Promise<UserActivity> {
+  // 读最大值与写入必须在同一事务内完成：见上方「并发」
+  const row = await prisma.$transaction(async (tx) => {
+    const aggregate = await tx.userActivity.aggregate({
+      where: { goalId },
+      _max: { sortOrder: true },
+    })
+    const currentMax = aggregate._max.sortOrder
+    const sortOrder = (currentMax === null ? -1 : currentMax) + 1
+
+    return tx.userActivity.create({
+      data: {
+        goalId,
+        projectId,
+        name: input.name,
+        // 可选字段：未提供时置 null（契约 I-2 中 description 的类型是 `string | null`）。
+        description: input.description ?? null,
+        // status 不显式写入，依赖表默认值 'ACTIVE'（决策 I-7：@default("ACTIVE")）。
+        // 这样端点 15 的「status 默认 'ACTIVE'」与数据层默认值只有一处真相。
+        sortOrder,
+      },
+      select: {
+        id: true,
+        projectId: true,
+        goalId: true,
+        name: true,
+        description: true,
+        status: true,
+        sortOrder: true,
+      },
+    })
+  })
+
+  return toUserActivity(row)
 }
 
 /** 供测试与后续任务使用的类型导出（避免测试直接依赖 Prisma 生成类型）。 */
