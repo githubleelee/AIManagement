@@ -163,7 +163,7 @@ export function registerProjectRoutes(app: FastifyInstance, ctx: RouteContext): 
 
     const existing = await findMembership(ctx.prisma, projectId, target.id)
     if (existing) {
-      throw new AppError(409, 'CONFLICT', '该用户已是项目成员', [
+      throw new AppError(409, 'CONFLICT', '该成员已在项目中', [
         fieldError('account', 'DUPLICATE'),
       ])
     }

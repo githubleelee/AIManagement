@@ -101,6 +101,7 @@ describe('T1.3 端点 6：POST /projects/:projectId/members', () => {
 
     expect(res.status).toBe(409)
     expect(res.body.error.code).toBe('CONFLICT')
+    expect(res.body.error.message).toBe('该成员已在项目中')
     expect(res.body.error.details).toContainEqual({ field: 'account', code: 'DUPLICATE' })
   })
 
