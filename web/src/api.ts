@@ -39,7 +39,19 @@ export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY)
 }
 
-async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+/**
+ * 统一发请求并解析契约信封。
+ *
+ * 【US-03 / T3.11 的唯一一处改动】补 `export`。
+ *
+ * 原因：`docs/frontend-routes.md` 规定"其他模块只往 `web/src/pages/` 下新增页面"，
+ * 但 US-03 的端点（10–22）也需要走同一个信封解析。若不导出本函数，US-03 只能在
+ * 自己的页面目录里**再抄一遍** fetch + Authorization + ErrorResponse 解析 ——
+ * 那正是契约「常见拼装失败与预防」表第一条（同一件事两份实现就会漂移）的成因。
+ *
+ * 因此这里只加一个关键字，**不改任何既有行为**；归属仍是 M2，请 M2 负责人复核。
+ */
+export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   if (init.body !== undefined && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')

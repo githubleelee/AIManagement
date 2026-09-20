@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>US-03 需求层级 —— 界面稿（横向三栏 + 视图切换，静态）</title>
+
+    <!--
+      ========================================================================
+      这是**界面稿**（静态、无后端），不是应用入口。
+      真实入口仍是：web/index.html → web/src/main.tsx → App.tsx → RequirementPage.tsx
+      ========================================================================
+
+      与上一版的区别（人类反馈：上一版「自上而下一条流水线，没有横向维度、
+      也没有页面跳转」）：
+
+        上一版：一个纵向长条 —— 接入区 / 5 种状态 / 层级树 / 表单草案
+                全部从上到下堆在一起，只有「往下看」一个方向。
+        本版：  三栏应用骨架 + 5 个可切换视图（点左栏即切）
+                  ├ 左栏：视图导航（概览 / 需求层级 / 用户故事 / 新建 / 异常状态）
+                  ├ 中栏：当前视图主体（统计卡 / 树 / 表格 / 表单 / 错误卡）
+                  └ 右栏：选中节点的详情，含面包屑与三个分页签
+
+        三栏各自独立滚动、页面不整页滚动；点中栏任意一行，只有右栏变化；
+        点面包屑或右栏里的子项表格，可以逐级往上/往下跳。
+
+      数据与真实后端一致：
+        这里内嵌的数据 = 实验\_us03_seed_frontend.cjs 灌进 dev.db 的那一套
+        （1 项目 / 2 目标 / 3 活动 / 4 故事，其中 story-2 是敏感故事），
+        字段名与取值全部照契约 I-2 / I-1，因此接上后端后样子不会变。
+
+      CSS 全部来自共享的 web/src/pages/requirement/requirement.css
+      （§B 应用骨架那一节就是为本版新增的），本文件不另抄样式，
+      所以「这里看到的样子」=「React 页接上后的样子」。
+
+      本文件里的 JS 只做三件事：切视图 / 选节点 / 切分页签，**不发任何请求**。
+    -->
+    <link rel="stylesheet" href="../../index.css" />
+    <link rel="stylesheet" href="./requirement.css" />
+  </head>
+
+  <body>
+    <!-- 复现 App.tsx 的外壳（.shell 是居中卡片，页面挂在它内部） -->
+    <main class="shell">
+      <h1>爱管理（AI Management）</h1>
+      <p class="tagline">新一代 AI 驱动的软件项目管理平台</p>
+      <p class="flow">项目 → 权限 → 需求 → 任务</p>
+      <p class="health">后端健康检查：<strong>正常</strong></p>
+
+      <section class="req-app">
+        <!-- ================= 顶栏 ================= -->
+        <header class="req-topbar">
+          <div>
+            <p class="req-topbar-title">需求层级 · US-03</p>
+            <p class="req-topbar-sub" id="tb-project">项目加载中…</p>
+          </div>
+          <span class="req-topbar-spacer"></span>
+          <div class="req-identity">
+            <span class="req-avatar">演</span>
+            <span>
+              <span id="tb-user">演示项目经理</span>
+              <span class="req-badge req-badge-goal" id="tb-role">项目经理</span>
+            </span>
+          </div>
+        </header>
+
+        <!-- 开发后门提示条：真实页面在 devSession.ts 启用时显示，这里照样显示 -->
+        <p class="req-banner">
+          开发后门已启用：正在使用内置演示账号（usr-pm-demo / PM）。端点 1 登录与端点 3
+          建项目尚未实现；删除 web/src/pages/requirement/devSession.ts 即可移除此后门。
+        </p>
+
+        <!-- ================= 左栏：视图导航 ================= -->
+        <aside class="req-sidebar">
+          <p class="req-side-title">视图</p>
+          <ul class="req-nav" id="nav"></ul>
+          <p class="req-side-title">本项目统计</p>
+          <ul class="req-side-stats" id="side-stats"></ul>
+        </aside>
+
+        <!-- ================= 中栏：视图主体 ================= -->
+        <section class="req-main" id="main"></section>
+
+        <!-- ================= 右栏：选中项详情 ================= -->
+        <aside class="req-detail" id="detail"></aside>
+      </section>
+
+      <noscript>
+        <p class="req-placeholder">
+          本界面稿用少量 JS 做「切视图 / 选节点 / 切分页签」，请允许脚本运行后再看。
+        </p>
+      </noscript>
+    </main>
+
+    <script>
+      // =====================================================================
+      // 内嵌数据：与 seed 脚本灌进 dev.db 的那一套逐字段一致
+      // （字段名与取值照契约 I-2 / I-1；不写任何中文进枚举字段）
+      // =====================================================================
+      var DATA = {
+        me: { account: 'pm.demo', displayName: '演示项目经理', role: 'PM' },
+        project: { id: 'prj-us03-demo', name: '爱管理 · Sprint 1 演示项目' },
+        goals: [
+          {
+            id: 'goal-1',
+            name: '提升团队交付可预期性',
+            description: '让每个迭代的交付范围在开工前就被说清楚，避免验收时才暴露分歧。',
+            status: 'ACTIVE',
+            sortOrder: 0,
+            activities: [
+              {
+                id: 'act-1',
+                name: '维护需求层级',
+                description: '把业务目标拆成用户的关键行为。',
+                status: 'ACTIVE',
+                sortOrder: 0,
+                stories: [
+                  {
+                    id: 'story-1',
+                    title: '建立需求层级树',
+                    roleText: '项目经理',
+                    capabilityText: '在一个层级树里看到目标到故事的归属',
+                    valueText: '快速判断需求结构',
+                    businessValue: '高：层级混乱是返工的主因',
+                    priority: 'P0',
+                    status: 'PLANNING',
+                    acceptanceCriteria: '层级树完整展示 目标→活动→故事 三层归属，且不出现孤儿节点',
+                    isSensitive: false,
+                    createdAt: '2026-09-20T14:46:04Z'
+                  },
+                  {
+                    id: 'story-2',
+                    title: '三段式录入用户故事',
+                    roleText: '项目经理',
+                    capabilityText: '按 角色 / 能力 / 价值 三个字段分别录入',
+                    valueText: '每个字段可独立检索与展示',
+                    businessValue: '中：影响需求可读性',
+                    priority: 'P1',
+                    status: 'DRAFT',
+                    acceptanceCriteria: null,
+                    isSensitive: true,
+                    createdAt: '2026-09-20T14:46:04Z'
+                  },
+                  {
+                    id: 'story-3',
+                    title: '编辑需求并持久化',
+                    roleText: '项目经理',
+                    capabilityText: '修改名称、描述、状态与优先级',
+                    valueText: '刷新后数据不丢',
+                    businessValue: '中',
+                    priority: 'P1',
+                    status: 'DONE',
+                    acceptanceCriteria: '编辑后重新加载页面，字段值保持不变',
+                    isSensitive: false,
+                    createdAt: '2026-09-20T14:46:04Z'
+                  }
+                ]
+              },
+              {
+                id: 'act-2',
+                name: '评审交付范围',
+                description: '迭代开始前确认范围。',
+                status: 'DONE',
+                sortOrder: 1,
+                stories: [
+                  {
+                    id: 'story-4',
+                    title: '迭代开始前确认范围',
+                    roleText: '项目成员',
+                    capabilityText: '在开工前看到本次迭代的完整范围',
+                    valueText: '不做范围外的事',
+                    businessValue: '高',
+                    priority: 'P0',
+                    status: 'PLANNING',
+                    acceptanceCriteria: '每位成员在开工前收到范围清单',
+                    isSensitive: false,
+                    createdAt: '2026-09-20T14:46:04Z'
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            id: 'goal-2',
+            name: '降低需求返工率',
+            description: '把需求确认前置到开发之前。',
+            status: 'DONE',
+            sortOrder: 1,
+            activities: [
+              { id: 'act-3', name: '需求确认', description: null, status: 'ACTIVE', sortOrder: 0, stories: [] }
+            ]
+          }
+        ]
+      }
+
+      // 决策 I-1：线上英文常量 ↔ 界面中文标签（真实实现在 labels.ts）
+      var GOAL_STATUS_LABEL = { ACTIVE: '进行中', DONE: '已完成' }
+      var STORY_STATUS_LABEL = { DRAFT: '待规划', PLANNING: '规划中', DONE: '已完成' }
+      var PRIORITY_LABEL = { P0: 'P0', P1: 'P1', P2: 'P2' }
+
+      // 状态（真实实现里是 React 的 useState）
+      var STATE = { view: 'tree', selKind: 'story', selId: 'story-1', tab: 'detail' }
+
+      var VIEWS = [
+        { key: 'overview', label: '概览' },
+        { key: 'tree', label: '需求层级' },
+        { key: 'stories', label: '用户故事' },
+        { key: 'create', label: '新建需求' },
+        { key: 'states', label: '异常状态' }
+      ]
+
+      // =====================================================================
+      // 小工具
+      // =====================================================================
+      function esc(s) {
+        if (s === null || s === undefined) return ''
+        return String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+      }
+
+      function allStories() {
+        var out = []
+        DATA.goals.forEach(function (g) {
+          g.activities.forEach(function (a) {
+            a.stories.forEach(function (s) {
+              out.push({ goal: g, activity: a, story: s })
+            })
+          })
+        })
+        return out
+      }
+
+      function findGoal(id) {
+        for (var i = 0; i < DATA.goals.length; i++) if (DATA.goals[i].id === id) return DATA.goals[i]
+        return null
+      }
+
+      function findActivity(id) {
+        for (var i = 0; i < DATA.goals.length; i++) {
+          var g = DATA.goals[i]
+          for (var j = 0; j < g.activities.length; j++) {
+            if (g.activities[j].id === id) return { goal: g, activity: g.activities[j] }
+          }
+        }
+        return null
+      }
+
+      function findStory(id) {
+        var all = allStories()
+        for (var i = 0; i < all.length; i++) if (all[i].story.id === id) return all[i]
+        return null
+      }
+
+      function badgeGoal(status) {
+        return '<span class="req-badge req-badge-goal">' + esc(GOAL_STATUS_LABEL[status] || status + '（契约外取值）') + '</span>'
+      }
+
+      function badgeStory(status) {
+        return '<span class="req-badge req-badge-story">' + esc(STORY_STATUS_LABEL[status] || status + '（契约外取值）') + '</span>'
+      }
+
+      function badgePriority(p) {
+        return '<span class="req-badge req-badge-priority">' + esc(PRIORITY_LABEL[p] || p) + '</span>'
+      }
+
+      function sensitiveBadge(isSensitive) {
+        return isSensitive ? '<span class="req-badge req-badge-sensitive">敏感</span>' : ''
+      }
+
+      // =====================================================================
+      // 左栏
+      // =====================================================================
+      function renderSidebar() {
+        var html = ''
+        VIEWS.forEach(function (v) {
+          var count = ''
+          if (v.key === 'tree') count = DATA.goals.length
+          if (v.key === 'stories') count = allStories().length
+          html +=
+            '<li><button type="button" class="req-nav-btn' + (STATE.view === v.key ? ' is-active' : '') +
+            '" data-view="' + v.key + '"><span>' + esc(v.label) + '</span>' +
+            '<span class="req-nav-count">' + count + '</span></button></li>'
+        })
+        document.getElementById('nav').innerHTML = html
+
+        var actCount = 0
+        DATA.goals.forEach(function (g) { actCount += g.activities.length })
+        document.getElementById('side-stats').innerHTML =
+          '<li><span>业务目标</span><span>' + DATA.goals.length + '</span></li>' +
+          '<li><span>用户活动</span><span>' + actCount + '</span></li>' +
+          '<li><span>用户故事</span><span>' + allStories().length + '</span></li>' +
+          '<li><span>敏感故事</span><span>' + allStories().filter(function (x) { return x.story.isSensitive }).length + '</span></li>'
+
+        document.getElementById('tb-project').textContent = DATA.project.name + '（' + DATA.project.id + '）'
+        document.getElementById('tb-user').textContent = DATA.me.displayName
+        document.getElementById('tb-role').textContent = '项目经理'
+      }
+
+      // =====================================================================
+      // 中栏：五个视图
+      // =====================================================================
+      function rowButton(kind, id, inner) {
+        var active = STATE.selKind === kind && STATE.selId === id ? ' is-selected' : ''
+        return '<button type="button" class="req-node-row' + active + '" data-kind="' + kind +
+          '" data-id="' + esc(id) + '">' + inner + '</button>'
+      }
+
+      function viewTree() {
+        var html = '<p class="req-pane-title">需求层级</p>' +
+          '<p class="req-pane-sub">点任意一行 → 右栏显示它的详情。层级按后端响应顺序渲染（目标/活动按 sortOrder 升序、故事按 createdAt 升序），前端不重排。</p>'
+
+        DATA.goals.forEach(function (g) {
+          var storyTotal = g.activities.reduce(function (n, a) { return n + a.stories.length }, 0)
+          html += '<div class="req-tree-goal">' + rowButton('goal', g.id,
+            '<span class="req-node-kind">目标</span>' +
+            '<span class="req-node-name">' + esc(g.name) + '</span>' + badgeGoal(g.status) +
+            '<span class="req-count">' + g.activities.length + ' 个活动</span>' +
+            '<span class="req-count">' + storyTotal + ' 个故事</span>') + '</div>'
+
+          g.activities.forEach(function (a) {
+            html += '<div class="req-tree-activity">' + rowButton('activity', a.id,
+              '<span class="req-node-kind">活动</span>' +
+              '<span class="req-node-name">' + esc(a.name) + '</span>' + badgeGoal(a.status) +
+              '<span class="req-count">' + a.stories.length + ' 个故事</span>') + '</div>'
+
+            a.stories.forEach(function (s) {
+              html += '<div class="req-tree-story">' + rowButton('story', s.id,
+                '<span class="req-node-name">' + esc(s.title) + '</span>' + badgePriority(s.priority) +
+                badgeStory(s.status) + sensitiveBadge(s.isSensitive)) + '</div>'
+            })
+            if (a.stories.length === 0) html += '<p class="req-empty-inline">该活动下暂无用户故事。</p>'
+          })
+        })
+        return html
+      }
+
+      function viewStories() {
+        var rows = ''
+        allStories().forEach(function (x) {
+          var cls = STATE.selKind === 'story' && STATE.selId === x.story.id ? ' class="is-selected"' : ''
+          rows += '<tr data-kind="story" data-id="' + esc(x.story.id) + '"' + cls + '>' +
+            '<td>' + esc(x.story.title) + '</td><td>' + badgePriority(x.story.priority) + '</td><td>' +
+            badgeStory(x.story.status) + '</td><td>' + (x.story.isSensitive ? '是' : '—') + '</td><td>' +
+            esc(x.goal.name) + '</td><td>' + esc(x.activity.name) + '</td></tr>'
+        })
+        return '<p class="req-pane-title">用户故事（' + allStories().length + '）</p>' +
+          '<p class="req-pane-sub">点任意一行 → 右栏显示该故事的详情。排序固定为 createdAt 升序（契约 I-10：故事不提供手工排序）。</p>' +
+          '<table class="req-table"><thead><tr><th>标题</th><th>优先级</th><th>状态</th><th>敏感</th>' +
+          '<th>所属目标</th><th>所属活动</th></tr></thead><tbody>' + rows + '</tbody></table>'
+      }
+
+      function viewOverview() {
+        var actCount = 0
+        DATA.goals.forEach(function (g) { actCount += g.activities.length })
+        var stories = allStories()
+        var byStatus = { DRAFT: 0, PLANNING: 0, DONE: 0 }
+        stories.forEach(function (x) { byStatus[x.story.status] = (byStatus[x.story.status] || 0) + 1 })
+        var byPriority = { P0: 0, P1: 0, P2: 0 }
+        stories.forEach(function (x) { byPriority[x.story.priority] = (byPriority[x.story.priority] || 0) + 1 })
+
+        function cards(items) {
+          return '<div class="req-stat-row">' + items.map(function (it) {
+            return '<div class="req-stat"><span class="req-stat-value">' + esc(it[0]) +
+              '</span><span class="req-stat-label">' + esc(it[1]) + '</span></div>'
+          }).join('') + '</div>'
+        }
+
+        return '<p class="req-pane-title">概览</p>' +
+          '<p class="req-pane-sub">全部数字由前端从端点 10 的层级树算出（契约 I-2 的节点没有计数字段）。</p>' +
+          cards([[DATA.goals.length, '业务目标'], [actCount, '用户活动'], [stories.length, '用户故事'],
+                 [stories.filter(function (x) { return x.story.isSensitive }).length, '敏感故事']]) +
+          '<p class="req-side-title">按故事状态</p>' +
+          cards([[byStatus.DRAFT, '待规划 DRAFT'], [byStatus.PLANNING, '规划中 PLANNING'], [byStatus.DONE, '已完成 DONE']]) +
+          '<p class="req-side-title">按优先级</p>' +
+          cards([[byPriority.P0, 'P0'], [byPriority.P1, 'P1'], [byPriority.P2, 'P2']]) +
+          '<p class="req-side-title">目标状态</p>' +
+          cards(DATA.goals.map(function (g) { return [GOAL_STATUS_LABEL[g.status], g.name] }))
+      }
+
+      function viewCreate() {
+        return '<p class="req-pane-title">新建需求</p>' +
+          '<p class="req-pane-sub">样式草案（写路径属后续功能块）。三段式是三个独立输入框，分别对应 roleText / capabilityText / valueText —— 这就是 AC-US-03-03 要求的「分字段录入并分别持久化」。</p>' +
+          '<div class="req-form">' +
+          '<p class="req-form-title">在「维护需求层级」下新建用户故事</p>' +
+          '<div class="req-form-grid">' +
+          '<span class="req-label">标题（必填 ≤50）</span><input class="req-input" type="text" value="建立需求层级树" />' +
+          '<span class="req-label">业务价值（必填）</span><input class="req-input" type="text" value="高：层级混乱是返工的主因" />' +
+          '<span class="req-label">优先级（必填）</span><select class="req-select"><option value="P0">P0</option><option value="P1">P1</option><option value="P2">P2</option></select>' +
+          '<span class="req-label">验收标准</span><textarea class="req-textarea">层级树完整展示三层归属</textarea>' +
+          '</div>' +
+          '<div class="req-triad">' +
+          '<p class="req-triad-caption">三段式：三个独立输入框 → roleText / capabilityText / valueText</p>' +
+          '<div class="req-form-grid">' +
+          '<span class="req-label">roleText</span><input class="req-input" type="text" value="项目经理" />' +
+          '<span class="req-label">capabilityText</span><input class="req-input" type="text" value="在一个层级树里看到目标到故事的归属" />' +
+          '<span class="req-label">valueText</span><input class="req-input" type="text" value="快速判断需求结构" />' +
+          '</div>' +
+          '<p class="req-hint">预览：作为「项目经理」，我要「在一个层级树里看到目标到故事的归属」，以便「快速判断需求结构」</p>' +
+          '</div>' +
+          '<div class="req-actions"><button class="req-button" type="button">创建用户故事（端点 19）</button>' +
+          '<button class="req-button req-button-plain" type="button">取消</button></div>' +
+          '<p class="req-hint">注意：<code>&lt;option value&gt;</code> 用的是线上常量 P0/P1/P2，中文只出现在文本里（决策 I-1）。</p>' +
+          '</div>'
+      }
+
+      var STATES = [
+        { key: 'unauth', label: '令牌失效（401）', status: 401, code: 'UNAUTHENTICATED', message: '请先登录',
+          advice: '令牌为空、失效或已过期（有效期 7 天）。重跑 实验\\_us03_seed_frontend.cjs 可以拿到新令牌。' },
+        { key: 'notfound', label: '项目不存在 / 非成员（404）', status: 404, code: 'NOT_FOUND', message: '项目不存在',
+          advice: '契约 I-3 要求「项目不存在」与「你不是该项目成员」返回完全一致的 404，界面无法区分这两者。' },
+        { key: 'forbidden', label: '只读角色写入（403）', status: 403, code: 'FORBIDDEN', message: '当前角色不能执行该操作',
+          advice: 'MEMBER / VIEWER 只读。读层级树不需要该权限，此错误只会在写操作上出现。' },
+        { key: 'children', label: '删除保护（409）', status: 409, code: 'CONFLICT', message: '仍有下级对象，请先处理子项',
+          advice: 'details 里带 { field: goalId, code: HAS_CHILDREN }。不允许静默级联删除（AC-US-03-05）。' }
+      ]
+
+      function viewStates() {
+        var html = '<p class="req-pane-title">异常状态</p>' +
+          '<p class="req-pane-sub">点任意一行 → 右栏看该错误在界面上的呈现。四种都是后端真实会返回的状态。</p>'
+        STATES.forEach(function (s) {
+          html += rowButton('state', s.key,
+            '<span class="req-node-kind">' + s.status + '</span>' +
+            '<span class="req-node-name">' + esc(s.label) + '</span>' +
+            '<span class="req-mono">' + esc(s.code) + '</span>')
+        })
+        return html
+      }
+
+      function renderMain() {
+        var html = ''
+        if (STATE.view === 'overview') html = viewOverview()
+        else if (STATE.view === 'tree') html = viewTree()
+        else if (STATE.view === 'stories') html = viewStories()
+        else if (STATE.view === 'create') html = viewCreate()
+        else html = viewStates()
+        document.getElementById('main').innerHTML = html
+      }
+
+      // =====================================================================
+      // 右栏：详情（面包屑 + 分页签 + 字段 + 子项 + 操作占位）
+      // =====================================================================
+      function crumbs(parts) {
+        var html = '<div class="req-breadcrumb"><span>项目</span>'
+        parts.forEach(function (p, i) {
+          html += '<span>›</span>'
+          var last = i === parts.length - 1
+          html += '<button type="button" class="req-crumb' + (last ? ' req-crumb-current' : '') +
+            '" data-kind="' + p.kind + '" data-id="' + esc(p.id) + '">' + esc(p.label) + '</button>'
+        })
+        return html + '</div>'
+      }
+
+      function tabsHtml(active) {
+        var defs = [['detail', '详情'], ['ac', '验收标准'], ['raw', '契约字段']]
+        return '<div class="req-tabs">' + defs.map(function (d) {
+          return '<button type="button" class="req-tab' + (active === d[0] ? ' is-active' : '') +
+            '" data-tab="' + d[0] + '">' + d[1] + '</button>'
+        }).join('') + '</div>'
+      }
+
+      function kv(pairs) {
+        return '<dl class="req-fields">' + pairs.map(function (p) {
+          return '<dt>' + esc(p[0]) + '</dt><dd>' + esc(p[1]) + '</dd>'
+        }).join('') + '</dl>'
+      }
+
+      function ops(kind) {
+        var moveButtons = kind === 'story' ? '' :
+          '<button class="req-button-small" type="button" disabled title="后续功能块：端点 14/18 全量替换顺序">↑ 上移</button>' +
+          '<button class="req-button-small" type="button" disabled title="后续功能块：端点 14/18 全量替换顺序">↓ 下移</button>'
+        return '<div class="req-op-block">' +
+          '<p class="req-side-title">操作（PM 可写）</p>' +
+          '<div class="req-op-row">' + moveButtons +
+          '<button class="req-button-small" type="button" disabled title="后续功能块">编辑</button>' +
+          '<button class="req-button-small req-button-danger" type="button" disabled title="后续功能块">删除</button>' +
+          '</div>' +
+          '<p class="req-hint">按钮当前禁用：写路径（端点 12/13/14/16/17/18/21/22）属后续功能块。' +
+          '可用性最终由后端 can() 判定，前端不复制权限逻辑（契约 I-9）。</p></div>'
+      }
+
+      function childrenTable(title, headers, rows) {
+        if (rows.length === 0) return '<p class="req-side-title">' + esc(title) + '</p><p class="req-empty-inline">暂无下级。</p>'
+        return '<p class="req-side-title">' + esc(title) + '</p><table class="req-table"><thead><tr>' +
+          headers.map(function (h) { return '<th>' + esc(h) + '</th>' }).join('') +
+          '</tr></thead><tbody>' + rows.join('') + '</tbody></table>'
+      }
+
+      function storyTableRows(stories) {
+        return stories.map(function (s) {
+          return '<tr data-kind="story" data-id="' + esc(s.id) + '"><td>' + esc(s.title) + '</td><td>' +
+            badgePriority(s.priority) + '</td><td>' + badgeStory(s.status) + '</td></tr>'
+        })
+      }
+
+      function detailStory(found) {
+        var s = found.story
+        var head = crumbs([{ kind: 'goal', id: found.goal.id, label: found.goal.name },
+                           { kind: 'activity', id: found.activity.id, label: found.activity.name },
+                           { kind: 'story', id: s.id, label: s.title }]) +
+          '<p class="req-pane-title">' + esc(s.title) + '</p>' +
+          '<p class="req-pane-sub">' + badgePriority(s.priority) + ' ' + badgeStory(s.status) + ' ' + sensitiveBadge(s.isSensitive) + '</p>'
+
+        if (STATE.tab === 'raw') {
+          return head + tabsHtml(STATE.tab) + '<pre class="req-mono">' + esc(JSON.stringify(s, null, 2)) + '</pre>' + ops('story')
+        }
+        if (STATE.tab === 'ac') {
+          return head + tabsHtml(STATE.tab) +
+            '<p class="req-story-sentence">作为 <em>' + esc(s.roleText) + '</em>，我要 <em>' + esc(s.capabilityText) +
+            '</em>，以便 <em>' + esc(s.valueText) + '</em></p>' +
+            kv([['acceptanceCriteria', s.acceptanceCriteria === null ? '（未填写）' : s.acceptanceCriteria]]) +
+            '<div class="req-placeholder">该故事的下属是任务（属 M5）；端点 24 GET /stories/:storyId/tasks 尚未交付，' +
+            '因此这里不显示任务数 —— 显示 0 会与「端点不存在」混淆。</div>' + ops('story')
+        }
+        return head + tabsHtml(STATE.tab) +
+          '<p class="req-story-sentence">作为 <em>' + esc(s.roleText) + '</em>，我要 <em>' + esc(s.capabilityText) +
+          '</em>，以便 <em>' + esc(s.valueText) + '</em></p>' +
+          kv([['title', s.title], ['roleText', s.roleText], ['capabilityText', s.capabilityText],
+              ['valueText', s.valueText], ['businessValue', s.businessValue], ['priority', s.priority],
+              ['status', s.status], ['isSensitive', s.isSensitive ? 'true（只能经端点 23 修改）' : 'false'],
+              ['createdAt', s.createdAt], ['storyId', s.id]]) + ops('story')
+      }
+
+      function detailActivity(found) {
+        var a = found.activity
+        var head = crumbs([{ kind: 'goal', id: found.goal.id, label: found.goal.name },
+                           { kind: 'activity', id: a.id, label: a.name }]) +
+          '<p class="req-pane-title">' + esc(a.name) + '</p>' +
+          '<p class="req-pane-sub">' + badgeGoal(a.status) + ' <span class="req-count">' + a.stories.length + ' 个故事</span></p>'
+        var children = childrenTable('下属用户故事', ['标题', '优先级', '状态'], storyTableRows(a.stories))
+        if (STATE.tab === 'raw') {
+          return head + tabsHtml(STATE.tab) + '<pre class="req-mono">' + esc(JSON.stringify(a, null, 2)) + '</pre>' + ops('activity') + children
+        }
+        return head + tabsHtml(STATE.tab) +
+          kv([['name', a.name], ['description', a.description === null ? '（无）' : a.description],
+              ['status', a.status], ['sortOrder', a.sortOrder], ['activityId', a.id], ['goalId', found.goal.id]]) +
+          ops('activity') + children
+      }
+
+      function detailGoal(g) {
+        var storyTotal = g.activities.reduce(function (n, a) { return n + a.stories.length }, 0)
+        var head = crumbs([{ kind: 'goal', id: g.id, label: g.name }]) +
+          '<p class="req-pane-title">' + esc(g.name) + '</p>' +
+          '<p class="req-pane-sub">' + badgeGoal(g.status) + ' <span class="req-count">' + g.activities.length +
+          ' 个活动</span> <span class="req-count">' + storyTotal + ' 个故事</span></p>'
+        var rows = g.activities.map(function (a) {
+          return '<tr data-kind="activity" data-id="' + esc(a.id) + '"><td>' + esc(a.name) + '</td><td>' +
+            badgeGoal(a.status) + '</td><td>' + a.stories.length + '</td></tr>'
+        })
+        var children = childrenTable('下属用户活动', ['活动', '状态', '故事数'], rows)
+        if (STATE.tab === 'raw') {
+          return head + tabsHtml(STATE.tab) +
+            '<pre class="req-mono">' + esc(JSON.stringify({ id: g.id, name: g.name, description: g.description, status: g.status, sortOrder: g.sortOrder }, null, 2)) + '</pre>' +
+            ops('goal') + children
+        }
+        return head + tabsHtml(STATE.tab) +
+          kv([['name', g.name], ['description', g.description === null ? '（无）' : g.description],
+              ['status', g.status], ['sortOrder', g.sortOrder], ['goalId', g.id]]) +
+          '<div class="req-placeholder">契约 I-2 里 BusinessGoal / UserActivity <b>没有 priority 字段</b>（只有 UserStory 有），' +
+          '所以 AC-US-03-09 的「名称 / 状态 / 优先级 / 下属数量」只能在故事层完整满足。</div>' +
+          ops('goal') + children
+      }
+
+      function detailState(key) {
+        var s = null
+        STATES.forEach(function (x) { if (x.key === key) s = x })
+        if (!s) return '<p class="req-placeholder">未选中的状态。</p>'
+        var details = s.code === 'CONFLICT'
+          ? '<ul class="req-error-details"><li>goalId：仍有下级对象，请先处理子项</li></ul>'
+          : ''
+        return '<p class="req-pane-title">' + esc(s.label) + '</p>' +
+          '<p class="req-pane-sub">右栏展示的就是这条错误在页面上的呈现方式。</p>' +
+          '<div class="req-error"><p class="req-error-head">请求失败<span class="req-mono">（HTTP ' + s.status +
+          '）</span><span class="req-mono"> code=' + esc(s.code) + '</span></p>' +
+          '<p class="req-error-message">' + esc(s.message) + '</p>' +
+          '<p class="req-error-advice">' + esc(s.advice) + '</p>' + details + '</div>'
+      }
+
+      function renderDetail() {
+        var html = ''
+        if (STATE.selKind === 'story') {
+          var f = findStory(STATE.selId)
+          html = f ? detailStory(f) : '<p class="req-placeholder">未选中的故事。</p>'
+        } else if (STATE.selKind === 'activity') {
+          var fa = findActivity(STATE.selId)
+          html = fa ? detailActivity(fa) : '<p class="req-placeholder">未选中的活动。</p>'
+        } else if (STATE.selKind === 'goal') {
+          var g = findGoal(STATE.selId)
+          html = g ? detailGoal(g) : '<p class="req-placeholder">未选中的目标。</p>'
+        } else {
+          html = detailState(STATE.selId)
+        }
+        document.getElementById('detail').innerHTML = html
+      }
+
+      function renderAll() {
+        renderSidebar()
+        renderMain()
+        renderDetail()
+      }
+
+      // =====================================================================
+      // 事件委托：只做「切视图 / 选节点 / 切分页签」
+      // =====================================================================
+      document.addEventListener('click', function (ev) {
+        var el = ev.target
+        while (el && el !== document.body) {
+          if (el.dataset && el.dataset.view) {
+            STATE.view = el.dataset.view
+            renderAll()
+            return
+          }
+          if (el.dataset && el.dataset.tab) {
+            STATE.tab = el.dataset.tab
+            renderDetail()
+            return
+          }
+          if (el.dataset && el.dataset.kind) {
+            STATE.selKind = el.dataset.kind
+            STATE.selId = el.dataset.id
+            STATE.tab = 'detail'
+            renderAll()
+            return
+          }
+          el = el.parentElement
+        }
+      })
+
+      renderAll()
+    </script>
+  </body>
+</html>
