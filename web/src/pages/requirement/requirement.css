@@ -684,7 +684,8 @@
   font-family: inherit;
   font-size: inherit;
   text-align: left;
-  cursor: pointer;
+  /* cursor 故意不在这里：行现在是容器（div），真正可点的只有内层 .req-node-hit。
+     把 pointer 留在行上，会让人以为整行的 padding 区域也能点。 */
 }
 
 .req-node-row:hover {
@@ -715,6 +716,74 @@
 
 .req-tree-story .req-node-name {
   font-weight: 400;
+}
+
+/* --- 树内的「新建 XXX」行 -------------------------------------------------
+   三级的新建入口都在树里，必须与所在层级对齐，否则看不出结构。
+   ⚠️ 缩进量取自上面 .req-tree-activity / .req-tree-story 的**行**缩进
+   （那些规则写的是 `> .req-node-row`，所以按钮必须自己带缩进类，否则完全不缩进）。 */
+
+.req-add-row {
+  display: flex;
+  margin: 0.3rem 0 0.15rem;
+}
+
+.req-add-row.level-goal {
+  margin-left: 0;
+}
+
+.req-add-row.level-activity {
+  margin-left: 1rem;
+}
+
+.req-add-row.level-story {
+  margin-left: 2rem;
+}
+
+/* --- 树行的「可点区域」与「行内操作」拆开 ---------------------------------
+   ⚠️ 行内操作按钮**不能**嵌在行按钮里：嵌套 <button> 是非法 HTML，
+   浏览器会把内层按钮移到外层之外，DOM 结构与缩进样式都会失控（设计稿里就是这样）。
+   所以行本身是 <div>（容器，负责边框与选中态），里面是：
+     .req-node-hit —— 只管「点这一行 = 选中」的 <button>
+     .req-row-ops —— 右侧的上移 / 下移 / 编辑 / 删除
+   两者是兄弟关系，不嵌套。 */
+
+.req-node-hit {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.req-node-hit:hover {
+  filter: none;
+}
+
+.req-row-ops {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+/* --- 表格单元格「不许换行」-------------------------------------------------
+   ⚠️ `nowrap` 这个类名此前**从未在任何样式表里定义过**，所以
+   `<th className="nowrap">计划</th>` 一直是空操作，计划列的日期区间会换行。
+   本轮补上；限定在 .req-table 内，避免变成全局类。 */
+.req-table .nowrap {
+  white-space: nowrap;
 }
 
 /* --- 空态与操作区 -------------------------------------------------------- */
@@ -896,4 +965,170 @@
   .req-tree-story > .req-node-row {
     margin-left: 1.2rem;
   }
+}
+
+/* ===========================================================================
+   §C 需求详情页新增元件（US-03）
+   本节的类此前只存在于设计稿里，现在落到产品代码。全部为**新增规则**，
+   不改动上面任何既有规则；色板沿用同一套 token 字面量。
+   =========================================================================== */
+
+/* --- 面包屑：拆成两段 —— 上面一段是「我在哪一页」，下面一段是「这条数据在树的哪一支」。
+       旧版把它们混在一条里，结果页面名（需求层级）看着像树上的一个节点。 --- */
+
+.req-crumb-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 0.55rem;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.req-crumb-path {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0 0 0.75rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.35);
+  font-size: 0.84rem;
+}
+
+.req-crumb-sep {
+  color: #475569;
+}
+
+/* 层级类型标记（目标 / 活动 / 需求）——让每一层是什么一目了然 */
+.req-crumb-kind {
+  margin-right: 0.25rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  background: #1e293b;
+  color: #94a3b8;
+  font-size: 0.72rem;
+}
+
+/* --- 中性徽标（用于「业务价值：高」这类弱提示） --- */
+.req-badge-muted {
+  background: rgba(148, 163, 184, 0.14);
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+/* --- 成功提示条（与 .req-warn 同形，配色相反） --- */
+.req-ok {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid #15803d;
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: rgba(20, 83, 45, 0.28);
+  color: #86efac;
+  font-size: 0.85rem;
+}
+
+/* --- 验收标准展示 --- */
+.req-quote {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-left: 3px solid #4ade80;
+  border-radius: 6px;
+  background: rgba(74, 222, 128, 0.07);
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  line-height: 1.8;
+}
+
+/* --- 字段级校验错误（422 的 details[] 落到具体输入框上） --- */
+.req-field-error {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+  color: #fca5a5;
+}
+
+.req-input.is-invalid,
+.req-select.is-invalid,
+.req-textarea.is-invalid {
+  border-color: #b91c1c;
+}
+
+/* --- 敏感开关：一个按钮表示开 / 关 --- */
+.req-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid #475569;
+  border-radius: 999px;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.req-switch::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 2.2rem;
+  height: 1.2rem;
+  border-radius: 999px;
+  background: #475569;
+}
+
+.req-switch.is-on {
+  border-color: #38bdf8;
+  color: #7dd3fc;
+}
+
+.req-switch.is-on::before {
+  background: #0ea5e9;
+}
+
+/* --- 危险动作的主按钮（.req-button-danger 原本只给 .req-button-small 用） --- */
+.req-button.req-button-danger {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+
+/* --- 页内模态框（删除二次确认用；不用 window.confirm：
+       原生弹窗无法统一样式、无法断言，也不便展示「还有几个任务」这类前置信息） --- */
+.req-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(2, 6, 23, 0.72);
+}
+
+.req-modal {
+  width: min(520px, 94vw);
+  padding: 1.1rem 1.2rem;
+  border: 1px solid #7f1d1d;
+  border-radius: 12px;
+  background: #0f172a;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+}
+
+/* --- <Link> 当 ghost 按钮用。
+       index.css 里写的是 `button.ghost`，只匹配 <button> 元素，
+       对 <a class="button ghost"> 不生效，所以这里补一条同效果的规则。 --- */
+.page .button.ghost {
+  background: transparent;
+  border-color: #334155;
+  color: #e2e8f0;
+  font-weight: 500;
+}
+
+.page .button.ghost:hover {
+  border-color: #38bdf8;
+  color: #7dd3fc;
 }

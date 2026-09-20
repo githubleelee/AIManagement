@@ -13,9 +13,10 @@
  *   因此采用**双标签**（PMBOK 词 + 括注原有词），两边都能对上。
  *   详见 `实验\_US-03_前端发现的问题.md` 第 2 节。
  *
- * ⚠️ 优先级**不做改写**：指导书要求 MoSCoW，而契约冻结的线上值是 P0/P1/P2，
- *   两者对应关系（3 档 vs 4 档）**没有依据**，因此界面照实显示 P0/P1/P2，
- *   把差异放进术语对照表当作「待团队确认」，**不自行发明映射**。
+ * ⚠️ 优先级：线上值 P0/P1/P2 **一个字节不动**（契约冻结），界面改用**双标签并列显示**
+ *   （P0（Must）等）。指导书的 MoSCoW 是 4 档、线上值是 3 档，**两者不存在有依据的
+ *   一一对应**，所以这里只并列、不宣称等价，并在术语对照表里标注「对应关系待小组确认」。
+ *   若小组给出另一套映射，只改 `PRIORITY_LABEL` 一张表即可，线上枚举与后端都不用动。
  */
 import type {
   FieldErrorCode,
@@ -52,7 +53,25 @@ export const STORY_STATUS_LABEL: Record<StoryStatus, string> = {
 /** 故事状态选项。注意 `DONE` 与 `GOAL_STATUS_ORDER` 里的 `DONE` **不是一个东西**。 */
 export const STORY_STATUS_ORDER: readonly StoryStatus[] = ['DRAFT', 'PLANNING', 'DONE']
 
-export const PRIORITY_LABEL: Record<Priority, string> = { P0: 'P0', P1: 'P1', P2: 'P2' }
+/**
+ * 优先级显示标签（决策 I-1：线上常量 ↔ 界面标签分离，**线上值一个字节不动**）。
+ *
+ * ⚠️ 这是**并列显示**，不是宣称等价。实验一指导书要求 MoSCoW（Must / Should / Could / Won't），
+ * 而契约冻结的线上值是 P0 / P1 / P2 —— **两者档位数不同（4 档 vs 3 档）**，
+ * 严格说不存在"有依据"的一一对应。所以这里把两套用词并排显示，并在术语对照表里
+ * 标注「对应关系待小组确认」，而不是替小组把映射定下来。
+ *
+ * `Won't` 在平台里**没有对应档**：它的含义是"本期不做"，而平台里的需求都是"要做的"
+ * ——不做的东西不会被建成需求，所以结构上不存在这一档。
+ *
+ * 若小组明文给出另一套对应关系，只改下面这张表即可：
+ * 线上枚举、后端校验、数据库、其它模块**都不用动**（这正是决策 I-1 把两者分开的意义）。
+ */
+export const PRIORITY_LABEL: Record<Priority, string> = {
+  P0: 'P0（Must）',
+  P1: 'P1（Should）',
+  P2: 'P2（Could）',
+}
 
 export const PRIORITY_ORDER: readonly Priority[] = ['P0', 'P1', 'P2']
 
@@ -75,7 +94,50 @@ export const FIELD_ERROR_HINT: Record<FieldErrorCode, string> = {
 }
 
 /**
- * 查表取字段级提示。
+ * 接口字段名 → 界面中文标签。
+ *
+ * 用途：把 422 响应里 `details[].field` 给的**内部字段名**翻译成人看得懂的话，
+ * 这样界面上一律是中文（`title` → 需求标题），内部命名不外露。
+ * 未收录的字段回退为原样显示，不会因此报错。
+ */
+export const FIELD_LABEL: Readonly<Record<string, string>> = {
+  name: '名称',
+  title: '需求标题',
+  description: '描述',
+  roleText: '角色',
+  capabilityText: '能力',
+  valueText: '价值',
+  businessValue: '业务价值',
+  priority: '优先级',
+  status: '状态',
+  acceptanceCriteria: '验收标准',
+  orderedIds: '顺序',
+  goalId: '目标编号',
+  activityId: '活动编号',
+  storyId: '需求编号',
+  account: '账号',
+  role: '成员角色',
+  userId: '成员',
+}
+
+/**
+ * 查表取界面标签。
+ *
+ * ⚠️ 兜底**不能**回退成原字段名 —— 那会把 `ownerUserId` 这类内部命名直接渲染到界面上，
+ * 正是本轮用词清理要消掉的东西。契约外的字段按「该字段」显示，同时在控制台留一条警告：
+ * 契约漂移应该被发现，但发现的地方是开发者工具，不是用户界面。
+ */
+export function fieldLabel(field: string): string {
+  const known = FIELD_LABEL[field]
+  if (known !== undefined) return known
+  console.warn(
+    `[US-03] 未收录的字段名「${field}」，界面按「该字段」显示；若它来自契约新增字段，请补 FIELD_LABEL。`,
+  )
+  return '该字段'
+}
+
+/**
+ * 查表取字段级提示。兜底同理不回退成错误码本身（那会渲染出 `NOT_A_CONTRACT_CODE`）。
  *
  * 表按 `Record<string, string | undefined>` 暴露，是为了让「后端返回了契约 I-4
  * 之外的 code」这条路径在类型上成立，而不必写 `as FieldErrorCode` 去骗编译器。
@@ -83,7 +145,12 @@ export const FIELD_ERROR_HINT: Record<FieldErrorCode, string> = {
 const FIELD_ERROR_HINT_TABLE: Readonly<Record<string, string | undefined>> = FIELD_ERROR_HINT
 
 export function fieldErrorHint(code: string): string {
-  return FIELD_ERROR_HINT_TABLE[code] ?? `${code}（契约 I-4 之外的字段级错误码）`
+  const known = FIELD_ERROR_HINT_TABLE[code]
+  if (known !== undefined) return known
+  console.warn(
+    `[US-03] 未收录的字段级错误码「${code}」，界面按「取值不合法」显示；若它来自契约新增错误码，请补 FIELD_ERROR_HINT。`,
+  )
+  return '取值不合法'
 }
 
 // ---------------------------------------------------------------------------
@@ -143,8 +210,8 @@ export const TERM_ROWS: readonly TermRow[] = [
     field: 'Priority = P0 | P1 | P2',
     guide: 'MoSCoW（Must / Should / Could / Won’t）',
     pmbok: '无强制方案（PMBOK 未规定优先级取值）',
-    suggest: '照实显示 P0/P1/P2；对应关系见下方缺口清单（待团队确认，不自行发明）',
-    change: 'keep',
+    suggest: '并列显示双标签：P0（Must）/ P1（Should）/ P2（Could）；对应关系待小组确认，不宣称等价',
+    change: 'dual',
   },
   {
     ui: '需求层级树',
@@ -215,8 +282,8 @@ export const GAP_ROWS: readonly GapRow[] = [
   },
   {
     gap: 'MoSCoW ↔ P0/P1/P2 的对应关系',
-    source: '实验一指导书第 113/154/333 行要求 MoSCoW；契约冻结 Priority = P0|P1|P2（两套档位数不同）',
-    impact: '界面按 P0/P1/P2 显示，与指导书用词不一致',
-    plan: '**待团队明文确认对应关系**；本期不自行发明，也不改线上枚举值',
+    source: '实验一指导书第 113/154/333 行要求 MoSCoW；契约冻结 Priority = P0|P1|P2（两套档位数不同：4 档 vs 3 档）',
+    impact: '界面并排显示两套用词（P0（Must）…），但不宣称两者等价；映射本身仍无依据',
+    plan: '待小组明文确认对应关系；本期只改界面标签表，线上枚举与数据库一律不动（决策 I-1）',
   },
 ]
