@@ -105,12 +105,37 @@ export function getActiveDatabase(): TestDb {
 /**
  * 创建测试上下文，并把它的临时库登记为「当前库」。
  *
- * 这是工厂 + HTTP 断言组合的**推荐入口**：等价于 `createHttpTestContext()` 再加
- * 一行 `setActiveDatabase(ctx.db)`，并把清理也一并包好。
+ * 这是工厂 + HTTP 断言组合的**推荐入口**：等价于 `createHttpTestContext()` +
+ * `await app.ready()` + `setActiveDatabase(ctx.db)`，并把清理也一并包好。
+ *
+ * ⚠️⚠️ **`await app.ready()` 这一步绝不可省**（T0.5 首次交付时正是漏了它，导致
+ *   本文件的两条 HTTP 用例挂死，详见下方"踩过的坑"）。之所以由本函数代劳，
+ *   就是为了让调用方**没有机会漏掉** —— `http-support.ts` 出于"调用方可能要先注册
+ *   探针路由"的考虑，把 ready 的责任留给了调用者，于是每个使用者都得记得写；
+ *   本函数把这个必做步骤收回自己身上。
+ *
+ * 若你确实需要在 boot **之前**注册探针路由，请改用 `createHttpTestContext()`，
+ * 自行在注册完成后 `await app.ready()`。
+ *
+ * ---------------------------------------------------------------------------
+ * 踩过的坑（保留在此，避免后人重犯）
+ * ---------------------------------------------------------------------------
+ * T0.5 首版只做了 `createHttpTestContext()` + `setActiveDatabase()`，没有 `ready()`。
+ * 后果不是一条清晰的报错，而是：
+ *   - 未 boot 的 Fastify，其路由的 `preParsing` hook 数组是 `undefined`；
+ *   - 请求打进来后在 `fastify/lib/hooks.js:341`（`i === functions.length`）抛
+ *     `TypeError: Cannot read properties of undefined (reading 'length')`，
+ *     且是**在 http server 的 emit 路径里异步抛出**，不会变成 HTTP 错误响应；
+ *   - 于是响应永不发出 → supertest 一直等 → 测试以 `Test timed out in 5000ms` 失败；
+ *   - 挂死的连接还会让 `afterAll` 里的 `app.close()` 卡住 → `Hook timed out in 10000ms`。
+ * 三个报错看起来毫不相干，根因却是同一个缺失的 `await`。
  */
 export async function createTestContext(): Promise<HttpTestContext> {
   const ctx = await createHttpTestContext()
   setActiveDatabase(ctx.db)
+
+  // 必须：boot 应用，否则任何 HTTP 请求都会挂死（见上方"踩过的坑"）
+  await ctx.app.ready()
 
   // 包装 dispose：断开与删库之后清空「当前库」，避免后续误用写到已删除的库上
   const originalDispose = ctx.dispose

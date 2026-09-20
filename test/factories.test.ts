@@ -33,9 +33,12 @@ import {
 
 let ctx: HttpTestContext
 
+// ⚠️ 第二个参数（超时）不可省：`createTestContext()` 内部会经
+// `createTempDatabase()` → `execFileSync(prisma migrate deploy)` **起子进程应用迁移**，
+// 首轮往往超过 vitest 默认的 10s hook 超时。仓库里走 HTTP 的测试文件都是这个写法。
 beforeAll(async () => {
   ctx = await createTestContext()
-})
+}, 120_000)
 
 afterAll(async () => {
   await ctx.dispose()
