@@ -28,13 +28,52 @@ React + TypeScript + Vite　/　Node + TypeScript + Fastify　/　SQLite + Prism
 
 ## 快速开始
 
+> **全新 clone 请先从「首次运行」开始。** `.env` 与 `*.db` 都在 `.gitignore` 里，新 clone 两者都不存在；
+> 跳过「创建 `.env`」与「应用迁移」两步的典型症状是**服务能起来、`/health` 也正常，
+> 但任何走数据库的接口都返回 500**（错误信息见下）。
+
+### 首次运行（新 clone 必做，按顺序执行）
+
 ```bash
-npm install    # 安装依赖
-npm run dev    # 同时启动后端（http://localhost:3000）与前端（http://localhost:5173）
-npm test       # 运行 Vitest + supertest 测试
+# 1. 安装依赖（postinstall 会自动执行 prisma generate）
+npm install
+
+# 2. 创建本地环境变量文件
+#    缺它的报错：Environment variable not found: DATABASE_URL
+#    Windows PowerShell 用：Copy-Item .env.example .env
+cp .env.example .env
+
+# 3. 建库并应用迁移（SQLite 文件：src/db/dev.db）
+#    缺它的报错：The table main.Project does not exist in the current database
+npm run db:migrate
+
+# 4. 写入演示账号与演示项目（幂等，可重复执行）
+#    仓库没有注册端点，浏览器登录必须先有账号，故本步不可省
+npm run db:seed
 ```
 
-辅助命令：`npm run typecheck`（前后端类型检查）、`npm run build`（产出 `dist/`）、`npm start`（运行已构建的后端）。
+### 日常命令
+
+```bash
+npm run dev        # 同时启动后端（http://localhost:3000）与前端（http://localhost:5173）
+npm test           # 运行 Vitest + supertest 测试
+npm run typecheck  # 前后端类型检查
+npm run build      # 产出 dist/
+npm start          # 运行已构建的后端
+```
+
+### 演示账号（由 `npm run db:seed` 创建）
+
+| 账号 | 姓名 | 在「演示项目：爱管理」中的角色 |
+|---|---|---|
+| `pm` | 王经理 | PM（项目经理） |
+| `member1` | 李工 | MEMBER（项目成员） |
+| `member2` | 张工 | MEMBER（项目成员） |
+| `viewer1` | 刘总 | VIEWER（管理者） |
+| `outsider` | 外部用户 | 不属于演示项目（另有自己的项目，用于验证列表隔离与非成员 404） |
+
+统一密码 `Passw0rd!`。seed 按账号 upsert，重复执行不会产生重复数据。
+
 后端健康检查：`GET http://localhost:3000/health` 返回 `{ "status": "ok" }`。
 
 ## 工作约定
@@ -64,3 +103,5 @@ Sprint 1 期间**接口契约冻结**。任何修改走四步：提出 → 受�
 见 [Issues](https://github.com/githubleelee/AIManagement/issues)。
 
 Sprint 1 的前置工单为 T0-01 至 T0-06，构成一条依赖链；其中 T0-04 与 T0-05 可并行。
+T0 链现已全部交付；T0-06「骨架冒烟链路收口」的护栏在 `test/skeleton-smoke.test.ts` ——
+它逐条断言契约端点确实注册在**生产** app 上（不是注册在测试探针里），并走通主链路。
