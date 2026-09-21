@@ -190,13 +190,31 @@ export async function updateMemberRole(
   projectId: string,
   userId: string,
   role: ProjectRole,
+  actorUserId: string,
 ): Promise<ProjectMemberView> {
-  const member = await prisma.projectMember.update({
-    where: { projectId_userId: { projectId, userId } },
-    data: { role },
-    include: { user: true },
+  return prisma.$transaction(async (tx) => {
+    const previous = await tx.projectMember.findUniqueOrThrow({
+      where: { projectId_userId: { projectId, userId } },
+      select: { role: true },
+    })
+    const member = await tx.projectMember.update({
+      where: { projectId_userId: { projectId, userId } },
+      data: { role },
+      include: { user: true },
+    })
+    await tx.auditLog.create({
+      data: {
+        projectId,
+        actorUserId,
+        action: 'member.role.update',
+        objectType: 'member',
+        objectId: userId,
+        before: JSON.stringify({ role: previous.role }),
+        after: JSON.stringify({ role }),
+      },
+    })
+    return toMemberView(member)
   })
-  return toMemberView(member)
 }
 
 /** 移除成员（端点 9）。 */
@@ -204,8 +222,26 @@ export async function removeMember(
   prisma: PrismaClient,
   projectId: string,
   userId: string,
+  actorUserId: string,
 ): Promise<void> {
-  await prisma.projectMember.delete({
-    where: { projectId_userId: { projectId, userId } },
+  await prisma.$transaction(async (tx) => {
+    const previous = await tx.projectMember.findUniqueOrThrow({
+      where: { projectId_userId: { projectId, userId } },
+      select: { role: true },
+    })
+    await tx.projectMember.delete({
+      where: { projectId_userId: { projectId, userId } },
+    })
+    await tx.auditLog.create({
+      data: {
+        projectId,
+        actorUserId,
+        action: 'member.remove',
+        objectType: 'member',
+        objectId: userId,
+        before: JSON.stringify({ role: previous.role }),
+        after: null,
+      },
+    })
   })
 }

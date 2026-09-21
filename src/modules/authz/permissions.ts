@@ -1,5 +1,5 @@
 /**
- * 唯一鉴权入口 `can()` 与列表可见性作用域 `visibilityScope()`（T0-04 最小骨架）
+ * 唯一鉴权入口 `can()` 与列表可见性作用域 `visibilityScope()`（T2 权限实现）
  *
  * ===========================================================================
  * 冻结与归属声明
@@ -11,9 +11,9 @@
  * 但 T2.x 开工前，`T3.x`（US-03）、`T1.7`、`T5.8` 等任务全部**硬依赖**该入口
  * （基线 §4.10 明确列为硬依赖）。若空等，Sprint 会退化为串行瀑布。
  *
- * 因此本文件是**最小可执行骨架**，目的是让下游模块**从一开始就调用真入口**，
- * 而不是在自己代码里散落 `if (role === 'PM')` —— 后者违反决策 I-5，且 M3 到位后
- * 必然返工。骨架只实现判定顺序中最必要的两条，其余留 `TODO` 由成员 2 补齐。
+ * 本文件从 T0 最小骨架接管，下游模块继续通过同一入口进行权限判定。
+ * 最初骨架的目的是让下游模块**从一开始就调用真入口**，
+ * 而不是在自己代码里散落 `if (role === 'PM')`。
  *
  * **函数签名严格按契约决策 I-5 / I-6，不得改动**；成员 2 接管时只替换内部实现，
  * 下游调用方零改动。
@@ -113,14 +113,9 @@ async function roleIn(
  *   1. 目标对象不存在                       → 404（不泄漏对象是否存在）
  *   2. actor 不是该项目的成员                → 404（一切动作；不泄漏项目是否存在）
  *   3. actor.role === PM                    → 允许（含敏感对象）
- *   4. 【TODO(T2.3/T2.4)】目标敏感且 actor 不在白名单 → 404（含 read）
+ *   4. 目标敏感且 actor 不在白名单 → 404（含 read）
  *   5. 写类动作且 actor.role ∈ {MEMBER, VIEWER} → 403（对象可见，403 不泄漏任何东西）
  *   6. 其余                                 → 允许
- *
- * 关于第 4 条的本轮取舍：契约决策 I-5 的完整语义是「PM 与白名单成员可见」。
- * 骨架尚未实现白名单查询，故对敏感对象采取**保守拒绝**（宁可多拒，不可误放）。
- * 这使得敏感对象在 M3 完成前对非 PM 完全不可见——安全侧失败，不会造成越权泄漏。
- * 由 T2.3 / T2.4 放开为「白名单成员可见」。
  *
  * 契约决策 I-9：本函数**只读数据库，不调用其他模块的 service**。
  */
@@ -137,13 +132,15 @@ export function createAuthorization(prisma: PrismaClient) {
     // 第 3 条：PM 允许一切（含敏感对象）
     if (role === 'PM') return { allow: true }
 
-    // 第 4 条：敏感可见性 —— TODO(T2.3/T2.4/T2.6)
-    //
-    // 待实现：若 target.isSensitive 且 actorUserId ∉ ObjectVisibility
-    //         （objectType + objectId 对应白名单）→ deny(404, 'NOT_FOUND')，含 read。
-    // 注意实现时必须使用此处**现查**得到的 isSensitive，绝不能接受调用方传入。
-    if (target.isSensitive) {
-      return deny(404, 'NOT_FOUND')
+    // 第 4 条：仅 story/task 支持对象级敏感；直接按真实目标 id 查白名单。
+    if (target.isSensitive && (ref.kind === 'story' || ref.kind === 'task')) {
+      const entry = await prisma.objectVisibility.findUnique({
+        where: { objectType_objectId_userId: {
+          objectType: ref.kind, objectId: ref.objectId, userId: actorUserId,
+        } },
+        select: { projectId: true },
+      })
+      if (!entry || entry.projectId !== target.projectId) return deny(404, 'NOT_FOUND')
     }
 
     // 第 5 条：写类动作对 MEMBER / VIEWER → 403
@@ -164,12 +161,7 @@ export function createAuthorization(prisma: PrismaClient) {
    *   mode === 'all'    → 查询不加可见性条件
    *   mode === 'subset' → 查询追加 id IN (:ids)；ids 为空则列表返回空集合
    *
-   * 本轮骨架：非 PM 一律返回 `{ mode: 'all' }`，**敏感过滤尚未生效**——这是
-   * **已知的未完成项**，由 T2.5 实现、T3.10 / T5.8 接入。
-   *
-   * 为什么不先返回空集合：那会让 MEMBER 连非敏感对象都看不到，使 US-01 / US-03
-   * 的开发期联调完全无法进行。当前防护来自 `can()` 对敏感对象的保守拒绝——
-   * 「按 id 直取敏感对象」这条路径已安全，仅「列表 / 计数」路径待补齐。
+   * 非 PM 只得到「非敏感对象 + 自己被指定的敏感对象」的 id。
    */
   async function visibilityScope(
     actorUserId: string,
@@ -184,12 +176,21 @@ export function createAuthorization(prisma: PrismaClient) {
     // PM 无需过滤
     if (role === 'PM') return { mode: 'all' }
 
-    // TODO(T2.5)：实现真正的敏感过滤 ——
-    //   1. 查出该项目中 objectType 类型被标记敏感的全部对象 id
-    //   2. 减去调用者被授权的白名单对象 id
-    //   3. 返回**可见集合**（决策 I-6 的约定是返回可见 ids，而非不可见 ids）
-    void objectType
-    return { mode: 'all' }
+    const whitelisted = await prisma.objectVisibility.findMany({
+      where: { projectId, objectType, userId: actorUserId },
+      select: { objectId: true },
+    })
+    const ids = whitelisted.map(row => row.objectId)
+    const rows = objectType === 'story'
+      ? await prisma.userStory.findMany({
+        where: { projectId, OR: [{ isSensitive: false }, { id: { in: ids } }] },
+        select: { id: true },
+      })
+      : await prisma.task.findMany({
+        where: { projectId, OR: [{ isSensitive: false }, { id: { in: ids } }] },
+        select: { id: true },
+      })
+    return { mode: 'subset', ids: rows.map(row => row.id) }
   }
 
   return { can, visibilityScope }

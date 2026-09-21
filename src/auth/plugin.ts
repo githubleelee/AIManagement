@@ -70,3 +70,4 @@ export function registerAuthRoutes(app: FastifyInstance, ctx: RouteContext): voi
     return user
   })
 }
+

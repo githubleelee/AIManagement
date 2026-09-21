@@ -40,3 +40,4 @@ export async function findUserBriefById(
     select: { id: true, account: true, displayName: true },
   })
 }
+

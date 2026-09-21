@@ -252,3 +252,4 @@ describe('T0-06 ② 行走骨架：表结构 + 路由 + 鉴权 + 校验 + 序列
     expect(JSON.stringify(res.body)).not.toContain('隔离项目')
   }, 30_000)
 })
+
