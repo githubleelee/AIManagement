@@ -10,7 +10,7 @@
  * 本模块供后续所有测试共用：创建临时库、应用迁移、清空全表。
  */
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { closeSync, mkdtempSync, openSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -86,6 +86,9 @@ export function createTempDatabase(): TestDatabase {
   const file = join(dir, 'test.db')
   const databaseUrl = `file:${file}`
 
+  // 某些受限运行环境中的 Prisma schema engine 无法在刚创建的临时目录里
+  // 自行创建 SQLite 文件，但可以正常打开并迁移一个已存在的空文件。
+  closeSync(openSync(file, 'w'))
   applyMigrations(databaseUrl)
 
   const prisma = new PrismaClient({ datasourceUrl: databaseUrl })

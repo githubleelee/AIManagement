@@ -212,3 +212,4 @@
 | 需删除（重复/过时） | `devSession.ts`（后门）、`session.ts`、`api.ts`、`labels.ts`、`RequirementPage.tsx` 的接入区、我改的 `App.tsx` 挂载行 |
 | 未提交 | 是（人类要求先审 diff 再提交） |
 | 后端 | 一行未改（`src/` 零改动） |
+

@@ -127,3 +127,4 @@ export function updateMemberRole(projectId: string, userId: string, role: Projec
 export function removeMember(projectId: string, userId: string) {
   return apiFetch<void>(`/projects/${projectId}/members/${userId}`, { method: 'DELETE' })
 }
+

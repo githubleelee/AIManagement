@@ -46,7 +46,7 @@ import {
   updateStory,
   type StoryRow,
 } from './requirement/api'
-import { listStoryTasks, readSensitivity, saveSensitivity } from './requirement/temporary-data'
+import { listStoryTasks, saveSensitivity } from './requirement/temporary-data'
 import {
   PRIORITY_LABEL,
   PRIORITY_ORDER,
@@ -126,9 +126,8 @@ export default function RequirementDetailPage() {
       const [tree, detail] = await Promise.all([getGoalTree(project.id), getStory(storyId)])
       setGoals(tree)
       setStory(detail)
-      // 敏感状态：端点 23 未交付，先取临时层的值，没有则用详情里的值。
-      const temp = readSensitivity(storyId)
-      setSensitive(temp ?? { isSensitive: detail.isSensitive, visibleMemberIds: [] })
+      // 端点 20 给出敏感状态；端点 23 的响应会在本页操作后补齐当前白名单。
+      setSensitive({ isSensitive: detail.isSensitive, visibleMemberIds: [] })
     } catch (caught) {
       setGoals(null)
       setStory(null)
@@ -256,7 +255,7 @@ export default function RequirementDetailPage() {
     }
   }
 
-  /* ---------------- 敏感（端点 23，未交付 → 临时层） ---------------- */
+  /* ---------------- 敏感（端点 23，US-02 真实接口） ---------------- */
 
   async function toggleSensitive(current: UserStory) {
     if (!sensitive || savingSensitive) return

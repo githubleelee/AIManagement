@@ -230,7 +230,7 @@ export function registerProjectRoutes(app: FastifyInstance, ctx: RouteContext): 
       }
     }
 
-    return updateMemberRole(ctx.prisma, projectId, userId, input.role)
+    return updateMemberRole(ctx.prisma, projectId, userId, input.role, actorUserId)
   })
 
   // ===========================================================================
@@ -276,7 +276,7 @@ export function registerProjectRoutes(app: FastifyInstance, ctx: RouteContext): 
       }
     }
 
-    await removeMember(ctx.prisma, projectId, userId)
+    await removeMember(ctx.prisma, projectId, userId, actorUserId)
     return reply.status(204).send()
   })
 }

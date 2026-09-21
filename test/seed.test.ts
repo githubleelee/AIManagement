@@ -58,3 +58,4 @@ describe('seed 脚本', () => {
     expect(second.outsiderProjectId).toBe(first.outsiderProjectId)
   })
 })
+
