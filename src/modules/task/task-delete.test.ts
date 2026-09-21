@@ -25,15 +25,61 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import request from 'supertest'
 import type { TaskView } from '../../shared/types.js'
-import {
-  addMember,
-  createProjectWithStory,
-  createTaskRow,
-  createUser,
-  resetTaskTestDatabase,
-  setupTaskTestApp,
-  type TaskTestContext,
-} from './_test-harness.js'
+import { createTestContext, type HttpTestContext } from '../../../test/helpers.js'
+import { makeUser, makeProject, makeGoal, makeActivity, makeStory, makeMember } from '../../../test/factories.js'
+
+// 数据前置：项目 + 目标 + 活动 + 故事（组合 test/factories.js 的真实工厂）。
+async function createProjectWithStory(
+  _db: unknown,
+  ownerUserId: string,
+  options: { projectName?: string; storyTitle?: string } = {},
+): Promise<{ projectId: string; storyId: string }> {
+  const { projectId } = await makeProject(ownerUserId, options.projectName ?? '测试项目')
+  const goalId = await makeGoal(projectId, '测试目标')
+  const activityId = await makeActivity(goalId, '测试活动')
+  const storyId = await makeStory(activityId, {
+    title: options.storyTitle ?? '测试用户故事',
+    capabilityText: '拆任务',
+    valueText: '推进交付',
+    businessValue: '高',
+    priority: 'P0',
+  })
+  return { projectId, storyId }
+}
+
+// 直接插入任务行（工厂 makeTask 不允许指定 createdAt 或构造非法数据；故走 ctx.db）。
+async function createTaskRow(
+  _db: unknown,
+  params: {
+    projectId: string
+    storyId: string
+    ownerUserId: string
+    acceptorUserId: string
+    title?: string
+    description?: string | null
+    planStart?: string
+    planEnd?: string
+    status?: 'TODO' | 'DOING' | 'DONE'
+    isSensitive?: boolean
+    createdAt?: Date
+  },
+) {
+  return ctx.db.task.create({
+    data: {
+      projectId: params.projectId,
+      storyId: params.storyId,
+      title: params.title ?? '任务',
+      description: params.description ?? null,
+      ownerUserId: params.ownerUserId,
+      acceptorUserId: params.acceptorUserId,
+      planStart: params.planStart ?? '2026-01-01',
+      planEnd: params.planEnd ?? '2026-01-31',
+      status: params.status ?? 'TODO',
+      isSensitive: params.isSensitive ?? false,
+      ...(params.createdAt ? { createdAt: params.createdAt } : {}),
+    },
+  })
+}
 
 type ErrorBody = {
   error: {
@@ -43,7 +89,7 @@ type ErrorBody = {
   }
 }
 
-let ctx: TaskTestContext
+let ctx: HttpTestContext
 let pm: { id: string }
 let member: { id: string }
 let viewer: { id: string }
@@ -55,36 +101,34 @@ let activityId: string
 let taskId: string
 
 beforeAll(async () => {
-  ctx = await setupTaskTestApp()
+  ctx = await createTestContext()
 })
 
 afterAll(async () => {
-  await ctx.app.close()
-  await ctx.prisma.$disconnect()
-  await ctx.db.dispose()
+  await ctx.dispose()
 })
 
 beforeEach(async () => {
-  await resetTaskTestDatabase(ctx)
-  pm = await createUser(ctx.prisma, 'pm@example.com', '项目经理')
-  member = await createUser(ctx.prisma, 'member@example.com', '项目成员')
-  viewer = await createUser(ctx.prisma, 'viewer@example.com', '管理者')
-  outsider = await createUser(ctx.prisma, 'outsider@example.com', '外部用户')
+  await ctx.reset()
+  pm = await makeUser('pm@example.com', '项目经理')
+  member = await makeUser('member@example.com', '项目成员')
+  viewer = await makeUser('viewer@example.com', '管理者')
+  outsider = await makeUser('outsider@example.com', '外部用户')
 
-  const project = await createProjectWithStory(ctx.prisma, pm.id)
+  const project = await createProjectWithStory(ctx.db, pm.id)
   projectId = project.projectId
   storyId = project.storyId
-  await addMember(ctx.prisma, projectId, member.id, 'MEMBER')
-  await addMember(ctx.prisma, projectId, viewer.id, 'VIEWER')
+  await makeMember(projectId, member.id, 'MEMBER')
+  await makeMember(projectId, viewer.id, 'VIEWER')
 
   // 记录 activityId，便于在同一项目内创建「兄弟故事」验证跨故事一致性。
-  const story = await ctx.prisma.userStory.findUniqueOrThrow({
+  const story = await ctx.db.userStory.findUniqueOrThrow({
     where: { id: storyId },
     select: { activityId: true },
   })
   activityId = story.activityId
 
-  const task = await createTaskRow(ctx.prisma, {
+  const task = await createTaskRow(ctx.db, {
     projectId,
     storyId,
     ownerUserId: member.id,
@@ -98,30 +142,27 @@ beforeEach(async () => {
 })
 
 // ---------------------------------------------------------------------------
-// 本地辅助（不修改共享的 _test-harness.ts / test/factories.ts）
+// 本地辅助（不改动共享测试基建）
 // ---------------------------------------------------------------------------
 
 function deleteTask(actorUserId: string = pm.id, targetTaskId: string = taskId) {
-  return request(ctx.app.server)
+  return ctx.asUser(ctx.loginAs(actorUserId))
     .delete(`/tasks/${targetTaskId}`)
-    .set('x-actor-user-id', actorUserId)
 }
 
 function getTask(actorUserId: string = pm.id, targetTaskId: string = taskId) {
-  return request(ctx.app.server)
+  return ctx.asUser(ctx.loginAs(actorUserId))
     .get(`/tasks/${targetTaskId}`)
-    .set('x-actor-user-id', actorUserId)
 }
 
 function listTasks(actorUserId: string = pm.id, targetStoryId: string = storyId) {
-  return request(ctx.app.server)
+  return ctx.asUser(ctx.loginAs(actorUserId))
     .get(`/stories/${targetStoryId}/tasks`)
-    .set('x-actor-user-id', actorUserId)
 }
 
 /** 在同一项目里创建一个兄弟用户故事；端点 22 属 M4，这里直接用 prisma 造数。 */
 function createSiblingStory(title: string) {
-  return ctx.prisma.userStory.create({
+  return ctx.db.userStory.create({
     data: {
       projectId,
       activityId,
@@ -141,13 +182,13 @@ function grantVisibility(
   objectId: string,
   userId: string,
 ): Promise<unknown> {
-  return ctx.prisma.objectVisibility.create({
+  return ctx.db.objectVisibility.create({
     data: { projectId, objectType, objectId, userId },
   })
 }
 
 function visibilityCountForTask(id: string): Promise<number> {
-  return ctx.prisma.objectVisibility.count({ where: { objectType: 'task', objectId: id } })
+  return ctx.db.objectVisibility.count({ where: { objectType: 'task', objectId: id } })
 }
 
 // ---------------------------------------------------------------------------
@@ -181,16 +222,16 @@ describe('端点 29 正例：PM 删除任务', () => {
   })
 
   it('删除后任务不再出现在任何计数中（任务表 count 减少 1）', async () => {
-    const before = await ctx.prisma.task.count()
+    const before = await ctx.db.task.count()
     expect(before).toBe(1)
 
     await deleteTask()
 
-    expect(await ctx.prisma.task.count()).toBe(0)
+    expect(await ctx.db.task.count()).toBe(0)
   })
 
   it('删除任务不影响同一故事下的其它任务', async () => {
-    const other = await createTaskRow(ctx.prisma, {
+    const other = await createTaskRow(ctx.db, {
       projectId,
       storyId,
       ownerUserId: pm.id,
@@ -236,7 +277,7 @@ describe('端点 29 引用完整性：ObjectVisibility 清理', () => {
   })
 
   it('删除一个任务不得影响同故事其它任务、其它故事与其它对象的可见性记录', async () => {
-    const keptTask = await createTaskRow(ctx.prisma, {
+    const keptTask = await createTaskRow(ctx.db, {
       projectId,
       storyId,
       ownerUserId: pm.id,
@@ -244,7 +285,7 @@ describe('端点 29 引用完整性：ObjectVisibility 清理', () => {
       title: '保留任务',
     })
     const siblingStory = await createSiblingStory('兄弟故事')
-    const siblingTask = await createTaskRow(ctx.prisma, {
+    const siblingTask = await createTaskRow(ctx.db, {
       projectId,
       storyId: siblingStory.id,
       ownerUserId: member.id,
@@ -263,7 +304,7 @@ describe('端点 29 引用完整性：ObjectVisibility 清理', () => {
     expect(await visibilityCountForTask(keptTask.id)).toBe(1)
     expect(await visibilityCountForTask(siblingTask.id)).toBe(1)
     expect(
-      await ctx.prisma.objectVisibility.count({
+      await ctx.db.objectVisibility.count({
         where: { objectType: 'story', objectId: siblingStory.id },
       }),
     ).toBe(1)
@@ -275,7 +316,7 @@ describe('端点 29 引用完整性：ObjectVisibility 清理', () => {
     expect(await visibilityCountForTask(keptTask.id)).toBe(1)
     expect(await visibilityCountForTask(siblingTask.id)).toBe(1)
     expect(
-      await ctx.prisma.objectVisibility.count({
+      await ctx.db.objectVisibility.count({
         where: { objectType: 'story', objectId: siblingStory.id },
       }),
     ).toBe(1)
@@ -284,12 +325,12 @@ describe('端点 29 引用完整性：ObjectVisibility 清理', () => {
   it('ObjectVisibility 清理与任务删除在同一事务：清理后总记录数只减少被删任务的条数', async () => {
     await grantVisibility('task', taskId, member.id)
     await grantVisibility('task', taskId, viewer.id)
-    const totalBefore = await ctx.prisma.objectVisibility.count()
+    const totalBefore = await ctx.db.objectVisibility.count()
     expect(totalBefore).toBe(2)
 
     await deleteTask()
 
-    expect(await ctx.prisma.objectVisibility.count()).toBe(totalBefore - 2)
+    expect(await ctx.db.objectVisibility.count()).toBe(totalBefore - 2)
   })
 })
 
@@ -327,14 +368,14 @@ describe('端点 29 权限反例', () => {
   })
 
   it('未登录删除任务 → 401 UNAUTHENTICATED', async () => {
-    const response = await request(ctx.app.server).delete(`/tasks/${taskId}`)
+    const response = await ctx.asUser(null).delete(`/tasks/${taskId}`)
 
     expect(response.status).toBe(401)
     expect((response.body as ErrorBody).error.code).toBe('UNAUTHENTICATED')
   })
 
   it('敏感任务：未授权 MEMBER 删除 → 404，与「任务不存在」响应逐字一致', async () => {
-    const sensitive = await createTaskRow(ctx.prisma, {
+    const sensitive = await createTaskRow(ctx.db, {
       projectId,
       storyId,
       ownerUserId: member.id,
@@ -348,7 +389,7 @@ describe('端点 29 权限反例', () => {
 
     expect(unauthorized.status).toBe(404)
     expect(unauthorized.body).toEqual(missing.body)
-    expect(await ctx.prisma.task.count({ where: { id: sensitive.id } })).toBe(1)
+    expect(await ctx.db.task.count({ where: { id: sensitive.id } })).toBe(1)
   })
 
   it('删除不存在的任务 → 与「无权限」返回完全一致的响应（状态码与结构逐字比对）', async () => {
@@ -373,7 +414,7 @@ describe('端点 29 事务性：失败不产生副作用', () => {
     const response = await deleteTask(member.id)
 
     expect(response.status).toBe(403)
-    expect(await ctx.prisma.task.count({ where: { id: taskId } })).toBe(1)
+    expect(await ctx.db.task.count({ where: { id: taskId } })).toBe(1)
     expect(await visibilityCountForTask(taskId)).toBe(1)
   })
 
@@ -383,7 +424,7 @@ describe('端点 29 事务性：失败不产生副作用', () => {
     const response = await deleteTask(outsider.id)
 
     expect(response.status).toBe(404)
-    expect(await ctx.prisma.task.count({ where: { id: taskId } })).toBe(1)
+    expect(await ctx.db.task.count({ where: { id: taskId } })).toBe(1)
     expect(await visibilityCountForTask(taskId)).toBe(1)
   })
 })
@@ -394,35 +435,35 @@ describe('端点 29 事务性：失败不产生副作用', () => {
 
 describe('用户故事删除保护（数据库外键 Restrict）', () => {
   it('删除挂有任务的用户故事 → 被拒绝（P2003），任务与故事都仍在', async () => {
-    await expect(ctx.prisma.userStory.delete({ where: { id: storyId } })).rejects.toMatchObject({
+    await expect(ctx.db.userStory.delete({ where: { id: storyId } })).rejects.toMatchObject({
       code: 'P2003',
     })
 
     // 删除失败后，故事与任务都必须原样保留，不产生孤儿数据。
-    expect(await ctx.prisma.userStory.count({ where: { id: storyId } })).toBe(1)
-    expect(await ctx.prisma.task.count({ where: { id: taskId } })).toBe(1)
-    expect(await ctx.prisma.task.count({ where: { storyId } })).toBe(1)
+    expect(await ctx.db.userStory.count({ where: { id: storyId } })).toBe(1)
+    expect(await ctx.db.task.count({ where: { id: taskId } })).toBe(1)
+    expect(await ctx.db.task.count({ where: { storyId } })).toBe(1)
   })
 
   it('反事实对照：先移除任务后，同一条故事删除语句必须成功（证明确实由外键拦截）', async () => {
-    await expect(ctx.prisma.userStory.delete({ where: { id: storyId } })).rejects.toMatchObject({
+    await expect(ctx.db.userStory.delete({ where: { id: storyId } })).rejects.toMatchObject({
       code: 'P2003',
     })
 
     // 通过端点 29 的等价路径（先清可见性、再删任务）移除子任务。
-    await ctx.prisma.objectVisibility.deleteMany({ where: { objectType: 'task', objectId: taskId } })
-    await ctx.prisma.task.delete({ where: { id: taskId } })
+    await ctx.db.objectVisibility.deleteMany({ where: { objectType: 'task', objectId: taskId } })
+    await ctx.db.task.delete({ where: { id: taskId } })
 
-    await expect(ctx.prisma.userStory.delete({ where: { id: storyId } })).resolves.toMatchObject({
+    await expect(ctx.db.userStory.delete({ where: { id: storyId } })).resolves.toMatchObject({
       id: storyId,
     })
-    expect(await ctx.prisma.userStory.count({ where: { id: storyId } })).toBe(0)
+    expect(await ctx.db.userStory.count({ where: { id: storyId } })).toBe(0)
   })
 
   it('删除任务本身不会误删其所属用户故事', async () => {
     expect((await deleteTask()).status).toBe(204)
 
-    expect(await ctx.prisma.task.count({ where: { id: taskId } })).toBe(0)
-    expect(await ctx.prisma.userStory.count({ where: { id: storyId } })).toBe(1)
+    expect(await ctx.db.task.count({ where: { id: taskId } })).toBe(0)
+    expect(await ctx.db.userStory.count({ where: { id: storyId } })).toBe(1)
   })
 })

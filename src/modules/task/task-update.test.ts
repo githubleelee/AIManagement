@@ -19,15 +19,61 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import request from 'supertest'
 import type { TaskView } from '../../shared/types.js'
-import {
-  addMember,
-  createProjectWithStory,
-  createTaskRow,
-  createUser,
-  resetTaskTestDatabase,
-  setupTaskTestApp,
-  type TaskTestContext,
-} from './_test-harness.js'
+import { createTestContext, type HttpTestContext } from '../../../test/helpers.js'
+import { makeUser, makeProject, makeGoal, makeActivity, makeStory, makeMember } from '../../../test/factories.js'
+
+// 数据前置：项目 + 目标 + 活动 + 故事（组合 test/factories.js 的真实工厂）。
+async function createProjectWithStory(
+  _db: unknown,
+  ownerUserId: string,
+  options: { projectName?: string; storyTitle?: string } = {},
+): Promise<{ projectId: string; storyId: string }> {
+  const { projectId } = await makeProject(ownerUserId, options.projectName ?? '测试项目')
+  const goalId = await makeGoal(projectId, '测试目标')
+  const activityId = await makeActivity(goalId, '测试活动')
+  const storyId = await makeStory(activityId, {
+    title: options.storyTitle ?? '测试用户故事',
+    capabilityText: '拆任务',
+    valueText: '推进交付',
+    businessValue: '高',
+    priority: 'P0',
+  })
+  return { projectId, storyId }
+}
+
+// 直接插入任务行（工厂 makeTask 不允许指定 createdAt 或构造非法数据；故走 ctx.db）。
+async function createTaskRow(
+  _db: unknown,
+  params: {
+    projectId: string
+    storyId: string
+    ownerUserId: string
+    acceptorUserId: string
+    title?: string
+    description?: string | null
+    planStart?: string
+    planEnd?: string
+    status?: 'TODO' | 'DOING' | 'DONE'
+    isSensitive?: boolean
+    createdAt?: Date
+  },
+) {
+  return ctx.db.task.create({
+    data: {
+      projectId: params.projectId,
+      storyId: params.storyId,
+      title: params.title ?? '任务',
+      description: params.description ?? null,
+      ownerUserId: params.ownerUserId,
+      acceptorUserId: params.acceptorUserId,
+      planStart: params.planStart ?? '2026-01-01',
+      planEnd: params.planEnd ?? '2026-01-31',
+      status: params.status ?? 'TODO',
+      isSensitive: params.isSensitive ?? false,
+      ...(params.createdAt ? { createdAt: params.createdAt } : {}),
+    },
+  })
+}
 
 type ErrorBody = {
   error: {
@@ -37,7 +83,7 @@ type ErrorBody = {
   }
 }
 
-let ctx: TaskTestContext
+let ctx: HttpTestContext
 let pm: { id: string }
 let member: { id: string }
 let viewer: { id: string }
@@ -48,30 +94,28 @@ let storyId: string
 let taskId: string
 
 beforeAll(async () => {
-  ctx = await setupTaskTestApp()
+  ctx = await createTestContext()
 })
 
 afterAll(async () => {
-  await ctx.app.close()
-  await ctx.prisma.$disconnect()
-  await ctx.db.dispose()
+  await ctx.dispose()
 })
 
 beforeEach(async () => {
-  await resetTaskTestDatabase(ctx)
-  pm = await createUser(ctx.prisma, 'pm@example.com', '项目经理')
-  member = await createUser(ctx.prisma, 'member@example.com', '项目成员')
-  viewer = await createUser(ctx.prisma, 'viewer@example.com', '管理者')
-  outsider = await createUser(ctx.prisma, 'outsider@example.com', '外部用户')
+  await ctx.reset()
+  pm = await makeUser('pm@example.com', '项目经理')
+  member = await makeUser('member@example.com', '项目成员')
+  viewer = await makeUser('viewer@example.com', '管理者')
+  outsider = await makeUser('outsider@example.com', '外部用户')
 
-  const project = await createProjectWithStory(ctx.prisma, pm.id)
+  const project = await createProjectWithStory(ctx.db, pm.id)
   projectId = project.projectId
   storyId = project.storyId
-  await addMember(ctx.prisma, projectId, member.id, 'MEMBER')
-  await addMember(ctx.prisma, projectId, viewer.id, 'VIEWER')
+  await makeMember(projectId, member.id, 'MEMBER')
+  await makeMember(projectId, viewer.id, 'VIEWER')
 
   // 合法基线任务：owner=member、acceptor=pm、日期合法、非敏感。
-  const task = await createTaskRow(ctx.prisma, {
+  const task = await createTaskRow(ctx.db, {
     projectId,
     storyId,
     ownerUserId: member.id,
@@ -89,16 +133,14 @@ function patchTask(
   actorUserId: string = pm.id,
   targetTaskId: string = taskId,
 ) {
-  return request(ctx.app.server)
+  return ctx.asUser(ctx.loginAs(actorUserId))
     .patch(`/tasks/${targetTaskId}`)
-    .set('x-actor-user-id', actorUserId)
     .send(body)
 }
 
 function getTask(actorUserId: string = pm.id, targetTaskId: string = taskId) {
-  return request(ctx.app.server)
+  return ctx.asUser(ctx.loginAs(actorUserId))
     .get(`/tasks/${targetTaskId}`)
-    .set('x-actor-user-id', actorUserId)
 }
 
 function expectFieldError(body: ErrorBody, field: string, code: string): void {
@@ -171,7 +213,7 @@ describe('端点 27 任务详情', () => {
   })
 
   it('未登录读取任务详情 → 401 UNAUTHENTICATED', async () => {
-    const response = await request(ctx.app.server).get(`/tasks/${taskId}`)
+    const response = await ctx.asUser(null).get(`/tasks/${taskId}`)
 
     expect(response.status).toBe(401)
     expect((response.body as ErrorBody).error.code).toBe('UNAUTHENTICATED')
@@ -278,7 +320,7 @@ describe('端点 28 部分更新：只改单个字段，其余字段逐字不变
     // 非敏感任务不能被 PATCH 改成敏感（只能走端点 30）
     expect(after.isSensitive).toBe(false)
 
-    const persisted = await ctx.prisma.task.findUnique({ where: { id: taskId } })
+    const persisted = await ctx.db.task.findUnique({ where: { id: taskId } })
     expect(persisted?.projectId).toBe(projectId)
     expect(persisted?.storyId).toBe(storyId)
     expect(persisted?.isSensitive).toBe(false)
@@ -286,7 +328,7 @@ describe('端点 28 部分更新：只改单个字段，其余字段逐字不变
   })
 
   it('敏感任务的 isSensitive 不会被 PATCH 改写（只能通过端点 30）', async () => {
-    const sensitive = await createTaskRow(ctx.prisma, {
+    const sensitive = await createTaskRow(ctx.db, {
       projectId,
       storyId,
       ownerUserId: member.id,
@@ -334,7 +376,7 @@ describe('端点 28 合并语义：ACCEPTOR_EQUALS_OWNER 三条路径', () => {
   it('被拒时任务行保持原值，不被部分写坏', async () => {
     await patchTask({ ownerUserId: pm.id })
 
-    const persisted = await ctx.prisma.task.findUnique({ where: { id: taskId } })
+    const persisted = await ctx.db.task.findUnique({ where: { id: taskId } })
     expect(persisted?.ownerUserId).toBe(member.id)
     expect(persisted?.acceptorUserId).toBe(pm.id)
   })
@@ -375,7 +417,7 @@ describe('端点 28 合并语义：日期先后', () => {
 
 describe('端点 28 合并语义：非法旧数据不得被静默固化', () => {
   it('库中 acceptor = owner（绕过创建校验写入），只改 title → 422 ACCEPTOR_EQUALS_OWNER', async () => {
-    const invalid = await createTaskRow(ctx.prisma, {
+    const invalid = await createTaskRow(ctx.db, {
       projectId,
       storyId,
       ownerUserId: member.id,
@@ -387,12 +429,12 @@ describe('端点 28 合并语义：非法旧数据不得被静默固化', () => 
 
     expect(response.status).toBe(422)
     expectFieldError(response.body as ErrorBody, 'acceptorUserId', 'ACCEPTOR_EQUALS_OWNER')
-    const persisted = await ctx.prisma.task.findUnique({ where: { id: invalid.id } })
+    const persisted = await ctx.db.task.findUnique({ where: { id: invalid.id } })
     expect(persisted?.title).toBe('非法分配任务')
   })
 
   it('库中 planEnd < planStart，只改 title → 422 END_BEFORE_START', async () => {
-    const invalid = await createTaskRow(ctx.prisma, {
+    const invalid = await createTaskRow(ctx.db, {
       projectId,
       storyId,
       ownerUserId: member.id,
@@ -406,12 +448,12 @@ describe('端点 28 合并语义：非法旧数据不得被静默固化', () => 
 
     expect(response.status).toBe(422)
     expectFieldError(response.body as ErrorBody, 'planEnd', 'END_BEFORE_START')
-    const persisted = await ctx.prisma.task.findUnique({ where: { id: invalid.id } })
+    const persisted = await ctx.db.task.findUnique({ where: { id: invalid.id } })
     expect(persisted?.title).toBe('非法日期任务')
   })
 
   it('库中 owner 非本项目成员，只改 title → 422 ownerUserId: NOT_PROJECT_MEMBER', async () => {
-    const invalid = await createTaskRow(ctx.prisma, {
+    const invalid = await createTaskRow(ctx.db, {
       projectId,
       storyId,
       ownerUserId: outsider.id,
@@ -471,9 +513,8 @@ describe('端点 28 状态推进：三态正例', () => {
     const detail = (await getTask()).body as TaskView
 
     expect(detail.status).toBe('DOING')
-    const list = await request(ctx.app.server)
+    const list = await ctx.asUser(ctx.loginAs(pm.id))
       .get(`/stories/${storyId}/tasks`)
-      .set('x-actor-user-id', pm.id)
     const listed = (list.body as { items: TaskView[] }).items.find((task) => task.id === taskId)
     expect(listed?.status).toBe('DOING')
   })
@@ -522,10 +563,10 @@ describe('端点 28 形状校验', () => {
   })
 
   it('形状校验失败时不写入任何改动', async () => {
-    const before = await ctx.prisma.task.findUnique({ where: { id: taskId } })
+    const before = await ctx.db.task.findUnique({ where: { id: taskId } })
     await patchTask({ planEnd: 'not-a-date' })
 
-    const after = await ctx.prisma.task.findUnique({ where: { id: taskId } })
+    const after = await ctx.db.task.findUnique({ where: { id: taskId } })
     expect(after?.planEnd).toBe(before?.planEnd)
     expect(after?.title).toBe(before?.title)
   })
@@ -562,7 +603,7 @@ describe('端点 28 权限', () => {
   })
 
   it('未登录编辑任务 → 401 UNAUTHENTICATED', async () => {
-    const response = await request(ctx.app.server)
+    const response = await ctx.asUser(null)
       .patch(`/tasks/${taskId}`)
       .send({ title: '匿名改名' })
 
@@ -580,7 +621,7 @@ describe('端点 28 权限', () => {
   it('被拒绝的 MEMBER 请求不写入任何改动', async () => {
     await patchTask({ title: '成员改名' }, member.id)
 
-    const persisted = await ctx.prisma.task.findUnique({ where: { id: taskId } })
+    const persisted = await ctx.db.task.findUnique({ where: { id: taskId } })
     expect(persisted?.title).toBe('原任务标题')
   })
 })
