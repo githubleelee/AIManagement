@@ -356,8 +356,8 @@ describe('端点 26 可见性：敏感任务不泄漏（第四条查询路径）
     return { ordinary, sensitive }
   }
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('未授权成员不带 ownerUserId → 列表中不含敏感任务，items 长度不计入它（计数不泄漏）', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('未授权成员不带 ownerUserId → 列表中不含敏感任务，items 长度不计入它（计数不泄漏）', async () => {
     const { ordinary } = await setupSensitiveTask()
 
     // 数据库里确有两条任务，但 viewer 的列表只看到一条。
@@ -369,8 +369,8 @@ describe('端点 26 可见性：敏感任务不泄漏（第四条查询路径）
     expect(ids).toEqual([ordinary.id])
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('★ 未授权成员带敏感任务负责人的 ownerUserId 过滤 → 结果必须为空（最易漏的泄漏路径）', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('★ 未授权成员带敏感任务负责人的 ownerUserId 过滤 → 结果必须为空（最易漏的泄漏路径）', async () => {
     const { sensitive } = await setupSensitiveTask()
 
     const response = await listProjectTasks(viewer.id, projectId, { ownerUserId: memberA.id })
@@ -384,8 +384,8 @@ describe('端点 26 可见性：敏感任务不泄漏（第四条查询路径）
     expect(serialized).not.toContain(sensitive.id)
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('敏感任务负责人自己不在白名单 → 带自己的 ownerUserId 也看不到它', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('敏感任务负责人自己不在白名单 → 带自己的 ownerUserId 也看不到它', async () => {
     await setupSensitiveTask()
 
     const response = await listProjectTasks(memberA.id, projectId, { ownerUserId: memberA.id })

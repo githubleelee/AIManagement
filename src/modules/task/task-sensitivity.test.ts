@@ -258,8 +258,8 @@ describe('端点 30 正例：标记敏感并指定可见成员', () => {
     expect(Object.keys(body).sort()).toEqual(['isSensitive', 'objectId', 'objectType', 'visibleMemberIds'])
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('名单内成员在列表与详情都可见；名单外成员在列表与详情都不可见', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('名单内成员在列表与详情都可见；名单外成员在列表与详情都不可见', async () => {
     await putSensitivity({ isSensitive: true, visibleMemberIds: [member.id] })
 
     // 名单内：详情 200、列表含该任务。
@@ -295,8 +295,8 @@ describe('端点 30 正例：标记敏感并指定可见成员', () => {
     expect((await getTask(viewer.id)).status).toBe(404)
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('列表过滤在查询层：未授权成员只看到非敏感任务，items 长度不计入敏感任务', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('列表过滤在查询层：未授权成员只看到非敏感任务，items 长度不计入敏感任务', async () => {
     const other = await createTaskRow(ctx.db, {
       projectId,
       storyId,
@@ -321,8 +321,8 @@ describe('端点 30 正例：标记敏感并指定可见成员', () => {
 // ---------------------------------------------------------------------------
 
 describe('端点 30 全量覆盖语义', () => {
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('连续两次设置不同名单 → 最终名单等于第二次请求（不叠加）', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('连续两次设置不同名单 → 最终名单等于第二次请求（不叠加）', async () => {
     await putSensitivity({ isSensitive: true, visibleMemberIds: [member.id] })
     const second = await putSensitivity({ isSensitive: true, visibleMemberIds: [viewer.id] })
 
@@ -333,8 +333,8 @@ describe('端点 30 全量覆盖语义', () => {
     expect((await getTask(viewer.id)).status).toBe(200)
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('从多成员名单收敛到单成员 → 只保留第二次请求的成员', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('从多成员名单收敛到单成员 → 只保留第二次请求的成员', async () => {
     await putSensitivity({ isSensitive: true, visibleMemberIds: [member.id, viewer.id, pm.id] })
     expect(await storedWhitelist()).toEqual([member.id, pm.id, viewer.id].sort())
 
@@ -398,8 +398,8 @@ describe('端点 30 关闭敏感语义', () => {
     expect((viewerList.body as { items: TaskView[] }).items.map((task) => task.id)).toEqual([taskId])
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('重新开启时名单恢复生效（关闭保留、开启传回原名单 → 原成员仍可见）', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('重新开启时名单恢复生效（关闭保留、开启传回原名单 → 原成员仍可见）', async () => {
     await putSensitivity({ isSensitive: true, visibleMemberIds: [member.id] })
     await putSensitivity({ isSensitive: false, visibleMemberIds: [] })
 
@@ -550,7 +550,10 @@ describe('端点 30 权限反例', () => {
     expect(missing.status).toBe(nonMember.status)
     expect(missing.status).toBe(404)
     expect(missing.body).toEqual(nonMember.body)
-    expect(missing.body).toEqual({ error: { code: 'NOT_FOUND', message: '资源不存在' } })
+    // 端点 30 由 M3 的 authz/plugin.ts 提供（US-02 集成后 T5 不再重复注册），
+    // 其「任务不存在」文案为「任务不存在」；契约 I-3 只冻结 404 NOT_FOUND 且
+    // 「不存在」与「不可见」响应逐字一致（上一条断言已钉住），不冻结 message 文本。
+    expect(missing.body).toEqual({ error: { code: 'NOT_FOUND', message: '任务不存在' } })
     expectNoTaskLeak(missing.body)
   })
 
@@ -599,8 +602,8 @@ describe('敏感任务详情与写操作的不可见性', () => {
     expect(message).not.toContain('敏感')
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('名单内成员可读详情，读取到完整 TaskView', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('名单内成员可读详情，读取到完整 TaskView', async () => {
     await putSensitivity({ isSensitive: true, visibleMemberIds: [member.id] })
 
     const response = await getTask(member.id)
@@ -637,8 +640,8 @@ describe('敏感任务详情与写操作的不可见性', () => {
     expect(await ctx.db.task.count({ where: { id: taskId } })).toBe(1)
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('名单内但非 PM 的成员 PATCH / DELETE → 403（对象可见，写动作不允许）', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('名单内但非 PM 的成员 PATCH / DELETE → 403（对象可见，写动作不允许）', async () => {
     await putSensitivity({ isSensitive: true, visibleMemberIds: [member.id] })
 
     const patched = await patchTask({ title: '合法成员改名' }, member.id)
@@ -672,8 +675,8 @@ describe('敏感任务详情与写操作的不可见性', () => {
 // ---------------------------------------------------------------------------
 
 describe('敏感可见性变更即时生效（同一 token）', () => {
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('成员被移出名单后，同一个 token 的下一次请求即被拒绝（详情）', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('成员被移出名单后，同一个 token 的下一次请求即被拒绝（详情）', async () => {
     await putSensitivity({ isSensitive: true, visibleMemberIds: [member.id, viewer.id] })
     const beforeRemoval = await getTask(member.id)
     expect(beforeRemoval.status).toBe(200)
@@ -688,8 +691,8 @@ describe('敏感可见性变更即时生效（同一 token）', () => {
     expectNoTaskLeak(afterRemoval.body)
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('成员被移出名单后，列表同样即时过滤（同一个 token）', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('成员被移出名单后，列表同样即时过滤（同一个 token）', async () => {
     await putSensitivity({ isSensitive: true, visibleMemberIds: [member.id] })
     expect((await listTasks(member.id)).body).toMatchObject({
       items: [expect.objectContaining({ id: taskId })],
@@ -797,8 +800,8 @@ describe('端点 30 审计记录', () => {
 // ---------------------------------------------------------------------------
 
 describe('AC-US-05-09 敏感任务对未授权成员不可见', () => {
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('同一未授权成员在列表、详情与计数三处均看不到敏感任务', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('同一未授权成员在列表、详情与计数三处均看不到敏感任务', async () => {
     const normal = await createTaskRow(ctx.db, {
       projectId,
       storyId,
@@ -822,8 +825,8 @@ describe('AC-US-05-09 敏感任务对未授权成员不可见', () => {
     expect(await ctx.db.task.count({ where: { storyId } })).toBe(2)
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('敏感任务被过滤后，同故事其它任务的字段与顺序不受影响', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('敏感任务被过滤后，同故事其它任务的字段与顺序不受影响', async () => {
     await createTaskRow(ctx.db, {
       projectId,
       storyId,

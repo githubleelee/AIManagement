@@ -226,8 +226,8 @@ async function setupParityFixture() {
 // ===========================================================================
 
 describe('A. 端点 26 是敏感任务的第四条查询路径', () => {
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('A1：名单外成员 B 不带 ownerUserId → 敏感任务不出现，items 长度不计入其存在', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('A1：名单外成员 B 不带 ownerUserId → 敏感任务不出现，items 长度不计入其存在', async () => {
     const { sensitive, nonSensitiveB, nonSensitiveB2 } = await setupParityFixture()
 
     // 库中真实存在 3 条任务（1 敏感 + 2 非敏感）。
@@ -246,8 +246,8 @@ describe('A. 端点 26 是敏感任务的第四条查询路径', () => {
     expectNoLeak(response.body, ['机密任务', '机密描述', sensitive.id])
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('A2：★ B 带敏感任务负责人 A 的 ownerUserId → 结果必须为空数组（最易漏路径）', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('A2：★ B 带敏感任务负责人 A 的 ownerUserId → 结果必须为空数组（最易漏路径）', async () => {
     const { sensitive } = await setupParityFixture()
 
     const response = await listProjectTasks(memberB.id, projectId, {
@@ -259,8 +259,8 @@ describe('A. 端点 26 是敏感任务的第四条查询路径', () => {
     expectNoLeak(response.body, ['机密任务', '机密描述', sensitive.id])
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('A3：不带参数 vs 带参数的结果数一致性 —— B 的总数 = 库中非敏感任务数', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('A3：不带参数 vs 带参数的结果数一致性 —— B 的总数 = 库中非敏感任务数', async () => {
     const { nonSensitiveB, nonSensitiveB2 } = await setupParityFixture()
 
     const nonSensitiveCount = await ctx.db.task.count({
@@ -310,8 +310,8 @@ describe('A. 端点 26 是敏感任务的第四条查询路径', () => {
     expect((asPmFiltered.body as ListBody).items.map((t) => t.id)).toEqual([sensitive.id])
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('A4b：敏感任务负责人不在白名单时，本人带自己 ownerUserId 也看不到（反事实对照）', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('A4b：敏感任务负责人不在白名单时，本人带自己 ownerUserId 也看不到（反事实对照）', async () => {
     // 这份 fixture 故意不放任何白名单成员：只有 PM 可见。
     const sensitive = await makeTask({
       title: '仅 PM 可见任务',
@@ -396,8 +396,8 @@ describe('B. 过滤与排序', () => {
     expect((filtered.body as ListBody).items).toHaveLength(inMemoryFiltered.length)
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('B8b：B 视角下「过滤结果」与「全量可见结果里按该人筛选」同样相等', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('B8b：B 视角下「过滤结果」与「全量可见结果里按该人筛选」同样相等', async () => {
     await setupParityFixture()
 
     const full = await listProjectTasks(memberB.id)

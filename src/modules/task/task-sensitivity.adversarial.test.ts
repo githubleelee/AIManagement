@@ -230,8 +230,8 @@ function expectFieldError(body: ErrorBody, field: string, code: string): void {
 // ===========================================================================
 
 describe('A1 列表泄漏：未授权成员的 items 计数与集合都不得包含敏感任务', () => {
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('数据库 5 条任务（3 普通 + 2 敏感）时，名单外成员的列表恰好只有 3 条普通任务', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('数据库 5 条任务（3 普通 + 2 敏感）时，名单外成员的列表恰好只有 3 条普通任务', async () => {
     const normal = []
     for (let i = 0; i < 3; i++) {
       normal.push(
@@ -285,8 +285,8 @@ describe('A1 列表泄漏：未授权成员的 items 计数与集合都不得包
     expect(serialized).not.toContain('敏感B')
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('「标记敏感」这一动作本身使未授权成员的列表长度减 1（计数不泄漏的直接证据）', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('「标记敏感」这一动作本身使未授权成员的列表长度减 1（计数不泄漏的直接证据）', async () => {
     const before = await listTasks(memberB.id)
     const beforeIds = listIds(before.body)
     expect(beforeIds).toEqual([taskId]) // 标记前，memberB 能看到（他还是负责人）
@@ -301,8 +301,8 @@ describe('A1 列表泄漏：未授权成员的 items 计数与集合都不得包
     expect(await ctx.db.task.count({ where: { id: taskId } })).toBe(1)
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('敏感任务的负责人本人（名单外）也不可见 —— 过滤不基于 owner', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('敏感任务的负责人本人（名单外）也不可见 —— 过滤不基于 owner', async () => {
     // 基础任务的 ownerUserId 就是 memberB，但仍只给 memberA 可见。
     await markSensitiveToA()
     const list = await listTasks(memberB.id)
@@ -443,8 +443,8 @@ describe('A4 「不存在」与「不可见」逐字比对（状态码 + code + 
 })
 
 describe('A5 正例：PM 与名单内成员在列表与详情都可见', () => {
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('PM / 成员A 详情 200 且拿到完整 TaskView（含 owner / acceptor）', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('PM / 成员A 详情 200 且拿到完整 TaskView（含 owner / acceptor）', async () => {
     await markSensitiveToA()
 
     for (const actor of [pm.id, memberA.id]) {
@@ -473,8 +473,8 @@ describe('A5 正例：PM 与名单内成员在列表与详情都可见', () => {
 // ===========================================================================
 
 describe('B6 端点 30 全量覆盖（不叠加、不去重合并）', () => {
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('第一次 [A,B] → 第二次 [B]：最终名单 = [B]，A 被移出', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('第一次 [A,B] → 第二次 [B]：最终名单 = [B]，A 被移出', async () => {
     await putSensitivity({ isSensitive: true, visibleMemberIds: [memberA.id, memberB.id] })
     const second = await putSensitivity({ isSensitive: true, visibleMemberIds: [memberB.id] })
 
@@ -537,8 +537,8 @@ describe('B7 关闭敏感（isSensitive=false + 空数组）', () => {
 })
 
 describe('B8 重新开启', () => {
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('关闭后重新开启并传回名单 → A 恢复可见、B 仍不可见', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('关闭后重新开启并传回名单 → A 恢复可见、B 仍不可见', async () => {
     await markSensitiveToA()
     await putSensitivity({ isSensitive: false, visibleMemberIds: [] })
     expect((await getTask(memberB.id)).status).toBe(200) // 全项目可见
@@ -629,8 +629,8 @@ describe('B11 can() 顺序张力（契约 I-5 短路顺序）', () => {
     expectNoSecretLeak(response.body)
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('敏感任务 + 名单内成员（成员 A）调用端点 30 → 403（对象可见，写动作不允许）', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('敏感任务 + 名单内成员（成员 A）调用端点 30 → 403（对象可见，写动作不允许）', async () => {
     await markSensitiveToA()
 
     const response = await putSensitivity(
@@ -666,8 +666,8 @@ describe('B11 can() 顺序张力（契约 I-5 短路顺序）', () => {
 // ===========================================================================
 
 describe('C12 即时生效（同一 token，不重新登录）', () => {
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('A 可见 → PM 移出 A → A 下一次请求 404；列表同样即时清空', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('A 可见 → PM 移出 A → A 下一次请求 404；列表同样即时清空', async () => {
     await putSensitivity({ isSensitive: true, visibleMemberIds: [memberA.id, memberB.id] })
 
     const beforeDetail = await getTask(memberA.id)
@@ -690,8 +690,8 @@ describe('C12 即时生效（同一 token，不重新登录）', () => {
     expect(listIds(afterList.body)).toEqual([])
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('反向：名单外 → PM 加入 A → A 下一次请求立即 200', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('反向：名单外 → PM 加入 A → A 下一次请求立即 200', async () => {
     await markSensitiveToA()
     expect((await getTask(memberB.id)).status).toBe(404)
 
@@ -774,16 +774,16 @@ describe('C13 / C14 审计记录', () => {
 // ===========================================================================
 
 describe('D15 查询层过滤的可测性（无内存过滤的接口行为证据）', () => {
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('scope 为空时列表返回空数组（而非「全量取出再去掉敏感项」的可观测差异）', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('scope 为空时列表返回空数组（而非「全量取出再去掉敏感项」的可观测差异）', async () => {
     await markSensitiveToA()
     // 名单外成员对唯一的敏感任务得到空列表。
     const list = await listTasks(memberB.id)
     expect(list.body).toEqual({ items: [] })
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('同一项目、另一个用户故事下的敏感任务不会串入当前故事的列表', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('同一项目、另一个用户故事下的敏感任务不会串入当前故事的列表', async () => {
     const sibling = await ctx.db.userStory.create({
       data: {
         projectId,

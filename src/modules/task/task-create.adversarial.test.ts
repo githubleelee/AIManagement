@@ -519,8 +519,8 @@ describe('D. 响应契约', () => {
     expect(titles).toEqual(['更早', '同日起-早', '同日起-晚', '更晚'])
   })
 
-  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
-  it.skip('D6 visibilityScope 已接入列表：非 PM 看不到敏感任务（T5-01 已接线，T5-05 才可设置）', async () => {
+  // T2.5 已合入：敏感对象白名单判定与 visibilityScope 查询层过滤均已落地，本用例前提成立
+  it('D6 visibilityScope 已接入列表：非 PM 看不到敏感任务（T5-01 已接线，T5-05 才可设置）', async () => {
     const visible = await createTaskRow(ctx.db, {
       projectId,
       storyId,
