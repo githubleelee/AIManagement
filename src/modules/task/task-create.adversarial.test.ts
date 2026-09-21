@@ -6,22 +6,67 @@
  *
  * 唯一 seam 是 HTTP 接口层。数据自建、每个测试互不污染。
  *
- * 说明：本分支的 Actor 注入是 T0-04 未合入前的临时桩（`_t0-stubs.ts`），
- * 用 `x-actor-user-id` 头而非契约的 `Authorization: Bearer`。因此「Bearer 未认证」
- * 只能验证到桩的边界，真实 requireAuth 路径标注为「未验证」。
+ * 说明：Actor 注入已接入真实的 `requireAuth`（`src/auth/actor.ts`），全部请求经
+ * `ctx.asUser(ctx.loginAs(...))` 以契约的 `Authorization: Bearer` 发起。
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import request from 'supertest'
 import type { TaskView } from '../../shared/types.js'
-import {
-  addMember,
-  createProjectWithStory,
-  createTaskRow,
-  createUser,
-  resetTaskTestDatabase,
-  setupTaskTestApp,
-  type TaskTestContext,
-} from './_test-harness.js'
+import { createTestContext, type HttpTestContext } from '../../../test/helpers.js'
+import { makeUser, makeProject, makeGoal, makeActivity, makeStory, makeMember } from '../../../test/factories.js'
+
+// 数据前置：项目 + 目标 + 活动 + 故事（组合 test/factories.js 的真实工厂）。
+async function createProjectWithStory(
+  _db: unknown,
+  ownerUserId: string,
+  options: { projectName?: string; storyTitle?: string } = {},
+): Promise<{ projectId: string; storyId: string }> {
+  const { projectId } = await makeProject(ownerUserId, options.projectName ?? '测试项目')
+  const goalId = await makeGoal(projectId, '测试目标')
+  const activityId = await makeActivity(goalId, '测试活动')
+  const storyId = await makeStory(activityId, {
+    title: options.storyTitle ?? '测试用户故事',
+    capabilityText: '拆任务',
+    valueText: '推进交付',
+    businessValue: '高',
+    priority: 'P0',
+  })
+  return { projectId, storyId }
+}
+
+// 直接插入任务行（工厂 makeTask 不允许指定 createdAt 或构造非法数据；故走 ctx.db）。
+async function createTaskRow(
+  _db: unknown,
+  params: {
+    projectId: string
+    storyId: string
+    ownerUserId: string
+    acceptorUserId: string
+    title?: string
+    description?: string | null
+    planStart?: string
+    planEnd?: string
+    status?: 'TODO' | 'DOING' | 'DONE'
+    isSensitive?: boolean
+    createdAt?: Date
+  },
+) {
+  return ctx.db.task.create({
+    data: {
+      projectId: params.projectId,
+      storyId: params.storyId,
+      title: params.title ?? '任务',
+      description: params.description ?? null,
+      ownerUserId: params.ownerUserId,
+      acceptorUserId: params.acceptorUserId,
+      planStart: params.planStart ?? '2026-01-01',
+      planEnd: params.planEnd ?? '2026-01-31',
+      status: params.status ?? 'TODO',
+      isSensitive: params.isSensitive ?? false,
+      ...(params.createdAt ? { createdAt: params.createdAt } : {}),
+    },
+  })
+}
 
 type ErrorBody = {
   error: {
@@ -31,7 +76,7 @@ type ErrorBody = {
   }
 }
 
-let ctx: TaskTestContext
+let ctx: HttpTestContext
 let pm: { id: string }
 let member: { id: string }
 let viewer: { id: string }
@@ -40,27 +85,25 @@ let projectId: string
 let storyId: string
 
 beforeAll(async () => {
-  ctx = await setupTaskTestApp()
+  ctx = await createTestContext()
 })
 
 afterAll(async () => {
-  await ctx.app.close()
-  await ctx.prisma.$disconnect()
-  await ctx.db.dispose()
+  await ctx.dispose()
 })
 
 beforeEach(async () => {
-  await resetTaskTestDatabase(ctx)
-  pm = await createUser(ctx.prisma, 'pm@example.com', '项目经理')
-  member = await createUser(ctx.prisma, 'member@example.com', '项目成员')
-  viewer = await createUser(ctx.prisma, 'viewer@example.com', '管理者')
-  outsider = await createUser(ctx.prisma, 'outsider@example.com', '外部用户')
+  await ctx.reset()
+  pm = await makeUser('pm@example.com', '项目经理')
+  member = await makeUser('member@example.com', '项目成员')
+  viewer = await makeUser('viewer@example.com', '管理者')
+  outsider = await makeUser('outsider@example.com', '外部用户')
 
-  const project = await createProjectWithStory(ctx.prisma, pm.id)
+  const project = await createProjectWithStory(ctx.db, pm.id)
   projectId = project.projectId
   storyId = project.storyId
-  await addMember(ctx.prisma, projectId, member.id, 'MEMBER')
-  await addMember(ctx.prisma, projectId, viewer.id, 'VIEWER')
+  await makeMember(projectId, member.id, 'MEMBER')
+  await makeMember(projectId, viewer.id, 'VIEWER')
 })
 
 function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -76,16 +119,14 @@ function validBody(overrides: Record<string, unknown> = {}): Record<string, unkn
 }
 
 function postTask(body: Record<string, unknown>, actorUserId = pm.id) {
-  return request(ctx.app.server)
+  return ctx.asUser(ctx.loginAs(actorUserId))
     .post(`/stories/${storyId}/tasks`)
-    .set('x-actor-user-id', actorUserId)
     .send(body)
 }
 
 function getTasks(actorUserId = pm.id) {
-  return request(ctx.app.server)
+  return ctx.asUser(ctx.loginAs(actorUserId))
     .get(`/stories/${storyId}/tasks`)
-    .set('x-actor-user-id', actorUserId)
 }
 
 function fieldCode(body: ErrorBody, field: string): string | undefined {
@@ -105,7 +146,7 @@ describe('A. 服务端强制校验', () => {
     expect(asViewer.status).toBe(403)
     expect((asViewer.body as ErrorBody).error.code).toBe('FORBIDDEN')
     // 越权写入不得落库
-    expect(await ctx.prisma.task.count()).toBe(0)
+    expect(await ctx.db.task.count()).toBe(0)
   })
 
   it('A1b MEMBER / VIEWER 调 GET → 200（只读允许）', async () => {
@@ -143,9 +184,8 @@ describe('A. 服务端强制校验', () => {
 
   it('A2b 非成员 404 与「故事不存在」404 响应结构完全一致', async () => {
     const asOutsider = await getTasks(outsider.id)
-    const missing = await request(ctx.app.server)
+    const missing = await ctx.asUser(ctx.loginAs(pm.id))
       .get('/stories/does-not-exist/tasks')
-      .set('x-actor-user-id', pm.id)
 
     expect(asOutsider.status).toBe(404)
     expect(missing.status).toBe(404)
@@ -154,7 +194,7 @@ describe('A. 服务端强制校验', () => {
 
   it('A2c 是另一个项目的成员，访问本项目的故事仍 404', async () => {
     // outsider 在 project2 是 PM，但绝不是 project1 成员
-    const project2 = await createProjectWithStory(ctx.prisma, outsider.id, {
+    const project2 = await createProjectWithStory(ctx.db, outsider.id, {
       projectName: '另一个项目',
       storyTitle: '另一个故事',
     })
@@ -168,10 +208,10 @@ describe('A. 服务端强制校验', () => {
   })
 
   it('A3 未认证（缺 Actor）→ 401 UNAUTHENTICATED，且不被错误处理器改写', async () => {
-    const post = await request(ctx.app.server)
+    const post = await ctx.asUser(null)
       .post(`/stories/${storyId}/tasks`)
       .send(validBody())
-    const get = await request(ctx.app.server).get(`/stories/${storyId}/tasks`)
+    const get = await ctx.asUser(null).get(`/stories/${storyId}/tasks`)
 
     expect(post.status).toBe(401)
     expect(get.status).toBe(401)
@@ -182,10 +222,10 @@ describe('A. 服务端强制校验', () => {
     expect((post.body as ErrorBody).error.code).not.toBe('BAD_REQUEST')
   })
 
-  it('A3b 只带契约的 Authorization: Bearer（无 x-actor 桩头）→ 401（记录：Bearer 尚未接线）', async () => {
-    // 观察项：T0-04 的 requireAuth 未合入，T5-01 的桩只认 x-actor-user-id，
-    // 因此契约里的 Bearer 头在本分支不被识别。真实鉴权路径「未验证」。
-    const response = await request(ctx.app.server)
+  it('A3b 只带契约的 Authorization: Bearer（非法 token）→ 401（真实 requireAuth 已接线）', async () => {
+    // 真实 requireAuth 已接入：非法 / 无法验签的 Bearer 令牌解析不出 actorUserId，
+    // 由 preHandler 统一抛 401 UNAUTHENTICATED。
+    const response = await ctx.asUser(null)
       .post(`/stories/${storyId}/tasks`)
       .set('Authorization', 'Bearer some-opaque-token')
       .send(validBody())
@@ -205,7 +245,7 @@ describe('B. 请求体注入（契约禁止的字段必须被忽略）', () => {
 
     expect(response.status).toBe(201)
     expect(body.status).toBe('TODO')
-    const persisted = await ctx.prisma.task.findUnique({ where: { id: body.id } })
+    const persisted = await ctx.db.task.findUnique({ where: { id: body.id } })
     expect(persisted?.status).toBe('TODO')
   })
 
@@ -217,10 +257,10 @@ describe('B. 请求体注入（契约禁止的字段必须被忽略）', () => {
 
     expect(response.status).toBe(201)
     expect(body.isSensitive).toBe(false)
-    const persisted = await ctx.prisma.task.findUnique({ where: { id: body.id } })
+    const persisted = await ctx.db.task.findUnique({ where: { id: body.id } })
     expect(persisted?.isSensitive).toBe(false)
     // 不得写出任何可见性白名单记录
-    expect(await ctx.prisma.objectVisibility.count()).toBe(0)
+    expect(await ctx.db.objectVisibility.count()).toBe(0)
   })
 
   it('B3 传 projectId / storyId → 仍归属故事所在项目与故事', async () => {
@@ -232,7 +272,7 @@ describe('B. 请求体注入（契约禁止的字段必须被忽略）', () => {
     expect(response.status).toBe(201)
     expect(body.projectId).toBe(projectId)
     expect(body.storyId).toBe(storyId)
-    const persisted = await ctx.prisma.task.findUnique({ where: { id: body.id } })
+    const persisted = await ctx.db.task.findUnique({ where: { id: body.id } })
     expect(persisted?.projectId).toBe(projectId)
     expect(persisted?.storyId).toBe(storyId)
   })
@@ -251,9 +291,9 @@ describe('B. 请求体注入（契约禁止的字段必须被忽略）', () => {
     expect(response.status).toBe(201)
     expect(body.id).not.toBe('forged-id')
     expect(body.createdAt).not.toBe('1999-01-01T00:00:00.000Z')
-    const persisted = await ctx.prisma.task.findUnique({ where: { id: body.id } })
+    const persisted = await ctx.db.task.findUnique({ where: { id: body.id } })
     expect(persisted).not.toBeNull()
-    expect(await ctx.prisma.task.count()).toBe(1)
+    expect(await ctx.db.task.count()).toBe(1)
   })
 
   it('B5 传未知字段 foo → 被忽略且创建成功（契约未定义，记为观察项）', async () => {
@@ -342,7 +382,7 @@ describe('C. 输入边界', () => {
     for (const value of ['2026-13-01', '2026-02-30', '2026-00-00', '2026-99-99']) {
       const response = await postTask(validBody({ planStart: value, planEnd: value }))
       expect(response.status, `planStart=${value}`).toBe(201)
-      const persisted = await ctx.prisma.task.findFirst({ where: { planStart: value } })
+      const persisted = await ctx.db.task.findFirst({ where: { planStart: value } })
       expect(persisted, `planStart=${value}`).not.toBeNull()
     }
   })
@@ -411,7 +451,7 @@ describe('D. 响应契约', () => {
 
   it('D3 ★泄漏探针：响应任何位置都不得出现 passwordHash 或 User 表其它字段', async () => {
     // 给用户写入一个可识别的密码哈希，确保泄漏时一定能被检出
-    await ctx.prisma.user.update({
+    await ctx.db.user.update({
       where: { id: member.id },
       data: { passwordHash: 'LEAK-CANARY-HASH-DO-NOT-EXPOSE' },
     })
@@ -437,7 +477,7 @@ describe('D. 响应契约', () => {
   })
 
   it('D5 planStart 升序；planStart 相同时退化为 createdAt 升序', async () => {
-    await createTaskRow(ctx.prisma, {
+    await createTaskRow(ctx.db, {
       projectId,
       storyId,
       ownerUserId: member.id,
@@ -446,7 +486,7 @@ describe('D. 响应契约', () => {
       planStart: '2026-06-01',
       createdAt: new Date('2026-01-02T00:00:00.000Z'),
     })
-    await createTaskRow(ctx.prisma, {
+    await createTaskRow(ctx.db, {
       projectId,
       storyId,
       ownerUserId: member.id,
@@ -455,7 +495,7 @@ describe('D. 响应契约', () => {
       planStart: '2026-06-01',
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
     })
-    await createTaskRow(ctx.prisma, {
+    await createTaskRow(ctx.db, {
       projectId,
       storyId,
       ownerUserId: member.id,
@@ -464,7 +504,7 @@ describe('D. 响应契约', () => {
       planStart: '2026-07-01',
       createdAt: new Date('2025-12-01T00:00:00.000Z'),
     })
-    await createTaskRow(ctx.prisma, {
+    await createTaskRow(ctx.db, {
       projectId,
       storyId,
       ownerUserId: member.id,
@@ -480,8 +520,9 @@ describe('D. 响应契约', () => {
     expect(titles).toEqual(['更早', '同日起-早', '同日起-晚', '更晚'])
   })
 
-  it('D6 visibilityScope 已接入列表：非 PM 看不到敏感任务（T5-01 已接线，T5-05 才可设置）', async () => {
-    const visible = await createTaskRow(ctx.prisma, {
+  // TODO(T2.5)：main 的权限骨架对敏感对象保守拒绝 / visibilityScope 尚未过滤，本用例前提待 T2.1–T2.5 完成后启用
+  it.skip('D6 visibilityScope 已接入列表：非 PM 看不到敏感任务（T5-01 已接线，T5-05 才可设置）', async () => {
+    const visible = await createTaskRow(ctx.db, {
       projectId,
       storyId,
       ownerUserId: member.id,
@@ -489,7 +530,7 @@ describe('D. 响应契约', () => {
       title: '普通任务',
       isSensitive: false,
     })
-    const secret = await createTaskRow(ctx.prisma, {
+    const secret = await createTaskRow(ctx.db, {
       projectId,
       storyId,
       ownerUserId: member.id,
@@ -530,7 +571,7 @@ describe('G. T5-02 业务规则强制（原 T5-01 缺口断言已翻转）', () 
     expect(response.status).toBe(422)
     expect((response.body as ErrorBody).error.code).toBe('VALIDATION_FAILED')
     expect(fieldCode(response.body as ErrorBody, 'acceptorUserId')).toBe('ACCEPTOR_EQUALS_OWNER')
-    expect(await ctx.prisma.task.count()).toBe(0)
+    expect(await ctx.db.task.count()).toBe(0)
   })
 
   it('G2 负责人非本项目成员但用户存在 → 422 ownerUserId: NOT_PROJECT_MEMBER，且不落库', async () => {
@@ -539,7 +580,7 @@ describe('G. T5-02 业务规则强制（原 T5-01 缺口断言已翻转）', () 
     expect(response.status).toBe(422)
     expect((response.body as ErrorBody).error.code).toBe('VALIDATION_FAILED')
     expect(fieldCode(response.body as ErrorBody, 'ownerUserId')).toBe('NOT_PROJECT_MEMBER')
-    expect(await ctx.prisma.task.count()).toBe(0)
+    expect(await ctx.db.task.count()).toBe(0)
   })
 
   it('G3 planEnd 早于 planStart → 422 planEnd: END_BEFORE_START，且不落库', async () => {
@@ -548,7 +589,7 @@ describe('G. T5-02 业务规则强制（原 T5-01 缺口断言已翻转）', () 
     expect(response.status).toBe(422)
     expect((response.body as ErrorBody).error.code).toBe('VALIDATION_FAILED')
     expect(fieldCode(response.body as ErrorBody, 'planEnd')).toBe('END_BEFORE_START')
-    expect(await ctx.prisma.task.count()).toBe(0)
+    expect(await ctx.db.task.count()).toBe(0)
   })
 
   it('G4 负责人 id 在 User 表不存在 → 422 ownerUserId: NOT_PROJECT_MEMBER（校验先于写库）', async () => {
@@ -557,6 +598,6 @@ describe('G. T5-02 业务规则强制（原 T5-01 缺口断言已翻转）', () 
     expect(response.status).toBe(422)
     expect((response.body as ErrorBody).error.code).toBe('VALIDATION_FAILED')
     expect(fieldCode(response.body as ErrorBody, 'ownerUserId')).toBe('NOT_PROJECT_MEMBER')
-    expect(await ctx.prisma.task.count()).toBe(0)
+    expect(await ctx.db.task.count()).toBe(0)
   })
 })

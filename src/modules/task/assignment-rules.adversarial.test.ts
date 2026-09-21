@@ -6,7 +6,7 @@
  * 共用入口直测」逐条设计攻击面，全部经 HTTP 接口层；「共用入口」一项例外，
  * 直接调用 `assertTaskAssignment` 以证明 T5-03 接入前规则与顺序已收敛到该函数。
  *
- * 数据自建、互不污染；工厂沿用 `_test-harness.ts`，单成员项目由既有
+ * 数据自建、互不污染；造数组合 `test/factories.js` 的真实工厂，单成员项目由既有
  * `createProjectWithStory`（只把 owner 加为 PM）直接构造，不改动共享工厂。
  *
  * 未验证：编辑路径（端点 28 / PATCH）本分支不存在，T5-03 才落地 —— 见报告
@@ -17,14 +17,61 @@ import request from 'supertest'
 import type { TaskView } from '../../shared/types.js'
 import { AppError } from '../../shared/errors.js'
 import { assertTaskAssignment, type TaskAssignmentInput } from './rules.js'
-import {
-  addMember,
-  createProjectWithStory,
-  createUser,
-  resetTaskTestDatabase,
-  setupTaskTestApp,
-  type TaskTestContext,
-} from './_test-harness.js'
+import { createTestContext, type HttpTestContext } from '../../../test/helpers.js'
+import { makeUser, makeProject, makeGoal, makeActivity, makeStory, makeMember } from '../../../test/factories.js'
+
+// 数据前置：项目 + 目标 + 活动 + 故事（组合 test/factories.js 的真实工厂）。
+async function createProjectWithStory(
+  _db: unknown,
+  ownerUserId: string,
+  options: { projectName?: string; storyTitle?: string } = {},
+): Promise<{ projectId: string; storyId: string }> {
+  const { projectId } = await makeProject(ownerUserId, options.projectName ?? '测试项目')
+  const goalId = await makeGoal(projectId, '测试目标')
+  const activityId = await makeActivity(goalId, '测试活动')
+  const storyId = await makeStory(activityId, {
+    title: options.storyTitle ?? '测试用户故事',
+    capabilityText: '拆任务',
+    valueText: '推进交付',
+    businessValue: '高',
+    priority: 'P0',
+  })
+  return { projectId, storyId }
+}
+
+// 直接插入任务行（工厂 makeTask 不允许指定 createdAt 或构造非法数据；故走 ctx.db）。
+async function createTaskRow(
+  _db: unknown,
+  params: {
+    projectId: string
+    storyId: string
+    ownerUserId: string
+    acceptorUserId: string
+    title?: string
+    description?: string | null
+    planStart?: string
+    planEnd?: string
+    status?: 'TODO' | 'DOING' | 'DONE'
+    isSensitive?: boolean
+    createdAt?: Date
+  },
+) {
+  return ctx.db.task.create({
+    data: {
+      projectId: params.projectId,
+      storyId: params.storyId,
+      title: params.title ?? '任务',
+      description: params.description ?? null,
+      ownerUserId: params.ownerUserId,
+      acceptorUserId: params.acceptorUserId,
+      planStart: params.planStart ?? '2026-01-01',
+      planEnd: params.planEnd ?? '2026-01-31',
+      status: params.status ?? 'TODO',
+      isSensitive: params.isSensitive ?? false,
+      ...(params.createdAt ? { createdAt: params.createdAt } : {}),
+    },
+  })
+}
 
 type ErrorBody = {
   error: {
@@ -34,7 +81,7 @@ type ErrorBody = {
   }
 }
 
-let ctx: TaskTestContext
+let ctx: HttpTestContext
 let pm: { id: string }
 let member: { id: string }
 let viewer: { id: string }
@@ -43,27 +90,25 @@ let projectId: string
 let storyId: string
 
 beforeAll(async () => {
-  ctx = await setupTaskTestApp()
+  ctx = await createTestContext()
 })
 
 afterAll(async () => {
-  await ctx.app.close()
-  await ctx.prisma.$disconnect()
-  await ctx.db.dispose()
+  await ctx.dispose()
 })
 
 beforeEach(async () => {
-  await resetTaskTestDatabase(ctx)
-  pm = await createUser(ctx.prisma, 'pm@example.com', '项目经理')
-  member = await createUser(ctx.prisma, 'member@example.com', '项目成员')
-  viewer = await createUser(ctx.prisma, 'viewer@example.com', '管理者')
-  outsider = await createUser(ctx.prisma, 'outsider@example.com', '外部用户')
+  await ctx.reset()
+  pm = await makeUser('pm@example.com', '项目经理')
+  member = await makeUser('member@example.com', '项目成员')
+  viewer = await makeUser('viewer@example.com', '管理者')
+  outsider = await makeUser('outsider@example.com', '外部用户')
 
-  const project = await createProjectWithStory(ctx.prisma, pm.id)
+  const project = await createProjectWithStory(ctx.db, pm.id)
   projectId = project.projectId
   storyId = project.storyId
-  await addMember(ctx.prisma, projectId, member.id, 'MEMBER')
-  await addMember(ctx.prisma, projectId, viewer.id, 'VIEWER')
+  await makeMember(projectId, member.id, 'MEMBER')
+  await makeMember(projectId, viewer.id, 'VIEWER')
 })
 
 function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -83,9 +128,8 @@ function postTask(
   actorUserId: string = pm.id,
   targetStoryId: string = storyId,
 ) {
-  return request(ctx.app.server)
+  return ctx.asUser(ctx.loginAs(actorUserId))
     .post(`/stories/${targetStoryId}/tasks`)
-    .set('x-actor-user-id', actorUserId)
     .send(body)
 }
 
@@ -103,7 +147,7 @@ async function directError(
   project: string,
   input: TaskAssignmentInput,
 ): Promise<AppError | null> {
-  return assertTaskAssignment(ctx.prisma, project, input).then(
+  return assertTaskAssignment(ctx.db, project, input).then(
     () => null,
     (thrown: unknown) => {
       if (thrown instanceof AppError) return thrown
@@ -130,7 +174,7 @@ describe('P1 校验顺序', () => {
     expect(detailCodes(body, 'acceptorUserId')).toContain('REQUIRED')
     expect(detailCodes(body, 'acceptorUserId')).not.toContain('ACCEPTOR_EQUALS_OWNER')
     // 形状被拒时连业务规则都不应触发（owner 是合法成员也不会被比较）
-    expect(await ctx.prisma.task.count()).toBe(0)
+    expect(await ctx.db.task.count()).toBe(0)
   })
 
   it('P1b owner 非成员 + owner === acceptor → 归属先报 ownerUserId: NOT_PROJECT_MEMBER', async () => {
@@ -145,7 +189,7 @@ describe('P1 校验顺序', () => {
   })
 
   it('P1c owner 与 acceptor 都是非本项目成员且相同 → 仍以 owner 归属优先', async () => {
-    const other = await createUser(ctx.prisma, 'other@example.com', '另一外部用户')
+    const other = await makeUser('other@example.com', '另一外部用户')
     const response = await postTask(
       validBody({ ownerUserId: outsider.id, acceptorUserId: other.id }),
     )
@@ -162,10 +206,10 @@ describe('P1 校验顺序', () => {
 // ===========================================================================
 describe('P2 单成员项目', () => {
   it('只有 1 名成员的项目创建任务（owner = acceptor = 该成员）→ INSUFFICIENT_MEMBERS，不退化为 ACCEPTOR_EQUALS_OWNER', async () => {
-    const solePm = await createUser(ctx.prisma, 'sole-pm@example.com', '唯一成员')
-    const solo = await createProjectWithStory(ctx.prisma, solePm.id)
+    const solePm = await makeUser('sole-pm@example.com', '唯一成员')
+    const solo = await createProjectWithStory(ctx.db, solePm.id)
     // 证据：该项目确实只有 1 名成员（工厂只把 owner 以 PM 身份加入）
-    expect(await ctx.prisma.projectMember.count({ where: { projectId: solo.projectId } })).toBe(1)
+    expect(await ctx.db.projectMember.count({ where: { projectId: solo.projectId } })).toBe(1)
 
     const response = await postTask(
       validBody({ ownerUserId: solePm.id, acceptorUserId: solePm.id }),
@@ -178,7 +222,7 @@ describe('P2 单成员项目', () => {
     expect(body.error.code).toBe('VALIDATION_FAILED')
     expect(firstDetail(body)).toEqual({ field: '', code: 'INSUFFICIENT_MEMBERS' })
     expect(detailCodes(body, 'acceptorUserId')).not.toContain('ACCEPTOR_EQUALS_OWNER')
-    expect(await ctx.prisma.task.count()).toBe(0)
+    expect(await ctx.db.task.count()).toBe(0)
   })
 })
 
@@ -188,7 +232,7 @@ describe('P2 单成员项目', () => {
 describe('P3 跨项目成员', () => {
   it('P3a owner 是另一个项目的成员、acceptor 是本项目成员 → ownerUserId: NOT_PROJECT_MEMBER', async () => {
     // outsider 在自己项目里是 PM，但绝不是本项目成员
-    await createProjectWithStory(ctx.prisma, outsider.id, { projectName: '外部项目' })
+    await createProjectWithStory(ctx.db, outsider.id, { projectName: '外部项目' })
 
     const response = await postTask(
       validBody({ ownerUserId: outsider.id, acceptorUserId: pm.id }),
@@ -200,8 +244,8 @@ describe('P3 跨项目成员', () => {
   })
 
   it('P3b owner 是本项目成员、acceptor 是另一个项目的成员 → acceptorUserId: NOT_PROJECT_MEMBER', async () => {
-    const cross = await createUser(ctx.prisma, 'cross@example.com', '跨项目用户')
-    await createProjectWithStory(ctx.prisma, cross.id, { projectName: '第二个外部项目' })
+    const cross = await makeUser('cross@example.com', '跨项目用户')
+    await createProjectWithStory(ctx.db, cross.id, { projectName: '第二个外部项目' })
 
     const response = await postTask(
       validBody({ ownerUserId: member.id, acceptorUserId: cross.id }),

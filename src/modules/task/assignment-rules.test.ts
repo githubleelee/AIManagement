@@ -23,14 +23,61 @@ import request from 'supertest'
 import type { TaskView } from '../../shared/types.js'
 import { AppError } from '../../shared/errors.js'
 import { assertTaskAssignment } from './rules.js'
-import {
-  addMember,
-  createProjectWithStory,
-  createUser,
-  resetTaskTestDatabase,
-  setupTaskTestApp,
-  type TaskTestContext,
-} from './_test-harness.js'
+import { createTestContext, type HttpTestContext } from '../../../test/helpers.js'
+import { makeUser, makeProject, makeGoal, makeActivity, makeStory, makeMember } from '../../../test/factories.js'
+
+// 数据前置：项目 + 目标 + 活动 + 故事（组合 test/factories.js 的真实工厂）。
+async function createProjectWithStory(
+  _db: unknown,
+  ownerUserId: string,
+  options: { projectName?: string; storyTitle?: string } = {},
+): Promise<{ projectId: string; storyId: string }> {
+  const { projectId } = await makeProject(ownerUserId, options.projectName ?? '测试项目')
+  const goalId = await makeGoal(projectId, '测试目标')
+  const activityId = await makeActivity(goalId, '测试活动')
+  const storyId = await makeStory(activityId, {
+    title: options.storyTitle ?? '测试用户故事',
+    capabilityText: '拆任务',
+    valueText: '推进交付',
+    businessValue: '高',
+    priority: 'P0',
+  })
+  return { projectId, storyId }
+}
+
+// 直接插入任务行（工厂 makeTask 不允许指定 createdAt 或构造非法数据；故走 ctx.db）。
+async function createTaskRow(
+  _db: unknown,
+  params: {
+    projectId: string
+    storyId: string
+    ownerUserId: string
+    acceptorUserId: string
+    title?: string
+    description?: string | null
+    planStart?: string
+    planEnd?: string
+    status?: 'TODO' | 'DOING' | 'DONE'
+    isSensitive?: boolean
+    createdAt?: Date
+  },
+) {
+  return ctx.db.task.create({
+    data: {
+      projectId: params.projectId,
+      storyId: params.storyId,
+      title: params.title ?? '任务',
+      description: params.description ?? null,
+      ownerUserId: params.ownerUserId,
+      acceptorUserId: params.acceptorUserId,
+      planStart: params.planStart ?? '2026-01-01',
+      planEnd: params.planEnd ?? '2026-01-31',
+      status: params.status ?? 'TODO',
+      isSensitive: params.isSensitive ?? false,
+      ...(params.createdAt ? { createdAt: params.createdAt } : {}),
+    },
+  })
+}
 
 type ErrorBody = {
   error: {
@@ -40,7 +87,7 @@ type ErrorBody = {
   }
 }
 
-let ctx: TaskTestContext
+let ctx: HttpTestContext
 let pm: { id: string }
 let member: { id: string }
 let viewer: { id: string }
@@ -49,29 +96,27 @@ let projectId: string
 let storyId: string
 
 beforeAll(async () => {
-  ctx = await setupTaskTestApp()
+  ctx = await createTestContext()
 })
 
 afterAll(async () => {
-  await ctx.app.close()
-  await ctx.prisma.$disconnect()
-  await ctx.db.dispose()
+  await ctx.dispose()
 })
 
 beforeEach(async () => {
-  await resetTaskTestDatabase(ctx)
-  pm = await createUser(ctx.prisma, 'pm@example.com', '项目经理')
-  member = await createUser(ctx.prisma, 'member@example.com', '项目成员')
-  viewer = await createUser(ctx.prisma, 'viewer@example.com', '管理者')
-  outsider = await createUser(ctx.prisma, 'outsider@example.com', '外部用户')
+  await ctx.reset()
+  pm = await makeUser('pm@example.com', '项目经理')
+  member = await makeUser('member@example.com', '项目成员')
+  viewer = await makeUser('viewer@example.com', '管理者')
+  outsider = await makeUser('outsider@example.com', '外部用户')
 
   // 工厂默认只把 owner 加为 PM，这里再补两名成员：
   // 本项目共 3 名成员（pm / member / viewer），满足「成员数 ≥ 2」。
-  const project = await createProjectWithStory(ctx.prisma, pm.id)
+  const project = await createProjectWithStory(ctx.db, pm.id)
   projectId = project.projectId
   storyId = project.storyId
-  await addMember(ctx.prisma, projectId, member.id, 'MEMBER')
-  await addMember(ctx.prisma, projectId, viewer.id, 'VIEWER')
+  await makeMember(projectId, member.id, 'MEMBER')
+  await makeMember(projectId, viewer.id, 'VIEWER')
 })
 
 /** 合法请求体，覆盖测试按需覆盖字段。 */
@@ -92,9 +137,8 @@ function postTask(
   actorUserId: string = pm.id,
   targetStoryId: string = storyId,
 ) {
-  return request(ctx.app.server)
+  return ctx.asUser(ctx.loginAs(actorUserId))
     .post(`/stories/${targetStoryId}/tasks`)
-    .set('x-actor-user-id', actorUserId)
     .send(body)
 }
 
@@ -138,8 +182,8 @@ describe('端点 25 业务规则反例（断言字段级错误码）', () => {
   it('项目成员少于 2 人 → 422 INSUFFICIENT_MEMBERS', async () => {
     // 单独造一个只有 1 名成员（PM 本人）的项目：owner 与 acceptor 都只能是这名成员，
     // 此时应先报成员不足，而不是 ACCEPTOR_EQUALS_OWNER。
-    const solePm = await createUser(ctx.prisma, 'sole-pm@example.com', '唯一成员')
-    const solo = await createProjectWithStory(ctx.prisma, solePm.id)
+    const solePm = await makeUser('sole-pm@example.com', '唯一成员')
+    const solo = await createProjectWithStory(ctx.db, solePm.id)
 
     const response = await postTask(
       validBody({ ownerUserId: solePm.id, acceptorUserId: solePm.id }),
@@ -165,7 +209,7 @@ describe('端点 25 业务规则反例（断言字段级错误码）', () => {
     await postTask(validBody({ acceptorUserId: member.id, ownerUserId: member.id }))
     await postTask(validBody({ planStart: '2026-09-10', planEnd: '2026-09-01' }))
 
-    expect(await ctx.prisma.task.count()).toBe(0)
+    expect(await ctx.db.task.count()).toBe(0)
   })
 })
 
@@ -233,7 +277,7 @@ describe('共用校验入口 assertTaskAssignment（T5-03 PATCH 侧接入前）'
     const response = await postTask(validBody(input))
     const httpCode = (response.body as ErrorBody).error.details?.[0]?.code
 
-    const directError = await assertTaskAssignment(ctx.prisma, projectId, input).then(
+    const directError = await assertTaskAssignment(ctx.db, projectId, input).then(
       () => null,
       (error: unknown) => error,
     )
@@ -247,7 +291,7 @@ describe('共用校验入口 assertTaskAssignment（T5-03 PATCH 侧接入前）'
     const existing = { acceptorUserId: member.id, planStart: '2026-09-01', planEnd: '2026-09-10' }
     const merged = { ...existing, ownerUserId: member.id }
 
-    const error = await assertTaskAssignment(ctx.prisma, projectId, merged).then(
+    const error = await assertTaskAssignment(ctx.db, projectId, merged).then(
       () => null,
       (thrown: unknown) => thrown,
     )

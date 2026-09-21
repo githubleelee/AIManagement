@@ -16,15 +16,61 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import request from 'supertest'
 import type { TaskView } from '../../shared/types.js'
-import {
-  addMember,
-  createProjectWithStory,
-  createTaskRow,
-  createUser,
-  resetTaskTestDatabase,
-  setupTaskTestApp,
-  type TaskTestContext,
-} from './_test-harness.js'
+import { createTestContext, type HttpTestContext } from '../../../test/helpers.js'
+import { makeUser, makeProject, makeGoal, makeActivity, makeStory, makeMember } from '../../../test/factories.js'
+
+// 数据前置：项目 + 目标 + 活动 + 故事（组合 test/factories.js 的真实工厂）。
+async function createProjectWithStory(
+  _db: unknown,
+  ownerUserId: string,
+  options: { projectName?: string; storyTitle?: string } = {},
+): Promise<{ projectId: string; storyId: string }> {
+  const { projectId } = await makeProject(ownerUserId, options.projectName ?? '测试项目')
+  const goalId = await makeGoal(projectId, '测试目标')
+  const activityId = await makeActivity(goalId, '测试活动')
+  const storyId = await makeStory(activityId, {
+    title: options.storyTitle ?? '测试用户故事',
+    capabilityText: '拆任务',
+    valueText: '推进交付',
+    businessValue: '高',
+    priority: 'P0',
+  })
+  return { projectId, storyId }
+}
+
+// 直接插入任务行（工厂 makeTask 不允许指定 createdAt 或构造非法数据；故走 ctx.db）。
+async function createTaskRow(
+  _db: unknown,
+  params: {
+    projectId: string
+    storyId: string
+    ownerUserId: string
+    acceptorUserId: string
+    title?: string
+    description?: string | null
+    planStart?: string
+    planEnd?: string
+    status?: 'TODO' | 'DOING' | 'DONE'
+    isSensitive?: boolean
+    createdAt?: Date
+  },
+) {
+  return ctx.db.task.create({
+    data: {
+      projectId: params.projectId,
+      storyId: params.storyId,
+      title: params.title ?? '任务',
+      description: params.description ?? null,
+      ownerUserId: params.ownerUserId,
+      acceptorUserId: params.acceptorUserId,
+      planStart: params.planStart ?? '2026-01-01',
+      planEnd: params.planEnd ?? '2026-01-31',
+      status: params.status ?? 'TODO',
+      isSensitive: params.isSensitive ?? false,
+      ...(params.createdAt ? { createdAt: params.createdAt } : {}),
+    },
+  })
+}
 
 type ErrorBody = {
   error: {
@@ -34,7 +80,7 @@ type ErrorBody = {
   }
 }
 
-let ctx: TaskTestContext
+let ctx: HttpTestContext
 let pm: { id: string }
 let member: { id: string }
 let viewer: { id: string }
@@ -43,27 +89,25 @@ let projectId: string
 let storyId: string
 
 beforeAll(async () => {
-  ctx = await setupTaskTestApp()
+  ctx = await createTestContext()
 })
 
 afterAll(async () => {
-  await ctx.app.close()
-  await ctx.prisma.$disconnect()
-  await ctx.db.dispose()
+  await ctx.dispose()
 })
 
 beforeEach(async () => {
-  await resetTaskTestDatabase(ctx)
-  pm = await createUser(ctx.prisma, 'pm@example.com', '项目经理')
-  member = await createUser(ctx.prisma, 'member@example.com', '项目成员')
-  viewer = await createUser(ctx.prisma, 'viewer@example.com', '管理者')
-  outsider = await createUser(ctx.prisma, 'outsider@example.com', '外部用户')
+  await ctx.reset()
+  pm = await makeUser('pm@example.com', '项目经理')
+  member = await makeUser('member@example.com', '项目成员')
+  viewer = await makeUser('viewer@example.com', '管理者')
+  outsider = await makeUser('outsider@example.com', '外部用户')
 
-  const project = await createProjectWithStory(ctx.prisma, pm.id)
+  const project = await createProjectWithStory(ctx.db, pm.id)
   projectId = project.projectId
   storyId = project.storyId
-  await addMember(ctx.prisma, projectId, member.id, 'MEMBER')
-  await addMember(ctx.prisma, projectId, viewer.id, 'VIEWER')
+  await makeMember(projectId, member.id, 'MEMBER')
+  await makeMember(projectId, viewer.id, 'VIEWER')
 })
 
 /** 合法请求体，覆盖测试按需覆盖字段。 */
@@ -80,16 +124,14 @@ function validBody(overrides: Record<string, unknown> = {}): Record<string, unkn
 }
 
 function postTask(body: Record<string, unknown>, actorUserId: string = pm.id) {
-  return request(ctx.app.server)
+  return ctx.asUser(ctx.loginAs(actorUserId))
     .post(`/stories/${storyId}/tasks`)
-    .set('x-actor-user-id', actorUserId)
     .send(body)
 }
 
 function getTasks(actorUserId: string = pm.id) {
-  return request(ctx.app.server)
+  return ctx.asUser(ctx.loginAs(actorUserId))
     .get(`/stories/${storyId}/tasks`)
-    .set('x-actor-user-id', actorUserId)
 }
 
 function expectFieldError(body: ErrorBody, field: string, code: string): void {
@@ -145,7 +187,7 @@ describe('端点 25 形状校验（Zod 产出字段级错误码）', () => {
   it('形状校验被拒时不写入任何任务行', async () => {
     await postTask(validBody({ planStart: 'not-a-date' }))
 
-    expect(await ctx.prisma.task.count()).toBe(0)
+    expect(await ctx.db.task.count()).toBe(0)
   })
 })
 
@@ -177,7 +219,7 @@ describe('端点 25 权限', () => {
   })
 
   it('未登录（缺少 Actor）创建任务 → 401 UNAUTHENTICATED', async () => {
-    const response = await request(ctx.app.server)
+    const response = await ctx.asUser(null)
       .post(`/stories/${storyId}/tasks`)
       .send(validBody())
 
@@ -199,9 +241,8 @@ describe('端点 24 权限与可见性', () => {
   })
 
   it('故事不存在 → 404 NOT_FOUND', async () => {
-    const response = await request(ctx.app.server)
+    const response = await ctx.asUser(ctx.loginAs(pm.id))
       .get('/stories/does-not-exist/tasks')
-      .set('x-actor-user-id', pm.id)
 
     expect(response.status).toBe(404)
     expect((response.body as ErrorBody).error.code).toBe('NOT_FOUND')
@@ -265,7 +306,7 @@ describe('端点 25 正例：任务能建出来', () => {
 
     expect(response.status).toBe(201)
     expect(body.projectId).toBe(projectId)
-    const persisted = await ctx.prisma.task.findUnique({ where: { id: body.id } })
+    const persisted = await ctx.db.task.findUnique({ where: { id: body.id } })
     expect(persisted?.projectId).toBe(projectId)
   })
 
@@ -331,7 +372,7 @@ describe('端点 24 正例：从用户故事里看见任务', () => {
 
   it('planStart 相同时按 createdAt 升序返回', async () => {
     // 直接插入并显式指定 createdAt，避免同毫秒导致排序不确定
-    await createTaskRow(ctx.prisma, {
+    await createTaskRow(ctx.db, {
       projectId,
       storyId,
       ownerUserId: member.id,
@@ -340,7 +381,7 @@ describe('端点 24 正例：从用户故事里看见任务', () => {
       planStart: '2026-05-01',
       createdAt: new Date('2026-01-02T00:00:00.000Z'),
     })
-    await createTaskRow(ctx.prisma, {
+    await createTaskRow(ctx.db, {
       projectId,
       storyId,
       ownerUserId: member.id,
@@ -349,7 +390,7 @@ describe('端点 24 正例：从用户故事里看见任务', () => {
       planStart: '2026-05-01',
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
     })
-    await createTaskRow(ctx.prisma, {
+    await createTaskRow(ctx.db, {
       projectId,
       storyId,
       ownerUserId: member.id,
