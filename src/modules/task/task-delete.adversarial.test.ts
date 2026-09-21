@@ -19,7 +19,7 @@
  * 不改动共享测试基建（`test/helpers.ts` / `test/factories.ts`）。
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import request from 'supertest'
+import type { Response as SuperTestResponse } from 'supertest'
 import type { TaskView } from '../../shared/types.js'
 import { createTestContext, type HttpTestContext } from '../../../test/helpers.js'
 import { makeUser, makeProject, makeGoal, makeActivity, makeStory, makeMember } from '../../../test/factories.js'
@@ -298,7 +298,7 @@ describe('A 引用完整性：ObjectVisibility 同事务清理', () => {
     expect(before).toBe(2) // 实测：删除前 2 条
 
     const restore = installFailingTaskDelete()
-    let response: request.Response
+    let response: SuperTestResponse
     try {
       response = await deleteTask()
     } finally {

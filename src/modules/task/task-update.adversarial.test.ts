@@ -15,7 +15,6 @@
  *   D. 回归（全量跑由报告给出；本文件补端点 24/25 未被破坏的交叉断言）
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import request from 'supertest'
 import type { TaskView } from '../../shared/types.js'
 import { createTestContext, type HttpTestContext } from '../../../test/helpers.js'
 import { makeUser, makeProject, makeGoal, makeActivity, makeStory, makeMember } from '../../../test/factories.js'

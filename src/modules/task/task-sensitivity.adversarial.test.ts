@@ -19,7 +19,6 @@
  */
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import request from 'supertest'
 import type { SensitivityView, TaskView } from '../../shared/types.js'
 import { createTestContext, type HttpTestContext } from '../../../test/helpers.js'
 import { makeUser, makeProject, makeGoal, makeActivity, makeStory, makeMember } from '../../../test/factories.js'

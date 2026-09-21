@@ -29,7 +29,6 @@
  * 本工单不实现端点 26（按负责人过滤，T5-06）—— 第三处查询路径标注「未验证」。
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import request from 'supertest'
 import type { SensitivityView, TaskView } from '../../shared/types.js'
 import { createTestContext, type HttpTestContext } from '../../../test/helpers.js'
 import { makeUser, makeProject, makeGoal, makeActivity, makeStory, makeMember } from '../../../test/factories.js'

@@ -10,7 +10,6 @@
  * `ctx.asUser(ctx.loginAs(...))` 以契约的 `Authorization: Bearer` 发起。
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import request from 'supertest'
 import type { TaskView } from '../../shared/types.js'
 import { createTestContext, type HttpTestContext } from '../../../test/helpers.js'
 import { makeUser, makeProject, makeGoal, makeActivity, makeStory, makeMember } from '../../../test/factories.js'

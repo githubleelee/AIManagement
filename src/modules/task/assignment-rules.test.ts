@@ -19,7 +19,6 @@
  *   - 正例：owner 与 acceptor 都是本项目成员且不同 → 201
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import request from 'supertest'
 import type { TaskView } from '../../shared/types.js'
 import { AppError } from '../../shared/errors.js'
 import { assertTaskAssignment } from './rules.js'

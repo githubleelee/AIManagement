@@ -25,7 +25,7 @@
  * 不改动共享测试基建（`test/helpers.ts` / `test/factories.ts`）。
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import request from 'supertest'
+import type { Response as SuperTestResponse } from 'supertest'
 import { createTestContext, type HttpTestContext } from '../../../test/helpers.js'
 import { makeUser, makeProject, makeGoal, makeActivity, makeStory, makeMember } from '../../../test/factories.js'
 
@@ -195,7 +195,7 @@ describe('D1 PATCH 并发删除竞态：P2025 映射为与「任务不存在」�
     expect((missing.body as ErrorBody).error.code).toBe('NOT_FOUND')
 
     const restore = installConcurrentDeleteAfterAuthRead(taskId)
-    let raced: request.Response
+    let raced: SuperTestResponse
     try {
       raced = await patchTask({ title: '并发改名' }, pm.id, taskId)
     } finally {
@@ -231,7 +231,7 @@ describe('D2 DELETE 并发双删：第二个请求 P2025 → 404 且可见性删
     expect(missing.status).toBe(404)
 
     const restore = installConcurrentDeleteAfterAuthRead(taskId)
-    let second: request.Response
+    let second: SuperTestResponse
     try {
       second = await deleteTask(pm.id, taskId)
     } finally {
