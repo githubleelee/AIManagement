@@ -32,10 +32,12 @@
  * 端点 28 严格遵循契约决策 I-10「部分更新语义」：先合并「现有值 + 请求体覆盖」，
  * 再把合并结果交给 `assertTaskAssignment`，**不**只校验请求体中出现的字段。
  *
- * 依赖：Actor 注入 / can() / visibilityScope() 暂由 `./_t0-stubs.js` 提供；
- * T0-04、T0-05 合入后改这里的 import 指向 src/auth 与 src/modules/authz 即可。
+ * 依赖：Actor 注入走 `src/auth/actor.ts`（`requireAuth` / `currentUserId`），
+ * 鉴权与可见性走 `src/modules/authz/permissions.ts`（`can()` / `visibilityScope()`）；
+ * 数据库一律从注册时的 `context.prisma` 取得，不 import 全局单例。
  */
 import type { FastifyInstance } from 'fastify'
+import type { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import { AppError } from '../../shared/errors.js'
 import { dateSchema, taskStatusSchema, toFieldErrors } from '../../shared/validation.js'
@@ -45,8 +47,9 @@ import type {
   TaskView,
   UserBrief,
 } from '../../shared/types.js'
-import { prisma } from '../../db/client.js'
-import { can, requireActorUserId, visibilityScope } from './_t0-stubs.js'
+import { currentUserId, requireAuth } from '../../auth/actor.js'
+import { createAuthorization } from '../authz/permissions.js'
+import type { RouteContext } from '../../routes.js'
 import { assertTaskAssignment } from './rules.js'
 
 /**
@@ -167,7 +170,7 @@ function toUserBrief(user: UserRow): UserBrief {
  * 从 `ObjectVisibility` 表读取、按 userId 升序返回以保证响应确定性；
  * 关闭敏感时这些记录**不删除**（端点 30 的「保留名单以备重新开启」语义）。
  */
-async function readVisibleMemberIds(taskId: string): Promise<string[]> {
+async function readVisibleMemberIds(prisma: PrismaClient, taskId: string): Promise<string[]> {
   const rows = await prisma.objectVisibility.findMany({
     where: { objectType: 'task', objectId: taskId },
     select: { userId: true },
@@ -177,7 +180,7 @@ async function readVisibleMemberIds(taskId: string): Promise<string[]> {
 }
 
 /** 组装 TaskView：内嵌 owner / acceptor 的 UserBrief，createdAt 转 ISO 8601 UTC。 */
-async function loadTaskView(task: TaskRow): Promise<TaskView> {
+async function loadTaskView(prisma: PrismaClient, task: TaskRow): Promise<TaskView> {
   const users = await prisma.user.findMany({
     where: { id: { in: [task.ownerUserId, task.acceptorUserId] } },
     select: { id: true, account: true, displayName: true },
@@ -208,13 +211,17 @@ async function loadTaskView(task: TaskRow): Promise<TaskView> {
   }
 }
 
-/** 任务模块路由插件。由 src/routes.ts 集中注册（本工单不修改该冻结文件）。 */
-export async function taskRoutes(app: FastifyInstance): Promise<void> {
+/** 任务模块路由插件。由冻结文件 src/routes.ts 集中注册（T5-07 已补上注册行）。 */
+export function registerTaskRoutes(app: FastifyInstance, context: RouteContext): void {
+  const prisma = context.prisma
+  // 鉴权与可见性入口在注册时创建一次；函数内部每次调用都现查库（决策 I-10：无缓存）。
+  const { can, visibilityScope } = createAuthorization(prisma)
+
   // -------------------------------------------------------------------------
   // 端点 24：GET /stories/:storyId/tasks —— 权限 project.read
   // -------------------------------------------------------------------------
-  app.get('/stories/:storyId/tasks', async (request, reply) => {
-    const actorUserId = requireActorUserId(request)
+  app.get('/stories/:storyId/tasks', { preHandler: requireAuth }, async (request, reply) => {
+    const actorUserId = currentUserId(request)
     const { storyId } = request.params as { storyId: string }
 
     const story = await prisma.userStory.findUnique({
@@ -245,7 +252,7 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
       orderBy: [{ planStart: 'asc' }, { createdAt: 'asc' }],
     })
 
-    const items = await Promise.all(tasks.map((task) => loadTaskView(task)))
+    const items = await Promise.all(tasks.map((task) => loadTaskView(prisma, task)))
     return reply.status(200).send({ items })
   })
 
@@ -257,8 +264,8 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
   //   **查询层**完成（决策 I-6）：scope 与 ownerUserId 合并进同一个 `where`，
   //   不得「先查出全量、再在内存里 filter」。
   // -------------------------------------------------------------------------
-  app.get('/projects/:projectId/tasks', async (request, reply) => {
-    const actorUserId = requireActorUserId(request)
+  app.get('/projects/:projectId/tasks', { preHandler: requireAuth }, async (request, reply) => {
+    const actorUserId = currentUserId(request)
     const { projectId } = request.params as { projectId: string }
 
     // 唯一鉴权入口（决策 I-5）：PM / MEMBER / VIEWER 均可读；非项目成员 → 404。
@@ -309,15 +316,15 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
       orderBy: [{ planStart: 'asc' }, { createdAt: 'asc' }],
     })
 
-    const items = await Promise.all(tasks.map((task) => loadTaskView(task)))
+    const items = await Promise.all(tasks.map((task) => loadTaskView(prisma, task)))
     return reply.status(200).send({ items })
   })
 
   // -------------------------------------------------------------------------
   // 端点 25：POST /stories/:storyId/tasks —— 权限 task.write
   // -------------------------------------------------------------------------
-  app.post('/stories/:storyId/tasks', async (request, reply) => {
-    const actorUserId = requireActorUserId(request)
+  app.post('/stories/:storyId/tasks', { preHandler: requireAuth }, async (request, reply) => {
+    const actorUserId = currentUserId(request)
     const { storyId } = request.params as { storyId: string }
 
     const story = await prisma.userStory.findUnique({
@@ -375,15 +382,15 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
       },
     })
 
-    const view = await loadTaskView(task)
+    const view = await loadTaskView(prisma, task)
     return reply.status(201).send(view)
   })
 
   // -------------------------------------------------------------------------
   // 端点 27：GET /tasks/:taskId —— 权限 project.read
   // -------------------------------------------------------------------------
-  app.get('/tasks/:taskId', async (request, reply) => {
-    const actorUserId = requireActorUserId(request)
+  app.get('/tasks/:taskId', { preHandler: requireAuth }, async (request, reply) => {
+    const actorUserId = currentUserId(request)
     const { taskId } = request.params as { taskId: string }
 
     const task = await prisma.task.findUnique({ where: { id: taskId } })
@@ -404,15 +411,15 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
       throw denied(decision)
     }
 
-    const view = await loadTaskView(task)
+    const view = await loadTaskView(prisma, task)
     return reply.status(200).send(view)
   })
 
   // -------------------------------------------------------------------------
   // 端点 28：PATCH /tasks/:taskId —— 权限 task.write（部分更新）
   // -------------------------------------------------------------------------
-  app.patch('/tasks/:taskId', async (request, reply) => {
-    const actorUserId = requireActorUserId(request)
+  app.patch('/tasks/:taskId', { preHandler: requireAuth }, async (request, reply) => {
+    const actorUserId = currentUserId(request)
     const { taskId } = request.params as { taskId: string }
 
     const task = await prisma.task.findUnique({ where: { id: taskId } })
@@ -496,15 +503,15 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
       throw error
     }
 
-    const view = await loadTaskView(updated)
+    const view = await loadTaskView(prisma, updated)
     return reply.status(200).send(view)
   })
 
   // -------------------------------------------------------------------------
   // 端点 29：DELETE /tasks/:taskId —— 权限 task.write
   // -------------------------------------------------------------------------
-  app.delete('/tasks/:taskId', async (request, reply) => {
-    const actorUserId = requireActorUserId(request)
+  app.delete('/tasks/:taskId', { preHandler: requireAuth }, async (request, reply) => {
+    const actorUserId = currentUserId(request)
     const { taskId } = request.params as { taskId: string }
 
     const task = await prisma.task.findUnique({
@@ -558,8 +565,8 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
   // -------------------------------------------------------------------------
   // 端点 30：PUT /tasks/:taskId/sensitivity —— 权限 sensitivity.manage
   // -------------------------------------------------------------------------
-  app.put('/tasks/:taskId/sensitivity', async (request, reply) => {
-    const actorUserId = requireActorUserId(request)
+  app.put('/tasks/:taskId/sensitivity', { preHandler: requireAuth }, async (request, reply) => {
+    const actorUserId = currentUserId(request)
     const { taskId } = request.params as { taskId: string }
 
     const task = await prisma.task.findUnique({
@@ -613,7 +620,7 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // 变更前的名单：关闭敏感后仍保留在这里，正是「重新开启时恢复」的来源。
-    const storedIds = await readVisibleMemberIds(task.id)
+    const storedIds = await readVisibleMemberIds(prisma, task.id)
     const before: SensitivityView = {
       objectType: 'task',
       objectId: task.id,

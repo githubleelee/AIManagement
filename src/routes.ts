@@ -27,6 +27,7 @@ import type { PrismaClient } from '@prisma/client'
 import { registerAuthRoutes } from './auth/plugin.js'
 import { registerRequirementRoutes } from './modules/requirement/plugin.js'
 import { registerProjectRoutes } from './modules/project/plugin.js'
+import { registerTaskRoutes } from './modules/task/routes.js'
 
 /** 路由注册所需的依赖集合。模块插件通过它取得数据库，而非 import 全局单例。 */
 export type RouteContext = {
@@ -55,5 +56,7 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
   // 注册此行前，本模块的端点在生产 app 上一律 404（模块只导出插件、不自挂路由）。
   registerRequirementRoutes(app, context)
 
-  // M5 任务（T5.x）→ src/modules/task
+  // M5 任务（T5.x，端点 24–30）：端点 24 故事任务列表 / 25 创建任务 / 26 按项目列任务 /
+  // 27 任务详情 / 28 部分更新 / 29 删除 / 30 敏感可见性设置
+  registerTaskRoutes(app, context)
 }

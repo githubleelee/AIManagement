@@ -46,13 +46,10 @@
  * 这份清单是"当前主干应当注册的端点"的**唯一书面声明**；不加进来，护栏就形同虚设。
  * 反向亦然：若某模块被有意移除，应从清单里删掉并说明原因。
  *
- * 未列入的端点（截至本次交付）：契约端点 **23–30，共 8 条**，无一可用 ——
- *   - 端点 23 `PUT /stories/:storyId/sensitivity`（T2.3 / T2.4，属 M3）：未实现；
- *   - 端点 24–29（T5.1–T5.9，属 M5）：代码存在于 `feat/T5-*` 系列分支，
- *     **尚未合入主干，且未在 `src/routes.ts` 注册**；
- *   - 端点 30 `PUT /tasks/:taskId/sensitivity`（T5.8，属 **M5** 而非 M3）：同上。
- * M5 合并时请在本清单补上 24–30 这 7 条，并修掉 T0-06 指出的注册缺口；
- * M3 补端点 23 时同理。
+ * 未列入的端点（截至本次交付）：契约端点 **23**，尚未可用 ——
+ *   - 端点 23 `PUT /stories/:storyId/sensitivity`（T2.3 / T2.4，属 M3）：未实现。
+ * M5 的端点 24–30 已合入主干并在 `src/routes.ts` 注册（T5-07 收口），本清单已同步；
+ * M3 补端点 23 时请在本清单补上。
  *
  * 本清单只断言**单向**「清单里的端点一个都不能少」，不断言"app 上没有多余路由"。
  * 之所以不做反向断言：Fastify 会为每条 GET 自动挂 HEAD，`printRoutes()` 的输出
@@ -111,6 +108,14 @@ const EXPECTED_ROUTES: ReadonlyArray<readonly [HTTPMethods, string]> = [
   ['GET', '/stories/:storyId'],
   ['PATCH', '/stories/:storyId'],
   ['DELETE', '/stories/:storyId'],
+  // M5 任务（端点 24–30）
+  ['GET', '/stories/:storyId/tasks'],
+  ['POST', '/stories/:storyId/tasks'],
+  ['GET', '/projects/:projectId/tasks'],
+  ['GET', '/tasks/:taskId'],
+  ['PATCH', '/tasks/:taskId'],
+  ['DELETE', '/tasks/:taskId'],
+  ['PUT', '/tasks/:taskId/sensitivity'],
 ]
 
 describe('T0-06 ① 路由清单：模块接进 src/routes.ts 才算真的交付', () => {
@@ -123,8 +128,8 @@ describe('T0-06 ① 路由清单：模块接进 src/routes.ts 才算真的交付
     expect(missing).toEqual([])
   })
 
-  it('清单本身有 23 条（防止有人顺手删断言）', () => {
-    expect(EXPECTED_ROUTES).toHaveLength(23)
+  it('清单本身有 30 条（防止有人顺手删断言）', () => {
+    expect(EXPECTED_ROUTES).toHaveLength(30)
   })
 
   it('/health 无需登录即可访问', async () => {
