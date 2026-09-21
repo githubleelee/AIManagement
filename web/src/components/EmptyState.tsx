@@ -7,3 +7,4 @@ export default function EmptyState({ title, hint }: { title: string; hint?: stri
     </div>
   )
 }
+

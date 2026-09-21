@@ -102,3 +102,4 @@ export function fieldError(field: string, code: FieldError['code']): FieldError 
 export function validationFailedWith(details: FieldError[], message = '字段校验失败'): never {
   throw new AppError(422, 'VALIDATION_FAILED', message, details)
 }
+

@@ -369,3 +369,4 @@ describe('T0.5 makeSensitive（标记 + 白名单）', () => {
     await expect(makeSensitive('task', 'no-such-task', [])).rejects.toThrow(/不存在/)
   })
 })
+
