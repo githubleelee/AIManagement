@@ -1,5 +1,5 @@
 /**
- * M5 任务模块 —— 端点 24 / 25 / 26 / 27 / 28 / 29 / 30
+ * M5 任务模块 —— 端点 24 / 25 / 26 / 27 / 28 / 29
  *
  * 权威来源：`docs/sprint1-spec-interface-contract.md` 决策 I-8 端点 24、25、26、27、28、29、30。
  *
@@ -11,10 +11,9 @@
  * 该路径前缀 `/projects/` 归属 M2 项目模块，未来在冻结的 `src/routes.ts` 集中注册时
  * 需与 M2 核对是否重复注册同一 method+path，避免 Fastify 路由冲突。
  *
- * T5-05 新增端点 30（`PUT /tasks/:taskId/sensitivity`）：权限 `sensitivity.manage`。
- * ★ 语义与副作用同端点 23：全量覆盖名单；`isSensitive: false` 时忽略请求名单但**保留**
- * 原名单以备重新开启；写 `AuditLog`（action='sensitivity.update'，before/after 为
- * SensitivityView 的 JSON 字符串）；变更立即生效，不做任何进程内缓存（决策 I-10）。
+ * 端点 30（`PUT /tasks/:taskId/sensitivity`）：US-02 集成后由 M3 的
+ * `src/modules/authz/plugin.ts` 统一提供（语义与副作用同端点 23），本模块不再注册，
+ * 否则会与 M3 触发 Fastify `FST_ERR_DUPLICATED_ROUTE` 使整个应用无法构建。
  * 列表可见性过滤走 `visibilityScope()` + 查询层 `id IN (...)`（决策 I-6），
  * 详情 / 写操作走唯一鉴权入口 `can()`（决策 I-5）。
  *
@@ -42,7 +41,6 @@ import { z } from 'zod'
 import { AppError } from '../../shared/errors.js'
 import { dateSchema, taskStatusSchema, toFieldErrors } from '../../shared/validation.js'
 import type {
-  SensitivityView,
   TaskStatus,
   TaskView,
   UserBrief,
@@ -89,17 +87,6 @@ const updateTaskSchema = z.object({
   planStart: dateSchema.optional(),
   planEnd: dateSchema.optional(),
   status: taskStatusSchema.optional(),
-})
-
-/**
- * 敏感可见性请求体（端点 30，逐字对齐契约决策 I-2 的 `SensitivityInput`）。
- *
- * 只做单字段形状校验；「可见成员是否为本项目成员」需查库，按决策 I-2b 由处理器
- * 抛 `AppError(422, 'VALIDATION_FAILED', ...)`，不走 Zod。
- */
-const sensitivitySchema = z.object({
-  isSensitive: z.boolean(),
-  visibleMemberIds: z.array(z.string().min(1)),
 })
 
 type UserRow = { id: string; account: string; displayName: string }
@@ -162,21 +149,6 @@ function toTaskStatus(value: string): TaskStatus {
 
 function toUserBrief(user: UserRow): UserBrief {
   return { id: user.id, account: user.account, displayName: user.displayName }
-}
-
-/**
- * 读取某任务的可见成员名单（端点 30 的 `SensitivityView.visibleMemberIds`）。
- *
- * 从 `ObjectVisibility` 表读取、按 userId 升序返回以保证响应确定性；
- * 关闭敏感时这些记录**不删除**（端点 30 的「保留名单以备重新开启」语义）。
- */
-async function readVisibleMemberIds(prisma: PrismaClient, taskId: string): Promise<string[]> {
-  const rows = await prisma.objectVisibility.findMany({
-    where: { objectType: 'task', objectId: taskId },
-    select: { userId: true },
-    orderBy: { userId: 'asc' },
-  })
-  return rows.map((row) => row.userId)
 }
 
 /** 组装 TaskView：内嵌 owner / acceptor 的 UserBrief，createdAt 转 ISO 8601 UTC。 */
@@ -560,122 +532,5 @@ export function registerTaskRoutes(app: FastifyInstance, context: RouteContext):
 
     // 契约决策 I-3：删除成功返回 HTTP 204，无响应体。
     return reply.status(204).send()
-  })
-
-  // -------------------------------------------------------------------------
-  // 端点 30：PUT /tasks/:taskId/sensitivity —— 权限 sensitivity.manage
-  // -------------------------------------------------------------------------
-  app.put('/tasks/:taskId/sensitivity', { preHandler: requireAuth }, async (request, reply) => {
-    const actorUserId = currentUserId(request)
-    const { taskId } = request.params as { taskId: string }
-
-    const task = await prisma.task.findUnique({
-      where: { id: taskId },
-      select: { id: true, projectId: true, isSensitive: true },
-    })
-    if (!task) {
-      // 不存在 → 404；与「非项目成员」「敏感未授权」使用同一个 notFound()（决策 I-3）。
-      throw notFound()
-    }
-
-    // 唯一鉴权入口（决策 I-5）：PM → allow；MEMBER / VIEWER → 403；
-    // 非项目成员 / 敏感未授权 → 404。调用方不自行判断角色。
-    const decision = await can(actorUserId, 'sensitivity.manage', {
-      kind: 'task',
-      projectId: task.projectId,
-      objectId: task.id,
-    })
-    if (!decision.allow) {
-      throw denied(decision)
-    }
-
-    // 第一步：形状校验（Zod 只负责单字段形状，契约决策 I-2b）。
-    const parsed = sensitivitySchema.safeParse(request.body)
-    if (!parsed.success) {
-      throw new AppError(
-        422,
-        'VALIDATION_FAILED',
-        '字段校验失败',
-        toFieldErrors(parsed.error.issues),
-      )
-    }
-    const body = parsed.data
-
-    // 第二步：业务规则 —— 可见成员必须全部是本项目成员。
-    // 用 Set 去重仅用于写入（ObjectVisibility 复合主键不允许同一 userId 重复）；
-    // 这与「不与旧名单做去重合并」不冲突：旧名单在敏感开启时被整体替换。
-    const requestedIds = [...new Set(body.visibleMemberIds)]
-    if (requestedIds.length > 0) {
-      const memberships = await prisma.projectMember.findMany({
-        where: { projectId: task.projectId, userId: { in: requestedIds } },
-        select: { userId: true },
-      })
-      const memberIds = new Set(memberships.map((membership) => membership.userId))
-      if (requestedIds.some((userId) => !memberIds.has(userId))) {
-        // 含「跨项目成员」这一最容易漏的变体：只要不是**本项目**成员就拒绝。
-        throw new AppError(422, 'VALIDATION_FAILED', '可见成员必须是本项目成员', [
-          { field: 'visibleMemberIds', code: 'NOT_PROJECT_MEMBER' },
-        ])
-      }
-    }
-
-    // 变更前的名单：关闭敏感后仍保留在这里，正是「重新开启时恢复」的来源。
-    const storedIds = await readVisibleMemberIds(prisma, task.id)
-    const before: SensitivityView = {
-      objectType: 'task',
-      objectId: task.id,
-      isSensitive: task.isSensitive,
-      visibleMemberIds: storedIds,
-    }
-
-    // 全量覆盖：仅当 isSensitive 为 true 时才用请求名单替换；false 时忽略请求名单。
-    const nextIds = body.isSensitive ? requestedIds.slice().sort() : storedIds
-    const after: SensitivityView = {
-      objectType: 'task',
-      objectId: task.id,
-      isSensitive: body.isSensitive,
-      visibleMemberIds: nextIds,
-    }
-
-    // 第三步：写库。敏感开关、名单替换与审计记录在同一事务内完成。
-    // 关闭敏感时**不**清理 ObjectVisibility（保留名单）；重新开启且传回该名单即恢复。
-    const operations = [
-      ...(body.isSensitive
-        ? [
-            prisma.objectVisibility.deleteMany({
-              where: { objectType: 'task', objectId: task.id },
-            }),
-            ...(requestedIds.length > 0
-              ? [
-                  prisma.objectVisibility.createMany({
-                    data: requestedIds.map((userId) => ({
-                      projectId: task.projectId,
-                      objectType: 'task',
-                      objectId: task.id,
-                      userId,
-                    })),
-                  }),
-                ]
-              : []),
-          ]
-        : []),
-      prisma.task.update({ where: { id: task.id }, data: { isSensitive: body.isSensitive } }),
-      prisma.auditLog.create({
-        data: {
-          projectId: task.projectId,
-          actorUserId,
-          action: 'sensitivity.update',
-          objectType: 'task',
-          objectId: task.id,
-          // 契约七条数据层约定第 7 条：before/after 存 JSON 字符串。
-          before: JSON.stringify(before),
-          after: JSON.stringify(after),
-        },
-      }),
-    ]
-    await prisma.$transaction(operations)
-
-    // 变更立即生效：不做任何进程内缓存（决策 I-10），下一次请求即按新状态判定。
-    return reply.status(200).send(after)
   })
 }
