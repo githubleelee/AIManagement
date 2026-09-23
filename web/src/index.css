@@ -391,3 +391,25 @@ select {
 .empty p {
   margin: 0.4rem 0 0;
 }
+
+/* ---------- 任务区（M5） ---------- */
+.task-filter {
+  max-width: 260px;
+  margin-bottom: 1rem;
+}
+
+.task-form {
+  max-width: 420px;
+  margin-top: 0.75rem;
+}
+
+.task-form-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.task-edit {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
