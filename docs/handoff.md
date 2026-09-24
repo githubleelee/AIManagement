@@ -118,17 +118,20 @@ test/            T0/T0.5 的数据库契约测试、http-support、seed 测试
 
 ## 11. 剩余工作（待办）
 
-1. **合并收尾分支** `feat/sprint1-wrapup`：US-05 任务前端、需求详情接真任务、删 `temporary-data.ts`、US-01 AC-04 文案与表5 记录（102–105）。
+1. **决定是否合入收尾分支** `feat/sprint1-wrapup`：内含 US-05 任务前端、需求详情接真任务、删 `temporary-data.ts`、US-01 AC-04、表5（102–105），以及统一收口提交 `8583d23`（状态基线 + 任务 02/03/04 验收回归）。**当前未合入 `main`（用户决定）**；如需合入，收尾分支线性领先、可干净快进，须在合并提交上重跑 `typecheck`/`test`/`build`。
 2. **验收材料**：Sprint 评审（表6）/回顾（表7）/自评（表8）、10 步演示录屏。
-3. **可选打磨**：`getTask`（端点 27）前端未用（任务详情内联在故事详情，未做独立 `/tasks/:taskId` 页，符合 `docs/frontend-routes.md`）。
+3. **已知 UI 缺陷（Sprint 2）**：`web/src/pages/task/TaskSection.tsx` 打开已敏感任务时名单显示为空，直接保存会以空名单覆盖原名单（`TaskView` 不含 `visibleMemberIds`）。详见 `docs/sprint1-current-status.md` §6.2。
+4. **可选打磨**：`getTask`（端点 27）前端未用（任务详情内联在故事详情，未做独立 `/tasks/:taskId` 页，符合 `docs/frontend-routes.md`）。
 
 ## 12. 分支与集成状态
 
 - `main`（= `origin/main`，最新 `cb2670e`）：T0 + US-01(到 `aa0d6ba`) + US-02 + US-03 + US-05 后端。
-- `feat/sprint1-wrapup`：**收尾分支（本次工作，已完成、待合并）**——US-05 前端 + 需求详情接真任务 + US-01 AC-04 + 表5 102–105。
+- `feat/sprint1-wrapup`：**收尾分支（本轮统一工作，已完成、未合入 main）**——`447c833`（US-05 前端 + 需求详情接真任务 + US-01 AC-04 + 表5 102–105）+ `8583d23`（Sprint 1 统一收口：状态基线 `docs/sprint1-current-status.md`、历史边界标注、`routes.ts` 注释修正、任务 02/03/04 验收回归 3 个测试文件）。
 - `feat/US-01-m2-project-members`：US-01 完整，领先 main 1 提交（AC-04 + 表5 58–63，序号与 main 撞车，已被 `sprint1-wrapup` 的 102–105 取代，可归档）。
 - `feat/US-01-create-project-and-members`：**旧分支，含重复且不兼容的 T0，勿合并**。
 - `integration/T5-task-management`、`feat/T5-*`、`feat/T3.*`、`feat/T2-*`：各模块历史分支。
+
+> 当前状态与验收证据的单一入口：`docs/sprint1-current-status.md`（含全量验证 `typecheck`/`test` 1112 例/`build` 与 44 项手工走查结果）。
 
 ## 13. 已知问题 / 坑
 

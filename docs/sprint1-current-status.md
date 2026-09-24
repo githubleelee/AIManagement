@@ -24,9 +24,14 @@
 | 分支 | 提交 | 日期 | 相对关系 |
 |---|---|---|---|
 | `main`（= `origin/main`） | `cb2670e` | 2026-09-21 | 主干，已含 US-01/US-02/US-03/US-05 后端 |
-| `feat/sprint1-wrapup` | `447c833` | 2026-09-23 | **比 `main` 多 1 个提交**；`main` 无该分支缺失的提交（线性，可直接快进/PR） |
+| `feat/sprint1-wrapup` | `447c833` → `8583d23` → 任务 05 证据提交（见 §7） | 2026-09-23/24 | **线性领先 `main`**；`main` 无该分支缺失的提交（可干净快进） |
 
-收尾分支的**唯一**增量提交 `447c833` 内容：US-05 任务前端（`web/src/pages/task/`、`ProjectTasksPage` 由占位改真实现）、需求详情接真实任务端点并删假数据层 `requirement/temporary-data.ts`、US-01 AC-04 文案与断言收尾、`docs/handoff.md`、表5 序号 102–105、`web/src/index.css`。
+收尾分支的增量提交：
+- `447c833`：US-05 任务前端（`web/src/pages/task/`、`ProjectTasksPage` 由占位改真实现）、需求详情接真实任务端点并删假数据层 `requirement/temporary-data.ts`、US-01 AC-04 文案与断言收尾、`docs/handoff.md`、表5 序号 102–105、`web/src/index.css`。
+- `8583d23`：Sprint 1 统一收口——阶段 A 状态基线（本文件 + 历史边界标注 + `src/routes.ts` 注释修正）+ 任务 02/03/04 验收回归（3 个新测试文件、23 例）。
+- 任务 05 证据提交：手工走查登记（§5.0.1）与本文档收尾更新。
+
+> 状态：收尾分支**未合入 `main`**（用户决定），交付物以 `origin/feat/sprint1-wrapup` 为准。
 
 ## 2. 用户故事 → 端点 → 页面 → 集成状态
 
@@ -81,9 +86,30 @@
 | `npm run typecheck` | ✅ 通过（0 错误） | `tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit`（exit 0） |
 | `npm test` | ✅ **46 文件 / 1112 例全部通过** | `vitest run`（exit 0）；本轮**未**触发并发超时或 worker 退出 |
 | `npm run build` | ✅ 通过 | server `tsc -p tsconfig.build.json` + web `vite build`（67 modules，产物 `dist/web`） |
-| 手工走查（PM/MEMBER/VIEWER/非成员） | ⏳ 未执行 | 前端无自动化测试，归任务 05 |
+| 手工走查（PM/MEMBER/VIEWER/非成员 + 深链/刷新） | ✅ 通过（44 项，0 失败） | 详见 §5.0.1 |
 
 > 本条为最新一次干净运行，覆盖并取代各任务记录中因并发争用产生的偶发超时/worker 退出（见下）。未运行并记录结果前不得宣称通过（规格 §Testing Decisions）。
+
+#### 5.0.1 手工走查结果（2026-09-24）
+
+环境：Windows/PowerShell；dev 服务（web 5173 / api 3000）全程存活；演示项目 PID `90ac7bdb-edbd-4986-ba61-47b5b92cd38f`。**44 项全部通过，无失败项。**
+
+| 组 | 项目 | 结果 |
+|---|---|---|
+| 1 认证与回跳 | 未登录跳转、错误口令、登录回跳、刷新保持、退出 | ✅ 5/5 |
+| 2 项目隔离（outsider） | 列表隔离、overview/requirements/tasks/members 深链 404 | ✅ |
+| 3 成员与角色（pm） | 加成员、改角色、拒自移除、拒降级最后 PM、member 写被拒 | ✅ |
+| 4 需求层级（pm） | 三层树、创建、排序、删除保护（`HAS_CHILDREN`）、详情编辑 | ✅ |
+| 5 故事敏感可见性 | PM 配置、白名单可见、未授权隐藏、计数不泄漏、关开关即时生效 | ✅ |
+| 6 任务（pm） | 创建、`ACCEPTOR_EQUALS_OWNER`、`END_BEFORE_START`、部分更新、总表、负责人过滤、删除 | ✅ |
+| 7 任务敏感 + 已知口径 | 白名单可见只读、未授权隐藏、故事敏感不传任务（§6.1 已确认） | ✅ |
+| 8 深链与刷新 | 9 条路径（含 `/projects/xxx`、`*`）深链 + 刷新均正常渲染或正确 404；无 `/projects` 代理劫持空白页 | ✅ 9/9 |
+
+备注：
+- 3.2 原生 `select` 在自动化点击下无法展开，改用 API `PATCH` 验证角色即时更新（成功）并已还原为 MEMBER。
+- 5.1/5.6/7.1 的敏感名单经全量 API 设置 + UI 复核开关态；6.6 过滤经 API 复核（owner=member2 → 2 条），与 UI 一致。
+- 5.4/7.2 深链 404 与「对象不存在」响应完全一致（均 `NOT_FOUND`），不可区分；7.2 故事详情任务区显示「这条需求下还没有任务」（计数不泄漏）。
+- 根因确认：Vite 仅代理 `/api` 并 rewrite，前端 API 统一走 `/api`，后端契约路径不变 —— 深链/刷新不产生劫持空白页。8.7 一次环境性工具超时，服务探活后重试通过，非应用缺陷。
 
 ### 5.1 任务 02 —— 认证 / 项目隔离 / 成员权限（端点 1–9）
 
@@ -158,11 +184,12 @@
 
 - **【前端 UI 缺陷｜任务 04 发现】任务敏感编辑器初值不完整**：`web/src/pages/task/TaskSection.tsx` 传 `SensitivityEditor initial={{ isSensitive, visibleMemberIds: [] }}`，而 `TaskView` 不含可见名单。打开一条**已敏感**任务时名单显示为空，直接保存会**以空名单覆盖原名单**（契约端点 30 为全量覆盖）。修法需先确定读取名单的途径（`TaskView` 之外提供查询，或扩展响应）；**待定，尚未修**。
 
-### 6.3 仍待执行（任务 05）
+### 6.3 任务 05 收尾状态
 
-- 手工走查 PM / MEMBER / VIEWER / 非成员的登录、项目、需求、任务关键流程与页面深链。
-- 对照最新远端状态，按团队约定把收尾改动整合进 `main`；在整合后提交上复核 `typecheck` / `test` / `build`。
-- 更新 handoff 与状态基线，区分已通过 / 未通过 / 未执行。
+- 手工走查：✅ 已完成（§5.0.1，44 项全通过）。
+- 远端同步：✅ 2026-09-24 恢复，`origin/main` = `cb2670e` **未变动**；收尾分支线性领先，可干净快进。
+- **合入 `main`：经用户决定，本轮不合并**。收尾提交（`8583d23` + 任务 05 走查证据提交）推送到 `origin/feat/sprint1-wrapup`；`main` 保持 `cb2670e` 不动。
+- 整合后复核：因未合入 `main`，本轮在 `feat/sprint1-wrapup` 上完成复核（§5.0）；若后续决定合入，须在合并提交上重跑 `typecheck` / `test` / `build`。
 
 ### 6.4 已知风险 / 坑
 
@@ -179,3 +206,6 @@
 | 2026-09-24 | `feat/sprint1-wrapup` | `447c833`（+ 未提交改动） | 初建本状态表；同步修正 `handoff.md` / `frontend-routes.md` / `T2-integration.md` 的过期状态与历史边界；更正 `src/routes.ts` 注释并明确端点 30 唯一归属。 |
 | 2026-09-24 | `feat/sprint1-wrapup` | 工作区（未提交） | 任务 02/03/04 验收完成：新增 `test/auth-project-contract.test.ts`、`requirement.sensitivity.test.ts`、`task-story-sensitivity.test.ts`（共 23 例），更正需求模块过期注释。登记端点 1–30 逐条核对与验收证据。 |
 | 2026-09-24 | `feat/sprint1-wrapup` | 工作区（未提交） | 协调 AI 全量复核：`typecheck` / `test`（46 文件 / 1112 例全通过）/ `build` 三项通过；合并各任务并发写入的重复记录为单一入口；登记决策（§6.1）与未决 UI 缺陷（§6.2）。 |
+| 2026-09-24 | `feat/sprint1-wrapup` | `8583d23` | 上述阶段 A + 任务 02/03/04 的改动合并为**单个提交**（21 文件）落库；上表 02/03/04 中标注「工作区（未提交）」的记录即以该提交为准。 |
+| 2026-09-24 | `feat/sprint1-wrapup` | 工作区（未提交） | 任务 05 手工走查登记：四角色 + 深链/刷新共 **44 项全通过**（§5.0.1）；登记远端 `fetch` 受阻事项（§6.3）。 |
+| 2026-09-24 | `feat/sprint1-wrapup` | 任务 05 证据提交（本提交） | 任务 05 收尾：`typecheck`/`test`(1112 例)/`build` 全通过 + 手工走查 44 项全通过；远端恢复，确认 `origin/main` = `cb2670e` 未变动；**经用户决定本轮不合入 `main`**，收尾提交推送至 `origin/feat/sprint1-wrapup`（§6.3）。 |
