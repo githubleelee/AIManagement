@@ -955,12 +955,11 @@ export function registerRequirementRoutes(app: FastifyInstance, ctx: RouteContex
 
       // 第 3 步（T3.10）：取列表可见性作用域，交给 service 下推到查询层。
       //
-      // ⚠️ 本调用今天**必然是空操作**：T0.4 骨架的 visibilityScope() 对非 PM 的成员
-      // 返回 `{mode:'all'}`（第 4 条的敏感白名单属 T2.3/T2.4，`visibilityScope` 的
-      // 真正实现属 T2.5）。而能走到这一步的调用者一定是项目成员（非成员已被上面
-      // 的 can() 判成 404），所以永远拿到 'all'。
-      // 接线本身是正确的、也是必须的（契约 I-6 要求所有返回敏感对象集合的端点都必须
-      // 调用它）；只是它的效果在 T2.5 落地前无法通过接口观测，已记入表五。
+      // T2.5 已合入 `main`：`permissions.ts` 的 visibilityScope() 对非 PM 成员返回
+      // `{mode:'subset', ids}`（非敏感对象 + 被指定的敏感对象），PM 返回 `{mode:'all'}`。
+      // 因此本调用**不再是空操作**，敏感故事会按该作用域在查询层被过滤。
+      // 契约 I-6 要求所有返回敏感对象集合的端点都必须调用它；接口级回归见
+      // `requirement.sensitivity.test.ts`。
       const scope = await visibilityScope(actorUserId, projectId, 'story')
 
       // 第 4 步：组装层级树（过滤与排序都在查询层完成，见 service 的说明）

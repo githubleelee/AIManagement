@@ -30,8 +30,10 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
   // M4 需求层级（端点 10–22）
   registerRequirementRoutes(app, context)
 
-  // M5 任务（T5.x，端点 24–30）：端点 24 故事任务列表 / 25 创建任务 / 26 按项目列任务 /
-  // 27 任务详情 / 28 部分更新 / 29 删除 / 30 敏感可见性设置
+  // M5 任务（端点 24–29）：24 故事任务列表 / 25 创建任务 / 26 按项目列任务 /
+  // 27 任务详情 / 28 部分更新 / 29 删除。
+  // 注意：端点 30（PUT /tasks/:taskId/sensitivity）唯一归属 M3，由上方
+  // registerSensitivityRoutes 注册；M5 不得再注册，否则 Fastify 抛
+  // FST_ERR_DUPLICATED_ROUTE 使整个应用无法构建。
   registerTaskRoutes(app, context)
-  // M5 任务（端点 24–30 中除敏感设置外的路由）尚未合入 main。
 }

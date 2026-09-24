@@ -348,8 +348,8 @@ describe('端点 21 正例：部分更新用户故事', () => {
 
   it('⚠️ isSensitive 不得通过端点 21 修改：注入 isSensitive: true 被静默丢弃', async () => {
     // 契约 I-8 端点 21 明写「不含 isSensitive —— 该字段只能通过端点 23 修改」。
-    // 端点 23 属 T2.3/T2.4，尚未实现；若本端点能改敏感标记，
-    // 就等于在权限模块到位前开了一条绕过敏感管控的写路径。
+    // 端点 23（T2.3/T2.4）已实现；若本端点能改敏感标记，
+    // 就等于开了一条绕过敏感管控的写路径。
     const res = await ctx
       .asUser(pmToken)
       .patch(URL_STORY(storyId))

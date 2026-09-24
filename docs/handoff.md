@@ -2,6 +2,7 @@
 
 > 本文档面向接手本项目的开发者/评审者，概括「是什么、怎么跑、做到哪、还剩啥」。
 > 权威契约以 `docs/sprint1-spec-interface-contract.md` 为准；前端路由以 `docs/frontend-routes.md` 为准。
+> **当前集成进度与验收证据的单一入口**：`docs/sprint1-current-status.md`（含分支/提交、故事→端点→页面对照与验收状态）。本文件是综述，明细以状态表为准。
 
 ## 1. 项目概览
 
@@ -84,12 +85,14 @@ test/            T0/T0.5 的数据库契约测试、http-support、seed 测试
 
 ## 7. 各用户故事完成度
 
-| 故事 | 后端 | 前端 | 合入 main | 备注 |
-|---|---|---|---|---|
-| US-01 | ✅ 全 | ✅ 全 | ✅（到 `aa0d6ba`） | AC-04 文案改动 + 表5 记录在本收尾分支（待合并） |
-| US-02 | ✅ can/visibility/敏感/审计 | ✅ 敏感开关（故事 + 任务） | ✅ | 任务敏感经 `SensitivityEditor kind='task'` 挂入任务编辑 |
-| US-03 | ✅ 全 | ✅ 全 | ✅ | 需求详情任务列表已接真实端点 24，`temporary-data.ts` 已删 |
-| US-05 | ✅ 全（24–29） | ✅（本收尾分支） | ✅（后端） | `TaskSection`（故事内）+ `ProjectTasksPage`（项目级） |
+> **口径**：下表区分「**故事主体已进 `main`**」与「**收尾改动尚未合入**（仅在 `feat/sprint1-wrapup`）」——主体已交付不等于该故事的全部最新改动都已进主干。
+
+| 故事 | 后端 | 前端 | 故事主体合入 main | 收尾未合入项（仅在 `sprint1-wrapup`） | 备注 |
+|---|---|---|---|---|---|
+| US-01 | ✅ 全 | ✅ 全 | ✅（到 `aa0d6ba`） | 端点 6 重复添加文案（AC-04）+ 文案断言、表5 102–105 | |
+| US-02 | ✅ can/visibility/敏感/审计 | ✅ 敏感开关（故事 + 任务） | ✅ | — | 任务敏感经 `SensitivityEditor kind='task'` 挂入任务编辑（由收尾分支消费） |
+| US-03 | ✅ 全 | ✅ 全 | ✅ | 需求详情任务区改接真实端点 24/25/27/28/29/30、删 `temporary-data.ts` | 层级树本体已在 main |
+| US-05 | ✅ 全（24–29） | ✅（本收尾分支） | ✅（后端） | **整个前端**：`TaskSection`（故事内）+ `ProjectTasksPage`（项目级），main 上 `ProjectTasksPage` 仍是占位 | |
 
 ## 8. 关键契约与约定（别踩）
 

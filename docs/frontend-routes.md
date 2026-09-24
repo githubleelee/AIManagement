@@ -2,6 +2,7 @@
 
 > 本文档冻结前端路由表与页面职责，供 M2（US-01）、M4（US-03）、M5（US-05）后续填页面对齐。
 > 权威接口定义仍以《需求规格说明书 · 接口契约》为准；本文档只约定**前端 URL 与页面**。
+> **实现进度不写在这里**：各页面「已实现 / 占位 / 在收尾分支」的当前状态见 [`docs/sprint1-current-status.md`](sprint1-current-status.md)（下表最后一列只标归属，不再标占位）。
 
 ## 冻结约定
 
@@ -20,9 +21,9 @@
 | `/projects/:projectId`（index） | → 重定向 `overview` | | M2 |
 | `/projects/:projectId/overview` | `ProjectOverviewPage` | 项目概览：元信息 + 成员数 + 需求/任务占位卡片 | M2 / T1.2 |
 | `/projects/:projectId/members` | `ProjectMembersPage` | 成员管理：添加 / 列表 / 改角色 / 移除（端点 6–9） | M2 / T1.3–T1.6 |
-| `/projects/:projectId/requirements` | `ProjectRequirementsPage` | 需求层级占位 | M4 / US-03（T3.x） |
-| `/projects/:projectId/requirements/:storyId` | `RequirementDetailPage` | 需求详情占位 | M4 / US-03（T3.x） |
-| `/projects/:projectId/tasks` | `ProjectTasksPage` | 任务列表占位 | M5 / US-05（T5.x） |
+| `/projects/:projectId/requirements` | `ProjectRequirementsPage` | 需求层级树：目标 → 活动 → 故事（端点 10–22，**已实现**） | M4 / US-03（T3.x） |
+| `/projects/:projectId/requirements/:storyId` | `RequirementDetailPage` | 需求详情：编辑 / 敏感 / 故事内任务（端点 20/21/23；任务区端点 24/25/27/28/29/30 **已实现，随收尾分支合入**） | M4 / US-03、M5 / US-05 |
+| `/projects/:projectId/tasks` | `ProjectTasksPage` | 项目任务总表（端点 26 + `ownerUserId` 过滤，**已实现，随收尾分支合入**） | M5 / US-05（T5.x） |
 | `*` | `NotFoundPage` | 全局 404 | M2 |
 
 ## 页面职责与数据来源

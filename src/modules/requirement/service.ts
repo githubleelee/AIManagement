@@ -937,11 +937,10 @@ export async function updateUserStory(
  *   2. 排序全部下推到查询层（`orderBy`），不用 JS 排序 —— 与过滤下推同一理由。
  * ---------------------------------------------------------------------------
  *
- * ⚠️ 现状说明（T3.10 的诚实边界）：`visibilityScope()` 目前是 T0.4 骨架，
- * 对**非 PM 的成员**返回 `{mode:'all'}`（T2.5 待实现）。因此本函数的 subset 分支
- * 在 T2.5 落地前**不可能被 HTTP 请求触发**（端点 10 会先用 can() 把非成员挡成 404），
- * 其效果也就无法通过接口测试观测。这不影响接线本身的正确性，但意味着
- * 「敏感故事对未授权成员不可见」这条验收标准**今天演不出来**，需记录为跨模块依赖。
+ * 现状说明：T2.5 已合入 `main`，`visibilityScope()` 对非 PM 成员返回
+ * `{mode:'subset', ids}`，因此本函数的 subset 分支可被真实 HTTP 请求触发
+ * （端点 10 对成员返回按作用域过滤后的树）。接口级回归见
+ * `requirement.sensitivity.test.ts`。
  */
 export async function getGoalTree(
   prisma: PrismaClient,
