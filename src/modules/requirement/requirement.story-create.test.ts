@@ -522,15 +522,15 @@ describe('端点 19 反例：priority 与其他字段', () => {
     expect((res.body as ErrorBody).error.details?.map((d) => d.field)).toContain('acceptanceCriteria')
   })
 
-  it('请求体不是合法 JSON → 400 BAD_REQUEST（请求体解析层错误，决策 I-4）', async () => {
+  it('请求体不是合法 JSON → 422 VALIDATION_FAILED（请求体解析层错误，决策 I-4）', async () => {
     const res = await ctx
       .asUser(pmToken)
       .post(URL_STORIES(activityId))
       .set('content-type', 'application/json')
       .send('{"title": ')
 
-    expect(res.status).toBe(400)
-    expect((res.body as ErrorBody).error.code).toBe('BAD_REQUEST')
+    expect(res.status).toBe(422)
+    expect((res.body as ErrorBody).error.code).toBe('VALIDATION_FAILED')
   })
 
   it('空对象请求体 → 422，五个字段与 priority 都被报缺失', async () => {

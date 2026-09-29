@@ -25,6 +25,13 @@ import type {
   StoryStatus,
 } from '../../../../src/shared/types'
 
+/** Avoid repeating the fixed user-story sentence prefixes when fields already include them. */
+export function storySentencePart(value: string, prefixes: readonly string[]): string {
+  const trimmed = value.trim()
+  const prefix = prefixes.find(candidate => trimmed.startsWith(candidate))
+  return prefix ? trimmed.slice(prefix.length).trimStart() : trimmed
+}
+
 // ---------------------------------------------------------------------------
 // 一、界面标签（决策 I-1）
 //

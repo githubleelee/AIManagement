@@ -165,11 +165,10 @@ export type ErrorResponse = {
 
 /**
  * 顶层错误码。
- *   - BAD_REQUEST(400) 请求体语法非法，由解析层产生、没有可归属的字段
- *   - INTERNAL_ERROR(500) 未抛 AppError 的未知异常（决策 I-2b 要求 500）
+ *   - INTERNAL_ERROR(500) 未抛 AppError 的未知异常（决策 I-2b 要求 500；
+ *     契约 I-4 表未单列该码，此处为满足「未知异常一律转 500」并保持统一信封所必需的补齐）
  */
 export type ErrorCode =
-  | 'BAD_REQUEST' // 400 请求体无法解析为 JSON
   | 'UNAUTHENTICATED' // 401 未登录或凭证失效
   | 'FORBIDDEN' // 403 对象可见，但该操作不允许
   | 'NOT_FOUND' // 404 对象不存在，或对调用者不可见

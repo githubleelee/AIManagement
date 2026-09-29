@@ -42,7 +42,7 @@ const UNAUTHENTICATED_STATUS = 401
  * 与 error-handler.ts 的约定一致：带 statusCode 的错误会被**原样透出**，
  * 不会被改写成 422，从而保住契约要求的 401 语义。
  */
-function errorWithStatus(statusCode: number, message: string): Error {
+export function errorWithStatus(statusCode: number, message: string): Error {
   const error = new Error(message)
   ;(error as Error & { statusCode: number }).statusCode = statusCode
   return error
@@ -73,7 +73,7 @@ export function registerActorResolver(app: FastifyInstance, prisma: PrismaClient
     const token = readBearerToken(req)
     if (!token) return
 
-    const userId = verifyToken(token)
+    const userId = await verifyToken(prisma, token)
     if (!userId) return
 
     // 确认用户仍存在：用户被删除后其旧令牌应立即失效。

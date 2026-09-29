@@ -37,6 +37,30 @@ beforeEach(async () => {
 }, 120_000)
 
 describe('T2：真实 HTTP 敏感设置与可见性', () => {
+  it('PM 可设置故事与任务的敏感白名单；其他角色不能设置', async () => {
+    const pmToken = ctx.loginAs(pm)
+    for (const [kind, id] of [['stories', storyId], ['tasks', taskId]] as const) {
+      const url = `/${kind}/${id}/sensitivity`
+      const body = { isSensitive: true, visibleMemberIds: [allowed] }
+      const savedByPm = await ctx.asUser(pmToken).put(url).send(body)
+      expect(savedByPm.status).toBe(200)
+      expect(savedByPm.body).toMatchObject({ objectId: id, isSensitive: true, visibleMemberIds: [allowed] })
+      // 名单确实落库（契约只提供写端点，无读取端点）
+      const rows = await ctx.db.objectVisibility.findMany({
+        where: { objectType: kind === 'stories' ? 'story' : 'task', objectId: id },
+        select: { userId: true },
+      })
+      expect(rows.map(row => row.userId)).toEqual([allowed])
+      // 项目成员（非 PM）不能设置
+      expect((await ctx.asUser(ctx.loginAs(allowed)).put(url).send(body)).status).toBe(403)
+      // 非项目成员 404，且与「对象不存在」不可区分
+      const hidden = await ctx.asUser(ctx.loginAs(outsider)).put(url).send(body)
+      const missing = await ctx.asUser(ctx.loginAs(outsider)).put(`/${kind}/absent/sensitivity`).send(body)
+      expect(hidden.status).toBe(404)
+      expect(hidden.body).toEqual(missing.body)
+      expect(JSON.stringify(hidden.body)).not.toContain(allowed)
+    }
+  })
   it('仅 PM 可以设置；未登录 401，非成员 404，成员 403 且不落审计', async () => {
     const url = `/stories/${storyId}/sensitivity`
     const body = { isSensitive: true, visibleMemberIds: [allowed] }

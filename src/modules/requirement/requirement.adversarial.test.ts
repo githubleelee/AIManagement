@@ -242,18 +242,18 @@ describe('对抗 2：判定顺序与信息泄漏', () => {
     expect((res.body as ErrorBody).error.code).toBe('UNAUTHENTICATED')
   })
 
-  it('未登录 + 非法 JSON → 400 BAD_REQUEST（解析层先于 preHandler，见 C 类疑点）', async () => {
+  it('未登录 + 非法 JSON → 422 VALIDATION_FAILED（解析层先于 preHandler，见 C 类疑点）', async () => {
     // 实测：Fastify 的 content-type 解析器在路由 preHandler 之前就抛错，
-    // 因此非法 JSON 一律 400，与是否登录无关。契约 I-4 明确把
-    // 「请求体语法非法」归 400 BAD_REQUEST，故此处不算违规，仅记录顺序。
+    // 因此非法 JSON 一律在校验层被拦下，与是否登录无关。契约 I-4 无 400 一档，
+    // 收敛为 422 VALIDATION_FAILED，故此处不算违规，仅记录顺序。
     const res = await ctx
       .asUser(null)
       .post(URL_GOALS(projectId))
       .set('content-type', 'application/json')
       .send('{"name": ')
 
-    expect(res.status).toBe(400)
-    expect((res.body as ErrorBody).error.code).toBe('BAD_REQUEST')
+    expect(res.status).toBe(422)
+    expect((res.body as ErrorBody).error.code).toBe('VALIDATION_FAILED')
   })
 
   it('MEMBER + 非法 body → 403（越权先于校验，不泄漏字段规则）', async () => {
@@ -268,15 +268,15 @@ describe('对抗 2：判定顺序与信息泄漏', () => {
     expect((res.body as ErrorBody).error.code).toBe('NOT_FOUND')
   })
 
-  it('项目不存在 + 非法 JSON → 400 BAD_REQUEST（解析层先于 handler）', async () => {
+  it('项目不存在 + 非法 JSON → 422 VALIDATION_FAILED（解析层先于 handler）', async () => {
     const res = await ctx
       .asUser(pmToken)
       .post(URL_GOALS(UNKNOWN_UUID))
       .set('content-type', 'application/json')
       .send('{"name": ')
 
-    expect(res.status).toBe(400)
-    expect((res.body as ErrorBody).error.code).toBe('BAD_REQUEST')
+    expect(res.status).toBe(422)
+    expect((res.body as ErrorBody).error.code).toBe('VALIDATION_FAILED')
   })
 
   /**

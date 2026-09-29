@@ -110,6 +110,10 @@ export function listMembers(projectId: string) {
   return apiFetch<{ items: ProjectMemberView[] }>(`/projects/${projectId}/members`)
 }
 
+export function listMemberCandidates(projectId: string) {
+  return apiFetch<{ items: UserBrief[] }>(`/projects/${projectId}/member-candidates`)
+}
+
 export function addMember(projectId: string, account: string, role: ProjectRole) {
   return apiFetch<ProjectMemberView>(`/projects/${projectId}/members`, {
     method: 'POST',
@@ -127,4 +131,3 @@ export function updateMemberRole(projectId: string, userId: string, role: Projec
 export function removeMember(projectId: string, userId: string) {
   return apiFetch<void>(`/projects/${projectId}/members/${userId}`, { method: 'DELETE' })
 }
-

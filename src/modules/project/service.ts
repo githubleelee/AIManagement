@@ -11,7 +11,7 @@
  *   本文件是 `src/modules/project/` 内的新增文件，属 M2 独占，不触碰任何冻结文件。
  */
 import type { PrismaClient } from '@prisma/client'
-import type { Project, ProjectMemberView, ProjectRole, ProjectView } from '../../shared/types.js'
+import type { Project, ProjectMemberView, ProjectRole, ProjectView, UserBrief } from '../../shared/types.js'
 
 // ---------------------------------------------------------------------------
 // 表 → 契约响应类型的映射（时间字段在此序列化）
@@ -182,6 +182,15 @@ export async function listMembers(
     orderBy: { joinedAt: 'asc' },
   })
   return members.map(toMemberView)
+}
+
+/** 供项目经理添加成员时选择账号；排除已经加入本项目的用户。 */
+export async function listMemberCandidates(prisma: PrismaClient, projectId: string): Promise<UserBrief[]> {
+  return prisma.user.findMany({
+    where: { memberships: { none: { projectId } } },
+    select: { id: true, account: true, displayName: true },
+    orderBy: { account: 'asc' },
+  })
 }
 
 /** 修改成员角色（端点 8），返回更新后的成员视图。 */

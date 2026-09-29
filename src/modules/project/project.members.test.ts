@@ -190,6 +190,26 @@ describe('T1.3 端点 6：POST /projects/:projectId/members', () => {
   })
 })
 
+describe('添加成员候选用户名', () => {
+  it('只让项目经理看到尚未加入的账号', async () => {
+    const pmId = await makeUser(ctx.db, 'candidate-pm', '经理')
+    const memberId = await makeUser(ctx.db, 'candidate-member', '成员')
+    const candidateId = await makeUser(ctx.db, 'candidate-new', '新用户')
+    const token = ctx.loginAs(pmId)
+    const projectId = await createProjectAs(token)
+    await addMember(token, projectId, 'candidate-member', 'MEMBER')
+
+    const path = `/projects/${projectId}/member-candidates`
+    const result = await ctx.asUser(token).get(path)
+    expect(result.status).toBe(200)
+    expect(result.body.items).toContainEqual({ id: candidateId, account: 'candidate-new', displayName: '新用户' })
+    expect(result.body.items.map((user: { id: string }) => user.id)).not.toContain(pmId)
+    expect(result.body.items.map((user: { id: string }) => user.id)).not.toContain(memberId)
+    expect((await ctx.asUser(ctx.loginAs(memberId)).get(path)).status).toBe(403)
+    expect((await ctx.asUser(null).get(path)).status).toBe(401)
+  })
+})
+
 describe('T1.4 端点 7：GET /projects/:projectId/members', () => {
   it('返回成员列表，含创建者与新增成员，字段齐全且按 joinedAt 升序', async () => {
     const pmId = await makeUser(ctx.db, 'pm-1', '项目经理')
@@ -463,4 +483,3 @@ describe('T1.6 端点 9：DELETE /projects/:projectId/members/:userId', () => {
     expect(res.body.error.code).toBe('UNAUTHENTICATED')
   })
 })
-

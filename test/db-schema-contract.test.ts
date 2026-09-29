@@ -2,7 +2,8 @@
  * 数据表结构逐字段契约比对（T0-02 对抗性验证）
  *
  * 权威来源：`docs/sprint1-spec-interface-contract.md` 决策 I-7 的 Prisma schema
- * 与迁移文件 `src/db/migrations/20260919102113_init/migration.sql`。
+ * 与迁移文件 `src/db/migrations/20260919102113_init/migration.sql`
+ * （User 会话令牌两列见 `20260926000000_add_session_token/migration.sql`）。
  *
  * 与既有 `db-schema.test.ts` 的区别：
  *   - 既有测试只断言「9 张表名存在」、少量列类型、1 处 RESTRICT + 1 处 CASCADE。
@@ -45,6 +46,10 @@ const EXPECTED_COLUMNS: Record<string, ColumnSpec[]> = {
     { name: 'displayName', type: 'TEXT', notNull: true, def: null, pk: 0 },
     { name: 'passwordHash', type: 'TEXT', notNull: true, def: null, pk: 0 },
     { name: 'createdAt', type: 'DATETIME', notNull: true, def: 'CURRENT_TIMESTAMP', pk: 0 },
+    // 【有意扩展】契约 I-8 认证约定要求令牌「存库校验」，而 I-7 的 User 模型未给出
+    // 存放位置。为满足认证条款，新增两个可空列（不新增表，仍为 9 张表）。
+    { name: 'sessionTokenHash', type: 'TEXT', notNull: false, def: null, pk: 0 },
+    { name: 'sessionTokenExpiresAt', type: 'TEXT', notNull: false, def: null, pk: 0 },
   ],
   Project: [
     { name: 'id', type: 'TEXT', notNull: true, def: null, pk: 1 },

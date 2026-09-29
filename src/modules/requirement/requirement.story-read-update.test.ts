@@ -531,15 +531,15 @@ describe('端点 21 反例：字段校验（422 / 400）', () => {
     expect((res.body as ErrorBody).error.details?.map((d) => d.field)).toContain('acceptanceCriteria')
   })
 
-  it('请求体不是合法 JSON → 400 BAD_REQUEST（请求体解析层错误，决策 I-4）', async () => {
+  it('请求体不是合法 JSON → 422 VALIDATION_FAILED（请求体解析层错误，决策 I-4）', async () => {
     const res = await ctx
       .asUser(pmToken)
       .patch(URL_STORY(storyId))
       .set('content-type', 'application/json')
       .send('{"title": ')
 
-    expect(res.status).toBe(400)
-    expect((res.body as ErrorBody).error.code).toBe('BAD_REQUEST')
+    expect(res.status).toBe(422)
+    expect((res.body as ErrorBody).error.code).toBe('VALIDATION_FAILED')
   })
 })
 

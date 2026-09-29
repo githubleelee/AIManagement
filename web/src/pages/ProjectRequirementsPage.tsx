@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate, useOutletContext } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 import type { ActivityNode, GoalNode, ProjectView, StoryNode } from '../../../src/shared/types'
 import { ApiError } from '../api'
 import Button from '../components/Button'
@@ -24,6 +24,7 @@ import {
   TERM_ROWS,
   fieldErrorHint,
   fieldLabel,
+  storySentencePart,
 } from './requirement/terms'
 import './requirement/requirement.css'
 
@@ -75,7 +76,7 @@ type Selection =
  * 放在模块级而不是组件内部：树面板（TreePane）与详情面板（DetailPane）是两个
  * 独立的函数组件，它们都要用这个类型，声明在组件内就传不出去了。
  */
-type RowAction =
+export type RowAction =
   | { type: 'create-goal' }
   | { type: 'create-activity'; goalId: string }
   | { type: 'create-story'; activityId: string }
@@ -172,33 +173,28 @@ function editorKey(target: EditorTarget): string {
 export default function ProjectRequirementsPage() {
   const project = useOutletContext<ProjectView>()
   const navigate = useNavigate()
+  const location = useLocation()
   const isPM = project.myRole === 'PM'
 
   const [goals, setGoals] = useState<GoalNode[] | null>(null)
   const [error, setError] = useState<ApiError | null>(null)
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<View>('tree')
-  const [detailTab, setDetailTab] = useState<DetailTab>('detail')
-  const [selection, setSelection] = useState<Selection | null>(null)
-  /** 正在编辑 / 新建的表单；null 表示右栏显示详情。 */
+  /** 正在编辑 / 新建的表单。 */
   const [editor, setEditor] = useState<EditorTarget | null>(null)
   /** 待确认的删除；null 表示没有确认框。 */
   const [confirm, setConfirm] = useState<{ kind: 'goal' | 'activity' | 'story'; id: string } | null>(null)
   const [notice, setNotice] = useState<{ tone: 'ok' | 'warn'; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
+  const [query, setQuery] = useState('')
 
   const load = useCallback(
-    async (keepSelection = false) => {
+    async () => {
       setLoading(true)
       setError(null)
       try {
         const tree = await getGoalTree(project.id)
         setGoals(tree)
-        if (!keepSelection) {
-          // 默认选中第一个需求，使右栏一进来就有内容（而不是空白面板）
-          const first = collectStoryRows(tree)[0]
-          setSelection(first ? { kind: 'story', id: first.story.id } : null)
-        }
       } catch (caught) {
         setGoals(null)
         setError(caught instanceof ApiError ? caught : new ApiError(0, 'UNKNOWN', String(caught)))
@@ -213,11 +209,13 @@ export default function ProjectRequirementsPage() {
     void load()
   }, [load])
 
-  function select(kind: Selection['kind'], id: string) {
-    setSelection({ kind, id })
-    setDetailTab('detail')
-    setEditor(null)
-  }
+  useEffect(() => {
+    const message = (location.state as { creationNotice?: unknown } | null)?.creationNotice
+    if (typeof message === 'string') {
+      setNotice({ tone: 'ok', text: message })
+      navigate(location.pathname, { replace: true, state: null })
+    }
+  }, [location.pathname, location.state, navigate])
 
   /* ===========================================================================
    * 写路径（端点 11–22）
@@ -284,8 +282,7 @@ export default function ProjectRequirementsPage() {
     if (!ids) return
     await runWrite(async () => {
       await reorderGoals(project.id, ids)
-      await load(true)
-      setSelection({ kind: 'goal', id: goal.id })
+      await load()
       setNotice({ tone: 'ok', text: '顺序已保存（提交的是全部目标的新顺序）。' })
     })
   }
@@ -296,8 +293,7 @@ export default function ProjectRequirementsPage() {
     if (!ids) return
     await runWrite(async () => {
       await reorderActivities(goal.id, ids)
-      await load(true)
-      setSelection({ kind: 'activity', id: activity.id })
+      await load()
       setNotice({ tone: 'ok', text: '用户活动顺序已保存。' })
     })
   }
@@ -310,17 +306,16 @@ export default function ProjectRequirementsPage() {
       if (kind === 'goal') await deleteGoal(id)
       else if (kind === 'activity') await deleteActivity(id)
       else await deleteStory(id)
-      setSelection(null)
       await load()
       setNotice({ tone: 'ok', text: '已删除。' })
     })
   }
 
-  /** 写操作完成后：关掉表单、给一句提示、保持当前选中地重新拉树。 */
+  /** 写操作完成后：关掉表单、给一句提示、重新拉取层级树。 */
   function afterSaved(message: string) {
     setEditor(null)
     setNotice({ tone: 'ok', text: message })
-    void load(true)
+    void load()
   }
 
   function dispatch(action: RowAction) {
@@ -335,16 +330,14 @@ export default function ProjectRequirementsPage() {
     setNotice(null)
     switch (action.type) {
       case 'create-goal':
-        setEditor({ kind: 'goal', mode: 'create' })
+        navigate(`/projects/${project.id}/requirements/new/goal`)
         return
       case 'create-activity': {
-        const goal = findGoalById(action.goalId)
-        if (goal) setEditor({ kind: 'activity', mode: 'create', goal })
+        navigate(`/projects/${project.id}/requirements/goals/${action.goalId}/new-activity`)
         return
       }
       case 'create-story': {
-        const found = findActivityById(action.activityId)
-        if (found) setEditor({ kind: 'story', mode: 'create', activity: found.activity })
+        navigate(`/projects/${project.id}/requirements/activities/${action.activityId}/new-story`)
         return
       }
       case 'edit-goal': {
@@ -374,6 +367,19 @@ export default function ProjectRequirementsPage() {
   }
 
   const storyRows = goals ? collectStoryRows(goals) : []
+  const normalizedQuery = query.trim().toLocaleLowerCase()
+  const visibleGoals = !goals || !normalizedQuery ? goals : goals.flatMap((goal) => {
+    if (`${goal.name} ${goal.description ?? ''}`.toLocaleLowerCase().includes(normalizedQuery)) return [goal]
+    const activities = goal.activities.flatMap((activity) => {
+      if (`${activity.name} ${activity.description ?? ''}`.toLocaleLowerCase().includes(normalizedQuery)) return [activity]
+      const stories = activity.stories.filter((story) =>
+        `${story.title} ${story.roleText} ${story.capabilityText} ${story.valueText}`
+          .toLocaleLowerCase().includes(normalizedQuery))
+      return stories.length ? [{ ...activity, stories }] : []
+    })
+    return activities.length ? [{ ...goal, activities }] : []
+  })
+  const visibleStoryRows = visibleGoals ? collectStoryRows(visibleGoals) : []
   const storyColumns: Column<(typeof storyRows)[number]>[] = [
     { key: 'title', header: '标题', render: (row) => row.story.title },
     {
@@ -389,9 +395,7 @@ export default function ProjectRequirementsPage() {
       key: 'open',
       header: '操作',
       render: (row) => (
-        <Button variant="ghost" onClick={() => select('story', row.story.id)}>
-          查看
-        </Button>
+        <Link className="req-node-open" aria-label={`查看故事「${row.story.title}」详情`} to={`/projects/${project.id}/requirements/${row.story.id}`}>›</Link>
       ),
     },
   ]
@@ -416,26 +420,35 @@ export default function ProjectRequirementsPage() {
     : 0
 
   return (
-    <div className="page">
+    <div className="page req-redesign">
       <PageHeader
-        title="需求（用户故事）"
-        description={
-          <>
-            业务目标 → 用户活动 → 用户需求 三级结构。排序固定按服务端的返回顺序展示。
-          </>
-        }
+        title="需求"
+        description="从业务目标逐级展开，快速定位用户故事。"
         actions={
-          <Button variant="ghost" onClick={() => void load(true)} disabled={loading}>
+          <Button variant="ghost" onClick={() => void load()} disabled={loading}>
             {loading ? '加载中…' : '刷新'}
           </Button>
         }
       />
 
-      <div className="req-tabs">
+      <div className="req-toolbar">
+        <label className="req-search-label" htmlFor="requirement-search">
+          <span className="sr-only">搜索需求</span>
+          <input
+            id="requirement-search"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索目标、活动或用户故事"
+          />
+        </label>
+      </div>
+
+      <div className="req-tabs req-view-tabs">
         {(
           [
             ['tree', '需求层级'],
-            ['stories', `需求列表（${storyRows.length}）`],
+            ['stories', `故事列表（${storyRows.length}）`],
             ['terms', '术语对照与缺口'],
           ] as const
         ).map(([key, label]) => (
@@ -476,40 +489,10 @@ export default function ProjectRequirementsPage() {
         </div>
       ) : null}
 
-      {/* ⚠️ 空目标时**也必须渲染** .req-split —— 否则 TreePane 不渲染，
-          「＋ 新建业务目标」按钮就不存在，用户永远建不出第一个目标（死胡同）。
-          这个 bug 是真实走查时由人类第一个发现的：种子数据里没有目标，一进页面就是空态。
-          空态本身已移进 TreePane，与它的「出口」放在同一屏。 */}
       {goals !== null ? (
-        <div className="req-split">
+        <div className="req-list-layout">
           <section className="req-main">
-            {view === 'tree' ? (
-              <TreePane
-                goals={goals}
-                selection={selection}
-                onSelect={select}
-                isPM={isPM}
-                busy={busy}
-                onAction={dispatch}
-              />
-            ) : null}
-            {view === 'stories' ? (
-              <DataTable
-                columns={storyColumns}
-                rows={storyRows}
-                rowKey={(row) => row.story.id}
-                empty="还没有用户故事"
-              />
-            ) : null}
-            {view === 'terms' ? <TermsPane /> : null}
-          </section>
-          <aside className="req-detail">
-            {view === 'terms' ? (
-              <p className="req-placeholder">
-                左侧是术语对照与缺口清单。切回「需求层级」或「需求列表」并选中任一节点，
-                此处会显示它的字段详情。
-              </p>
-            ) : editor ? (
+            {editor ? (
               <RequirementEditor
                 key={editorKey(editor)}
                 projectId={project.id}
@@ -517,20 +500,29 @@ export default function ProjectRequirementsPage() {
                 onSaved={afterSaved}
                 onCancel={() => setEditor(null)}
               />
-            ) : (
-              <DetailPane
-                goals={goals}
+            ) : null}
+            {view === 'tree' ? (
+              <TreePane
+                goals={visibleGoals ?? []}
+                searching={Boolean(normalizedQuery)}
                 projectId={project.id}
-                selection={selection}
-                tab={detailTab}
-                onTab={setDetailTab}
-                onSelect={select}
                 isPM={isPM}
                 busy={busy}
                 onAction={dispatch}
               />
-            )}
-          </aside>
+            ) : null}
+            {view === 'stories' ? (
+              <div className="req-story-list">
+                <DataTable
+                  columns={storyColumns}
+                  rows={visibleStoryRows}
+                  rowKey={(row) => row.story.id}
+                  empty={normalizedQuery ? '没有匹配的用户故事' : '还没有用户故事'}
+                />
+              </div>
+            ) : null}
+            {view === 'terms' ? <TermsPane /> : null}
+          </section>
         </div>
       ) : null}
 
@@ -609,58 +601,67 @@ export default function ProjectRequirementsPage() {
   )
 }
 
-/** 左栏（树）：三层结构 + 下属数量；点任意一行 → 右栏显示其详情。 */
+/** 三层需求树：行展开下级，右侧箭头进入独立详情页。 */
 function TreePane({
   goals,
-  selection,
-  onSelect,
+  searching,
+  projectId,
   isPM,
   busy,
   onAction,
 }: {
   goals: GoalNode[]
-  selection: Selection | null
-  onSelect: (kind: Selection['kind'], id: string) => void
+  searching: boolean
+  projectId: string
   isPM: boolean
   busy: boolean
   onAction: (action: RowAction) => void
 }) {
-  function rowClass(kind: Selection['kind'], id: string) {
-    const active = selection !== null && selection.kind === kind && selection.id === id
-    return active ? 'req-node-row is-selected' : 'req-node-row'
+  const [collapsedGoals, setCollapsedGoals] = useState<Set<string>>(() => new Set())
+  const [collapsedActivities, setCollapsedActivities] = useState<Set<string>>(() => new Set())
+  function toggle(setter: (value: Set<string>) => void, current: Set<string>, id: string) {
+    const next = new Set(current)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    setter(next)
   }
 
   return (
     <div>
-      <p className="req-pane-sub">
-        目标与用户活动按序号排列，需求按创建时间排列。数量由当前显示的内容统计得出。
-      </p>
+      <p className="req-pane-sub">目标、活动与用户故事</p>
+      {isPM ? (
+        <button type="button" className="req-create-goal-button" disabled={busy} onClick={() => onAction({ type: 'create-goal' })}>
+          ＋ 新建目标
+        </button>
+      ) : null}
 
-      {/* 空态放在树的最上方，但**下方仍然渲染「＋ 新建业务目标」** ——
-          空态与它的出口必须在同一屏，否则第一个目标永远建不出来。 */}
+      {/* 空态和新建入口保持在同一屏。 */}
       {goals.length === 0 ? (
         <EmptyState
-          title="该项目还没有业务目标"
+          level={2}
+          title={searching ? '没有匹配的需求' : '该项目还没有业务目标'}
           hint={
-            isPM
-              ? '业务目标是需求层级的第一层。用下面的按钮建立第一个目标，再往下添加用户活动与需求。'
+            searching
+              ? '试试其他关键词，或清空搜索查看全部层级。'
+              : isPM
+              ? '业务目标是需求层级的第一层。使用上方「新建目标」建立第一个目标。'
               : '业务目标是需求层级的第一层。你没有写入权限，请让项目经理先建立目标。'
           }
         />
       ) : null}
 
-      {goals.map((goal, goalIndex) => {
+      {goals.map((goal) => {
         const storyTotal = goal.activities.reduce((sum, activity) => sum + activity.stories.length, 0)
+        const goalExpanded = searching || !collapsedGoals.has(goal.id)
         return (
           <div className="req-tree-goal" key={goal.id}>
-            {/* 行 = 容器（负责边框与选中态）+ 只负责选中的按钮 + 右侧操作。
-                操作按钮与选中按钮是「兄弟」关系：把 button 嵌在 button 里是非法
-                HTML，浏览器会把内层按钮搬到外层之外，缩进与样式都会失控。 */}
-            <div className={rowClass('goal', goal.id)}>
+            <div className="req-node-row">
               <button
                 type="button"
                 className="req-node-hit"
-                onClick={() => onSelect('goal', goal.id)}
+                aria-expanded={goalExpanded}
+                aria-label={`${goalExpanded ? '收起' : '展开'}目标「${goal.name}」的活动`}
+                onClick={() => toggle(setCollapsedGoals, collapsedGoals, goal.id)}
               >
                 <span className="req-node-kind">目标</span>
                 <span className="req-node-name">{goal.name}</span>
@@ -668,120 +669,39 @@ function TreePane({
                 <span className="req-count">{goal.activities.length} 个活动</span>
                 <span className="req-count">{storyTotal} 个需求</span>
               </button>
-              {isPM ? (
-                <span className="req-row-ops">
-                  <span className="req-order">#{goal.sortOrder}</span>
-                  <button
-                    type="button"
-                    className="req-button-small"
-                    disabled={busy || goalIndex === 0}
-                    title={goalIndex === 0 ? '已经是第一个' : '与上一个交换顺序'}
-                    onClick={() => onAction({ type: 'move-goal', id: goal.id, delta: -1 })}
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    className="req-button-small"
-                    disabled={busy || goalIndex === goals.length - 1}
-                    title={goalIndex === goals.length - 1 ? '已经是最后一个' : '与下一个交换顺序'}
-                    onClick={() => onAction({ type: 'move-goal', id: goal.id, delta: 1 })}
-                  >
-                    ↓
-                  </button>
-                  <button
-                    type="button"
-                    className="req-button-small req-button-plain"
-                    disabled={busy}
-                    onClick={() => onAction({ type: 'edit-goal', id: goal.id })}
-                  >
-                    编辑
-                  </button>
-                  <button
-                    type="button"
-                    className="req-button-small req-button-danger"
-                    disabled={busy}
-                    onClick={() => onAction({ type: 'delete', kind: 'goal', id: goal.id })}
-                  >
-                    删除
-                  </button>
-                </span>
-              ) : (
-                <span className="req-row-ops">
-                  <span className="req-order">#{goal.sortOrder}</span>
-                </span>
-              )}
+              {isPM ? <button type="button" className="req-create-child-button" disabled={busy} onClick={() => onAction({ type: 'create-activity', goalId: goal.id })}>＋ 新建活动</button> : null}
+              <Link className="req-node-open" aria-label={`查看目标「${goal.name}」详情`} to={`/projects/${projectId}/requirements/goals/${goal.id}`}>›</Link>
             </div>
 
-            {goal.activities.map((activity, activityIndex) => (
+            {goalExpanded ? goal.activities.map((activity) => (
               <div className="req-tree-activity" key={activity.id}>
-                <div className={rowClass('activity', activity.id)}>
+                <div className="req-node-row">
                   <button
                     type="button"
                     className="req-node-hit"
-                    onClick={() => onSelect('activity', activity.id)}
+                    aria-expanded={searching || !collapsedActivities.has(activity.id)}
+                    aria-label={`${searching || !collapsedActivities.has(activity.id) ? '收起' : '展开'}活动「${activity.name}」的故事`}
+                    onClick={() => toggle(setCollapsedActivities, collapsedActivities, activity.id)}
                   >
                     <span className="req-node-kind">活动</span>
                     <span className="req-node-name">{activity.name}</span>
                     <GoalStatusBadge status={activity.status} />
                     <span className="req-count">{activity.stories.length} 个需求</span>
                   </button>
-                  {isPM ? (
-                    <span className="req-row-ops">
-                      <span className="req-order">#{activity.sortOrder}</span>
-                      <button
-                        type="button"
-                        className="req-button-small"
-                        disabled={busy || activityIndex === 0}
-                        title={activityIndex === 0 ? '已经是第一个' : '与上一个交换顺序'}
-                        onClick={() => onAction({ type: 'move-activity', id: activity.id, delta: -1 })}
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        className="req-button-small"
-                        disabled={busy || activityIndex === goal.activities.length - 1}
-                        title={
-                          activityIndex === goal.activities.length - 1
-                            ? '已经是最后一个'
-                            : '与下一个交换顺序'
-                        }
-                        onClick={() => onAction({ type: 'move-activity', id: activity.id, delta: 1 })}
-                      >
-                        ↓
-                      </button>
-                      <button
-                        type="button"
-                        className="req-button-small req-button-plain"
-                        disabled={busy}
-                        onClick={() => onAction({ type: 'edit-activity', id: activity.id })}
-                      >
-                        编辑
-                      </button>
-                      <button
-                        type="button"
-                        className="req-button-small req-button-danger"
-                        disabled={busy}
-                        onClick={() => onAction({ type: 'delete', kind: 'activity', id: activity.id })}
-                      >
-                        删除
-                      </button>
-                    </span>
-                  ) : null}
+                  {isPM ? <button type="button" className="req-create-child-button" disabled={busy} onClick={() => onAction({ type: 'create-story', activityId: activity.id })}>＋ 新建故事</button> : null}
+                  <Link className="req-node-open" aria-label={`查看活动「${activity.name}」详情`} to={`/projects/${projectId}/requirements/activities/${activity.id}`}>›</Link>
                 </div>
 
-                {activity.stories.length === 0 ? (
+                {(searching || !collapsedActivities.has(activity.id)) && activity.stories.length === 0 ? (
                   <p className="req-empty-inline">该活动下暂无用户故事。</p>
                 ) : null}
 
-                {activity.stories.map((story) => (
+                {(searching || !collapsedActivities.has(activity.id)) ? activity.stories.map((story) => (
                   <div className="req-tree-story" key={story.id}>
-                    <div className={rowClass('story', story.id)}>
-                      <button
-                        type="button"
+                    <div className="req-node-row">
+                      <Link
                         className="req-node-hit"
-                        onClick={() => onSelect('story', story.id)}
+                        to={`/projects/${projectId}/requirements/${story.id}`}
                       >
                         <span className="req-node-name">{story.title}</span>
                         <PriorityBadge priority={story.priority} />
@@ -789,77 +709,16 @@ function TreePane({
                         {story.isSensitive ? (
                           <span className="req-badge req-badge-sensitive">敏感</span>
                         ) : null}
-                      </button>
-                      {isPM ? (
-                        <span className="req-row-ops">
-                          {/* 需求的「编辑」跳到详情页 —— 端点 21 的表单只在那一页做一份 */}
-                          <button
-                            type="button"
-                            className="req-button-small req-button-plain"
-                            disabled={busy}
-                            onClick={() => onAction({ type: 'open-story', id: story.id })}
-                          >
-                            编辑
-                          </button>
-                          <button
-                            type="button"
-                            className="req-button-small req-button-danger"
-                            disabled={busy}
-                            onClick={() => onAction({ type: 'delete', kind: 'story', id: story.id })}
-                          >
-                            删除
-                          </button>
-                        </span>
-                      ) : null}
+                      </Link>
+                      <Link className="req-node-open" aria-label={`查看故事「${story.title}」详情`} to={`/projects/${projectId}/requirements/${story.id}`}>›</Link>
                     </div>
                   </div>
-                ))}
-
-                {isPM ? (
-                  <div className="req-add-row level-story">
-                    <button
-                      type="button"
-                      className="req-button-small"
-                      disabled={busy}
-                      onClick={() => onAction({ type: 'create-story', activityId: activity.id })}
-                    >
-                      ＋ 新建需求
-                    </button>
-                  </div>
-                ) : null}
+                )) : null}
               </div>
-            ))}
-
-            {isPM ? (
-              <div className="req-add-row level-activity">
-                <button
-                  type="button"
-                  className="req-button-small"
-                  disabled={busy}
-                  onClick={() => onAction({ type: 'create-activity', goalId: goal.id })}
-                >
-                  ＋ 新建用户活动
-                </button>
-              </div>
-            ) : null}
+            )) : null}
           </div>
         )
       })}
-
-      {/* 新建业务目标放在树的**最下方**：三级的新建入口都在树里、按层级缩进，
-          不必去页面顶部找（人类审核时明确要求过这一条）。 */}
-      {isPM ? (
-        <div className="req-add-row level-goal">
-          <button
-            type="button"
-            className="req-button-small"
-            disabled={busy}
-            onClick={() => onAction({ type: 'create-goal' })}
-          >
-            ＋ 新建业务目标
-          </button>
-        </div>
-      ) : null}
 
       <p className="req-note">
         提示：一条需求还可以继续拆成任务，任务列表在需求详情页查看。
@@ -868,8 +727,8 @@ function TreePane({
   )
 }
 
-/** 右栏：选中项的详情（面包屑 + 分页签 + 字段 + 子项 + 操作）。 */
-function DetailPane({
+/** 独立详情页复用的字段、子项与操作区。 */
+export function DetailPane({
   goals,
   projectId,
   selection,
@@ -909,13 +768,7 @@ function DetailPane({
         <div className="req-breadcrumb">
           <span>项目</span>
           <span>›</span>
-          <button
-            type="button"
-            className="req-crumb req-crumb-current"
-            onClick={() => onSelect('goal', goal.id)}
-          >
-            {goal.name}
-          </button>
+          <span className="req-crumb-current">{goal.name}</span>
         </div>
         <p className="req-pane-title">{goal.name}</p>
         <p className="req-pane-sub">
@@ -923,26 +776,18 @@ function DetailPane({
           <span className="req-count">{goal.activities.length} 个活动</span>{' '}
           <span className="req-count">{storyTotal} 个需求</span>
         </p>
-        <Tabs tab={tab} onTab={onTab} />
-        {tab === 'ac' ? (
-          <p className="req-placeholder">业务目标没有验收标准字段，验收标准挂在用户故事上。</p>
-        ) : (
           <dl className="req-fields">
             <dt>名称</dt>
             <dd>{goal.name}</dd>
             <dt>描述</dt>
             <dd>{goal.description ?? '（无）'}</dd>
             <dt>状态</dt>
-            <dd>{goal.status}</dd>
+            <dd><GoalStatusBadge status={goal.status} /></dd>
             <dt>排序序号</dt>
             <dd>{goal.sortOrder}</dd>
             <dt>目标编号</dt>
             <dd className="req-mono">{goal.id}</dd>
           </dl>
-        )}
-        <p className="req-placeholder">
-          优先级只存在于需求层；业务目标与用户活动没有优先级字段，因此这里不显示优先级。
-        </p>
         <Ops
           kind="goal"
           id={goal.id}
@@ -999,30 +844,20 @@ function DetailPane({
             {goal.name}
           </button>
           <span>›</span>
-          <button
-            type="button"
-            className="req-crumb req-crumb-current"
-            onClick={() => onSelect('activity', activity.id)}
-          >
-            {activity.name}
-          </button>
+          <span className="req-crumb-current">{activity.name}</span>
         </div>
         <p className="req-pane-title">{activity.name}</p>
         <p className="req-pane-sub">
           <GoalStatusBadge status={activity.status} />{' '}
           <span className="req-count">{activity.stories.length} 个需求</span>
         </p>
-        <Tabs tab={tab} onTab={onTab} />
-        {tab === 'ac' ? (
-          <p className="req-placeholder">用户活动没有验收标准字段，验收标准挂在用户故事上。</p>
-        ) : (
           <dl className="req-fields">
             <dt>名称</dt>
             <dd>{activity.name}</dd>
             <dt>描述</dt>
             <dd>{activity.description ?? '（无）'}</dd>
             <dt>状态</dt>
-            <dd>{activity.status}</dd>
+            <dd><GoalStatusBadge status={activity.status} /></dd>
             <dt>排序序号</dt>
             <dd>{activity.sortOrder}</dd>
             <dt>活动编号</dt>
@@ -1030,7 +865,6 @@ function DetailPane({
             <dt>所属目标编号</dt>
             <dd className="req-mono">{activity.goalId}</dd>
           </dl>
-        )}
         <Ops
           kind="activity"
           id={activity.id}
@@ -1099,8 +933,7 @@ function DetailPane({
       </p>
       <Tabs tab={tab} onTab={onTab} />
       <p className="req-story-sentence">
-        作为 <em>{story.roleText}</em>，我要 <em>{story.capabilityText}</em>，以便{' '}
-        <em>{story.valueText}</em>
+        作为<em>{storySentencePart(story.roleText, ['作为'])}</em>，我要<em>{storySentencePart(story.capabilityText, ['我要', '我能', '我可以'])}</em>，以便<em>{storySentencePart(story.valueText, ['以便'])}</em>
       </p>
       {tab === 'ac' ? (
         <dl className="req-fields">
@@ -1345,4 +1178,3 @@ function TermsPane() {
     </div>
   )
 }
-

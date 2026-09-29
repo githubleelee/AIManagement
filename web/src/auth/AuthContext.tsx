@@ -19,6 +19,7 @@ type AuthState = {
 }
 
 const AuthContext = createContext<AuthState | null>(null)
+export const POST_SIGN_OUT_KEY = 'aim.postSignOut'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserBrief | null>(null)
@@ -45,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = useCallback(() => {
+    sessionStorage.setItem(POST_SIGN_OUT_KEY, '1')
     clearToken()
     setUser(null)
   }, [])
@@ -62,4 +64,3 @@ export function useAuth(): AuthState {
   if (!ctx) throw new Error('useAuth 必须在 AuthProvider 内使用')
   return ctx
 }
-

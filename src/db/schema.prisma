@@ -25,6 +25,11 @@ model User {
   passwordHash String
   createdAt    DateTime @default(now())
 
+  // 会话令牌（决策 I-8 认证约定：不透明随机串、存库校验、不使用 JWT）。
+  // 只存 SHA-256 哈希，不存明文；sessionTokenExpiresAt 为 ISO 8601 UTC 字符串。
+  sessionTokenHash      String? @unique
+  sessionTokenExpiresAt String?
+
   memberships   ProjectMember[]
   ownedProjects Project[]          @relation("ProjectOwner")
   ownedTasks    Task[]             @relation("TaskOwner")

@@ -31,11 +31,12 @@ import type {
   GoalNode,
   Priority,
   ProjectView,
+  ProjectMemberView,
   StoryStatus,
   UserStory,
 } from '../../../src/shared/types'
 import { useAuth } from '../auth/AuthContext'
-import { ApiError } from '../api'
+import { ApiError, listMembers } from '../api'
 import PageHeader from '../components/PageHeader'
 import { ConfirmDialog } from './requirement/Editor'
 import {
@@ -55,6 +56,7 @@ import {
   STORY_STATUS_ORDER,
   fieldErrorHint,
   fieldLabel,
+  storySentencePart,
 } from './requirement/terms'
 import './requirement/requirement.css'
 
@@ -114,6 +116,8 @@ export default function RequirementDetailPage() {
   const [saving, setSaving] = useState(false)
 
   const [sensitive, setSensitive] = useState<{ isSensitive: boolean; visibleMemberIds: string[] } | null>(null)
+  const [members, setMembers] = useState<ProjectMemberView[]>([])
+  const [membersError, setMembersError] = useState(false)
   const [savingSensitive, setSavingSensitive] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -127,7 +131,8 @@ export default function RequirementDetailPage() {
       const [tree, detail] = await Promise.all([getGoalTree(project.id), getStory(storyId)])
       setGoals(tree)
       setStory(detail)
-      // 端点 20 给出敏感状态；端点 23 的响应会在本页操作后补齐当前白名单。
+      // 契约只提供写端点（端点 23），没有读取名单的接口：以空名单开始，
+      // 保存时全量覆盖原名单；isSensitive 取自故事正文。
       setSensitive({ isSensitive: detail.isSensitive, visibleMemberIds: [] })
     } catch (caught) {
       setGoals(null)
@@ -136,11 +141,18 @@ export default function RequirementDetailPage() {
     } finally {
       setLoading(false)
     }
-  }, [project.id, storyId])
+  }, [project.id, storyId, isPM])
 
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (!isPM) return
+    void listMembers(project.id)
+      .then(result => { setMembers(result.items); setMembersError(false) })
+      .catch(() => { setMembers([]); setMembersError(true) })
+  }, [isPM, project.id])
 
   /* ---------------- 编辑 ---------------- */
 
@@ -280,11 +292,25 @@ export default function RequirementDetailPage() {
     }
   }
 
+  async function saveVisibleMembers(current: UserStory, ids: string[]) {
+    if (!sensitive || savingSensitive) return
+    setSavingSensitive(true)
+    try {
+      const view = await saveSensitivity(current.id, { isSensitive: sensitive.isSensitive, visibleMemberIds: ids })
+      setSensitive(view)
+      setNotice({ tone: 'ok', text: '可见成员已保存。' })
+    } catch (caught) {
+      setNotice({ tone: 'warn', text: caught instanceof Error ? caught.message : '保存可见成员失败' })
+    } finally {
+      setSavingSensitive(false)
+    }
+  }
+
   /* ---------------- 渲染 ---------------- */
 
   if (loading) {
     return (
-      <div className="page">
+      <div className="page req-redesign req-detail-screen">
         <PageHeader title="需求详情" description="加载中…" />
         <div className="page-loading">加载中…</div>
       </div>
@@ -297,7 +323,7 @@ export default function RequirementDetailPage() {
     const status = error?.status ?? 404
     const isNotFound = status === 404
     return (
-      <div className="page">
+      <div className="page req-redesign req-detail-screen">
         <PageHeader
           title="需求详情"
           actions={
@@ -335,7 +361,7 @@ export default function RequirementDetailPage() {
   const visibleCount = sensitive?.visibleMemberIds.length ?? 0
 
   return (
-    <div className="page">
+    <div className="page req-redesign req-detail-screen">
       <PageHeader
         title="需求详情"
         description="查看这条需求的完整信息、验收标准与关联任务，并可编辑或删除。"
@@ -387,7 +413,7 @@ export default function RequirementDetailPage() {
             <>
               <span>
                 <span className="req-crumb-kind">目标</span>
-                <Link className="req-crumb" to={`/projects/${project.id}/requirements`}>
+                <Link className="req-crumb" to={`/projects/${project.id}/requirements/goals/${row?.goal.id}`}>
                   {goalName}
                 </Link>
               </span>
@@ -398,7 +424,7 @@ export default function RequirementDetailPage() {
             <>
               <span>
                 <span className="req-crumb-kind">活动</span>
-                <Link className="req-crumb" to={`/projects/${project.id}/requirements`}>
+                <Link className="req-crumb" to={`/projects/${project.id}/requirements/activities/${row?.activity.id}`}>
                   {activityName}
                 </Link>
               </span>
@@ -438,8 +464,7 @@ export default function RequirementDetailPage() {
         {/* ---------------- 左栏：正文 ---------------- */}
         <div className="req-main">
           <p className="req-story-sentence">
-            作为 <em>{story.roleText}</em>，我要 <em>{story.capabilityText}</em>，以便{' '}
-            <em>{story.valueText}</em>
+            作为<em>{storySentencePart(story.roleText, ['作为'])}</em>，我要<em>{storySentencePart(story.capabilityText, ['我要', '我能', '我可以'])}</em>，以便<em>{storySentencePart(story.valueText, ['以便'])}</em>
           </p>
 
           <div className="req-tabs">
@@ -624,15 +649,15 @@ export default function RequirementDetailPage() {
             </div>
           ) : tab === 'ac' ? (
             <>
-              <p className="req-side-title">验收标准（由项目经理维护）</p>
+              <div className="req-ac-heading">
+                <p className="req-side-title">验收标准</p>
+                {isPM ? <button type="button" className="req-button-small req-button-plain" onClick={() => startEdit(story)}>编辑验收标准</button> : null}
+              </div>
               {story.acceptanceCriteria ? (
                 <blockquote className="req-quote">{story.acceptanceCriteria}</blockquote>
               ) : (
                 <p className="req-placeholder">这条需求还没有填写验收标准。</p>
               )}
-              <p className="req-hint">
-                本需求下有 {taskCount} 个任务；任务的验收人由负责人之外的成员担任。
-              </p>
             </>
           ) : (
             <dl className="req-fields">
@@ -662,7 +687,7 @@ export default function RequirementDetailPage() {
           )}
         </div>
 
-        {/* ---------------- 右栏：操作 / 任务 / 敏感 ---------------- */}
+        {/* ---------------- 右栏：操作 / 敏感 ---------------- */}
         <aside className="req-detail">
           <div className="req-op-block">
             <p className="req-side-title">操作</p>
@@ -694,13 +719,6 @@ export default function RequirementDetailPage() {
             )}
           </div>
 
-          <TaskSection
-            storyId={storyId}
-            projectId={project.id}
-            isPm={isPM}
-            onCountChange={setTaskCount}
-          />
-
           <div className="req-op-block">
             <p className="req-side-title">敏感与可见成员</p>
             {isPM ? (
@@ -708,13 +726,32 @@ export default function RequirementDetailPage() {
                 <button
                   type="button"
                   className={isSensitive ? 'req-switch is-on' : 'req-switch'}
-                  disabled={savingSensitive}
+                  disabled={savingSensitive || !sensitive}
                   onClick={() => void toggleSensitive(story)}
                 >
                   {savingSensitive ? '保存中…' : isSensitive ? '敏感需求：开启' : '敏感需求：关闭'}
                 </button>
                 {isSensitive ? (
-                  <p className="req-hint">当前名单里有 {visibleCount} 人。</p>
+                  <>
+                    <p className="req-hint">当前名单里有 {visibleCount} 人。</p>
+                    {membersError ? <p role="alert">成员列表加载失败，请刷新后重试。</p> : null}
+                    <div className="req-visible-members">
+                      {members.map(member => (
+                        <label key={member.userId} className="req-visible-member">
+                          <input type="checkbox" disabled={savingSensitive || !sensitive}
+                            checked={sensitive?.visibleMemberIds.includes(member.userId) ?? false}
+                            onChange={event => {
+                              if (!sensitive) return
+                              const ids = event.target.checked
+                                ? [...new Set([...sensitive.visibleMemberIds, member.userId])]
+                                : sensitive.visibleMemberIds.filter(id => id !== member.userId)
+                              void saveVisibleMembers(story, ids)
+                            }} />
+                          <span>{member.user.displayName}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </>
                 ) : null}
                 <p className="req-hint">
                   开启后，只有名单里的成员能看到这条需求；其余成员在需求层级里看不到它，
@@ -727,6 +764,15 @@ export default function RequirementDetailPage() {
           </div>
         </aside>
       </div>
+
+      <section className="req-task-panel">
+        <TaskSection
+          storyId={storyId}
+          projectId={project.id}
+          isPm={isPM}
+          onCountChange={setTaskCount}
+        />
+      </section>
 
       {/* ---------------- 删除二次确认 ----------------
           复用主页面同一个 ConfirmDialog：同一件事原先在详情页又手写了一遍模态框，

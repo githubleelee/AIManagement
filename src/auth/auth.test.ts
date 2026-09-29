@@ -10,6 +10,7 @@ import {
   TEST_PASSWORD,
   type HttpTestContext,
 } from '../../test/http-support.js'
+import { hashToken } from './token.js'
 
 let ctx: HttpTestContext
 
@@ -42,6 +43,58 @@ describe('端点 1：POST /auth/login', () => {
     const me = await ctx.asUser(login.body.token).get('/auth/me')
     expect(me.status).toBe(200)
     expect(me.body).toEqual({ id: aliceId, account: 'alice', displayName: '爱丽丝' })
+  })
+
+  it('令牌存库校验：库中只有哈希、非明文（契约 I-8 不透明随机串 + 存库校验）', async () => {
+    await makeUser(ctx.db, 'alice', '爱丽丝')
+
+    const login = await ctx.asUser(null)
+      .post('/auth/login')
+      .send({ account: 'alice', password: TEST_PASSWORD })
+    const token = login.body.token as string
+
+    const row = await ctx.db.user.findFirstOrThrow({
+      where: { account: 'alice' },
+      select: { sessionTokenHash: true },
+    })
+    expect(row.sessionTokenHash).toBe(hashToken(token))
+    expect(row.sessionTokenHash).not.toBe(token)
+
+    // 通过存库哈希校验：明文令牌可用，篡改后即失效
+    expect((await ctx.asUser(token).get('/auth/me')).status).toBe(200)
+    expect((await ctx.asUser(`${token}x`).get('/auth/me')).status).toBe(401)
+  })
+
+  it('令牌过期 → 401（到期时间存库、现查现判）', async () => {
+    const aliceId = await makeUser(ctx.db, 'alice', '爱丽丝')
+    const token = ctx.loginAs(aliceId)
+    expect((await ctx.asUser(token).get('/auth/me')).status).toBe(200)
+
+    await ctx.db.user.update({
+      where: { id: aliceId },
+      data: { sessionTokenExpiresAt: new Date(Date.now() - 1000).toISOString() },
+    })
+
+    const res = await ctx.asUser(token).get('/auth/me')
+    expect(res.status).toBe(401)
+    expect(res.body.error.code).toBe('UNAUTHENTICATED')
+  })
+
+  it('再次登录轮换令牌：旧令牌立即失效（单会话语义）', async () => {
+    await makeUser(ctx.db, 'alice', '爱丽丝')
+
+    const first = await ctx.asUser(null)
+      .post('/auth/login')
+      .send({ account: 'alice', password: TEST_PASSWORD })
+    const second = await ctx.asUser(null)
+      .post('/auth/login')
+      .send({ account: 'alice', password: TEST_PASSWORD })
+    const firstToken = first.body.token as string
+    const secondToken = second.body.token as string
+
+    expect(firstToken).not.toBe(secondToken)
+    expect((await ctx.asUser(firstToken).get('/auth/me')).status).toBe(401)
+    expect((await ctx.asUser(secondToken).get('/auth/me')).status).toBe(200)
   })
 
   it('密码错误 → 401 UNAUTHENTICATED', async () => {

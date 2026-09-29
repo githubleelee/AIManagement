@@ -15,10 +15,9 @@
  *   测试不手动注册 —— `createHttpTestContext()` 内部的 `buildApp()` 已包含注册。
  */
 import type { FastifyInstance } from 'fastify'
-import { AppError } from '../shared/errors.js'
 import { issueToken } from './token.js'
 import { verifyPassword } from './password.js'
-import { currentUserId, requireAuth } from './actor.js'
+import { currentUserId, errorWithStatus, requireAuth } from './actor.js'
 import { findCredentialByAccount, findUserBriefById, toUserBrief } from './service.js'
 import { fieldError, loginSchema, parseBody, validationFailedWith } from './schemas.js'
 import type { RouteContext } from '../routes.js'
@@ -50,10 +49,10 @@ export function registerAuthRoutes(app: FastifyInstance, ctx: RouteContext): voi
     const user = await findCredentialByAccount(ctx.prisma, account)
     const passwordOk = user ? await verifyPassword(input.password, user.passwordHash) : false
     if (!user || !passwordOk) {
-      throw new AppError(401, 'UNAUTHENTICATED', '账号或密码错误')
+      throw errorWithStatus(401, '账号或密码错误')
     }
 
-    return reply.send({ token: issueToken(user.id), user: toUserBrief(user) })
+    return reply.send({ token: await issueToken(ctx.prisma, user.id), user: toUserBrief(user) })
   })
 
   // ===========================================================================
@@ -66,7 +65,7 @@ export function registerAuthRoutes(app: FastifyInstance, ctx: RouteContext): voi
   app.get('/auth/me', { preHandler: requireAuth }, async (req) => {
     const userId = currentUserId(req)
     const user = await findUserBriefById(ctx.prisma, userId)
-    if (!user) throw new AppError(401, 'UNAUTHENTICATED', '未登录或凭证失效')
+    if (!user) throw errorWithStatus(401, '未登录或凭证失效')
     return user
   })
 }

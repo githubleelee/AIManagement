@@ -27,6 +27,7 @@ import {
   findUserByAccount,
   getProjectView,
   listMembers,
+  listMemberCandidates,
   listProjectsForUser,
   removeMember,
   updateMemberRole,
@@ -189,6 +190,20 @@ export function registerProjectRoutes(app: FastifyInstance, ctx: RouteContext): 
 
     const items = await listMembers(ctx.prisma, projectId)
     return { items }
+  })
+
+  app.get('/projects/:projectId/member-candidates', { preHandler: requireAuth }, async (req) => {
+    const actorUserId = currentUserId(req)
+    const { projectId } = req.params as { projectId: string }
+    const decision = await can(actorUserId, 'project.manage_members', { kind: 'project', projectId })
+    if (!decision.allow) {
+      throw new AppError(
+        decision.status,
+        decision.code,
+        decision.status === 404 ? PROJECT_NOT_FOUND_MESSAGE : FORBIDDEN_MESSAGE,
+      )
+    }
+    return { items: await listMemberCandidates(ctx.prisma, projectId) }
   })
 
   // ===========================================================================

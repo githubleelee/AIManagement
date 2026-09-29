@@ -7,7 +7,7 @@
 | 适用范围 | Sprint 1：US-01、US-02、US-03、US-05 |
 | 修订日期 | 2026-09-19 |
 | 状态 | ready-for-agent |
-| 修订说明 | 2026-09-19 **T0-01 期间的受控修正**（按「契约变更流程」补办）：决策 I-2b 为 `AppError` 补 401 / `UNAUTHENTICATED`；决策 I-3 把失败状态码表述扩为 4xx/5xx；决策 I-4 新增 `BAD_REQUEST`(400) 与 `INTERNAL_ERROR`(500)，并把非法 JSON 从 422 改为 400，同时明确禁止按状态码区间改写 Fastify 原始状态码。据此修正的代码提交见 T0-01 收尾提交 |
+| 修订说明 | 2026-09-26 **按「爱管理_Sprint1_需求规格说明书_接口契约(1).md」基线回归**：`AppError` 恢复为 `403/404/409/422`；移除 `BAD_REQUEST`(400)，非法 JSON 收敛为 `422 VALIDATION_FAILED`；移除契约外的 `GET .../sensitivity` 只读端点；认证令牌改为不透明随机串 + 存库校验（不再使用签名密钥）。`INTERNAL_ERROR`(500) 保留（I-2b 要求未知异常转 500，且 I-4 表未单列该码）。 |
 | 配套文档 | 《爱管理_Sprint1基线_US-01_02_03_05.md》（验收标准 / 实现决策 / 任务拆解 / 领取约定） |
 
 **本文档的目的**：4 名成员并行开发时，各自实现的模块必须能拼装成可运行的增量。拼装失败的唯一原因通常是接口不一致。本文档把**所有跨模块接口冻结成契约**，任何人不得单方面修改。
@@ -286,20 +286,15 @@ export function toFieldErrors(issues: z.ZodIssue[]): FieldError[] {
 ```ts
 export class AppError extends Error {
   constructor(
-    public status: 401 | 403 | 404 | 409 | 422,
-    public code:
-      | 'UNAUTHENTICATED'
-      | 'FORBIDDEN'
-      | 'NOT_FOUND'
-      | 'CONFLICT'
-      | 'VALIDATION_FAILED',
+    public status: 403 | 404 | 409 | 422,
+    public code: 'FORBIDDEN' | 'NOT_FOUND' | 'CONFLICT' | 'VALIDATION_FAILED',
     message: string,
     public details?: FieldError[]
   ) { super(message) }
 }
 ```
 
-**401 的出口规则**：未登录、缺少或无效的 `Authorization` 头时，端点（含 T0-03 的 `requireAuth` 中间件）抛 `AppError(401, 'UNAUTHENTICATED', ...)`；统一错误处理器原样透出 401，不得改写为其它状态码。
+**401 的出口规则**：未登录、缺少或无效的 `Authorization` 头时，端点（含 T0-03 的 `requireAuth` 中间件）抛**带 `statusCode = 401` 的错误**（不在 `AppError` 的 4xx 子集内）；统一错误处理器按原始状态码透出并映射为 `UNAUTHENTICATED`，不得改写为其它状态码。
 
 Fastify 的统一错误处理器把它转成决策 I-3 的 `ErrorResponse`；未抛 `AppError` 的异常一律转 `500`，且响应体不包含堆栈。
 
@@ -338,7 +333,6 @@ type ErrorResponse = {
 
 | code | HTTP | 含义 | 使用场景 |
 |---|---|---|---|
-| `BAD_REQUEST` | 400 | 请求体语法非法（无法解析为 JSON） | 请求体解析层错误；由解析层产生，没有可归属的字段 |
 | `UNAUTHENTICATED` | 401 | 未登录或凭证失效 | 缺少或无效的 Authorization 头 |
 | `FORBIDDEN` | 403 | 对象可见，但该操作不允许 | 项目成员尝试写入 |
 | `NOT_FOUND` | 404 | 对象不存在，或对调用者不可见 | 非项目成员访问、敏感对象未授权、id 不存在 |
@@ -346,7 +340,7 @@ type ErrorResponse = {
 | `CONFLICT` | 409 | 状态冲突 | 重复添加成员、删除仍有子项的对象 |
 | `INTERNAL_ERROR` | 500 | 未预期的服务端错误 | 未抛 `AppError` 的未知异常；响应体不含堆栈（按 I-2b） |
 
-**状态码改写规则（关键）**：除请求体解析层错误（按上表归 400 `BAD_REQUEST`）外，**不得按 HTTP 状态码区间改写 Fastify 的原始状态码**。特别声明 **401 / 403 / 413 / 415 / 429 保持原状** —— 鉴权（T0-04 的 `requireAuth`）与传输层错误必须原样透出，否则会破坏决策 I-4 的 `UNAUTHENTICATED` 流程。413 / 415 是否单列顶层错误码留 Sprint 2 评估，本轮不新增。
+**状态码改写规则（关键）**：除请求体解析层错误（收敛为 422 `VALIDATION_FAILED`）外，**不得按 HTTP 状态码区间改写 Fastify 的原始状态码**。特别声明 **401 / 403 / 413 / 415 / 429 保持原状** —— 鉴权（T0-04 的 `requireAuth`）与传输层错误必须原样透出，否则会破坏决策 I-4 的 `UNAUTHENTICATED` 流程。413 / 415 是否单列顶层错误码留 Sprint 2 评估，本轮不新增。
 
 **字段级错误码**（位于 `details[].code`）
 

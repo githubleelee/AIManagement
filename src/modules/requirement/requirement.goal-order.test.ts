@@ -435,15 +435,15 @@ describe('端点 14 反例：orderedIds 集合与本项目目标集合不一致 
     expect((res.body as ErrorBody).error.details?.map((d) => d.field)).toContain('orderedIds')
   })
 
-  it('请求体不是合法 JSON → 400 BAD_REQUEST（请求体解析层错误，决策 I-4）', async () => {
+  it('请求体不是合法 JSON → 422 VALIDATION_FAILED（请求体解析层错误，决策 I-4）', async () => {
     const res = await ctx
       .asUser(pmToken)
       .put(URL_ORDER(projectId))
       .set('content-type', 'application/json')
       .send('{"orderedIds": ')
 
-    expect(res.status).toBe(400)
-    expect((res.body as ErrorBody).error.code).toBe('BAD_REQUEST')
+    expect(res.status).toBe(422)
+    expect((res.body as ErrorBody).error.code).toBe('VALIDATION_FAILED')
   })
 })
 
