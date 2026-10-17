@@ -5,7 +5,7 @@
 > **原交接阶段说明（历史）**：本文档是阶段分工与开工约定，当时不新建 `DECISIONS.md`。本轮已有长期授权与架构决策，现引用并原样纳入现有 `DECISIONS.md`，不重复追加。
 > 本文档不自动覆盖既有业务规则；**本轮项目负责人已明确授权的公共文件归属变更以 §4.1 为准**，不再以旧「B 不直接修改」条款阻塞。其他冲突仍遵循既有契约与具体授权流程，变更在 `CONTRACT` 留痕，不虚构原 owner 同意。
 >
-> **本轮口径同步（2026-10-17，项目负责人授权）**：项目负责人 `githubleelee`（ROLE-B）已明确授权 B 统一修改 / 合入一组公共文件（见 §4.1），并确认 AI 演示外部范围、通知时区等口径；变更来源见 `docs/role-d-start-confirmation.md` 与 `DECISIONS.md`。旧历史按「适用范围 + 变更说明」保留，不全局替换。本轮授权已确认；文档通过独立 PR 交付，**PR 是否合并以 GitHub 状态为准**，相关工单另行留痕，不把授权确认、文档合并与功能实现混为一谈。
+> **本轮口径同步（2026-10-17，项目负责人授权）**：项目负责人 `githubleelee`（ROLE-B）已明确授权 B 统一修改 / 合入一组公共文件（见 §4.1），并确认 AI 演示外部范围、通知时区等口径；变更来源见 `docs/role-d-start-confirmation.md` 与 `DECISIONS.md`。旧历史按「适用范围 + 变更说明」保留，不全局替换。本轮授权已确认；文档通过 [PR #39](https://github.com/githubleelee/AIManagement/pull/39) 交付，**截至本次同步为待合并**，后续以 GitHub 状态为准。[#24 补充确认](https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6232875888) 已发布，#21/#31/#34/#36/#37 已同步说明；不把授权确认、文档合并与功能实现混为一谈。
 
 链路：`clone → env → install → migrate → seed → dev`，对应 README「首次运行（新 clone 必做）」。**跳过 env / migrate / seed 会表现为服务能起、`/health` 正常，但任何走数据库的接口 500。**
 
