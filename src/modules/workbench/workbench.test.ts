@@ -25,6 +25,7 @@ import {
   makeStory,
   makeUser,
 } from '../../../test/factories.js'
+import type { TaskStatus } from '../../shared/types.js'
 import type { WorkbenchView } from './types.js'
 
 /** 与端点内部一致的"今天"（UTC 日期）。 */
@@ -79,7 +80,7 @@ type TaskSeed = {
   acceptorUserId: string
   planStart: string
   planEnd: string
-  status?: 'TODO' | 'DOING' | 'DONE'
+  status?: TaskStatus
   isSensitive?: boolean
   title?: string
 }
@@ -150,16 +151,21 @@ describe('GET /me/workbench —— 结构与口径', () => {
 })
 
 describe('GET /me/workbench —— 各块口径与边界', () => {
-  it('我的待办 = 我是负责人且状态不是 DONE；我负责但已提交的不算', async () => {
-    await seedTask({ ownerUserId: pm.id, acceptorUserId: member.id, planStart: isoToday(), planEnd: shiftDays(isoToday(), 3), title: '在做' , status: 'DOING' })
-    await seedTask({ ownerUserId: pm.id, acceptorUserId: member.id, planStart: isoToday(), planEnd: shiftDays(isoToday(), 3), title: '待办', status: 'TODO' })
-    await seedTask({ ownerUserId: pm.id, acceptorUserId: member.id, planStart: isoToday(), planEnd: shiftDays(isoToday(), 3), title: '已提交', status: 'DONE' })
+  it('我的待办 = 我是负责人且还没验收关闭：已提交待验收的算，已验收的不算', async () => {
+    const today = isoToday()
+    const end = shiftDays(today, 3)
+    await seedTask({ ownerUserId: pm.id, acceptorUserId: member.id, planStart: today, planEnd: end, title: '在做', status: 'DOING' })
+    await seedTask({ ownerUserId: pm.id, acceptorUserId: member.id, planStart: today, planEnd: end, title: '待办', status: 'TODO' })
+    // 已提交验收：还没关闭，仍属我的待办（六状态落地后的正确口径）
+    await seedTask({ ownerUserId: pm.id, acceptorUserId: member.id, planStart: today, planEnd: end, title: '已提交待验收', status: 'DONE' })
+    // 已验收关闭：不再出现在待办里
+    await seedTask({ ownerUserId: pm.id, acceptorUserId: member.id, planStart: today, planEnd: end, title: '已验收', status: 'CLOSED' })
 
     const view = await fetchWorkbench(pm.id)
     const todo = blockOf(view, 'todo')
     expect(todo.state).toBe('ok')
-    expect(todo.total).toBe(2)
-    expect(todo.rows.map((row) => row.title).sort()).toEqual(['在做', '待办'])
+    expect(todo.total).toBe(3)
+    expect(todo.rows.map((row) => row.title).sort()).toEqual(['在做', '已提交待验收', '待办'])
   })
 
   it('我的待办不含他人负责的任务', async () => {

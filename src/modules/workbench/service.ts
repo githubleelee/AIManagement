@@ -150,16 +150,16 @@ export async function buildWorkbench(
 ): Promise<WorkbenchView> {
   const today = options.today ?? isoToday()
   const horizon = shiftDays(today, UPCOMING_WINDOW_DAYS)
-  const notClosedYet = { status: { not: 'DONE' } } as const
+  const notClosedYet = { status: { not: 'CLOSED' } } as const
 
   const basis: WorkbenchView['basis'] = {
     asOf: today,
-    todoMeans: '我是负责人、且还没提交验收的任务',
+    todoMeans: '我是负责人、且还没验收关闭的任务（status 不是 CLOSED）',
     overdueMeans: `计划结束日期早于 ${today}（按 UTC 日期比较）`,
     upcomingWindowDays: UPCOMING_WINDOW_DAYS,
     sixStatesNote:
-      '六状态（TODO/DOING/BLOCKED/SUSPENDED/DONE/CLOSED）尚未落地，' +
-      '当前把「未关闭」近似为「状态不是 DONE」；落地后本票最终 AC 才能勾。',
+      '六状态已落地（TODO/DOING/BLOCKED/SUSPENDED/DONE/CLOSED）。' +
+      '「未关闭」= status 不是 CLOSED：DONE 只代表执行人已提交，仍需验收人关闭。',
   }
 
   const memberships = await prisma.projectMember.findMany({
