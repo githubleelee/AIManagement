@@ -381,6 +381,9 @@ export default function TaskSection({ storyId, projectId, isPm, onCountChange }:
         if (!target) return null
         return (
           <TaskUpdateForm
+            // ★ 必须带 key：否则从任务 A 切到 B 时组件复用、useState 初值不重跑，
+            //   表单残留 A 的状态/进度/原因，保存会把 A 的值写进 B。
+            key={target.id}
             task={target}
             canClose={canCloseRow(target)}
             onSaved={() => {

@@ -417,11 +417,13 @@ export function registerTaskRoutes(app: FastifyInstance, context: RouteContext):
     const touchedKeys = Object.keys(rawBody)
     const progressOnly =
       touchedKeys.length > 0 && touchedKeys.every((key) => progressOnlyKeys.includes(key))
-    const requiredAction = rawBody.status === 'CLOSED'
-      ? 'task.accept'
-      : progressOnly
-        ? 'task.progress'
-        : 'task.write'
+    // ★ 弱动作必须**同时**满足「只碰状态类字段」。否则验收人可用 {status:'CLOSED', title:...}
+    // 借 task.accept 捎带改标题 / 计划 / 负责人 —— 那些是 task.write 才允许的字段（契约 I-8 端点 28）。
+    const requiredAction = !progressOnly
+      ? 'task.write'
+      : rawBody.status === 'CLOSED'
+        ? 'task.accept'
+        : 'task.progress'
     const decision = await can(actorUserId, requiredAction, {
       kind: 'task',
       projectId: task.projectId,
@@ -472,6 +474,16 @@ export function registerTaskRoutes(app: FastifyInstance, context: RouteContext):
       planEnd: merged.planEnd,
     })
 
+    // 第三步（★ AC8，服务端强制而非只靠界面）：
+    //   1) status = BLOCKED 时原因必填 —— 属跳字段比较，按决策 I-2b 由处理器抛 AppError；
+    //   2) status != BLOCKED 时清空原因 —— 维持「原因只在阻塞态有值」的不变式。
+    if (merged.status === 'BLOCKED' && (merged.blockedReason ?? '').trim() === '') {
+      throw new AppError(422, 'VALIDATION_FAILED', '进入阻塞态必须填写原因', [
+        { field: 'blockedReason', code: 'REQUIRED' },
+      ])
+    }
+    const nextBlockedReason = merged.status === 'BLOCKED' ? merged.blockedReason : null
+
     // 第四步：写回合并结果。projectId / storyId / isSensitive / createdAt 不在 data 中，
     // 因此任务不可跨项目挂载，且敏感标记与创建时间不会被 PATCH 改动（决策 I-10）。
     //
@@ -492,7 +504,7 @@ export function registerTaskRoutes(app: FastifyInstance, context: RouteContext):
           planEnd: merged.planEnd,
           status: merged.status,
           progress: merged.progress,
-          blockedReason: merged.blockedReason,
+          blockedReason: nextBlockedReason,
         },
       })
     } catch (error) {

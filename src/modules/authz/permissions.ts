@@ -147,6 +147,9 @@ export function createAuthorization(prisma: PrismaClient) {
     // 它们不是「写类动作一律 403」，而是按**对象关系**判定，因此必须在第 5 条之前处理。
     // 单独查这两个字段，避免改动 loadTarget 的既有契约（其它动作完全不受影响）。
     if (ref.kind === 'task' && (action === 'task.progress' || action === 'task.accept')) {
+      // ★ VIEWER 本轮为全项目只读（契约 I-5 第 3 条）。即使 PM 把某个 VIEWER 指为
+      //   任务负责人或验收人，也不得因此让它获得写能力。
+      if (role === 'VIEWER') return deny(403, 'FORBIDDEN')
       const relation = await prisma.task.findUnique({
         where: { id: ref.objectId },
         select: { ownerUserId: true, acceptorUserId: true },
