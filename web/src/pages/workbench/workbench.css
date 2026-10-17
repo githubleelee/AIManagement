@@ -4,35 +4,109 @@
  * 为什么不写进 web/src/index.css：那是前端骨架（M2）独占维护的公共文件。
  * 各票在自己的 pages/<票>/ 下自建 css 并在页内 import，是本仓库既有做法
  * （见 pages/requirement/requirement.css、pages/task/task.css）。
+ *
+ * 配色沿用仓库既有色板（#38bdf8 蓝 / #fca5a5 粉红 / #fcd34d 黄 / #4ade80 绿，
+ * 另加 #c084fc 紫），每块一个色调：左边框 + 轻微渐变底色 + 同色标题。
  * =========================================================================== */
 
 .wb-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  /* 2 行 3 列，整体填满页面：行高按视口撑开 */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: 1rem;
+  min-height: calc(100vh - 13rem);
   margin-top: 0.5rem;
 }
 
 .wb-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem 1.15rem;
   border: 1px solid var(--border, #334155);
-  border-radius: 8px;
-  padding: 0.9rem 1rem;
-  background: rgba(15, 23, 42, 0.45);
+  border-left: 4px solid var(--wb-accent, #38bdf8);
+  border-radius: 10px;
+  background: linear-gradient(
+    180deg,
+    var(--wb-tint, rgba(56, 189, 248, 0.12)),
+    rgba(15, 23, 42, 0.35)
+  );
+  min-height: 0; /* 允许在网格里被压缩，不撑破容器 */
+}
+
+/* 「我的待办」占左列上下两格；其余 4 块由自动布局填满另外 4 格 */
+.wb-card--tall {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+
+/* ---------- 每块的色调（改这里就能换配色） ---------- */
+.wb-card--todo {
+  --wb-accent: #38bdf8;
+  --wb-tint: rgba(56, 189, 248, 0.14);
+}
+.wb-card--overdue {
+  --wb-accent: #fca5a5;
+  --wb-tint: rgba(252, 165, 165, 0.13);
+}
+.wb-card--accept {
+  --wb-accent: #fcd34d;
+  --wb-tint: rgba(252, 211, 77, 0.13);
+}
+.wb-card--mention {
+  --wb-accent: #c084fc;
+  --wb-tint: rgba(192, 132, 252, 0.13);
+}
+.wb-card--upcoming {
+  --wb-accent: #4ade80;
+  --wb-tint: rgba(74, 222, 128, 0.13);
 }
 
 .wb-card-title {
-  margin: 0 0 0.3rem;
-  font-size: 1rem;
+  margin: 0;
+  font-size: 0.98rem;
+  letter-spacing: 0.02em;
+  color: var(--wb-accent, #38bdf8);
+}
+
+.wb-card-count {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  margin: 0.15rem 0 0;
+}
+
+.wb-card-number {
+  font-size: 2.6rem;
+  font-weight: 600;
+  line-height: 1.05;
+}
+
+/* 跨两行的那块数字更大，视觉上成为页面重心 */
+.wb-card--tall .wb-card-number {
+  font-size: 4rem;
+}
+
+.wb-card-unit {
+  font-size: 0.9rem;
+  opacity: 0.7;
 }
 
 .wb-card-hint {
-  margin: 0 0 0.7rem;
+  margin: auto 0 0; /* 说明文字压到底部，卡片高度变化时对齐好看 */
   font-size: 0.85rem;
   opacity: 0.75;
 }
 
-.wb-card-body {
-  margin: 0;
-  font-size: 0.9rem;
-  min-height: 1.2em;
+/* 窄屏兜底：3 列挤不下时退回单列，不出现横向滚动条 */
+@media (max-width: 900px) {
+  .wb-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+  }
+  .wb-card--tall {
+    grid-column: auto;
+    grid-row: auto;
+  }
 }
