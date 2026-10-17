@@ -124,6 +124,22 @@ describe('端点 28 写路径：进度与卡住原因真的落库', () => {
   })
 })
 
+describe('端点 28 写路径：阻塞原因（AC8 服务端强制）', () => {
+  it('status=BLOCKED 但不给原因 → 422 且错误指向 blockedReason', async () => {
+    const res = await patch({ status: 'BLOCKED' }, pm.id)
+    expect(res.status).toBe(422)
+    const body = res.body as ErrorBody
+    expect((body.error.details ?? []).some((detail) => detail.field === 'blockedReason')).toBe(true)
+  })
+
+  it('从阻塞态切回进行中时原因被清空（不变式）', async () => {
+    await patch({ status: 'BLOCKED', blockedReason: '等接口' }, pm.id)
+    const res = await patch({ status: 'DOING' }, pm.id)
+    expect(res.status).toBe(200)
+    expect((res.body as TaskView).blockedReason).toBeNull()
+  })
+})
+
 describe('端点 28 写路径：进度取值边界', () => {
   it.each([
     ['超过上限', 101],

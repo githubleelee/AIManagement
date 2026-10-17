@@ -523,8 +523,10 @@ describe('端点 28 状态取值：六状态均合法，非法值仍被拒', () 
   // 2026-10-17：#24 结论把六状态纳入本阶段范围，BLOCKED / SUSPENDED / CLOSED 由
   // 「必须 422」变为「合法」。原断言的前提消失（不是为了过测试而放宽）；
   // 「非法状态仍被拒」的覆盖改用不存在的取值 PENDING 继续保证。
+  // ★ BLOCKED 现在要求必填原因（AC8 服务端强制），所以这里按状态构造请求体。
   it.each(['BLOCKED', 'SUSPENDED', 'CLOSED'])('status → %s（已纳入六状态）→ 200', async (status) => {
-    const response = await patchTask({ status })
+    const body = status === 'BLOCKED' ? { status, blockedReason: '测试用原因' } : { status }
+    const response = await patchTask(body)
 
     expect(response.status).toBe(200)
     expect((response.body as TaskView).status).toBe(status)

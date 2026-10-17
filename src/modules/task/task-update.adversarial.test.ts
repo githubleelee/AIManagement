@@ -375,7 +375,9 @@ describe('探针 B5：status 六态取值（正例）与非法值反例', () => 
   it.each(['BLOCKED', 'SUSPENDED', 'CLOSED'])(
     'status → %s（已纳入六状态范围）→ 200',
     async (status) => {
-      const response = await patchTask({ status })
+      // ★ BLOCKED 现在要求必填原因（AC8 服务端强制）
+      const body = status === 'BLOCKED' ? { status, blockedReason: '测试用原因' } : { status }
+      const response = await patchTask(body)
 
       expect(response.status).toBe(200)
       expect((response.body as TaskView).status).toBe(status)
