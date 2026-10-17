@@ -491,6 +491,8 @@ export function registerTaskRoutes(app: FastifyInstance, context: RouteContext):
           planStart: merged.planStart,
           planEnd: merged.planEnd,
           status: merged.status,
+          progress: merged.progress,
+          blockedReason: merged.blockedReason,
         },
       })
     } catch (error) {
