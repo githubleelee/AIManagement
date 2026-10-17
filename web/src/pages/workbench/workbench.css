@@ -153,6 +153,38 @@
   font-size: 0.85rem;
 }
 
+/* 整行可点：跳到该任务所属需求的需求详情页（任务列表与编辑在那里） */
+.wb-row-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.wb-row:hover {
+  background: rgba(var(--wb-rgb, 56, 189, 248), 0.18);
+}
+
+.wb-row:hover .wb-row-title {
+  text-decoration: underline;
+}
+
+/* 空态：这一块确实没有内容（与"数据源未交付"是两回事，后者不显示这一行） */
+.wb-row--empty {
+  border-left-color: transparent;
+  background: transparent;
+  opacity: 0.65;
+}
+
+.wb-placeholder {
+  margin: 0.9rem 0 0;
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
 .wb-row-title {
   flex: 1 1 auto;
   min-width: 0;
@@ -166,35 +198,6 @@
   font-size: 0.78rem;
   opacity: 0.65;
   font-variant-numeric: tabular-nums;
-}
-
-/* 占位条：只表达"这里将来是列表"，不是数据；用本块的淡色调，不掺灰 */
-.wb-row--ph {
-  border-left-color: transparent;
-  background: transparent;
-  padding-left: 0;
-  padding-right: 0;
-}
-
-.wb-row--ph span {
-  display: block;
-  width: 100%;
-  height: 0.68rem;
-  border-radius: 4px;
-  background: rgba(var(--wb-rgb, 56, 189, 248), 0.3);
-}
-
-.wb-row--ph:nth-child(1) span {
-  width: 88%;
-}
-.wb-row--ph:nth-child(2) span {
-  width: 68%;
-}
-.wb-row--ph:nth-child(3) span {
-  width: 78%;
-}
-.wb-row--ph:nth-child(4) span {
-  width: 58%;
 }
 
 .wb-card-hint {
