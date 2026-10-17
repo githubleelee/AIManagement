@@ -460,7 +460,9 @@ export function registerTaskRoutes(app: FastifyInstance, context: RouteContext):
       planEnd: body.planEnd ?? task.planEnd,
       status: body.status ?? toTaskStatus(task.status),
       ...(body.progress !== undefined ? { progress: body.progress } : {}),
-      ...(body.blockedReason !== undefined ? { blockedReason: body.blockedReason } : {}),
+      // ★ 部分更新语义（决策 I-10）：请求体没出现就**保持原值**，不能当成'空'。
+      //   否则「任务本已阻塞且有原因，只想改个进度」会被误判成「阻塞但没原因」。
+      blockedReason: body.blockedReason !== undefined ? body.blockedReason : task.blockedReason,
     }
 
     // 第三步：业务规则校验以合并结果为入参。校验顺序仍是
