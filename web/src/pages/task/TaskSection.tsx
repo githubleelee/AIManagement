@@ -24,7 +24,7 @@ import {
   type UpdateTaskInput,
 } from './api'
 
-const TASK_STATUS_OPTIONS: TaskStatus[] = ['TODO', 'DOING', 'DONE']
+const TASK_STATUS_OPTIONS: TaskStatus[] = ['TODO', 'DOING', 'BLOCKED', 'SUSPENDED', 'DONE', 'CLOSED']
 type Props = {
   storyId: string
   projectId: string
@@ -339,6 +339,7 @@ export default function TaskSection({ storyId, projectId, isPm, onCountChange }:
               <th>验收人</th>
               <th className="nowrap">计划</th>
               <th>状态</th>
+              <th>进度</th>
               <th />
             </tr>
           </thead>
@@ -369,6 +370,7 @@ export default function TaskSection({ storyId, projectId, isPm, onCountChange }:
                     <TaskStatusBadge status={t.status} />
                   )}
                 </td>
+                <td className="req-mono nowrap">{t.progress === null ? '—' : String(t.progress) + '%'}</td>
                 <td className="nowrap">
                   {canUpdateRow(t) ? (
                     <button
