@@ -519,9 +519,19 @@ describe('端点 28 状态推进：三态正例', () => {
   })
 })
 
-describe('端点 28 状态推进：非法状态反例', () => {
-  it.each(['BLOCKED', 'SUSPENDED', 'CLOSED'])('status → %s → 422 status: INVALID_VALUE', async (status) => {
+describe('端点 28 状态取值：六状态均合法，非法值仍被拒', () => {
+  // 2026-10-17：#24 结论把六状态纳入本阶段范围，BLOCKED / SUSPENDED / CLOSED 由
+  // 「必须 422」变为「合法」。原断言的前提消失（不是为了过测试而放宽）；
+  // 「非法状态仍被拒」的覆盖改用不存在的取值 PENDING 继续保证。
+  it.each(['BLOCKED', 'SUSPENDED', 'CLOSED'])('status → %s（已纳入六状态）→ 200', async (status) => {
     const response = await patchTask({ status })
+
+    expect(response.status).toBe(200)
+    expect((response.body as TaskView).status).toBe(status)
+  })
+
+  it('status → PENDING（不存在的取值）→ 422 status: INVALID_VALUE', async () => {
+    const response = await patchTask({ status: 'PENDING' })
 
     expect(response.status).toBe(422)
     expectFieldError(response.body as ErrorBody, 'status', 'INVALID_VALUE')

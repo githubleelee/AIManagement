@@ -362,7 +362,7 @@ describe('探针 A4：部分更新正例 —— 只改一字段，其余字段�
 // B. 字段面探针
 // ===========================================================================
 
-describe('探针 B5：status 三态正例与 Sprint 1 之外三态反例', () => {
+describe('探针 B5：status 六态取值（正例）与非法值反例', () => {
   it.each(['TODO', 'DOING', 'DONE'] as const)('status → %s 正例 200', async (status) => {
     const response = await patchTask({ status })
 
@@ -370,15 +370,24 @@ describe('探针 B5：status 三态正例与 Sprint 1 之外三态反例', () =>
     expect((response.body as TaskView).status).toBe(status)
   })
 
+  // 2026-10-17：#24 结论将六状态纳入本阶段范围，这三个取值由「Sprint 1 之外」变为合法。
+  // 探针的反例意图不丢：用不存在的 PENDING 继续验证「非法状态被拒」。
   it.each(['BLOCKED', 'SUSPENDED', 'CLOSED'])(
-    'status → %s（Sprint 1 Out of Scope）→ 422 status: INVALID_VALUE',
+    'status → %s（已纳入六状态范围）→ 200',
     async (status) => {
       const response = await patchTask({ status })
 
-      expect(response.status).toBe(422)
-      expectFieldError(response.body as ErrorBody, 'status', 'INVALID_VALUE')
+      expect(response.status).toBe(200)
+      expect((response.body as TaskView).status).toBe(status)
     },
   )
+
+  it('status → PENDING（不存在的取值）→ 422 status: INVALID_VALUE', async () => {
+    const response = await patchTask({ status: 'PENDING' })
+
+    expect(response.status).toBe(422)
+    expectFieldError(response.body as ErrorBody, 'status', 'INVALID_VALUE')
+  })
 })
 
 describe('探针 B6：isSensitive / visibleMemberIds 注入不生效，敏感状态不被顺带清空', () => {

@@ -406,6 +406,7 @@ describe('D. 响应契约', () => {
   const TASK_VIEW_KEYS = [
     'acceptor',
     'acceptorUserId',
+    'blockedReason',
     'createdAt',
     'description',
     'id',
@@ -414,6 +415,7 @@ describe('D. 响应契约', () => {
     'ownerUserId',
     'planEnd',
     'planStart',
+    'progress',
     'projectId',
     'status',
     'storyId',
