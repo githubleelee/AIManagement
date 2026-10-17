@@ -39,7 +39,7 @@ import type { FastifyInstance } from 'fastify'
 import type { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import { AppError } from '../../shared/errors.js'
-import { dateSchema, taskStatusSchema, toFieldErrors } from '../../shared/validation.js'
+import { dateSchema, taskProgressSchema, taskStatusSchema, toFieldErrors } from '../../shared/validation.js'
 import type {
   TaskStatus,
   TaskView,
@@ -87,11 +87,17 @@ const updateTaskSchema = z.object({
   planStart: dateSchema.optional(),
   planEnd: dateSchema.optional(),
   status: taskStatusSchema.optional(),
+  // 进度与卡住原因（US-08）：progress 传 null 表示清空；blockedReason 仅 BLOCKED 时有意义。
+  progress: taskProgressSchema.nullable().optional(),
+  blockedReason: z.string().max(200).nullable().optional(),
 })
 
 type UserRow = { id: string; account: string; displayName: string }
 
 type TaskRow = {
+  /** 部分查询用 select 取列，可能没取这两个新字段；缺省按 null 处理 */
+  progress?: number | null
+  blockedReason?: string | null
   id: string
   projectId: string
   storyId: string
@@ -144,7 +150,8 @@ function denied(decision: { status: 403 | 404; code: 'FORBIDDEN' | 'NOT_FOUND' }
 
 /** DB 的枚举列是 String，读取时收窄为 TaskStatus；未知值兜底 TODO（不会发生）。 */
 function toTaskStatus(value: string): TaskStatus {
-  return value === 'TODO' || value === 'DOING' || value === 'DONE' ? value : 'TODO'
+  const known: readonly string[] = ['TODO', 'DOING', 'BLOCKED', 'SUSPENDED', 'DONE', 'CLOSED']
+  return known.includes(value) ? (value as TaskStatus) : 'TODO'
 }
 
 function toUserBrief(user: UserRow): UserBrief {
@@ -176,6 +183,8 @@ async function loadTaskView(prisma: PrismaClient, task: TaskRow): Promise<TaskVi
     planStart: task.planStart,
     planEnd: task.planEnd,
     status: toTaskStatus(task.status),
+    progress: task.progress ?? null,
+    blockedReason: task.blockedReason ?? null,
     isSensitive: task.isSensitive,
     createdAt: task.createdAt.toISOString(),
     owner: toUserBrief(owner),
@@ -434,6 +443,8 @@ export function registerTaskRoutes(app: FastifyInstance, context: RouteContext):
       planStart: body.planStart ?? task.planStart,
       planEnd: body.planEnd ?? task.planEnd,
       status: body.status ?? toTaskStatus(task.status),
+      ...(body.progress !== undefined ? { progress: body.progress } : {}),
+      ...(body.blockedReason !== undefined ? { blockedReason: body.blockedReason } : {}),
     }
 
     // 第三步：业务规则校验以合并结果为入参。校验顺序仍是

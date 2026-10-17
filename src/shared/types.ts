@@ -35,7 +35,7 @@ export type StoryStatus = 'DRAFT' | 'PLANNING' | 'DONE'
 export type Priority = 'P0' | 'P1' | 'P2'
 
 /** 任务状态。界面标签：未开始 / 进行中 / 已完成 */
-export type TaskStatus = 'TODO' | 'DOING' | 'DONE'
+export type TaskStatus = 'TODO' | 'DOING' | 'BLOCKED' | 'SUSPENDED' | 'DONE' | 'CLOSED'
 
 /** 敏感可见性作用的对象类型（多态列，无法建真实外键，见决策 I-7） */
 export type VisibilityObjectType = 'story' | 'task'
@@ -111,6 +111,10 @@ export type Task = {
   planStart: string
   planEnd: string
   status: TaskStatus
+  /** 已完成百分比（0-100）；null 表示还没填 */
+  progress: number | null
+  /** 卡住原因；仅 status = BLOCKED 时必填，其余状态应为 null */
+  blockedReason: string | null
   isSensitive: boolean
   createdAt: string
 }
@@ -211,6 +215,8 @@ export type FieldError = { field: string; code: FieldErrorCode }
 
 /** `can()` 的动作集合（决策 I-5）。 */
 export type Action =
+  | 'task.progress' // 更新任务状态 / 进度（负责人可对自己的任务执行）
+  | 'task.accept' // 验收：DONE -> CLOSED 或驳回回 DOING
   | 'project.read' // 读取项目及其下需求与任务
   | 'project.manage_members' // 增删成员、改角色
   | 'requirement.write' // 业务目标 / 用户活动 / 用户故事的增删改

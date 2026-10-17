@@ -17,7 +17,10 @@ export const projectRoleSchema = z.enum(['PM', 'MEMBER', 'VIEWER'])
 export const goalStatusSchema = z.enum(['ACTIVE', 'DONE'])
 export const storyStatusSchema = z.enum(['DRAFT', 'PLANNING', 'DONE'])
 export const prioritySchema = z.enum(['P0', 'P1', 'P2'])
-export const taskStatusSchema = z.enum(['TODO', 'DOING', 'DONE'])
+export const taskStatusSchema = z.enum(['TODO', 'DOING', 'BLOCKED', 'SUSPENDED', 'DONE', 'CLOSED'])
+
+/** 任务进度：0-100 的整数（百分比）。 */
+export const taskProgressSchema = z.number().int().min(0).max(100)
 
 /** 日期固定格式 `YYYY-MM-DD`（决策 I-10：不接受其它格式） */
 export const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)

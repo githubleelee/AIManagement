@@ -66,6 +66,8 @@ type TaskWithPeople = {
   planStart: string
   planEnd: string
   status: string
+  progress: number | null
+  blockedReason: string | null
   isSensitive: boolean
   createdAt: Date
   owner: { id: string; account: string; displayName: string }
@@ -89,6 +91,8 @@ function toTaskView(row: TaskWithPeople): TaskView {
     planStart: row.planStart,
     planEnd: row.planEnd,
     status: row.status as TaskStatus,
+    progress: row.progress,
+    blockedReason: row.blockedReason,
     isSensitive: row.isSensitive,
     createdAt: row.createdAt.toISOString(),
     owner: row.owner,

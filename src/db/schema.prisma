@@ -121,6 +121,8 @@ model Task {
   planStart      String // 'YYYY-MM-DD'
   planEnd        String // 'YYYY-MM-DD'
   status         String   @default("TODO") // TaskStatus
+  progress       Int? // 已完成百分比 0-100；null = 未填
+  blockedReason  String? // 卡住原因，仅 status = BLOCKED 时必填
   isSensitive    Boolean  @default(false)
   createdAt      DateTime @default(now())
 

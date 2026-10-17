@@ -9,7 +9,14 @@ import { listProjectTasks } from './task/api'
 
 type Stat = { value: number | null; error: boolean }
 const initialStat: Stat = { value: null, error: false }
-const taskStatusLabel = { TODO: '未开始', DOING: '进行中', DONE: '已完成' }
+const taskStatusLabel = {
+  TODO: '未开始',
+  DOING: '进行中',
+  BLOCKED: '卡住',
+  SUSPENDED: '暂停',
+  DONE: '待验收',
+  CLOSED: '已验收',
+}
 
 /** 项目概览只汇总现有接口数据，任务焦点来自实际未完成任务。 */
 export default function ProjectOverviewPage() {
@@ -37,7 +44,8 @@ export default function ProjectOverviewPage() {
     return () => { cancelled = true }
   }, [project.id])
 
-  const openTasks = tasks?.filter((task) => task.status !== 'DONE') ?? []
+  // 「未完成」= 还没验收关闭（DONE 只代表执行人提交，不等于结束）
+  const openTasks = tasks?.filter((task) => task.status !== 'CLOSED') ?? []
   const doingCount = tasks?.filter((task) => task.status === 'DOING').length ?? 0
   const focusTasks = [...openTasks].sort((a, b) => a.planEnd.localeCompare(b.planEnd)).slice(0, 3)
   const base = `/projects/${project.id}`
