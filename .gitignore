@@ -50,6 +50,3 @@ desktop.ini
 tmp/
 temp/
 .scratch/
-
-# Word temporary lock files
-~$*
