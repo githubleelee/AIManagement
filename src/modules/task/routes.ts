@@ -408,7 +408,21 @@ export function registerTaskRoutes(app: FastifyInstance, context: RouteContext):
       throw notFound()
     }
 
-    const decision = await can(actorUserId, 'task.write', {
+    // 需要的动作取决于「这次改的是哪一类字段」（US-08）：
+    //   - 只改状态 / 进度 / 卡住原因 → task.progress（负责人可对自己的任务执行）
+    //   - 改成 CLOSED（验收关闭）      → task.accept（只能由验收人执行）
+    //   - 其余（标题、负责人、验收人、计划）→ task.write（仍限项目经理）
+    const rawBody = (request.body ?? {}) as Record<string, unknown>
+    const progressOnlyKeys = ['status', 'progress', 'blockedReason']
+    const touchedKeys = Object.keys(rawBody)
+    const progressOnly =
+      touchedKeys.length > 0 && touchedKeys.every((key) => progressOnlyKeys.includes(key))
+    const requiredAction = rawBody.status === 'CLOSED'
+      ? 'task.accept'
+      : progressOnly
+        ? 'task.progress'
+        : 'task.write'
+    const decision = await can(actorUserId, requiredAction, {
       kind: 'task',
       projectId: task.projectId,
       objectId: task.id,

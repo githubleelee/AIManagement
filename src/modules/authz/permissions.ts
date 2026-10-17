@@ -143,6 +143,19 @@ export function createAuthorization(prisma: PrismaClient) {
       if (!entry || entry.projectId !== target.projectId) return deny(404, 'NOT_FOUND')
     }
 
+    // 第 4.5 条（US-08）：两个「条件性动作」——负责人可推进自己的任务，验收人可验收。
+    // 它们不是「写类动作一律 403」，而是按**对象关系**判定，因此必须在第 5 条之前处理。
+    // 单独查这两个字段，避免改动 loadTarget 的既有契约（其它动作完全不受影响）。
+    if (ref.kind === 'task' && (action === 'task.progress' || action === 'task.accept')) {
+      const relation = await prisma.task.findUnique({
+        where: { id: ref.objectId },
+        select: { ownerUserId: true, acceptorUserId: true },
+      })
+      if (!relation) return deny(404, 'NOT_FOUND')
+      if (action === 'task.progress' && relation.ownerUserId === actorUserId) return { allow: true }
+      if (action === 'task.accept' && relation.acceptorUserId === actorUserId) return { allow: true }
+      return deny(403, 'FORBIDDEN')
+    }
     // 第 5 条：写类动作对 MEMBER / VIEWER → 403
     if (WRITE_ACTIONS.has(action)) return deny(403, 'FORBIDDEN')
 
