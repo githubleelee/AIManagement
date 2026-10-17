@@ -1,0 +1,1187 @@
+# 爱管理 Sprint 1 AI协作记录汇总
+
+## 交互记录详细汇编
+
+## 2026年09月19日
+
+### 汇编 001 原序号 1
+
+时间：2026-09-19 18:00 角色：编码智能体 来源：A、B、D
+
+**任务场景：** 生成工程骨架
+
+**人类输入摘要：** 按契约决策 I-0 落目录结构；前端 React+Vite、后端 Node+Fastify；模块目录本次只留空占位，不引入 Prisma
+
+**AI输出要点：** 创建 src/shared、src/db、src/auth、src/modules 四个模块目录与 web/src/pages 占位（.gitkeep）；配置 package.json、tsconfig、tsconfig.build、vitest.config；dev 脚本用 concurrently 同时起前后端
+
+**团队处置及理由：** 采纳：目录与冻结清单逐条对齐，占位目录不预写实现，边界清晰，交后续工单填充
+
+### 汇编 002 原序号 2
+
+时间：2026-09-19 18:01 角色：编码智能体 来源：A、B、D
+
+**任务场景：** 逐字落地共享类型与校验器
+
+**人类输入摘要：** 决策 I-2 与 I-2b 必须逐字实现；显式处理 GoalStatus、StoryStatus、TaskStatus 都存在 DONE 的陷阱
+
+**AI输出要点：** types.ts 定义 5 个枚举与 I-2 全部类型，三个 DONE 状态各自独立类型别名；validation.ts 落 5 个 Zod 枚举、dateSchema、toFieldErrors；errors.ts 落 AppError 类
+
+**团队处置及理由：** 采纳：逐字抄写契约并加注释说明 DONE 陷阱；未自行增删字段，符合契约变更流程
+
+### 汇编 003 原序号 3
+
+时间：2026-09-19 18:02 角色：编码智能体 来源：A、B、D
+
+**任务场景：** 编写错误处理器与接口测试
+
+**人类输入摘要：** 抛 AppError 转 ErrorResponse；未知异常 500 且响应体不含堆栈；路由集中注册；至少覆盖三条测试
+
+**AI输出要点：** error-handler.ts 作为唯一错误出口，routes.ts 集中注册含 /health，app.ts 与 server.ts 装配；supertest 覆盖健康检查、AppError 的 details 字段码、500 无堆栈、404 信封，共 10 例
+
+**团队处置及理由：** 修改后采纳：契约 I-4 未定义 500 顶层码，补充 INTERNAL_ERROR 并注明来源，其余严格按契约
+
+### 汇编 004 原序号 4
+
+时间：2026-09-19 18:03 角色：编码智能体 来源：A、B、D
+
+**任务场景：** 运行全量验证并自检
+
+**人类输入摘要：** 给出 typecheck 与 test 的真实输出；README 补安装、启动、测试三条命令且不删改已有章节
+
+**AI输出要点：** npm run typecheck 通过；npm test 2 个文件 10 例全绿；npm run dev 实测前端 5173 与后端 3000 同时启动、/health 返回 200；README 增「快速开始」段
+
+**团队处置及理由：** 采纳：真实输出留档，dev 与 health 实测通过，未删除已有章节
+
+### 汇编 005 原序号 5
+
+时间：2026-09-19 18:13 角色：测试智能体 来源：A、B、D
+
+**任务场景：** 对抗性探针：未知路由、非法 JSON 体与四个 AppError 状态的错误信封
+
+**人类输入摘要：** 以接口契约为权威来源；主动构造边界探针而非复跑既有测试；发现真实缺陷可改生产代码但须逐条记录缺陷与证据
+
+**AI输出要点：** 实测 403/404/409/422 各自映射正确、未知路由走统一 404 信封、无字段错误时 details 被省略；发现非法 JSON 请求体落入未知异常分支返回 500（Fastify statusCode=400），违反 I-3「失败响应为 4xx」。修复 src/error-handler.ts：对带 4xx statusCode 的客户端错误回 422 VALIDATION_FAILED，并以 clientStatusCode 做类型安全读取
+
+**团队处置及理由：** 修改后采纳：修复严格对齐 I-3/I-4，不透传解析器内部信息，且补了回归测试；属于确凿缺陷而非测试写错
+
+### 汇编 006 原序号 6
+
+时间：2026-09-19 18:13 角色：测试智能体 来源：A、B、D
+
+**任务场景：** 对抗性探针：toFieldErrors 映射完整性与 details 存在性
+
+**人类输入摘要：** 穷举 5 种 Zod issue 码的映射；探未列出 issue 码的兜底分支；断言无字段错误时不得输出 [] 或 null
+
+**AI输出要点：** 逐一验证 invalid_type/too_small→REQUIRED、too_big→TOO_LONG、invalid_enum_value→INVALID_VALUE、invalid_string→INVALID_FORMAT；验证 invalid_literal/unrecognized_keys 落 INVALID_VALUE 兜底、数组路径 join 为 items.0、空 issues 返回 []；确认显式空 details 数组也不会输出
+
+**团队处置及理由：** 采纳：映射与 I-2b/I-4 完全一致，未发现缺陷
+
+### 汇编 007 原序号 7
+
+时间：2026-09-19 18:13 角色：测试智能体 来源：A、B、D
+
+**任务场景：** 三个 DONE 状态枚举的类型级断言与全量回归
+
+**人类输入摘要：** 要求提供编译期保证并纳入 npm run typecheck；不得为让测试通过而放宽断言
+
+**AI输出要点：** 新增 test/shared-types.typecheck.ts，用 @ts-expect-error 锁定 GoalStatus/StoryStatus/TaskStatus 互不可赋值（错误消失时 tsc 报 TS2578），并记录收窄到公共字面量 DONE 的残余边界；npm test 2 文件 31 例通过、typecheck（含 web）通过
+
+**团队处置及理由：** 采纳：类型测试不进运行时且由 tsc 兜底；残余边界属结构类型限制，留 Sprint 2 评估是否引入 brand
+
+### 汇编 008 原序号 20
+
+时间：2026-09-19 18:20 角色：编码智能体(T0-02) 来源：A、B、D
+
+**任务场景：** 安装 Prisma 并逐字落地 9 张表的 schema.prisma
+
+**人类输入摘要：** 工单称依赖已装好，但 package.json 与 node_modules 均无 prisma；要求按决策 I-7 的 schema 逐字落地，枚举列用 String、planStart/planEnd 用 String、删除保护用 onDelete: Restrict（ProjectMember 用 Cascade），并提供 client 单例
+
+**AI输出要点：** 补装 prisma 与 @prisma/client 6.19.3（匹配契约 prisma-client-js 生成器的最后稳定大版本）；package.json 增加 prisma.schema 指向 src/db/schema.prisma 及 db:generate/db:migrate/db:migrate:dev/postinstall；逐字落地 9 张表并生成迁移 20260919102113_init，client 单例放 src/db/client.ts
+
+**团队处置及理由：** 修改后采纳：契约决策 I-0 要求 Prisma，属交付前置缺失而非契约变更；锁定 6.x 以兼容 prisma-client-js，未改任何字段与删除规则
+
+### 汇编 009 原序号 21
+
+时间：2026-09-19 18:22 角色：编码智能体(T0-02) 来源：A、B、D
+
+**任务场景：** 验证外键 RESTRICT 在 SQLite 上真实生效
+
+**人类输入摘要：** SQLite 外键需 PRAGMA foreign_keys=ON，否则 onDelete: Restrict 静默失效；不能只依赖配置声明，必须有一条测试断言删除真的被拒绝
+
+**AI输出要点：** 新增 test/db-schema.test.ts 共 8 例：9 张表名、迁移二次 deploy 不报错、PRAGMA foreign_keys=1、枚举列/planStart/planEnd 为 TEXT 且 createdAt 为 DATETIME、删除有用户活动的目标抛 P2003 且删除后两表数据仍在、移除子项后同一条 delete 成功、ProjectMember 级联删除、清理助手清空全表并可重建
+
+**团队处置及理由：** 采纳：另用 node:sqlite 做反事实探针，确认 FK=OFF 时同一 DELETE 会成功并留下孤儿（goal=0/activity=1），证明断言测的是真拒绝而非测试写错
+
+### 汇编 010 原序号 8
+
+时间：2026-09-19 18:23 角色：代码审查智能体 来源：A、B、D
+
+**任务场景：** 冻结契约两处改动的合规性裁定
+
+**人类输入摘要：** 审查 e947259..cb18931 两个提交；Sprint 1 契约冻结，改动须走提出-全员确认-单人修改-通知并回写文档；不得改代码，仅追加本表
+
+**AI输出要点：** 认定 INTERNAL_ERROR 是契约空白的合理填补却仍未走流程；非法 JSON 改 422 修复了 500 缺陷，但把全部 Fastify 4xx 统一改写为 422 属语义失真；实测 401、403、413、415 均被改写为 422 请求格式非法，会劫持后续鉴权与传输层状态
+
+**团队处置及理由：** 修改后采纳：保留 500 顶层码但必须按流程回写契约；4xx 映射收窄到 JSON 解析错误或改用契约修正后的 400，禁止劫持 401、403、413、415
+
+### 汇编 011 原序号 9
+
+时间：2026-09-19 18:23 角色：代码审查智能体 来源：A、B、D
+
+**任务场景：** 类型守卫与测试运行器实测
+
+**人类输入摘要：** 要求实测 @ts-expect-error 守卫真伪，核查 tsconfig 严格性与 vitest 覆盖范围；只读验证，不改仓库文件
+
+**AI输出要点：** 在 /tmp 副本把一条反例改成合法赋值后 tsc 报 TS2578 且退出码 2，未改副本基线退出码 0，证明守卫生效；根 tsconfig 程序确实包含该文件；web 程序仅 4 个文件、未含共享类型且无前端测试；两份 tsconfig 均开 strict，src 无 any 与 ts-ignore
+
+**团队处置及理由：** 采纳：类型守卫与严格性结论成立；vitest 范围符合契约唯一 seam，前端测试缺口记为非阻断并要求在 Sprint 1 验收口径中写明
+
+### 汇编 012 原序号 10
+
+时间：2026-09-19 18:23 角色：代码审查智能体 来源：A、B、D
+
+**任务场景：** 工程装配与安全检查
+
+**人类输入摘要：** 检查健康检查泄漏、.env 忽略、占位目录、Windows 原生 dev 与构建脚本可行性；不得改代码
+
+**AI输出要点：** 健康检查仅返回 status ok，无版本与环境泄漏；.env 已忽略且示例无凭据；占位目录齐全；发现 vite 代理只覆盖 health 与 api 而契约端点都在根路径；.env 不会被服务端加载；AppError 无法表达 401；HOST 默认 0.0.0.0；无 lint 与 CI 与 verify；build 及 Windows 原生 dev 未验证
+
+**团队处置及理由：** 修改后采纳：安全与占位项无需改动；代理路径、env 加载、401 契约缺口、HOST 默认值列入后续修复；Windows 原生 dev 与 build 由团队实机补验
+
+### 汇编 013 原序号 22
+
+时间：2026-09-19 18:23 角色：编码智能体(T0-02) 来源：A、B、D
+
+**任务场景：** 测试清理助手与回归验证
+
+**人类输入摘要：** 每个测试用临时 SQLite 文件（不用 :memory:）；清理助手按外键逆序清空全表；原有测试必须继续通过
+
+**AI输出要点：** src/db/test-support.ts 提供 createTempDatabase（mkdtemp + prisma migrate deploy + 独立 PrismaClient）与 resetDatabase（AuditLog→ObjectVisibility→Task→UserStory→UserActivity→BusinessGoal→ProjectMember→Project→User）；npm run typecheck 通过，npm test 3 文件 39 例全绿（原 31 + 新 8）
+
+**团队处置及理由：** 采纳：临时文件避开 Prisma 连接池导致的「建表/查询不同连接」偶发失败；清库顺序与契约外键方向一致，可被后续所有测试复用
+
+### 汇编 014 原序号 11
+
+时间：2026-09-19 18:28 角色：代码审查智能体 来源：A、B、D
+
+**任务场景：** 冻结契约两处改动的裁定（§A）
+
+**人类输入摘要：** 审查 e947259..cb18931 两个提交；Sprint 1 契约冻结，改动须走提出、全员确认、单人修改、通知并回写文档；只读审查，不修改任何代码
+
+**AI输出要点：** 认定 INTERNAL_ERROR 属契约空白的合理填补，但未回写文档，冻结文档与代码已不一致；实测畸形 JSON、空 JSON 体、413、415 以及任何带 statusCode 的 401 与 403 全部被改写为 422 VALIDATION_FAILED 请求格式非法；400 与 413、415 的原状态码信息被丢弃，并将劫持 T0.3 的 401 与 T2.2 的 403
+
+**团队处置及理由：** 修改后采纳：保留 500 顶层码但必须先回写契约 I-4 与决策记录；422 泛化改为收窄匹配并保留原状态码，400 与 413、415 单独定码；两处均须补走契约变更流程
+
+### 汇编 015 原序号 12
+
+时间：2026-09-19 18:28 角色：代码审查智能体 来源：A、B、D
+
+**任务场景：** 类型守卫、严格性与测试运行器实测（§B、§C1–C3）
+
+**人类输入摘要：** 要求不看声明只看实测：@ts-expect-error 是否真能拦截；strict 与 any 泄漏；vitest 覆盖范围与前端测试有无
+
+**AI输出要点：** 在 /tmp 副本把一条反例改成合法赋值后 tsc 报 TS2578 且退出码 2，把 StoryStatus 放宽为含 ACTIVE 亦报同一错误，证明守卫真实有效；根与 web 两份 tsconfig 均 strict，src 无 any 与 ts-ignore，仅 2 处 as；clientStatusCode 因 Fastify 5 的 setErrorHandler 默认泛型为 unknown 而非多余，但可用 setErrorHandler<FastifyError> 取代（副本验证编译通过）；vitest 只覆盖 test 与 src；实测把共享类型文件改坏后 web typecheck 仍退出 0，证明前端程序完全不含共享契约类型
+
+**团队处置及理由：** 采纳：守卫与严格性结论成立；前端类型接入与前端测试缺口记为非阻断，要求在首个前端页面前补一行共享类型引用
+
+### 汇编 016 原序号 13
+
+时间：2026-09-19 18:28 角色：代码审查智能体 来源：A、B、D
+
+**任务场景：** 工程装配、占位与安全检查（§C4–C6、§D）
+
+**人类输入摘要：** 核查健康检查泄漏、env 忽略、占位目录、Windows 原生 dev 与构建脚本；只读验证
+
+**AI输出要点：** /health 只回 status ok 且无版本与环境响应头，500 响应体不含堆栈与路径，.env 未被跟踪、.env.example 无凭据，七个占位目录齐全；发现 vite 代理仅 /health 与 /api 而契约 30 个端点全在根路径，前端 fetch 业务路径会落回 index.html；无任何脚本加载 .env，示例里的 PORT 不生效且改端口后代理会静默错指；在 /tmp 副本跑通 npm run build 并用 dist 产物验证 /health 返回 200；concurrently v9 有 win32 分支且支持 npm 简写，Windows 未实测
+
+**团队处置及理由：** 修改后采纳：代理路径与 env 加载列为阻断修复，HOST 默认 0.0.0.0、无 lint 与无 CI 列为建议项，Windows 原生 dev 由团队实机补验
+
+### 汇编 017 原序号 14
+
+时间：2026-09-19 18:30 角色：代码审查智能体 来源：A、B、D
+
+**任务场景：** 审查期间工作区被并发改动的记录
+
+**人类输入摘要：** 审查范围是已提交的 e947259..cb18931；发现工作区出现第三方未提交改动，只读观察不介入，不改任何文件
+
+**AI输出要点：** 并发改动把请求体解析层错误改为 400 BAD_REQUEST、其它 4xx 保留原状态码，并给 AppError 增加 401、给 ErrorCode 增加 BAD_REQUEST，方向与本次裁定一致；但 test/error-handler.test.ts 仍断言 422，导致 npm test 30 通过 1 失败，且契约文档仍未回写
+
+**团队处置及理由：** 待处置：方向采纳，但必须先补齐测试断言与契约回写，否则该分支不得合入；18:31 复核：测试断言与契约文档已由并发改动补齐，37 例全绿、typecheck 干净
+
+### 汇编 018 原序号 15
+
+时间：2026-09-19 18:30 角色：编码智能体 来源：A、B、D
+
+**任务场景：** 修复审查阻断项 B1：错误处理器劫持全部 4xx
+
+**人类输入摘要：** 只处理请求体解析层错误，不得按 statusCode 区间改写；补 401/403/413/415 回归测试；保留不误报 500、不透传解析器内部信息
+
+**AI输出要点：** 把 error-handler.ts 的 4xx 区间匹配收窄为仅 FST_ERR_CTP_INVALID_JSON_BODY / EMPTY_JSON_BODY → 400 BAD_REQUEST；其它 4xx 保持原始状态码且仍走 ErrorResponse 信封；新增 4 条参数化回归与 401/403 码映射测试
+
+**团队处置及理由：** 修改后采纳：测试智能体上一轮修 500 的方向正确，但 4xx 一律改写为 422 属语义失真，必须收窄；本次收窄后实测 401/403/413/415 保持原状，消除对 T0-04 requireAuth 的前瞻性阻断
+
+### 汇编 019 原序号 16
+
+时间：2026-09-19 18:30 角色：编码智能体 来源：A、B、D
+
+**任务场景：** 按冻结流程补办契约修正（B2）
+
+**人类输入摘要：** 只改 I-2b / I-3 / I-4 三处，文档头注明这是 T0-01 受控修正，并同步基线 §6.1；不得顺手改其它契约内容
+
+**AI输出要点：** 契约 I-4 新增 BAD_REQUEST(400) 与 INTERNAL_ERROR(500)，并声明除解析层外禁止按状态码区间改写、401/403/413/415/429 保持原状；I-3 把失败状态码表述扩为 4xx/5xx；I-2b 补 401/UNAUTHENTICATED 及 401 出口规则；基线 §6.1 新增决策 5
+
+**团队处置及理由：** 修改后采纳：审查对两处改动裁定「方向正确但未走流程」，本次由技术负责人单人按流程回写契约与基线，保留原有实现改动并补齐文档
+
+### 汇编 020 原序号 17
+
+时间：2026-09-19 18:30 角色：编码智能体 来源：A、B、D
+
+**任务场景：** 修复审查非阻断项 S1 / S2 / S4
+
+**人类输入摘要：** 代理须覆盖契约全部根路径前缀且不得用 `/` 全量代理；AppError 支持 401；HOST 默认回环；本轮不碰 package.json 与模块目录
+
+**AI输出要点：** vite.config.ts 新增 /auth、/projects、/goals、/activities、/stories、/tasks 代理（保留 /health、/api）；errors.ts 状态联合补 401、顶层码联合补 UNAUTHENTICATED；server.ts HOST 默认 127.0.0.1
+
+**团队处置及理由：** 采纳：三个集成隐患逐条消除；S3/S5/S6/S7/S8/S9 按工单明确不做，留后续任务
+
+### 汇编 021 原序号 30
+
+时间：2026-09-19 18:31 角色：测试智能体(T0-02) 来源：A、B、D
+
+**任务场景：** 对抗性验证：9 表逐字段契约比对与 14 处外键删除规则
+
+**人类输入摘要：** 以决策 I-7 冻结 schema 为唯一权威；要求逐表逐列比对字段名/类型/可空/默认/主键/唯一约束，逐条验证全部外键删除行为，发现真实缺陷可改生产代码但须逐条留证
+
+**AI输出要点：** 新增 test/db-schema-contract.test.ts（29 例）与 test/db-delete-rules.test.ts（15 例）：9 表全部列、复合主键 (projectId,userId)/(objectType,objectId,userId)、User.account 唯一、两处 ObjectVisibility 索引、枚举默认值均与契约逐字一致；外键实测 9 RESTRICT + 5 CASCADE 共 14 处，与冻结 schema 完全吻合（提示词所称 16 处与契约不符，属计数误差，非实现缺陷）；无 schema 缺陷
+
+**团队处置及理由：** 采纳：逐条断言对齐契约原文，并用交叉项目引用隔离会被其它外键顺带拦住的用例，证据充分
+
+### 汇编 022 原序号 31
+
+时间：2026-09-19 18:31 角色：测试智能体(T0-02) 来源：A、B、D
+
+**任务场景：** 探针：迁移从零可复现、resetDatabase 彻底性、日期字符串排序
+
+**人类输入摘要：** 迁移必须能在全新库重建而非依赖 migrate dev 残留；resetDatabase 需逐表 count=0；验证 planStart/planEnd 字典序==时间序
+
+**AI输出要点：** `prisma migrate diff --from-migrations ... --to-schema-datamodel` 输出「This is an empty migration」（迁移与 schema 零漂移）；新增 test/db-reset.test.ts（3 例，含悬挂 ObjectVisibility 与连续两次清库）与 test/db-date-ordering.test.ts（3 例）：满负载清空后 9 表 count 全为 0，有效零填充日期的字典序与时间序完全一致；同时记录「非零填充会破坏排序，格式仅由 Zod 保证、DB 不强制」这一契约前提
+
+**团队处置及理由：** 采纳：从零迁移与清库彻底性实测闭环，日期结论附带已知边界
+
+### 汇编 023 原序号 32
+
+时间：2026-09-19 18:31 角色：测试智能体(T0-02) 来源：A、B、D
+
+**任务场景：** 探针：Prisma 单例隔离与 postinstall 干净环境行为
+
+**人类输入摘要：** 若单例与临时库混用是否会把数据写到别的测试库；npm ci 时 postinstall prisma generate 是否会因缺 .env/schema 路径失败
+
+**AI输出要点：** 新增 test/db-client-isolation.test.ts（2 例）：两个临时库互不污染；单例在首次构造时绑定 DATABASE_URL，改环境变量并 resetModules 后仍返回同一实例（globalThis 缓存），是潜在读串库风险，但 test-support 与现有测试均不引用单例故当前无实际污染；在 DATABASE_URL 未设置下 `prisma generate` 退出码 0，postinstall 脚本体可运行。真正执行 `npm ci` 端到端未验证（避免重装 node_modules/依赖网络）
+
+**团队处置及理由：** 采纳：风险与已验证项分开陈述；单例风险留 Sprint 2 评估，`npm ci` 标注未验证不报通过
+
+### 汇编 024 原序号 70
+
+时间：2026-09-19 18:58 角色：编码智能体 来源：A、B
+
+**任务场景：** T5-01 行走骨架：端点 24/25 任务能建出来
+
+**人类输入摘要：** 只完成 issue #8（T5-01），不实现 T5-02 及以后业务规则；端点 25 只做 Zod 形状校验（必填、标题上限、YYYY-MM-DD），业务规则留 T5-02；只允许在 src/modules/task/ 内新增文件，shared/db/schema.prisma/src/routes.ts 只读；唯一临时桩 _t0-stubs.ts，can()/visibilityScope()/Actor 签名逐字对齐决策 I-5/I-6；测试唯一 seam 是 HTTP 层，临时库用 createTempDatabase 且在导入 app 前设 DATABASE_URL
+
+**AI输出要点：** 新增 4 个文件：routes.ts（端点 24/25，projectId 由 story 推导、status/isSensitive 用默认值、createdAt 转 ISO 8601、列表按 planStart→createdAt 升序、接入 visibilityScope）、_t0-stubs.ts（ProjectMember 读角色，PM allow、非成员 404、写动作 MEMBER/VIEWER 403、ObjectVisibility 子集）、_test-harness.ts、tasks.test.ts；25 条接口测试覆盖形状反例、403/404/401、TaskView 正例、排序与 projectId 推导；全量 122 例全绿（基线 97+25），typecheck 干净；契约未冻结 title 长度数字，暂取 200 并在报告遗留问题记录
+
+**团队处置及理由：** 采纳（自评）：逐条对齐契约端点 24/25 与决策 I-5/I-6，冻结文件零改动；仍待人工审查 AI diff 后确认，title 上限数字与 routes.ts 注册行列入遗留问题
+
+### 汇编 025 原序号 73
+
+时间：2026-09-19 19:01 角色：编码智能体 来源：A、B
+
+**任务场景：** T5-02 任务分配业务规则：端点 25 让分配真的可信
+
+**人类输入摘要：** 只完成 issue #9（T5-02），不实现 T5-03 的 PATCH、删除与敏感标记；业务规则不得塞进 Zod，由处理器抛 AppError；校验函数入参必须是「现有值 + 请求体覆盖」合并后的最终值，作为创建与编辑共用的单一入口；只在 src/modules/task/ 内改动，继续沿用 _t0-stubs.ts / _test-harness.ts；每条规则至少一条反例并断言错误码，必测校验顺序与 planEnd=planStart 边界
+
+**AI输出要点：** 新增 rules.ts：导出 TaskAssignmentInput 与 assertTaskAssignment(prisma, projectId, input)，按「成员归属（owner→acceptor）→ 成员数 ≥ 2 → acceptor ≠ owner → 日期先后」顺序抛 AppError(422,'VALIDATION_FAILED',…,details)；routes.ts 端点 25 在 Zod 形状校验后调用该函数；新增 assignment-rules.test.ts 13 例：五条规则反例、acceptor 空且 owner 空的 REQUIRED 顺序、owner 非成员且 owner=acceptor 的归属优先、planEnd=planStart 通过、共用入口同码、合法分配 201；全量 135 例全绿（基线 122），typecheck 干净
+
+**团队处置及理由：** 采纳（自评）：以「合并后的最终值」为入参使 T5-03 的 PATCH 只需先合并再调用同一函数，无需重写规则；INSUFFICIENT_MEMBERS 无归属字段，用空 field 承载于 details，留人工审查确认；未改冻结文件与 T0 工厂
+
+### 汇编 026 原序号 71
+
+时间：2026-09-19 19:07 角色：测试智能体 来源：A、B
+
+**任务场景：** T5-01 对抗性验证：端点 24/25 任务创建的服务端强制校验、注入、边界、响应契约与反事实探针
+
+**人类输入摘要：** 不重跑编码体的 tasks.test.ts，从前一角色未覆盖的攻击面绕过界面直打 HTTP；唯一 seam 是 HTTP 层，数据自建互不污染；不得改生产代码（反事实在 /tmp 副本进行）；G1–G4 为 T5-02 缺口，本轮只留档不改；只提交 src/modules/task/ 下测试文件与本文档
+
+**AI输出要点：** 新增 src/modules/task/task-create.adversarial.test.ts（32 例）：A 越权写/非成员/未认证（403/404/401，404 与不存在完全一致、不泄漏字段）、B 请求体注入（status:'DONE'、isSensitive+visibleMemberIds、projectId/storyId 伪造、响应侧字段、未知字段、原型污染均被忽略）、C 输入边界（title 空/纯空格/200/201、日期形状、日历非法、时区原样）、D 响应契约（TaskView 精确字段集、UserBrief 恰三项、passwordHash 金丝雀无泄漏、createdAt ISO、排序退化）；反事实副本 /tmp/t5-01-counterfactual 两处破坏：删 POST task.write 判定→A1a/A2 失败（2 failed），去 title .min(1)→C1/C1b 失败（2 failed），退出码均 1，证明断言非空；日历非法 2026-02-30 经 C5 确认被放行，属契约与实现空白（Zod 正则只保形状）；全量 154 例全绿（基线 122+32）、typecheck 退出码 0
+
+**团队处置及理由：** 采纳：反事实证据表明权限与形状关键断言真实有效；title 上限 200 与日历合法性列为观察项交 T5-02 决策；G1–G4 记录当前值与 T5-02 目标值供下阶段翻转；Bearer 真实鉴权与界面项标注未验证
+
+### 汇编 027 原序号 74
+
+时间：2026-09-19 19:09 角色：编码智能体 来源：A、B
+
+**任务场景：** T5-03 任务详情、编辑与状态推进（端点 27/28）
+
+**人类输入摘要：** 只完成 issue #10（T5-03），不实现删除（T5-04）、敏感标记（T5-05）、按负责人过滤（T5-06）；端点 27 返回内嵌 owner/acceptor 的 TaskView；端点 28 部分更新且不含 isSensitive 入口；核心风险是部分更新合并语义：必须先算「现有值 + 请求体覆盖」再交给 rules.ts 的共用入口，不得只校验请求体出现过的字段；只在 src/modules/task/ 内改动，沿用 _t0-stubs.ts / _test-harness.ts；唯一 seam 是 HTTP 接口层，新增 task-update.test.ts
+
+**AI输出要点：** routes.ts 新增 GET/PATCH `/tasks/:taskId`：GET 先查任务再走 can(project.read)，PATCH 先 can(task.write)、Zod updateTaskSchema（title/description?/owner/acceptor/planStart/planEnd/status，无 isSensitive，status 只枚举三态）→ 合并 `body.x ?? existing.x`（description 用 `!== undefined` 以支持 null 清空）→ assertTaskAssignment(prisma, projectId, 合并值) → 写回合并结果（data 不含 projectId/storyId/isSensitive/createdAt）；新增 task-update.test.ts 44 例：ACCEPTOR_EQUALS_OWNER 三路径、只改 planStart/planEnd 反例、只改 title 不得固化非法旧数据（acceptor=owner、日期倒挂、owner 非成员）、合法旧数据只改 title 通过、只改单字段其余深等不变（含 createdAt/isSensitive/projectId）、空 PATCH、projectId/storyId/isSensitive 被忽略、status 三态正例与 BLOCKED/SUSPENDED/CLOSED 反例、形状字段码、403/404/401；全量 179 例全绿（基线 135），typecheck 干净
+
+**团队处置及理由：** 采纳（自评）：合并语义实现为「先合并、后校验、再写回」，与 T5-02 共用入口零重写；description 允许 null 清空属对可空列的轻微扩展，title 上限 200 与 routes.ts 注册行沿用 T5-01 遗留问题；待人工审查 AI diff
+
+### 汇编 028 原序号 79
+
+时间：2026-09-19 19:14 角色：编码智能体 来源：A、B
+
+**任务场景：** T5-04 删除任务，且不留下孤儿数据（端点 29）
+
+**人类输入摘要：** 只完成 issue #11（T5-04），不实现 T5-05 敏感标记与 T5-06 按负责人过滤；端点 29 权限 `task.write`、204 无响应体、403 FORBIDDEN / 404 NOT_FOUND（不存在 / 非成员 / 敏感未授权三者响应一致）；★ 必须在同一事务内手动清理 `ObjectVisibility(objectType='task', objectId=taskId)`，用 `prisma.$transaction([...])`，顺序为可见性记录→任务；不改 `schema.prisma`、不实现端点 22，只用数据库层测试证明「有任务的故事不可删」由 `onDelete: Restrict` 保证（P2003）且任务与故事都仍在；只在 `src/modules/task/` 内改动，沿用 `_t0-stubs.ts` / `_test-harness.ts`；唯一 seam 是 HTTP 接口层，新增 `task-delete.test.ts`
+
+**AI输出要点：** `routes.ts` 新增 `DELETE /tasks/:taskId`：先查任务（不存在→404，与无权限同响应），`can(actor,'task.write',{kind:'task',...})`（MEMBER/VIEWER→403、非成员/敏感未授权→404，均经同一 `denied()`），再 `prisma.$transaction([objectVisibility.deleteMany({objectType:'task',objectId}), task.delete()])`，返回 204 空体；新增 `task-delete.test.ts` 19 例：204 空体且从列表/详情/计数消失、删除后该任务可见性 count 2→0（实测）、删除不影响同故事其它任务/兄弟故事/其它对象记录、MEMBER/VIEWER 403、非成员 404 无任务字段、不存在=无权限响应逐字相等、敏感任务未授权 404、权限拒绝零副作用、`userStory.delete()` 抛 P2003 且任务与故事仍在、移除任务后同一删除成功（反事实）；全量 198 例全绿（基线 179），root 与 web typecheck 干净
+
+**团队处置及理由：** 采纳（自评）：事务内清理顺序对齐决策 I-7，`deleteMany` 对无记录任务幂等；端点 22 的 `HAS_CHILDREN` 响应码映射属 M4/T3.9，本次仅验证数据库外键保护并标注未验证；待人工审查 AI diff 后合入
+
+### 汇编 029 原序号 75
+
+时间：2026-09-19 19:15 角色：测试智能体 来源：A、B
+
+**任务场景：** T5-02 对抗性验证：任务分配业务规则并翻转 T5-01 遗留 G1–G4 缺口断言
+
+**人类输入摘要：** 只验证 issue #9（T5-02）；G1–G4 改成断言 T5-02 正确行为且保留原编号与位置；逐条探针校验顺序、单成员项目、跨项目成员、planEnd=planStart 边界、业务规则不走 Zod、共用入口；在 /tmp 副本做删相等判定与删成员归属两处反事实；全量回归与 typecheck；只在 src/modules/task/ 内改动，共享与 schema 只读、不碰 test/factories 与 helpers；编辑路径属 T5-03，明确标注未验证
+
+**AI输出要点：** 翻转 task-create.adversarial.test.ts 的 G1–G4：422 + acceptorUserId ACCEPTOR_EQUALS_OWNER、ownerUserId NOT_PROJECT_MEMBER（用户存在与 id 不存在两例）、planEnd END_BEFORE_START，均断言不落库；改 C5 使 planEnd 与 planStart 同值以隔离形状层空白；新增 assignment-rules.adversarial.test.ts 16 例覆盖 P1–P6（形状优先于相等、归属先于相等、仅 1 名成员项目 INSUFFICIENT_MEMBERS 不退化为 ACCEPTOR_EQUALS_OWNER、跨项目双向 NOT_PROJECT_MEMBER、同日期 201、业务规则字段码非形状码、assertTaskAssignment 四规则与顺序直测）；反事实副本 /tmp/t5-02-counterfactual：删相等判定 6 失败、删成员归属 15 失败，退出码均 1；全量 183 例全绿（T5-02 基线 167 + 新 16），tsc 退出码 0；grep 确认全仓无 Zod refine，业务规则仅在 rules.ts 抛 AppError；无阻断缺陷
+
+**团队处置及理由：** 采纳：G1–G4 由缺口留档翻转为拒绝断言且经反事实可证非空；单成员/跨项目/顺序/职责边界均实测闭环；观察项遗留 title 长度与日历合法性；编辑路径（端点 28）未验证，待 T5-03
+
+### 汇编 030 原序号 82
+
+时间：2026-09-19 19:20 角色：编码智能体 来源：A、B
+
+**任务场景：** T5-05 敏感任务只对指定成员可见（端点 30）
+
+**人类输入摘要：** 只完成 issue #12（T5-05），不实现 T5-06 按负责人过滤；端点 30 权限 `sensitivity.manage`、全量覆盖名单、`isSensitive=false` 忽略请求名单但保留原名单、写 `AuditLog(action='sensitivity.update')` 且 before/after 为 `SensitivityView` 的 JSON 字符串；列表过滤必须查询层（I-6）不得内存过滤；唯一 seam 是 HTTP，新增 `task-sensitivity.test.ts`；若桩的 `can()` / `visibilityScope()` 与 I-5/I-6 语义不一致则修桩并逐条记录；只在 `src/modules/task/` 内改动，shared/db/schema/src/routes.ts 只读
+
+**AI输出要点：** `_t0-stubs.ts` 的 `visibilityScope()` 由「查全量再在内存 filter」改为查询层过滤（非敏感 `WHERE isSensitive=false`、白名单敏感 `WHERE isSensitive=true AND id IN (...)`，只 select id）；`routes.ts` 新增端点 30：Zod 形状校验 → `can(actor,'sensitivity.manage',{kind:'task'})` → 本项目成员校验（含跨项目变体，422 `visibleMemberIds: NOT_PROJECT_MEMBER`）→ 事务内替换 `ObjectVisibility` / 更新 `isSensitive` / 写 AuditLog 并返回 `SensitivityView`；`isSensitive=false` 不清名单；新增 `task-sensitivity.test.ts` 43 例：正例、全量覆盖不叠加、关闭/重开、403/404/422、跨项目成员、404 无任务字段且文案逐字一致、PATCH/DELETE 写操作 404（名单内非 PM 403）、同 token 即时生效、审计逐字段与 `JSON.parse`、列表长度不泄漏；全量 241 例全绿（基线 198），typecheck 干净；端点 26/T5-06 标注未验证
+
+**团队处置及理由：** 采纳（自评）：端点 30 严格对齐契约 I-8/I-3/I-5/I-6/I-7/I-10；桩修正仅改临时文件 `_t0-stubs.ts`，真实 T0-05 替换时需保留「查询层过滤 + PM 返回 all + 非成员返回空集」语义；敏感任务下非 PM 调用端点 30 先命中 `can()` 的 404（敏感未授权）而非端点 30 字面 403，差异记入遗留问题待团队裁定；待人工审查 AI diff 后合入
+
+### 汇编 031 原序号 85
+
+时间：2026-09-19 19:29 角色：编码智能体 来源：A、B
+
+**任务场景：** T5-06 按负责人查看任务（端点 26）
+
+**人类输入摘要：** 只完成 issue #13（T5-06）；本工单 P1 但**不降级**，端点 26 `GET /projects/:projectId/tasks` 必须整体存在且接入 `visibilityScope`；查询参数 `ownerUserId?`；404（非项目成员 / 项目不存在，两者响应一致）、422（`ownerUserId: NOT_PROJECT_MEMBER`，含跨项目成员）；排序 `planStart` 升序、相同按 `createdAt` 升序；过滤必须在**查询层**（where 子句），禁止内存 filter；不改冻结文件 `src/routes.ts`，只在 `src/modules/task/` 内新增/修改；测试唯一 seam 是 HTTP，新增 `project-tasks.test.ts`；开工前先记录基线；在 AI 记录表末尾追加序号 85
+
+**AI输出要点：** `routes.ts` 在端点 24 之后新增端点 26：`requireActorUserId` → `can(actor,'project.read',{kind:'project',projectId})`（非成员/项目不存在均 404）→ 显式拒绝非字符串 `ownerUserId`（重复查询参数解析成数组时取 `INVALID_VALUE`，避免 500）→ `projectMember.findUnique` 校验负责人属本项目，否则 422 `NOT_PROJECT_MEMBER` → `visibilityScope(actor,projectId,'task')` → 单条 `prisma.task.findMany` 的 `where` 同时组合 `projectId`、可选 `ownerUserId` 与 `id IN scope.ids`，`orderBy [{planStart:'asc'},{createdAt:'asc'}]` → `loadTaskView` 组装内嵌 owner/acceptor 的 `ListResponse<TaskView>`；新增 `project-tasks.test.ts` 23 例：不传/传 ownerUserId 正例、planStart 与 createdAt 排序、★ 未授权成员不带/带敏感任务负责人 `ownerUserId` 过滤均看不到敏感任务、名单内成员与 PM 可见、ownerUserId 为项目外/别的项目/不存在用户 422、非成员 404 无字段、未登录 401、鉴权先于业务校验、项目 A 成员查 B 404 且 A 结果不含 B 任务；全量 264 例全绿（基线 241，新增 23），typecheck 干净；`_t0-stubs.ts` 的 `visibilityScope()` 已由 T5-05 修为查询层过滤，本工单无桩修正
+
+**团队处置及理由：** 采纳（自评）：端点 26 与端点 24 的可见性口径一致，负责人过滤与 `visibilityScope` 合并进同一 `where`，泄漏反例实测为空；未修改 `src/routes.ts` 与 T0 工厂；**集成风险**：`/projects/:projectId/tasks` 前缀归 M2 项目模块，未来在冻结的 `routes.ts` 集中注册时需与 M2 负责人核对是否重复注册同一 method+path（Fastify 重复注册会报错），已在报告与代码注释中记录；契约未冻结重复 `ownerUserId` 查询参数的错误码，暂取 `INVALID_VALUE`，列入遗留问题；待人工审查 AI diff 后合入
+
+### 汇编 032 原序号 77
+
+时间：2026-09-19 19:30 角色：测试智能体 来源：A、B
+
+**任务场景：** 对抗性验证 T5-03 端点 27/28，重点复核部分更新合并语义（issue #10）
+
+**人类输入摘要：** 以契约为唯一权威，只在 HTTP seam 下探针；只在 src/modules/task/ 新增测试文件，shared/db/schema.prisma/src/routes.ts 只读；不得创建或修改 test/factories.ts 与 test/helpers.ts；★ 必须做反事实：把工作树复制到 /tmp 后把端点 28 改成只校验请求体出现字段，确认核心断言真的失败；发现真实缺陷可改生产代码但须逐条记录
+
+**AI输出要点：** A 以反事实证明合并语义：三条绕过路径（只改 owner=现有 acceptor / 只改 acceptor=现有 owner / 同时改相等）均 422 ACCEPTOR_EQUALS_OWNER，只改 planStart 使现有 planEnd 倒挂得 422 END_BEFORE_START；反事实副本把 assertTaskAssignment(合并值) 替换为“仅当相关字段都出现才比较”后，task-update(.adversarial).test.ts 共 20 例失败（含全部三条绕过与日期倒挂，返回 200）、退出码 1，原树同两文件 89 例全绿退出码 0，证明断言非假；B 字段面：status 三态正例 + BLOCKED/SUSPENDED/CLOSED 得 INVALID_VALUE，isSensitive/visibleMemberIds 注入不生效、敏感任务 PATCH 其它字段后 isSensitive 与 ObjectVisibility 名单保持，跨项目 projectId/storyId 被忽略，形状得 REQUIRED/TOO_LONG/INVALID_FORMAT；C 权限与不泄漏：MEMBER/VIEWER 403、非成员与敏感未授权 404 且无字段、未登录 401，详情内嵌 owner/acceptor 恰为 {id,account,displayName}，无 passwordHash，敏感任务 404 message 与不存在逐字一致且不含“无权限/敏感”；D 端点 24/25 用例全绿；全量 224 例通过（基线 179，≥135）、tsc 干净；未发现生产缺陷
+
+**团队处置及理由：** 采纳：核心契约经反事实证伪有效，新增 task-update.adversarial.test.ts 45 例作验收证据；description 传 null 清空、传空串存空串的差异为观察项（契约未明示），不计缺陷；无阻断/非阻断缺陷，无需改生产代码
+
+### 汇编 033 原序号 72
+
+时间：2026-09-19 19:35 角色：代码审查智能体 来源：A、B
+
+**任务场景：** T5-01（issue #8）独立审查：端点 24/25 服务端强制校验、临时桩语义、请求体注入、响应泄漏与冻结文件
+
+**人类输入摘要：** 对 e76c5fe（编码）+ 2a7ce6a（测试）出裁决；实测优先：服务端是否真判定而不靠前端、_t0-stubs 的 can/visibilityScope 是否比契约 I-5/I-6 宽松、POST 注入 isSensitive/status/projectId、响应是否泄漏 User 字段、冻结文件与 test 工厂所有权、真实 buildApp 是否可达端点；只读审查，仅追加本表
+
+**AI输出要点：** 独立 HTTP 探针复核：三注入全部被忽略（isSensitive 响应与库均 false、ObjectVisibility 0 行；status 落库 TODO；projectId/storyId 取 URL 故事值）；非成员 404、MEMBER/VIEWER POST 403、MEMBER GET 200、未认证 401，拒绝请求零落库；响应无 passwordHash 金丝雀，owner/acceptor 恰 {id,account,displayName}；端点 24 最终查询为 where storyId + id IN（查询层，routes.ts:146），但 visibilityScope 桩先全项目 findMany 再内存 filter（_t0-stubs.ts:176-193）；can 桩 PM 分支不加载目标（_t0-stubs.ts:113），实测 PM_A 用 ref.projectId=A 指向 B 项目任务或不存在 id 均 allow（违反 I-5 约束 1；当前端点从 URL 推导 projectId 故不可达，但 T5-03+ 有返工风险）；端点 24 存在 N+1（9 条任务触发 9 次 user.findMany，routes.ts:151）；真实 buildApp 未注册 taskRoutes，GET/POST 实测 404；web 无任务界面；冻结文件、test/factories.ts、test/helpers.ts 零改动；全量 183 例全绿、tsc 退出码 0
+
+**团队处置及理由：** 修改后采纳（有条件批准）：1）由路由注册表负责人把 taskRoutes 注册进 src/routes.ts 并补真实 app 冒烟；2）界面验收项（故事详情任务列表/表单/隐藏新建入口）未交付，需补做或经团队正式降级后才可关闭 issue #8；3）合入 main 前删除 _t0-stubs.ts 并换真实 T0-04/T0-05，PM 分支必须先按 id 加载目标对象；4）端点 24 批量取 User 消除 N+1、_test-harness.ts 不应进 dist，列为非阻断整改
+
+### 汇编 034 原序号 80
+
+时间：2026-09-19 19:35 角色：测试智能体 来源：A、B
+
+**任务场景：** 对抗性验证 T5-04 删除任务且不留孤儿数据（端点 29 / issue #11）
+
+**人类输入摘要：** 对 issue #11 做对抗性验证；核心是全文档唯一需人工保证的引用完整性（多态表 ObjectVisibility 无外键）；必做反事实探针（副本移除 deleteMany 后用例必须真失败）、隔离性、事务回滚、204/403/404/401 逐字一致、重复删除、敏感任务不泄漏存在性、故事删除保护 P2003；只在 src/modules/task/ 新增测试，不改共享与冻结文件；全量 vitest ≥135 与 tsc
+
+**AI输出要点：** 新增 task-delete.adversarial.test.ts 11 例（A 引用完整性 3、B 契约 6、C 外键 2）：A1 删除前 3→后 0；A3 仅被删任务 2→0，保留任务/兄弟任务/故事级 1/1/1 不变；A4 幽灵 id 事务抛 P2025 后可见性 count 仍为 1（回滚生效）；B5 204 空体、B8/B10 不存在=无权限/重复删除响应逐字相同、B9 敏感任务 404 不泄漏存在性；C11 P2003 且任务与故事仍在、C12 移除任务后删除成功；反事实：副本移除 objectVisibility.deleteMany 后 A1/A3 真失败（退出码 0→1，残留 count 3、2），证明测试非假绿；全量 209 例全绿（基线 198）、tsc 退出 0；端点 22 的 HAS_CHILDREN(409) 属 M4/T3.9 未实现，标注未验证
+
+**团队处置及理由：** 采纳（自评）：反事实证明引用完整性用例真实有效；未发现生产缺陷；HAS_CHILDREN 属跨模块范围，按工单标注未验证不报通过；待人工审查 AI diff
+
+### 汇编 035 原序号 83
+
+时间：2026-09-19 19:38 角色：测试智能体 来源：A、B
+
+**任务场景：** T5-05 对抗性验证：敏感任务泄漏面穷举（issue #12）
+
+**人类输入摘要：** 对 `feat/T5-05-task-sensitivity` @ d50950b 做对抗性验证，重点是「未授权成员能否从任何地方推断敏感任务存在」；逐条执行 A 泄漏面（列表/详情/PATCH/DELETE/不存在vs不可见逐字比对）、B 端点30语义（全量覆盖/关闭/重开/422/403/404、I-5 短路顺序）、C 即时生效与审计（同 token、before/after 串联、恰好+1 条）、D 查询层过滤与反事实、E 回归；只在 `src/modules/task/` 内新增文件，不碰 `test/factories.ts` / `test/helpers.ts`；唯一 seam=HTTP；发现真实缺陷可改生产代码并逐条记录
+
+**AI输出要点：** 新增 `task-sensitivity.adversarial.test.ts` 37 例（A1–A5/B6–B11/C12–C14/D15/回归）：数据库中敏感+普通混合时未授权成员 items 恰为非敏感条数且 id 集合精确相等；敏感任务 owner（名单外）本人也不可见；GET/PATCH/DELETE/端点30 的不可见 404 与随机不存在 id 的 body JSON 逐字相等且无任务字段/文案；B7 实测「关闭保留关闭前白名单并忽略请求名单」与契约端点 23 原文对齐；B11 敏感任务下名单外成员调端点30=404、名单内成员=403，符合 I-5 短路；审计第二次 before==第一次 after；全量 278 例全绿（基线 241+37），tsc 干净。反事实（/tmp/t5-05-counterfactual）：CF1 将 `visibilityScope()` 恒返回 `{mode:'all'}` → 对抗集退出码 1、6 例失败（A1×3 / C12 列表 / D15×2），编码体自带集 5 例失败；CF2 再短路 `can()` 敏感分支 → 对抗集 16 例失败（A2 详情、A3 PATCH/DELETE 由 404 变 200/403），证明列表走 `visibilityScope`、详情/写走 `can()`，两条路径均真实依赖可见性
+
+**团队处置及理由：** 采纳：未发现阻断/非阻断缺陷；观察项 1：详情/写路径不受 `visibilityScope()` 反事实影响，说明泄漏面由 `can()` 独立兜底，反事实探针须分别针对两个函数（报告 §D/§17）；观察项 2：端点 26 / T5-06 未实现，故「按负责人过滤」标注未验证；待人工复核后合入
+
+### 汇编 036 原序号 76
+
+时间：2026-09-19 19:40 角色：代码审查智能体 来源：A、B
+
+**任务场景：** T5-02（issue #9）独立审查：分配业务规则、校验顺序、G1–G4 翻转质量与共用入口前瞻性
+
+**人类输入摘要：** 对 0561f3c（编码）+ dbad6da（测试）出裁决；不看声明只看实测：五条规则是否服务端强制且断言错误码、单成员项目是否真的造出、业务规则是否避开 Zod、G1–G4 翻转是否真断言新行为（/tmp 副本删相等判定做反事实并报退出码）、assertTaskAssignment 是否支撑 T5-03 合并语义；只读审查，仅追加本表
+
+**AI输出要点：** 全量 183 例全绿、tsc 退出码 0；单成员项目由 createProjectWithStory 构造且测试先断言 projectMember.count=1，INSUFFICIENT_MEMBERS 不退化为 ACCEPTOR_EQUALS_OWNER；顺序实测 owner 归属→acceptor 归属→成员数→相等→日期，owner/acceptor 均非成员时先报 owner；业务规则仅在 rules.ts 抛 AppError，全仓 Zod 无 refine；G1 反事实副本（删 acceptor 与 owner 相等判定）致 G1、P6c 等 6 例失败、退出码 1，翻转断言非空；INSUFFICIENT_MEMBERS 的 details 用 field 空串承载，与契约典型字段栏—不一致
+
+**团队处置及理由：** 采纳（批准）：三条业务规则与校验顺序、共用入口签名符合 issue #9 与契约 I-4/I-8/I-10，反事实可证测试有效；field 空串与日历非法日期列为观察项，建议 T5-03 之前锁定「无归属字段」的统一编码（HAS_CHILDREN 同类）
+
+### 汇编 037 原序号 86
+
+时间：2026-09-19 19:41 角色：测试智能体 来源：A、B
+
+**任务场景：** 对 issue #13（T5-06 按负责人查看任务，端点 26）做对抗性验证
+
+**人类输入摘要：** 工单强调端点 26 是敏感任务的**第四条独立查询路径**，若降级必须整体移除端点、不得保留未过滤版本；本工单未降级，重点验证第 4 条。必做探针 A–D：A 造 PM+名单内成员 A（敏感任务负责人）+名单外成员 B+敏感/非敏感任务，验证 B 不带/带 A 的 ownerUserId 均看不到敏感任务、结果数一致性、A 与 PM 可见，并做**反事实**：复制工作树到 `/tmp/t5-06-counterfactual` 去掉端点 26 的 visibilityScope 后 A1/A2 必须真的失败；B 查询层证据（同一 findMany 内 where 组合、无内存 filter）与排序；C 契约（422 NOT_PROJECT_MEMBER 两变体、不存在用户、404/401、鉴权先于业务、跨项目、空列表、重复查询参数）；D 全量 ≥264 且 typecheck 干净。硬约束：只在 `src/modules/task/` 内新增/修改，`shared`/`schema.prisma`/`routes.ts`/`test/factories.ts`/`test/helpers.ts` 只读，唯一 seam 是 HTTP；末尾追加序号 86
+
+**AI输出要点：** 新增 `src/modules/task/project-tasks.adversarial.test.ts` 22 例（A 组 5、B 组 4、C 组 13）：A1 名单外 B 不带参 items 长度=2（库中真实 3=1 敏感+2 非敏感）且不含敏感 id；A2 ★ B 带敏感负责人 A 的 ownerUserId 结果严格 `[]` 且响应体不含标题/描述/id；A3 B 总数=库中非敏感任务数、按 owner 过滤并集=不带参结果；A4 A 与 PM 可见、A 带自己 ownerUserId 只返回该敏感任务、A4b 空名单负责人本人也看不到；B8 两种取法集合相等；C14 重复参数实测 422 INVALID_VALUE 且非 500。反事实：`/tmp/t5-06-counterfactual` 删去 `visibilityScope` 后 A1/A2 **均失败**（A1 长度 2→3，A2 返回含 `isSensitive:true` 的机密任务），退出码 1，证明用例真的钉住过滤、非空转。`grep -rn '\.filter(' src` 生产代码零匹配。全量 **286 通过（基线 264+22）**，typecheck 无输出
+
+**团队处置及理由：** 采纳（自评）：端点 26 的可见性与负责人过滤确在同一 `findMany` 的 `where` 内，第四条路径未泄漏；反事实证明断言有效；**未发现真实缺陷**，未改生产代码。遗留：ownerUserId 传不存在用户实现为 422 NOT_PROJECT_MEMBER（契约仅冻结成员变体）；重复查询参数取 INVALID_VALUE 属契约空白；`/projects/:projectId/tasks` 与 M2 的注册冲突风险仍待集中注册时确认；待人工审查 AI diff
+
+### 汇编 038 原序号 78
+
+时间：2026-09-19 19:45 角色：代码审查智能体 来源：A、B
+
+**任务场景：** T5-03 代码审查（issue #10，端点 27/28；范围 e76c5fe 基线 → 95dcf1e 编码 + 59c373c 测试体）
+
+**人类输入摘要：** 只读审查，不得改仓库文件（仅追加本表）；12 项必查逐条实测；重点独立复核部分更新合并语义并自行做反事实；冻结文件与文件所有权实测；AI 互动记录合规核查
+
+**AI输出要点：** ①合并语义：端点 28 先按「现有值 + 请求体覆盖」合并（description 用 !== undefined 支持 null 清空）再交 assertTaskAssignment，非只校验请求体；独立反事实：/tmp 副本改为「仅当 owner+acceptor 或 planStart+planEnd 都出现才比较」后，两测试文件 20 例失败、退出码 1，只改 owner=现有 acceptor、只改 acceptor=现有 owner 均被放行返回 200 且库中 owner/acceptor 被写坏；原树两文件 89 例全绿退出码 0。②只改 planStart 致现有 planEnd 倒挂 → 422 END_BEFORE_START（反事实放行）。③权限在服务端：actor 由 requireActorUserId 从请求头桩读取，角色读 ProjectMember 表，can() 自行按 ref.objectId 加载目标，路由传 DB 读出的 projectId，不依赖请求体权限字段。④独立探针 P1-P5 实测：空 PATCH 200 且逐字不变、单字段更新其余深等、isSensitive/visibleMemberIds 注入被 Zod 剥离、跨项目 projectId/storyId 被忽略、已敏感任务 PATCH 后 isSensitive 与名单保留。⑤404 一致性：不存在/非成员/敏感未授权响应体逐字相同（NOT_FOUND 资源不存在），无对象字段、无「无权限/敏感」字样（探针 P3）。⑥文件所有权：e76c5fe..ffd4d02 仅改 docs/ai-interaction-log.md 与 src/modules/task/*，未碰 src/shared、src/db/schema.prisma、src/routes.ts，未创建 test/factories.ts 与 test/helpers.ts。⑦全量 vitest 14 文件 254 例全绿退出码 0，typecheck 退出码 0。⑧AI 记录：74 行纯追加、7 列、序号无重复。【缺陷】非阻断 D1：PATCH 先读后写，任务被并发删除时 prisma.task.update 抛 P2025 未映射，HTTP 返回 500 INTERNAL_ERROR 而非 404（探针 P9 连续 5 轮 5/5 复现）；顺序执行均正确。【未验证】真实 T0-04/T0-05 未合入，can()/visibilityScope() 仍为 _t0-stubs.ts，真实鉴权与敏感过滤行为、端点 22 的 HAS_CHILDREN(409) 均未验证。【其他】列表端点 loadTaskView 逐任务查用户存在 N+1（Sprint 1 可接受）；description 传 null 与传空串行为差异为契约未明示的观察项
+
+**团队处置及理由：** 修改后采纳（有条件批准）：核心合并语义经反事实证明非假绿，必查项除真实鉴权替换外全部通过；条件：修复 PATCH 撞并发删除时 P2025 → 500 的竞态并补并发回归测试；真实 T0-04/T0-05 合入后必须重跑本工单 89 例与全量套件
+
+### 汇编 039 原序号 81
+
+时间：2026-09-19 19:45 角色：代码审查智能体 来源：A、B
+
+**任务场景：** T5-04 代码审查（issue #11，端点 29；范围 dea23da 编码 + 4c47cd8 测试体）
+
+**人类输入摘要：** 只读审查，不得改仓库文件（仅追加本表）；12 项必查逐条实测；重点复核 ObjectVisibility 清理的完整性与原子性并自行做反事实；外键 Restrict 与 404 一致性；为 T5-05/T5-06 铺路风险
+
+**AI输出要点：** ①同事务：prisma.$transaction([objectVisibility.deleteMany({objectType: task, objectId: task.id}), task.delete({where:{id:task.id}})])，数组形式顺序执行、失败整体回滚。独立反事实：/tmp 副本移除 deleteMany 后 task-delete 两文件 5 例失败、退出码 1，残留计数 3（A1）与 2（A3 与编码测试）。②deleteMany 精确到 objectType=task + objectId；独立探针 P6 实测只减少被删任务的 2 条、其它任务保留 1 条、故事记录不动；未加 projectId 为可改进的防御项而非缺陷。③删除保护来自 Task.storyId 外键 onDelete: Restrict（冻结 schema），测试在数据库层直接 prisma.userStory.delete() 断言 P2003 且任务与故事仍在，移除任务后同一语句成功（C11/C12 实测通过）；端点 22 未实现、src/modules/requirement 为空，行 79/80 已诚实标注 HAS_CHILDREN HTTP 映射未验证（属 M4/T3.9）。④404 一致性：不存在/非成员/敏感未授权逐字相同、无对象字段、message 不含「无权限/敏感」（B8/B9/B10 与探针 P3/P6）。⑤全量 vitest 254 例通过（T5-04 两文件 30 例），typecheck 退出码 0。⑥冻结文件与文件所有权同上（未碰 shared/schema.prisma/routes.ts，未创建 test/factories.ts、test/helpers.ts）。⑦AI 记录 79/80 行纯追加、7 列、序号无重复。【缺陷】非阻断 D2：并发双删同一任务时第二个请求在事务 task.delete 处抛 P2025 未映射，HTTP 返回 500 INTERNAL_ERROR 而非与「不存在」一致的 404（探针 P7 连续 5 轮 5/5 复现）；串行重复删除（B10）返回 404 正确。非阻断 D3（测试质量）：A4「事务原子性」在测试内手写与实现等价的 $transaction、未打端点，反事实移除实现里的 deleteMany 后 A4 仍通过，不能作为端点原子性的验收证据（A1/A3 已覆盖清理语义）。【未验证】真实 T0-04/T0-05 未合入，can()/visibilityScope() 仍为桩；端点 22 的 409 映射未验证。【铺路】端点 29 清理与 T5-05 端点 30 追加在同一文件但代码位置不重叠；T5-05 已在其分支把 visibilityScope 桩改为查询层过滤，本审查在 /tmp 副本用该新版桩重跑 T5-03/T5-04 共 119 例仍全绿，但「桩放行、真实实现拒绝」的假绿风险只有真实 T0-05 合入并重跑后才能关闭
+
+**团队处置及理由：** 修改后采纳（有条件批准）：同事务清理经反事实证明真实有效，外键保护与 404 一致性实测通过；条件：修复并发双删第二个请求 P2025 → 500 的竞态并补并发回归测试；将 A4 改为真正经端点 29 的原子性测试或明确降级为模式验证；真实 T0-04/T0-05 合入后重跑
+
+### 汇编 040 原序号 84
+
+时间：2026-09-19 19:57 角色：代码审查智能体 来源：A、B
+
+**任务场景：** T5-05（issue #12）独立审查：敏感任务四条查询路径与泄漏面、can／visibilityScope 一致性、端点 30 语义与审计
+
+**人类输入摘要：** 对 d50950b（编码）+ c632043（测试）出裁决；核心问题是未授权成员能否从任何地方推断敏感任务存在；独立实测端点 24／27／26／30 在不带参数与带敏感任务负责人 ownerUserId 两种输入下的行为（不复用测试体结论）；全仓 grep 内存 filter；在 /tmp 副本做两处反事实：去掉端点 26 的 visibilityScope 或令桩的 visibilityScope 恒返回 all，测试必须真失败；验证审计恰好一条每次、before／after 可 JSON.parse 且可串联；同 token 即时生效；裁定 can() 短路顺序是否符合 I-5；只读审查，仅追加本表
+
+**AI输出要点：** 自建 /tmp 探针实测（B 为名单外成员且是敏感任务负责人，库中 3 条任务含 1 条敏感）：端点 24 不带参／带 ownerUserId 均只回 2 条非敏感；端点 27／28／29／30 对敏感任务全部 404，body 与随机不存在 id 逐字一致；端点 26 不带参 2 条、带 A 参数仅 1 条非敏感、带 B 参数仅 1 条非敏感，敏感 id／标题／描述不出现；can(B)=404 且 visibilityScope(B).ids 不含敏感 id，逐 id 交叉验证两守卫一致；端点 30 实测 [A,B]→[B] 库中只剩 B（替换非追加）、isSensitive=false 忽略请求 [A] 并保留既有 [B]、重开恢复；4 次调用恰 4 条审计，JSON.parse 后第二次 before==第一次 after 且字段等于 SensitivityView；同 token 200→404；生产代码 .filter( 零匹配、无模块级缓存；反事实 CF1 致 9 例失败、CF2 致 21 例失败，退出码均 1，证明列表用例非假绿；另发现两处观察项：桩 can() 查 ObjectVisibility 不带 projectId 而 visibilityScope() 按 projectId 过滤，在人为写入 projectId 错配行时会出现「详情 200 但列表过滤」的守卫不一致（无法经 M5 端点写入），以及 isSensitive=false 携带非成员名单仍 422 而契约写「忽略」
+
+**团队处置及理由：** 批准：端点 30 与四条查询路径逐条对齐 I-2／I-3／I-5／I-6／I-10，无泄漏、无计数泄漏、审计完整，反事实可证测试有效；无阻断缺陷；替换真实 T0-05 时必须保留 I-5 短路顺序（先敏感 404 后写动作 403），模拟顺序颠倒会令 11 例失败并重新出现 403／404 存在性预言；两观察项交团队裁定；合入 main 前删除 _t0-stubs.ts 换真实 T0-04／T0-05 为项目级既定条件，非本工单返工项
+
+### 汇编 041 原序号 87
+
+时间：2026-09-19 19:57 角色：代码审查智能体 来源：A、B
+
+**任务场景：** T5-06（issue #13）独立审查：端点 26 第四条查询路径、ownerUserId 过滤与 Fastify 路由注册冲突
+
+**人类输入摘要：** 对 edc5371（编码）+ d5011f2（测试）出裁决；实测未授权成员不带参数与带敏感任务负责人 ownerUserId 两种输入；确认可见性与负责人过滤均在查询层同一 where；在 /tmp 副本删除端点 26 的 visibilityScope 后泄漏用例必须真失败；实验评估 Fastify 同 method+path 重复注册的后果；核对冻结文件与 T0 工厂所有权；只读审查，仅追加本表
+
+**AI输出要点：** 自建探针实测：B 不带参只回 2 条非敏感（库中 3 条）、带敏感负责人 A 参数结果为空、带 B 参数仅 B 的非敏感任务，敏感 id／标题／描述均不出现；ownerUserId 为项目外／跨项目／不存在用户均 422 NOT_PROJECT_MEMBER，重复查询参数 422 INVALID_VALUE 且非 500；鉴权先于业务校验（非成员+非法 owner 仍 404）；排序 planStart 升序再 createdAt 升序；反事实删除 visibilityScope 后 9 例失败（project-tasks 3、adversarial 5、本探针 1），退出码 1；路由实验：Fastify 对同 method+path 重复注册同步抛 FST_ERR_DUPLICATED_ROUTE（换参数名、跨插件注册、前缀拼接后路径相同均冲突，不同 method 允许）；四个提交未触碰 src/shared、schema.prisma、src/routes.ts 与 test/factories.ts、test/helpers.ts（后者不存在）
+
+**团队处置及理由：** 有条件批准：端点 26 代码与过滤正确、第四条路径无泄漏，反事实可证测试非空转；条件一：集中注册前必须与 M2 约定 GET /projects/:projectId/tasks 的唯一归属（契约 I-11 归 M5），若双方都注册则构建应用时抛 FST_ERR_DUPLICATED_ROUTE、服务无法启动，这是留给技术负责人的集成硬阻断点；条件二：src/routes.ts 目前根本未注册 taskRoutes，端点在生产不可达（T5-01 遗留），须一并注册并补真实 buildApp 冒烟；ownerUserId 不存在用户的码值与重复参数 INVALID_VALUE 属契约空白，列为观察项
+
+### 汇编 042 原序号 88
+
+时间：2026-09-19 20:10 角色：编码智能体 来源：A、B
+
+**任务场景：** T5-03/T5-04 条件修复：并发删除 P2025 映射与 A4 原子性断言（D1/D2/D3）
+
+**人类输入摘要：** 修复代码审查对 issue #10/#11 的有条件批准缺陷：D1 PATCH 撞并发删除时 P2025 映射 404 且与「不存在」逐字一致、只捕获 P2025；D2 DELETE 并发双删第二个请求 P2025 到 404 且事务回滚不误删 ObjectVisibility；D3 把 T5-04 A4 从「测试内复刻 $transaction 的模式验证」改成真正经端点 29 的原子性断言；补确定性并发回归；不得放宽既有 404 断言；只在 src/modules/task/ 内改动，_t0-stubs/_test-harness 保留临时桩标记；真实 T0-04/T0-05 替换后的重跑不属本工单
+
+**AI输出要点：** routes.ts 新增 isRecordNotFoundError(error)（仅按 code==='P2025' 判定），在端点 28 prisma.task.update 与端点 29 prisma.$transaction([deleteMany, delete]) 外包 try/catch：命中 P2025 抛同一 notFound()，其它错误原样抛出仍走 500；新增 task-concurrent-delete.test.ts 2 例；因 Prisma 6.19.3 已移除 $use 中间件，改用等价的委托层故障注入（在 can() 的 projectMember.findUnique 返回后删除任务行）触发真实 P2025，D1 断言 404 且 body 与「不存在」JSON 逐字相等且不含任务字段，D2 断言 404 逐字一致且可见性 count 由 2 回滚后仍为 2；把 task-delete.adversarial A4 改为经端点 29 注入 task.delete 失败（替换为访问不存在表的 $queryRawUnsafe），断言 500 INTERNAL_ERROR 且可见性 count 2 到 2 回滚、任务行仍在；修复前实测 D1/D2 均 500，修复后全量 429 例全绿（基线 427 + 2）、typecheck 干净
+
+**团队处置及理由：** 采纳（自评）：只映射 P2025，D3 的 500 断言同时钉住「其它错误不得被吞成 404」；并发用故障注入而非真实抖动，确定性且注明注入手法；真实 T0-04/T0-05 合入后重跑列为未验证项
+
+### 汇编 043 原序号 40
+
+时间：2026-09-19 20:15 角色：编码智能体(US-03) 来源：A、B、D
+
+**任务场景：** 实现 T3.1 端点 11：创建业务目标
+
+**人类输入摘要：** 按契约 I-8 端点 11 与基线 AC-US-03-01 实现；只在 `src/modules/requirement/` 内新增文件，`shared/` 与 `schema.prisma` 与 `routes.ts` 只读；测试必须打 HTTP seam 但生产注册行留给技术负责人在合并时添加
+
+**AI输出要点：** 新增 5 文件：`schemas.ts`（Zod → 422 VALIDATION_FAILED 桥接）、`service.ts`（`sortOrder=项目内最大值+1`、`projectId` 仅从 URL 父级推导、行→契约类型映射含 createdAt 转 ISO 8601）、`plugin.ts`（端点 11，只调 `can()` 不自行判断角色与状态码）、`test-fixtures.ts`（补 `makeGoal/makeActivity/makeStory/makeSensitive`）、`requirement.test.ts`（22 例：正例 8 反例 14）；判定「纯空白」不能用 Zod `.refine()`，因 refine 的 issue.code 为 `custom` 会被 `toFieldErrors` 兜底成 `INVALID_VALUE`，与契约要求的 `REQUIRED` 不符，故在处理器 trim 后判空并抛 `REQUIRED`；测试用 `app.register(registerRequirementRoutes, { prisma })` 在独立临时库加载，未改冻结文件
+
+**团队处置及理由：** 修改后采纳。首轮有 2 处类型缺陷：`makeGoal/makeActivity` 用可选展开传 `sortOrder`，而 `BusinessGoal.sortOrder` 与 `UserActivity.sortOrder` 在决策 I-7 中为无默认值的必填列，Prisma 生成类型的 `...UncheckedCreateInput.sortOrder` 为必填，`tsc` 报 TS2322。关键观察：**vitest 不做类型检查**，同一轮 133 例全绿却掩盖了这 2 个类型错误，证明 `typecheck` 与 `test` 两步都不可省。已改为显式取值并新增 `nextGoalSortOrderInDb` / `nextActivitySortOrderInDb`，复刻端点口径（避免夹具硬编码 0 后与 T3.3 排序口径分叉）；修复后 `npm run typecheck` 退出码 0、`npm test` 10 文件 133 例全绿
+
+### 汇编 044 原序号 41
+
+时间：2026-09-19 20:24 角色：编码智能体(US-03) 来源：A、B、D
+
+**任务场景：** T3.1 的两处契约空白与一处 T0 交付缺口登记
+
+**人类输入摘要：** 契约与基线只规定错误码 `TOO_LONG` 而未给出任何字段长度上限数值；端点 11 只说 `sortOrder=当前项目内最大值+1` 而未规定空集合起点；契约要求 T0.5 交付的 `test/factories.ts` 与 `test/helpers.ts` 在仓库中不存在。要求按契约实现并把空白记入遗留问题，不擅自改契约
+
+**AI输出要点：** 三处均按"优先按契约实现、留 Sprint 2 调整"处理：① `name` 长度上限按决策 I-2b 的举例「name（50）」取 50，集中为 `GOAL_NAME_MAX_LENGTH` 常量并注明出处仅为举例；② `sortOrder` 起点取 0，依据是端点 14 规定「第 i 个 id 的 sortOrder 置为 i」即下标从 0 开始，两条规则必须同源，否则排序后 sortOrder 集合会突变；③ 夹具自建于模块目录内 `test-fixtures.ts`，未新增或改动 `test/` 下文件，待 T0.5 落地后可整体替换为引用
+
+**团队处置及理由：** 修改后采纳（②为待确认项）。契约空白不属实现缺陷，按契约变更成本提示留 Sprint 回顾提出；其中 `sortOrder` 起点 0 是从端点 14 反推而非文档明文，已提请人工确认；三处均须写入表 3 遗留问题。另注明：生产注册行 `registerRequirementRoutes(app, context)` 需由技术负责人在合并时加入 `src/routes.ts`（冻结文件），否则本分支合入后端点 11 为 404
+
+### 汇编 045 原序号 43
+
+时间：2026-09-19 20:30 角色：检测智能体(US-03) 来源：A、B、D
+
+**任务场景：** 对 T3.1 交付做独立对抗性检测（发现 B1、B2）
+
+**人类输入摘要：** 以接口契约为唯一权威；不得修改任何生产代码、不得改冻结文件与已有测试；发现缺陷只报告并给复现证据，由人工裁决；只断言错误码不断言文案；测试必须用 createHttpTestContext 指向临时库并以 app.register 挂插件（生产注册行在冻结文件）。要求先复现基线 133 例全绿，复现不出即停止
+
+**AI输出要点：** 新增 `requirement.adversarial.test.ts`（901 行 / 79 例，覆盖权限矩阵穷举、响应零泄漏结构化断言、违规判定顺序、8 种字面空白与多字节 UTF-16 长度口径、`projectId` 注入并反向核对数据库、响应形状精确键集合、并发竞态、副作用隔离）。发现 **B1**：并发创建时 sortOrder 重复（5 条→`[0,0,1,1,1]`；8 条→`[0,0,0,0,0,1,1,1]`；串行 8 条正确为 `[0..7]`，连续 3 轮稳定复现），根因为读最大值与写入不在同一事务且无唯一约束兜底；发现 **B2**：`:projectId` ≥ 101 字符时返回非信封 414（`error` 为字符串、`code` 升到顶层），完全绕过统一错误处理器。另确认响应**正确地没有多给 `createdAt`**、`description` 缺省为 `null` 而非 `undefined`；将判定顺序口径、长度按 UTF-16 计数、U+200B 隐形名称可过校验三项归入契约空白而非缺陷；主动撤回第一版因夹具写错（把请求发到另一个 PM 的项目）而全部返回 404 的那轮运行，声明该轮对 B1 不构成证据
+
+**团队处置及理由：** 采纳（B1 已修，B2 记跨模块遗留）。关键价值：B1 是**编码智能体自带的 22 例与全量 typecheck 都发现不了的**——其测试全部为串行请求，无法暴露读-改-写竞态；此点写入 Sprint 回顾作为「独立检测智能体」价值的实证。人工确认其**保留 3 条红用例、拒绝改写成行为快照**的处置正确：快照式断言不会失败，从而失去回归护栏。其自我更正错误夹具的行为获肯定，未拿无效证据充数
+
+### 汇编 046 原序号 44
+
+时间：2026-09-19 20:32 角色：代码审查智能体(US-03) 来源：A、B、D
+
+**任务场景：** 对 T3.1 差异做只读审查（合并前隐患）
+
+**人类输入摘要：** 只读审查 diff，每条结论须附文件行号与契约条文出处；必须区分「契约违规」与「契约未定义」；不写测试、不改代码；重点审查并发竞态、空集合聚合返回 null、`row.status as GoalStatus` 类型断言是否掩盖脏数据、是否把 Prisma 行直接 send 出去带出契约外字段
+
+**AI输出要点：** 独立核实 typecheck 退出码 0 与 requirement.test.ts 22 例通过，确认提交说明中的两项声明为真；实测确认非法 JSON 与**空 JSON 体**均返回 400 BAD_REQUEST、`description` 为 `null` 时返回 422 且 details 定位到 description、超长 description 无上限返回 201；实测确认鉴权（401/403/403/404）**全部优先于** 422 校验，补足了原仅「未登录」一例有覆盖的缺口。指出**不应采用** `@@unique([projectId, sortOrder])` 兜底：端点 14 的全量替换存在合法中间态，唯一约束会拒绝该中间态而使排序无法实现（该选型风险独立于检测结论提出，被编码智能体采纳并写入修复说明）。登记 E9 类隐患：`nextGoalSortOrder` 为已导出但无人调用的函数，属可被误用的危险 API
+
+**团队处置及理由：** 修改后采纳。其提出的唯一约束选型风险直接改变了修复方案（由「约束兜底」改为「事务串行化」）。须记录的越权行为：该智能体为自测落盘了 `test/t31-verify-probe.test.ts`、`verify/`、`verify-t31.mjs`，越过「只读」红线；事后主动全部清理并如实报告，人工予以认可但已在提示词中追加更硬约束（审查智能体不得落盘任何文件，需验证则交由人工执行）
+
+### 汇编 047 原序号 42
+
+时间：2026-09-19 20:38 角色：编码智能体(US-03) 来源：A、B、D
+
+**任务场景：** 修复独立检测发现的并发 sortOrder 重复（B1）
+
+**人类输入摘要：** 独立检测智能体在 T3.1 交付后做对抗性验证，发现并发创建时 `sortOrder` 重复；要求判定这是真缺陷还是可接受取舍，并给出修法与代价；契约明确「无乐观锁」，故不得引入版本控制字段
+
+**AI输出要点：** 事实核实：原实现 `nextGoalSortOrder()` 读最大值与 `create()` 写入为两次独立查询、不在同一事务，且 `schema.prisma` 的 `sortOrder` 无唯一约束。检测实测并发 5 条得 `[0,0,1,1,1]`、并发 8 条得 `[0,0,0,0,0,1,1,1]`，而串行 8 条严格为 `[0..7]`。修法：把「聚合取最大值」与「插入」纳入同一 `prisma.$transaction`，由 SQLite 单写者模型的写锁串行化并发事务，第 N 个事务读到前 N-1 个已提交的最大值；同时删除原先导出的 `nextGoalSortOrder`，因任何独立公开函数都会诱使调用方在事务外使用从而重新引入竞态。裁决理由：契约的「无乐观锁」指并发写同一行时允许后写覆盖先写，而此处被破坏的是**序号唯一性**这一数据不变量，直接违反基线 AC-US-03-01「排序为末位」——序号重复时「末位」不再有定义，两者不是一回事
+
+**团队处置及理由：** 采纳。修复后 `npm run typecheck` 退出码 0、`npm test` 11 文件 212 例全绿，其中检测智能体的对抗测试由「76 通过 / 3 红」转为 **79 全绿**，3 条红用例转绿即修复成立的直接证据（检测智能体特意保留红而未改写成行为快照，人工确认此处置正确——快照式断言会失去回归护栏价值）。审查智能体另指出不予采用 `@@unique([projectId, sortOrder])` 兜底的理由：端点 14 的全量替换存在**合法中间态**（把 [A,B] 换成 [B,A] 时置 A:=1 于 B 尚为 1 之时），唯一约束会拒绝该中间态使排序无法实现，故本不变量只能靠事务。残余风险留 Sprint 2：本修法依赖 SQLite 单写者模型，若改用 Postgres（默认 READ COMMITTED）则两事务仍可读到同一最大值，单靠事务不再充分，需 `SELECT ... FOR UPDATE` 或唯一约束加冲突重试。另记跨模块遗留 B2：Fastify `maxParamLength` 默认 100，超长 `:projectId` 返回非信封 414 并绕过统一错误处理器（`error` 变字符串、`code` 升到顶层），端点 5–10、14、26 同样受影响，修复点在冻结区 `src/app.ts` 的 Fastify 构造参数，由技术负责人统一处理
+
+### 汇编 048 原序号 45
+
+时间：2026-09-19 21:17 角色：编码智能体(US-03) 来源：A、B、D
+
+**任务场景：** 实现 T3.4 端点 15：创建用户活动
+
+**人类输入摘要：** 按契约 I-8 端点 15 与基线 AC-US-03-02 实现；只改 `src/modules/requirement/` 内文件，`shared/` 与 `schema.prisma` 与 `routes.ts` 与 `test/` 只读；`projectId` 只从 `goalId` 所属目标推导、不接受请求体传入；`sortOrder = 该目标下最大值 + 1` 必须与写入同事务（T3.1 的 B1 同型竞态，不等检测智能体再抓）；每端点至少一正一反、只断言错误码不断言中文文案
+
+**AI输出要点：** 新增 1 文件 `requirement.activity.test.ts`（35 例：正例 13 / 反例 22，含并发 5 条与并发落库核对、请求体注入 `projectId`/`goalId`/`status`/`sortOrder` 全被丢弃并反向核对数据库、`goalId` 属他项目 → 404 且他项目零落库、两类 404 的响应结构与文案完全一致、401/403/404/422 失败零副作用且不占用序号）；改 3 文件：`schemas.ts`（新增 `ACTIVITY_NAME_MAX_LENGTH=50` 与 `createUserActivitySchema`，刻意不复用端点 11 的 schema）、`service.ts`（新增非导出的 `toUserActivity` 与事务化 `createUserActivity`，空集合 `_max===null` 显式判断并视作 -1）、`plugin.ts`（端点 15 handler：先查目标取真实 `projectId` 再调 `can()`，两类 404 共用模块级常量 `GOAL_NOT_FOUND_MESSAGE`）
+
+**团队处置及理由：** 采纳（本轮无返工）。实测 `npm run typecheck` 退出码 0、`npm test` 12 文件 247 例全绿（原 212 + 新增 35）。三条契约空白按现状实现并登记：① 活动 `name` 上限契约只给 `TOO_LONG` 不给数值，取 50 与目标名同源；② 活动 `sortOrder` 空集合起点取 0，依据端点 18「第 i 个置为 i」反推；③ `goalId` 不存在时契约未定义状态码，按 I-4 的 `NOT_FOUND`（含「id 不存在」）取 404 且与「非成员」文案一致。另：调 `can()` 前先查目标以取真实 `projectId`（URL 只有 `goalId`，而 `ObjectRef` 的 `kind:'goal'` 要求两字段），避免 M3 将来启用该字段归属校验时误判。B2（`:goalId` ≥ 101 字符返回非信封 414）对端点 15 同样成立，属冻结区 `src/app.ts` 的跨模块遗留，未修未写红用例
+
+### 汇编 049 原序号 46
+
+时间：2026-09-19 21:17 角色：编码智能体(US-03) 来源：A、B、D
+
+**任务场景：** 只读核查仓库分支与 T0 交付状态，更正「T0.5 未交付」的判断
+
+**人类输入摘要：** 要求先复现基线（212 例全绿 / typecheck 退出码 0）并核对交接材料中不符之处；只读核查，不改任何文件
+
+**AI输出要点：** 实测基线成立（`npm test` 11 文件 212 例全绿、`npm run typecheck` 退出码 0）。实测发现两条分支 `integration/us-03`(be7bae6) 与 `attic-local-t0`(a19f6b3) **只在本地、无上游远程**，分叉点为 `e947259`（仓库初始化），并非 `main` 的后续；两者均含契约要求的 `test/factories.ts`（8 个工厂函数齐全）与 `test/helpers.ts`，而 `main` 上没有 ⇒ 表五序号 41 记载的「契约要求 T0.5 交付的 `test/factories.ts` 与 `test/helpers.ts` 在仓库中不存在」应更正为「**已交付，但交付在未合并进 `main` 的本地分支上**」。另实测两线与 `main` 的 T0 不兼容：权限入口文件名不同（`authz/index.ts` vs `authz/permissions.ts`）、测试夹具签名不同（`makeUser(account,displayName)` vs `makeUser(db,account,displayName)`）。并实测 `58104fe` **已推送**（`origin/feat/T3.1-create-goal` 与本地领先/落后均为 0），与交接材料「58104fe 未推送」不符；同时确认 T3.1 尚未合入 `main`（`main = d490c64 = origin/main`），故 T3.4 无法按工作协议「从主干切分支」。附带记录一处工具坑：本机 PowerShell 直接读 UTF-8 中文文件会按 GBK 解码并吞掉换行，行数会静默偏小（如 `plugin.ts` 实测 121 行、被读成 85 行），交接材料中的行数表疑为此坑产物
+
+**团队处置及理由：** 采纳为流程发现（未改任何文件）。处置建议：不合并上述两条旧 T0 线（会把与 `main` 不兼容的旧 T0 整体带入），由 T0.5 责任方基于最新 `main` 重新交付 `test/factories.ts`，或在 Sprint 回顾中记为「T0.5 工作另存于本地分支、未合入」作为复盘材料；同时建议向全组重申「短分支 + 做完即推」以避免同类作废。本条是对既有行 41 的更正，按「不得改已有行」规则另起一行记录，未改动 1–44 行
+
+### 汇编 050 原序号 47
+
+时间：2026-09-19 21:26 角色：编码智能体(US-03) 来源：A、B、D
+
+**任务场景：** 实现 T3.2 端点 12：更新业务目标（部分更新）
+
+**人类输入摘要：** 按契约 I-8 端点 12 实现；只改 `src/modules/requirement/` 内文件，`shared/` 与 `schema.prisma` 与 `routes.ts` 与 `test/` 只读；部分更新语义按决策 I-10；测试只断言错误码不断言中文文案；每端点至少一正一反
+
+**AI输出要点：** 新增 1 文件 `requirement.goal-update.test.ts`（38 例：正例 14 / 反例 24，逐字段比对整行以拦住「静默清空未传字段」这类不报错的写坏）；改 3 文件：`schemas.ts`（新增 `updateBusinessGoalSchema`，三字段**全部 optional**——不能复用端点 11 的必填 schema，否则「只改 status」会被误判 422；`status` 引共享层 `goalStatusSchema` 不自行写枚举）、`service.ts`（新增 `BusinessGoalPatch` 类型白名单与 `updateBusinessGoal`）、`plugin.ts`（端点 12 handler；`name` 仅在请求体出现时才 trim 判空）。关键判断：**本端点不包事务**——它只写请求体明确给出的字段，新值不依赖任何读取结果，单条 `UPDATE` 本身原子，与端点 11/15 的「读最大值→写新行」竞态不同型；且 `projectId`/`sortOrder` 用类型白名单排除在可改字段之外，编译器层面即不可改，本端点根本不触碰序号不变量
+
+**团队处置及理由：** 采纳（本轮无返工）。实测 `npm run typecheck` 退出码 0、`npm test` 13 文件 285 例全绿（原 247 + 新增 38）。三处契约空白按现状实现并登记：① `description: null` 按契约形状只能是 422，**契约没有提供「把 description 清空」的入口**（若要支持需改请求形状，属 Sprint 2）；② 请求体为 `{}` 时契约未定义，本实现取「200 + 资源不变」（部分更新字面语义），已用测试名标注按现状钉住；③ 契约 I-10「校验以合并后的结果为准」在本端点**无事可做**（只有单字段形状校验、无跨字段规则，那条规则是为端点 28 的 `acceptor !== owner` 而写），显式写明以防代码审查误判为漏实现。另留一条不可达护栏：`can()` 之后写入之前目标被删时 Prisma 抛 P2025，本实现让 service 返回 `null` 由 handler 转 404，避免把「对象已不存在」误报成 500（该窗口在端点 13 落地前不可达，属 T3.9 前置防护）
+
+### 汇编 051 原序号 48
+
+时间：2026-09-19 21:31 角色：编码智能体(US-03) 来源：A、B、D
+
+**任务场景：** 实现 T3.5 端点 16 + 18（含活动排序的全量替换）
+
+**人类输入摘要：** 按契约 I-8 端点 16（错误「同端点 12」）与端点 18（语义「同端点 14，范围限定在该目标下的用户活动」）实现；只改 `src/modules/requirement/` 内文件；排序不变量必须与写入同事务；测试只断言错误码不断言中文文案
+
+**AI输出要点：** 新增 2 文件：`requirement.activity-update.test.ts`（39 例）、`requirement.activity-order.test.ts`（38 例）；改 3 文件：`schemas.ts`（`updateUserActivitySchema` 三字段全 optional、`status` 引共享层 `goalStatusSchema` 而非另写枚举——用户活动状态在契约 I-2 中就是 `GoalStatus`；`reorderActivitiesSchema` 只校验形状，集合一致性按 I-2b 归业务规则）、`service.ts`（`UserActivityPatch` 白名单 + `updateUserActivity`；`ReorderActivitiesResult` 可判别联合 + `reorderUserActivities`；复用端点 12 的 `isSameIdSet` 思路并新增其判定）、`plugin.ts`（两个 handler + `ACTIVITY_NOT_FOUND_MESSAGE` 常量）。**关键判断**：端点 18 是全模块唯一真正的「读-改-写 + 批量写」，必须整段包在单个 `$transaction` 内，否则 ① 校验后、写入前集合可能被端点 15 改变，导致序号不连续，② 逐条 update 中途失败会留下**半应用的顺序**；集合一致性判据必须是「长度相同 **且** 请求内无重复 **且** 库内每个 id 都在请求里」三条合取，只比长度会放过「同长度替换一个不存在的 id」。另：端点 16 沿用端点 12 的「只写请求体出现字段」写法，从根上避免读-改-写窗口造成的丢失更新
+
+**团队处置及理由：** 采纳（本任务无返工）。实测 `npm run typecheck` 退出码 0、`npm test` 15 文件 362 例全绿（原 285 + 新增 77）。登记三处契约空白：① 端点 18 的响应排序契约未明文（只说 `ListResponse<UserActivity>`），实现取「按新序号升序」，依据是端点 10 明写「activities 按 sortOrder 升序」；② 空目标 + `orderedIds: []` 契约未定义，实现取「空集合与空集合一致 → 200 + `items: []`」，另一种合理读法是 422；③ `orderedIds` 数组无长度上限（决策 I-10「列表不分页」属有意简化），实现为 O(n) 次 update，若数据量增长需重新评估。另记录：端点 16 与端点 12 同型，故未重复登记端点 12 已记空白（description 无清空入口、空请求体 200 幂等）
+
+### 汇编 052 原序号 49
+
+时间：2026-09-19 21:53 角色：编码智能体(US-03) 来源：A、B、D
+
+**任务场景：** 实现 T3.3 端点 14：业务目标排序（全量替换）
+
+**人类输入摘要：** 按契约 I-8 端点 14 实现；只改 `src/modules/requirement/` 内文件；`sortOrder` 不变量必须与写入同事务；测试只断言错误码不断言中文文案
+
+**AI输出要点：** 新增 1 文件 `requirement.goal-order.test.ts`（35 例：正 12 / 反 23，含 10 个目标逆序、与端点 11 协同「新建拿末位后可排到最前」、幂等、集合不一致时零写入、不动目标下活动、不越界到其它项目）；改 3 文件：`schemas.ts`（`reorderGoalsSchema` 只校验形状，集合一致性按 I-2b 归业务规则，与端点 18 的形状相同但刻意独立命名）、`service.ts`（`ReorderGoalsResult` + `reorderBusinessGoals`，与端点 18 同型：同一套 `isSameIdSet` 判据、同样整段单事务）、`plugin.ts`（端点 14 handler）。**顺带统一**：把端点 11 的两处 `'项目不存在'` 字面量提为模块级 `PROJECT_NOT_FOUND_MESSAGE` —— 契约 I-3 要求「项目不存在」与「非项目成员」两类 404 不可区分，统一前该不变量的成立依赖两处字面量恰好没被改歪，统一后是**结构上**成立；纯常量替换、行为零变化，端点 11 的 404 路径由对抗测试 79 例覆盖
+
+**团队处置及理由：** 采纳（无返工）。**首轮 `npm run typecheck` 报 7 个 TS2345**：测试里 `ids[0]` 在 `noUncheckedIndexedAccess` 下类型是 `string | undefined`，而 vitest 运行时它是字符串、测试会全绿 —— 这是「坑 1」在 T3.1（2 个 TS2322）之后的**第二次复现**，已改为 `for...of` 遍历、未使用非空断言。实测最终全量回归 18 文件 509 例全绿（本任务新增 35 例）。登记契约空白：`orderedIds` 数组无长度上限（同端点 18 序号 48 已记）
+
+### 汇编 053 原序号 50
+
+时间：2026-09-19 21:53 角色：编码智能体(US-03) 来源：A、B、D
+
+**任务场景：** 实现 T3.9 端点 13/17/22：删除保护与 HAS_CHILDREN
+
+**人类输入摘要：** 按契约 I-8 端点 13/17/22 实现；只改 `src/modules/requirement/` 内文件；`HAS_CHILDREN` 按契约要求由外键 RESTRICT 保证、不依赖应用层判断；端点 22 的 `ObjectVisibility` 清理必须与删除同事务
+
+**AI输出要点：** 新增 1 文件 `requirement.delete.test.ts`（41 例，三个端点共用——它们是同一条规则在三个层级上的同一实现）；改 3 文件：`service.ts`（`DeleteResult` + `deleteBusinessGoal`/`deleteUserActivity`/`deleteUserStory`；`prismaErrorCode` 用鸭子类型 + `/^P\d{4}$/` 正则识别 Prisma 码，避免引入运行时导入；`classifyDeleteFailure` **只翻译 P2003→HAS_CHILDREN / P2025→NOT_FOUND，其它异常原样抛出**——把不认识的情况吞成 409/404 会掩盖真实缺陷，比崩溃更糟）、`plugin.ts`（三个 handler + `STORY_NOT_FOUND_MESSAGE` 常量 + `hasChildrenError`/`deleteFailureError` 两个共用助手）、`test-fixtures.ts`（**补 `makeTask`**，契约测试工厂清单里本就有、T3.1 用不到故未实现；并按契约要求在该夹具内部拒绝「验收人 = 负责人」）。**关键判断**：① 三个端点的子项判断一律下沉到数据库（`P2003`），因为应用层「先 count 再 delete」本身又是一次读-改-写竞态（与本模块的 `sortOrder` 竞态同型，后果从「序号重复」变成「误删有子项的节点」）；② 端点 22 的 `delete` 放在 `deleteMany` **之前**以短路，故事删不掉时连碰都不碰可见性记录
+
+**团队处置及理由：** 采纳，但**首轮全量回归有 2 例红**（17 文件 438 例中 `2 failed`）：`requirement.delete.test.ts` 的两条正例断言 204、实测 409。根因判定为**测试缺陷而非实现缺陷**（见序号 51），实现行为正确。另故意未覆盖：非 PM 对**敏感故事**的删除路径——`can()` 第 4 条是 T2.3/T2.4 待接管的保守实现（非 PM 一律 404），M3 落地后会变为「白名单成员 → 403」，属已定性事项（序号 40 已登记），钉住它只会制造一条将来必红的用例；PM 删除敏感故事的路径不受 M3 影响，已覆盖
+
+### 汇编 054 原序号 51
+
+时间：2026-09-19 21:53 角色：编码智能体(US-03) 来源：A、B、D
+
+**任务场景：** 判定 2 条红用例是缺陷还是测试写错，并修正
+
+**人类输入摘要：** 红线要求：发现失败先判定「是缺陷还是测试写错」并把理由写出来；确认是测试写错则修数据、**不得放宽断言**；独立检测智能体与本轮命令输出是唯一证据来源
+
+**AI输出要点：** **判定：测试写错。** `makeEmptyChain()` 的注释写「无子项」，函数却显式造了一个故事，于是返回的 `goal` 有子活动、`activity` 有子故事——两条正例拿它当「无下级」用，前提就是错的；删除仍有子项的对象时实现**正确地**返回 409（契约 I-8 端点 13/17，由外键 RESTRICT 保证）。独立检测智能体的探针独立证实：真正无子项时返回 204（真空目标 → 204；删掉故事后再删活动 → 204），`HAS_CHILDREN` 可解除。修法：**审计该夹具全部 34 处使用点**，改动 4 处——① `makeEmptyChain` 重命名为 `makeFullChain` 并在注释里写明它**有**子项及这次命名陷阱的经过；② 新增 `makeDeletableGoal()`（下无活动的目标）与 `makeDeletableActivity()`（下无故事的活动）供端点 13/17 的 204 正例使用；③④ 另修 2 条此前「**绿得没意义**」的用例（删除只作用于该目标 / 删除活动不影响父目标）——它们的删除请求此前被 409 拒绝，断言在「什么都没发生」的前提下平凡成立，现补上「删除真的成功（204 且对象已不存在）」的前置断言
+
+**团队处置及理由：** 采纳。**断言强度一个字未降**：204 仍要求 204、`exists === false` 仍在，改的是数据与前置断言，不是把断言改松。**裁决不留红灯**：保留红灯作回归护栏的前提是红灯**暴露真实缺陷**；这两条红灯暴露的是夹具前提错误，留着只会掩盖将来真正的红灯并让 CI 永久失败。修正后 `npm run typecheck` 退出码 0、全量 18 文件 509 例全绿；409 与 204 两条路径均有覆盖，「HAS_CHILDREN 可解除」另有专门用例。**教训**：夹具的名字与注释一起在骗人，而且这个谎言让 2 条用例静默失效（绿得没意义的那 2 条比红的 2 条更危险）
+
+### 汇编 055 原序号 52
+
+时间：2026-09-19 21:53 角色：检测智能体(US-03) 来源：A、B、D
+
+**任务场景：** 第二轮独立对抗性检测（交付 `requirement.adversarial2.test.ts`，71 例）
+
+**人类输入摘要：** 人类给定的提示词：唯一允许新增 1 个测试文件；不得修改任何已有文件；先复现基线（17 文件 438 例）复现不出即停；只断言错误码；不得改断言求绿、缺陷保留红灯；发现夹具写错须显式撤回无效证据
+
+**AI输出要点：** 新增恰好 1 文件 `requirement.adversarial2.test.ts`（71 例，覆盖端点 11–18、22）。四个重点攻击面结论：并发 `sortOrder` ✅（端点 11 并发 6 条 → `[0..5]`，上一轮同场景为 `[0,0,1,1,1]`；端点 15 并发 6/8 条 ✅；11 与 15 交叉并发互不串号 ✅）、PATCH 静默清空 ✅（整行 `toEqual` 比对）、跨项目引用 ✅（7 条，反向核对另一项目的库）、删除保护与多态列清理 ✅（含「同一 id 同时造 story 与 task 两种记录，删 story 时只清 story 那批」的陷阱用例）。**生产代码缺陷 0 个。** 独立定位出 B0：2 条红用例的根因是**测试夹具前提错误**（`makeEmptyChain` 造了故事却当「无下级」用），并给出探针证据 A1/A3/A5/A6/B1
+
+**团队处置及理由：** 采纳。其 B0 诊断与序号 51 的判定完全一致，且**它是在只有实测输出、不参与实现的前提下独立得出的**。人类就「红灯是否保留」征询，答复为**不保留**（理由见序号 51），已向其说明这是针对红灯的**成因**而非否定其判断；其「保留红灯、拒绝改写成行为快照、把决策交回人类」三点处置正确。**另需记录（由编码智能体代记）**：该文件存在 **6 个 TS18048**（`noUncheckedIndexedAccess` 下从字面量数组解构 `[missingRes, notMemberRes]` 得 `Response | undefined`），使 `npm run typecheck` 退出码 2；vitest 不看类型故其自身 71 例仍全绿——**这是「坑 1」的第三次复现，且发生在专职检测智能体的交付物上**。编码智能体对该文件只做了一处**类型注解**修改（加 `Array<[ApiResponse, ApiResponse]>`，类型从已导入的 `HttpTestContext['asUser']` 推导、不引新依赖），**未改任何断言或用例语义**，71 例计数不变，并已在文件头留痕说明原委与回退方式。该文件 71 例是否通过以人工执行的 `npm test`（18 文件 509 例全绿）为准
+
+### 汇编 056 原序号 53
+
+时间：2026-09-19 22:16 角色：编码智能体(US-03) 来源：A、B、D
+
+**任务场景：** 实现 T3.6 端点 19 + T3.7 端点 20/21（用户故事的创建、详情、编辑）
+
+**人类输入摘要：** 按契约 I-8 端点 19/20/21 实现；只改 `src/modules/requirement/` 内文件；测试只断言错误码不断言中文文案；每端点至少一正一反。**提交粒度**：协议要求一任务一提交，但两任务改同一批文件的相邻区域（`schemas.ts` 的 schema 段、`service.ts` 的 `USER_STORY_FIELDS` 与三个函数、`plugin.ts` 的三个 handler），在同一工作区无法干净拆成两个提交 → 合并为一个提交并逐任务说明，分支相应命名为 `feat/T3.6-T3.7-story-endpoints` 而非单任务名，以免命名误导
+
+**AI输出要点：** 新增 2 文件：`requirement.story-create.test.ts`（声明 40 条、其中 5 条在 5 字段循环内 → 运行时 60 例）、`requirement.story-read-update.test.ts`（声明 43 条、其中 3 条在循环内 → 运行时 55 例）；改 3 文件。**三处关键判断**：① 端点 19 的五个必填文本字段都要判纯空白**且一次报全部**（`.min(1)` 拦不住 `'   '`）；② 端点 20 是**读动作、正确结果里没有 403**（成员读非敏感故事应 200），且契约明写「不存在 / 非项目成员 / 敏感且未授权三者响应一致」，测试逐字对比三者的状态码、键集合与文案；③ 端点 21 的 `status` 必须用 `storyStatusSchema`（DRAFT/PLANNING/DONE）而**不能**用 `goalStatusSchema`（ACTIVE/DONE）—— 决策 I-1 的三 DONE 陷阱，针对性反例是「传 `'ACTIVE'` 必须 422」（若顺手抄了端点 12/16 的 schema，这条会由 422 变 200）；且端点 21 **不含 `isSensitive`**（契约明文），`UserStoryPatch` 类型白名单里没有它，另有用例断言「注入 `isSensitive: true` 被静默丢弃、库内仍为 false」—— 端点 23 未实现前，此处绝不能成为标敏感的旁路。**端点 19 刻意不包事务**：`UserStory` 表没有 `sortOrder` 列（决策 I-10 规定故事用 `createdAt` 固定排序），新值不依赖任何读取结果，不存在读-改-写竞态；判据是「新值是否依赖读取结果」而非「是不是创建操作」。顺带：T3.1 时写好却无人调用的 `toUserStory`（曾被审查智能体登记为 E9 类「已导出但无人调用的危险 API」）现被端点 19/20/21 三处共用，该隐患自然消除
+
+**团队处置及理由：** 采纳（无返工）。实测 `npm run typecheck` 退出码 0、`npm test` **20 文件 624 例全绿**（原 509 + 新增 115）。登记契约空白：五个文本字段共用一个 50 上限（契约对它们都要求 `TOO_LONG` 却不给数值，唯一线索仍是 I-4 里「name（50）」这一**举例**；选择「共用一个数」而非「给每个字段各编一个数」，理由写在该常量注释里）；`acceptanceCriteria` 不设上限（契约未对它的错误码列 `TOO_LONG`，与 `description` 待遇一致）。另记录一处**诚实边界**：端点 20 的「敏感未授权 → 404」用例今天通过的理由是「T0.4 骨架对敏感对象保守拒绝」，不是「白名单判定」；测试特意把白名单写成空数组，使其在 T2.5 落地后仍然成立，并在文件内注明「今天的绿灯与以后的绿灯不是同一个原因」
+
+### 汇编 057 原序号 54
+
+时间：2026-09-19 22:16 角色：编码智能体(US-03) 来源：A、B、D
+
+**任务场景：** 实现 T3.8 端点 10 需求层级树 + T3.10 `visibilityScope` 接线
+
+**人类输入摘要：** 按契约 I-8 端点 10（含决策 I-6 的可见性作用域约定）实现；只改 `src/modules/requirement/` 内文件。**提交粒度**：T3.8 与 T3.10 打的是同一个端点、同一个 handler、同一条查询（过滤与组装是这一条查询的两半），而契约「常见拼装失败与预防」表明确写着「**不可保留一个未过滤的版本**」→ 两个任务必须在同一个提交里落地，不能先提交一个「树能返回但不过滤敏感对象」的中间态
+
+**AI输出要点：** 新增 1 文件 `requirement.goal-tree.test.ts`（27 例：正 18 / 反 8 / 排序与并列 5，每条都对准一条契约条文或一处未定义处的判断）；改 2 文件：`service.ts`（新增 `getGoalTree`：**过滤下推到查询层** —— `mode:'all' → where:{}`、`mode:'subset' → where:{ id: { in: ids } }`，`ids` 为空时 Prisma 的 `in: []` 恒假即为空集合，正是契约要求的「若 ids 为空则该列表返回空集合」；禁止内存过滤的理由**不是性能而是存在性泄漏**——数量差异可被推断）、`plugin.ts`（端点 10 handler + 解构出 `visibilityScope`）。三层类型逐层对齐：`GoalNode` = BusinessGoal 6 字段 + `activities[]`、`ActivityNode` = UserActivity 7 字段 + `stories[]`、`StoryNode` = UserStory 13 字段，测试对**三层各自的键集合**都做精确断言
+
+**团队处置及理由：** 采纳（无返工）。实测 `npm run typecheck` 退出码 0、`npm test` 21 文件 651 例 —— 其中 1 例红属**探测器护栏过期**，非本任务缺陷（见序号 55）；修正该过期用例后全量绿。**本任务查出并记录两个真问题**：① **`createdAt` 只有秒级精度** —— 迁移里是 `"createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP`，SQLite 的 `CURRENT_TIMESTAMP` 没有毫秒，同一秒内创建的多条故事 `createdAt` 完全相同，而契约只说「按 createdAt 升序」、未规定并列次序 ⇒ 相对顺序由数据库物理顺序决定、**不可预期也不可复现**；该问题在评审演示的主链路脚本里最易暴露（脚本在同一秒内连续建多条故事）。本模块内的缓解：三处 `orderBy` 都补 `{ id: 'asc' }` 次级键，使并列时顺序确定且可复现（契约的「升序」依然满足），并把「真正的修法在冻结区（毫秒精度或契约补次级排序规则）」记入遗留；② **契约与基线口径冲突** —— AC-US-03-09 要求列表显示「**下属数量**」，但契约 I-2 的 `GoalNode`/`ActivityNode` **没有计数字段**；按契约自身的优先级声明（与基线冲突时以契约接口定义为准）**不新增字段**，数量由前端从 `activities.length`/`stories.length` 得出。另记录一处**不可观测边界**：`visibilityScope()` 现状为「非成员 → subset/[]，PM → all，**非 PM 的成员 → all（T2.5 待实现）**」，而端点 10 先用 `can()` 把非成员判成 404 ⇒ 能走到过滤的一定是成员、永远拿到 `all`，**subset 分支在 T2.5 落地前不可能被 HTTP 请求触发**，AC-US-03-08「敏感故事对未授权成员不可见」今天无法通过接口观测；测试文件**故意不为它写断言**（写「成员能看到」会在 T2.5 落地后变成假警报，写「成员看不到」则今天必红且红的原因是跨模块未交付，两者都会污染回归护栏），只钉住与 T2.5 无关且永远成立的部分（PM 能看到敏感故事、成员能看到非敏感故事）。首轮 `typecheck` 报 2 个 TS2532（`noUncheckedIndexedAccess` 下 `items[0].activities[0]` 为 `| undefined`），已改为解构 + 可选链、未用非空断言。**至此 US-03 的 T3.1–T3.10 十个任务、端点 10–22 十三个端点全部交付**
+
+### 汇编 058 原序号 55
+
+时间：2026-09-19 22:16 角色：编码智能体(US-03) 来源：A、B、D
+
+**任务场景：** 处置第一轮检测智能体留下的**过期护栏**（红线边界事项，经人类明确授权后修改）
+
+**人类输入摘要：** 人类裁决「方案 A」：授权编码智能体修改 `requirement.adversarial.test.ts` 中那条已过期前提的用例。约束：**不得放宽断言**；只允许改与该断言无关的测试输入；须逐条写明理由并在文件内留痕
+
+**AI输出要点：** **现象**：全量 21 文件 651 例中 1 例红 —— `requirement.adversarial.test.ts:282` 断言 `GET /projects/:projectId/goals` → 404，实测 200。**定性为第三类情况「护栏过期」（既非缺陷、也非测试写错）**：该用例名自带前提「（本任务只交付 POST）」，在 T3.1 时**成立且正确**；而 T3.8 交付的端点 10 **就是** `GET /projects/:projectId/goals`，契约 I-8 明文要求返回 **200** ⇒ 前提过期、用例必然由绿转红。**修法**：该用例真正要测的是「**未注册的方法+路径走统一 404 信封**，而不是 500 或 HTML」，这个意图仍有效、过期的只是它挑的载体；因此**断言保持 404 不变**，只把载体换成任何版本契约都从未定义过的 `DELETE /projects/:projectId/goals`（已注册的 DELETE 只有 `/goals/:id`、`/activities/:id`、`/stories/:id`），使该护栏**不再随交付进度过期**
+
+**团队处置及理由：** 采纳。自证：`git diff -U0` 中 `expect(` 行**空输出**（断言零改动），改动仅 2 行删除 + 21 行新增（用例名、请求方法，加解释性注释），文件内 `expect(` 计数改前改后一致；文件头同步留痕说明「本用例载体在 T3.8 后被授权修改过一次」及其理由。**本条同时产出一条流程结论，建议写入 Sprint 回顾**：**检测智能体的「未交付端点 → 404」探针是有保质期的** —— 在按任务顺序交付的项目里，每一个这类探针都会在它守护的端点交付的那一刻**必然过期**；这不是谁写错了，而是「用当前交付状态去断言一个会被后续任务合法改变的边界」这种测试设计的内在缺陷。对策：**不要为「尚未交付」的端点写 404 探针；要写就写契约里从未定义过的方法+路径**，这样护栏不会随交付进度过期。全仓核查：此类过期探针**仅此一条**（第二轮检测智能体在报告中明确把「端点 10/19/20/21 未交付」列入**未覆盖**清单，故未埋同类探针）
+
+### 汇编 059 原序号 56
+
+时间：2026-09-19 22:25 角色：代码审查智能体(US-03) 来源：A、B、D
+
+**任务场景：** 第二轮只读审查（端点 19/20/21/10 首次被独立审查）+ 实测证据回收
+
+**人类输入摘要：** 按提示词只读审查：每条结论须附 `文件:行号` + 契约条文出处 + 证据等级；不得创建/修改/删除任何文件（含探针与 txt 输出）；不得提权；跑不了的命令交给人执行；必须区分「契约违规 / 契约未定义 / 实现缺陷」；「已定性事项清单」内的不重复报告
+
+**AI输出要点：** 范围 `e0c7196..e55b562`。结论：**无阻断项**；四个从未被独立审查的端点（19/20/21/10）在代码层与运行层均通过；三处契约陷阱（三 `DONE` 枚举、`isSensitive` 旁路、内存过滤）经**逐行追到行号**核对，确认由「⚠️ 注释显式标注 + 结构性防护 + 真实断言」三重守住。提出 4 条**建议项（非阻断）**：**S1** 端点 20/21 在鉴权前读入含 `isSensitive` 的整行（`plugin.ts` 鉴权调用在整行读之后）；S2 `acceptanceCriteria` 是唯一无长度上限的自由文本；S3 `toUserStory` 的枚举断言建议补窄校验；S4 端点 10 的嵌套过滤在 `subset` 模式下的查询次数（性能）。另列契约空白 C1–C6。实测回收：把 `typecheck exit=0`、全量 **21 文件 651 例全绿**、端点 11/15 并发护栏未被破坏、端点 19/20/21/10 的 **142 例**从「未能验证」升级为「已实测」。**主动自我更正**：承认用正则数 `it(` 报道用例数会低估（含参数化循环），并声明此后一律引用 vitest 自身输出
+
+**团队处置及理由：** 采纳（裁定**本分支可合并**，就 US-03 后端而言）。逐条处置：**S1 采纳并改造**（见序号 57）；**S2** 记入契约空白待澄清，建议 Sprint 2 在契约里写明 `acceptanceCriteria` 的上限策略；**S3 记录不采纳**，理由：枚举取值的合法性由**写入前的 Zod 校验**保证（决策 I-0 明确「数据库不强制枚举取值」），本模块所有写入路径均经 Zod，且 `toBusinessGoal` / `toUserActivity` 存在**同样形状**的 `as` 断言 —— 要加窄校验应作为**跨模块一致性事项统一处理**，只改 `toUserStory` 会造成三者口径不一；**S4 记录不改**，依据决策 I-10「列表不分页」属**有意简化**、Sprint 1 数据量小，性能非本轮目标。其**自我更正计数方法**的行为符合红线（发现自己报道的数字不可靠即撤回该报道方式），值得肯定；其对上一份报告中「138+ 例」的更正亦由实测确认（实为 142 例）。**C4（`createdAt` 并列时的次级排序键）**：审查智能体实测确认 `goal-tree.test.ts` 中「同秒 `createdAt` 下顺序确定且两次请求一致」的用例通过，即次级键 `{id:'asc'}` 生效，并请人类决定「写进契约还是接受未定义状态」；答复为**本分支不改契约**（契约变更须走「提出 → 全员确认 → 单人修改 → 通知」流程），按空白记入待澄清，由技术负责人决定。其列为「未能验证 1」的 `e43e921` 自证项已由编码智能体用其指定的只读命令**实测关闭**：`git diff -U0 e43e921~1 e43e921 -- src/modules/requirement/requirement.adversarial.test.ts \| Select-String '^\+\s*expect\('` **空输出**，且该文件 `expect(` 计数 **164 → 164** 不变
+
+### 汇编 060 原序号 57
+
+时间：2026-09-19 22:25 角色：编码智能体(US-03) 来源：A、B、D
+
+**任务场景：** 采纳审查建议 S1：端点 20/21 的「鉴权前读放大」改造
+
+**人类输入摘要：** 审查智能体的 S1 属**非阻断**建议；编码智能体判断**值得采纳**（它保的是「未授权时故事正文不出库」这条可被一次顺手的代码移动破坏的性质）；只改 `src/modules/requirement/` 内文件；**不得放宽任何断言**
+
+**AI输出要点：** 改造 `plugin.ts` 的端点 20 与端点 21：**端点 20** 改为「窄读 `{id, projectId}` → `can()` → 通过后才读整行用于响应」，代价是多一次主键窄查询，收益是「未授权时正文不出库」成为**结构上的性质**而不是代码顺序的巧合（原实现一次性把 13 个字段读进内存，一旦有人把 `reply.send()` 挪到鉴权之前就会把正文泄漏给非项目成员）；**端点 21** 本来就**只需窄读**（写入由 `updateUserStory` 完成并返回更新后的整行），换成窄读后**查询次数不变**（仍一次主键查询）却不再把正文读进内存。注释中写明该改造来自审查建议 S1，并显式澄清：`can()` 自己**必须**读 `isSensitive` 才能做判定（决策 I-5 约束 1 要求 `can()` 自己按 id 加载目标对象），这不属本端点的读放大；本端点能做的是不额外读出**正文内容**。另在端点 20 的鉴权后读取处补了 TOCTOU 注释（`can()` 之后、读取之前故事可能被删，端点 22 已交付故该窗口真实可达）
+
+**团队处置及理由：** 采纳。实测 `npm run typecheck` 退出码 0；全量测试待人工执行（预期 21 文件 651 例全绿 —— 本次是纯读路径改造，断言与用例均未改动）。核查确认：端点 12/15/16/18/13/17/22 原本就是窄读，故 S1 只影响端点 20/21，改造后**全模块 13 个端点在鉴权前都不再读入业务正文**
+
+### 汇编 061 原序号 58
+
+时间：2026-09-19 22:47 角色：编码智能体(US-03 前端) 来源：A、B、D
+
+**任务场景：** 开工前核对基线、报告三个阻塞点（取得人类裁决）→ 交付 T3.11 前端第一功能块（端点 10 层级树只读）+ 静态样式稿
+
+**人类输入摘要：** 人类的提示词：先读红线/契约/基线/共享类型；**先报告阻塞点取得裁决再写页面**；只允许在 `web/src/pages/<自己的页面目录>/` 下新增文件 + 本表末尾追加；不得改 `src/modules/requirement/`（后端 13 端点已合入主干）、`src/shared/`、`src/db/schema.prisma`、`src/routes.ts`；不得自我提权，不得为过类型检查加 `any`/`@ts-ignore`/放宽断言；浏览器结论必须交人类执行并贴回；一次只做一块、做完停下汇报；每条结论标证据等级。**期间追加要求**：前端样式先给 HTML 版，不必直接绑业务逻辑
+
+**AI输出要点：** **开工前实测**：`main = 3048af9`；`npm run typecheck` 退出码 0；`npm run build:web` **退出码 1、`spawn EPERM`**（esbuild 需管道 stdio，与 `npm test` 同一环境边界）⇒ 提示词列为验证手段②的 `build:web` 在沙箱内**不可用**，只能交人类；`src/routes.ts` 仅注册 `/health` 与 requirement 插件，**端点 1/2/3 与成员管理均不存在**；直查 `src/db/dev.db` 得 `users=0 projects=0 goals=0 activities=0 stories=0 members=0`（表结构齐全、零数据）；`test/http-support.ts` 存在（含 `makeUser`/`makeProject`/`makeMember`）而 `test/factories.ts`、`test/helpers.ts` 不存在；抽查 5 条兄弟分支**无一条**在 `web/src/pages/` 下建过页面，仓库亦无 react-router。**三个阻塞点与人类裁决**：①令牌与项目无从取得 → 方案 A（人类跑一次性 seed + 签发令牌，本智能体做 13 个端点的展示层）；②`web/tsconfig.json` 的 `include` 未含共享类型 → 本智能体判断该归因**不成立**（`include` 只决定根文件，被 import 的文件传递性进入 program），实测 `npx tsc -p web/tsconfig.json --noEmit --listFiles` 输出**含 `code/src/shared/types.ts`** 且退出码 0，人类选方案 A（不改 tsconfig，用相对路径 import + 我方目录内放编译期守卫）；③`App.tsx`/`main.tsx` 属共享文件 → 方案 A（授权最小追加式改动，改完贴 diff 供审）。**交付**：新增 8 文件 —— `labels.ts`（按决策 I-1 分离线上常量与中文标签；`Record<GoalStatus,string>` 等标注使「契约增删取值而界面漏配」变成编译期失败；中文标签不得作索引键亦有断言）、`api.ts`（**不写任何 `as`/`any`/`@ts-ignore`**，改为逐字段窄化构造契约 I-2 类型；`toGoalStatus`/`toStoryStatus` 把「故事状态收到 `ACTIVE`」判为响应违约，即 I-1 三 DONE 陷阱在响应方向的护栏；信封解析唯一入口，闭集外的 code 归 `MALFORMED_RESPONSE` 并保留 `rawCode`）、`session.ts`（令牌/projectId 本地暂存，明标 M1 落地后删除）、`TreeView.tsx`（**只渲染后端响应序、不重排**，以免掩盖后端排序缺陷；下属数量按契约口径由 `activities.length`/`stories.length` 得出；故事的三段式既合成展示又分字段列出）、`RequirementPage.tsx`（临时接入区 + 加载/失败/成功三态，401/403/404/网络层分别给可读处置）、`requirement.css`、`shared-types.typecheck.ts`（前端侧编译期守卫，含 10 处 `@ts-expect-error`，若契约退化会以 TS2578 失败）、`preview.html`（**静态样式稿**，复用同一份 requirement.css，§A 与真实组件类名逐一对齐、§B 为后续块草案并显式标注未实现）；追加式改 `web/src/App.tsx` **+16 行**（1 行 import + 1 行渲染 + 14 行注释，既有逻辑零改动）。另用临时库（`$env:TEMP`）跑通了一次性 seed 脚本：执行迁移 SQL 建表 → 造 1 用户/1 项目(PM)/2 目标/1 活动/2 故事 → 复刻 `issueToken` 签出 2 段令牌且载荷 userId 与库内一致 → **临时库已删除、`dev.db` 未被触碰**
+
+**团队处置及理由：** 采纳（人类裁决为方案 A/A/A；`git fetch` 后确认远端已 push 至 `3048af9`）。自证：`npm run typecheck` **退出码 0**；`git status --porcelain` = ` M web/src/App.tsx` + `?? web/src/pages/requirement/`；`git diff HEAD --stat` = `1 file changed, 16 insertions(+)`；未新增/修改任何 `src/` 下文件。**本智能体被人类实测推翻一处证据（已撤回）**：开工前本地 `git status -sb` 显示 `## main...origin/main`（无 ahead）、`git log -1 origin/main` = `3048af9`，据此曾判断「远端可能已同步」；人类 `git fetch` 后实测为 **`[ahead 21]`、远端仍是 `d490c64`**（push 后 `d490c64..3048af9` 成功）⇒ **本地 remote-tracking ref 不可信，该判断作废**，此后只以真正 fetch 过的 ref 为证据。**登记契约与基线口径差**：AC-US-03-09 要求列表显示「名称、状态、优先级、下属数量」，但契约 I-2 的 `BusinessGoal`/`UserActivity` **没有 `priority` 字段**（只有 `UserStory` 有）⇒ 该 AC 只能在故事层完整满足；按契约「冲突时以接口定义为准」**不新增字段**，按现状实现并记录。**证据边界（不得夸大）**：本块**未验证** AC-US-03-01/02/03/05/06/07/08 —— 写路径（端点 11–22）、删除保护、上移下移、只读角色、敏感过滤分别属后续功能块或跨模块未交付项；且**浏览器实况尚未观测**（沙箱内 `build:web` 跑不了，`npm run dev` 与界面点击均须人类执行后贴回）
+
+## 2026年09月20日
+
+### 汇编 062 原序号 59
+
+时间：2026-09-20 15:10 角色：编码智能体(US-03 前端) 来源：A、B、D
+
+**任务场景：** ①按 skillhub 文档安装 `@indiv-ebandao/dev-expert`；②按人类反馈重做界面：横向三栏 + 视图切换，并「提前初始化账号」使打开即有内容
+
+**人类输入摘要：** 人类两条指令：①「根据 https://skillhub.cn/install/skillhub.md 安装 @indiv-ebandao/dev-expert」；②对第一版界面的反馈——「感觉就是从上往下流水线一个维度的，没有使用横向的维度，更没有使用什么页面跳转等维度的内容」「我现在想的是我能打开 html 就能看到一个正常情况下的内容，你可以通过使用提前初始化一个账号来解决，到时候我们删掉这个后门就好了」。环境另有变更：审批策略改为 **never**、文件策略改为 **danger-full-access**。约束未变：只改 `web/src/pages/requirement/` 下文件 + 本表末尾追加 + 已授权的 `App.tsx` 最小追加式挂载
+
+**AI输出要点：** **① skillhub 安装**：先 `curl` 下载 `install.sh` **读完全文**再执行（未盲跑 `curl\|bash`）；用 `--cli-only` 装（不碰 OpenClaw 目录）。**踩到并解决一个环境坑**：WSL 的 `$HOME` 被 Windows 环境变量污染成 `C:Users24314`，默认安装路径会失败，须显式 `HOME=/home/phurymal`。**关键发现（解释了一个旧现象）**：DSH 读取的技能目录是 **`~/.agents/skills`**（`dsh-skill-filesystem/lib/index.js:78,160,177`；且 DSH 全部包内**没有任何 `.codex` 引用**），而此前 skillhub 一直装到 `~/.codex/skills` —— 所以 `dev-expert` 在本机**其实早已装过（1.21.7）却从不出现在本 Agent 的技能目录里**；本次改用 `--dir /mnt/c/Users/24314/.agents/skills` 重装，落盘 79 文件 / 978719 字节、exit 0。另：搜索时发现一个**同名李鬼** `@user_814dbe54/dev-expert` 1.17.0（描述逐字雷同），已按人类指定的 `@indiv-ebandao` 命名空间安装；其 `SKILL.md` 头部写 `version: 1.21.5` 而 `_meta.json` 写 1.21.7，属该技能包自身不一致，已记录。**② 后门**：新增 `devSession.ts`（`DEV_SESSION_ENABLED = import.meta.env.DEV`，生产构建时被替换为 false 从而摇树消除；**只含令牌不含密钥**，而该 dev 回落密钥本来就公开写在 `src/auth/token.ts:53`）；`session.ts` 改为「本地暂存优先 → 后门兜底」，且「清除」按钮同时写 `devDisabled` 停用后门（否则一刷新又填回来）；`RequirementPage` 在后门生效时**默认收起**「临时接入区」、改显示提示条。**③ 种子**：新增仓库外脚本 `实验\_us03_seed_frontend.cjs`（**全部固定 id**：`usr-pm-demo` / `prj-us03-demo` / `goal-1..2` / `act-1..3` / `story-1..4`，故 dev.db 重建后前端常量无需跟着改；幂等）。实测 dev.db 由「6 张表全 0 行」→ `users:1 projects:1 members:1 goals:2 activities:3 stories:4`，连跑两次计数不变。**④ 界面**：`preview.html` 重写为三栏应用稿（左：视图导航 + 统计；中：视图主体；右：选中项详情，含面包屑 + 详情/验收标准/契约字段 三个分页签），支持 5 个视图切换（概览 / 需求层级 / 用户故事 / 新建需求 / 异常状态），中栏点任意一行驱动右栏、面包屑与右栏子项表格可逐级跳转；三栏独立滚动、页面不整页滚动。骨架 CSS 进 **共享的** `requirement.css` §B（供后续 React 移植直接复用，不重写）。**⑤ 自造验证**：沙箱内开不了浏览器，因此写了两个可复跑脚本放在工作区根（`_us03_preview_smoke.cjs`、`_us03_css_class_coverage.cjs`）：冒烟测试把 HTML 里的 JS 抽出、用 DOM 桩在 node 里真跑（语法 + 5 视图 + 10 种选中 + 3 分页签 + 断言渲染结果无 `undefined`/`NaN`/`[object Object]`），实测 **38 项 ALL_PASS**；类名覆盖检查实测 PASS（样式表 99 类 / 源码用 95 类，无缺失）
+
+**团队处置及理由：** 采纳（`dev-expert` 已装到 DSH 真正读取的目录，**需重启新会话才会出现在技能目录里**；界面稿待人类看过再移植到 React）。自证：`npm run typecheck` **退出码 0**；`git status --porcelain` = ` M docs/ai-interaction-log.md` + ` M web/src/App.tsx` + `?? web/src/pages/requirement/`；`git diff HEAD --stat` = 2 files changed, 19 insertions(+)，`src/` 下零改动。**本条内自捉一个真错误并已修**：新版 `preview.html` 删掉原有内联 `<style>` 后，`req-form` / `req-form-grid` / `req-button-small` / `req-button-danger` / `req-triad` / `req-tree-goal` 等类**只存在于被删掉的那一块里**，若不补回 `requirement.css`，稿子会**静默掉样式**（沙箱里没有浏览器，肉眼发现不了）；靠新写的类名覆盖检查查出并补齐。**证据边界**：仍未观测浏览器实况（`build:web` 在沙箱内 exit 1 / spawn EPERM），三栏布局、窄屏降级、CSS 实际生效情况一律标 `[未能验证]`，须人类开页面后贴回；后门令牌有效期 7 天（`src/auth/token.ts:39`），过期后重跑 seed 脚本即得新令牌
+
+### 汇编 063 原序号 60
+
+时间：2026-09-20 15:13 角色：编码智能体(US-03 前端) 来源：A、B、D
+
+**任务场景：** **需求与价值辨析（纯讨论，未改任何代码）**：人类质疑界面「不像 PMBOK 讲的内容」，怀疑需求分析出问题，并问「能否改成 PMBOK 的架构？还是我们这文档就不能让我们使用 PMBOK 的架构？」
+
+**人类输入摘要：** 人类：①对已交付界面的评价——「排版好多了」，但「感觉这个界面里的内容不像我所学到的软件项目管理所讲的内容」，其上课参考资料是 **PMBOK**；②要求「先向我讲解一下你现在这界面想要展示什么，想给用户体现什么价值？**注意，是价值（"以便于"后面的内容），而不是功能（"想要"后面的内容）**」；③问「能不能改成 PMBOK 的架构？还是我们这文档就不能让我们使用 PMBOK 的架构？」；④明确「我想先理清问题了再决策……你现在就先跟我交流，**记得及时记录"表5"**，我问得差不多了再进行决策」。约束：本轮**只讨论、不动代码**
+
+**AI输出要点：** **先给结论**：不是「能不能用 PMBOK」，而是「**你们已经在用它了，只是平台只实现了另一半**」。**证据链（全部实测）**：①`契约`与`基线`两份治理文档 grep `PMBOK/敏捷/Scrum/方法论/WBS/需求跟踪矩阵/RTM/干系人` → **全部 0 次**（基线仅出现「指导书」8 次）⇒ **文档从未提方法论，自然也没禁止 PMBOK**；②课程指导书（docx 抽文本后计数）：实验一 = 「项目启动与规划」（甘特=10、用户故事地图=7、Sprint=8、Scrum=3），**PMBOK/WBS/业务目标/用户活动 均 = 0**；实验二 = **Scrum 主导**（Sprint=127、DoD=28、Scrum=27、待办列表=15、干系人=6）；③**关键发现**：实验一**你们自己产出的两份规划方案**里同时存在两套体系——`爱管理_软件项目规划与实施方案总1.1.docx`：**WBS=11、工作分解=1、甘特=26、用户故事地图=11、业务目标=13、用户活动=12**；`爱管理_软件实施与项目规划方案_lyh.docx`：**WBS=11、工作分解=1、甘特=25、用户故事地图=20、业务目标=11、用户活动=13**；且文档内含**术语表同时定义「用户故事地图」与「WBS」**（"按用户活动横向组织需求…的可视化需求规划方法" / "Work Breakdown Structure，工作分解结构"），并有**一致性承诺**：「会议纪要、需求、故事地图、**WBS**、甘特图、UML、自评中的项目范围、角色和名称保持一致」「（WBS）包含工作项、相对/实际时间、关键依赖和里程碑，并**与 WBS 一致**」。**⇒ 结论与推论**：US-03 的三层结构（业务目标—用户活动—用户故事，实验一还写成「…—任务」**四层**）来自实验一的**故事地图**那一半，而实验二指导书明确「承接实验一产出的用户故事地图、Sprint切片」；而实验一同期承诺的 **WBS 那条线从未进入代码**——契约决策 I-7 的 9 张表里**没有任何 WBS/工作包/可交付成果表**，`UserActivity` 是用户行为（动词）而非可交付成果，故它与 WBS **无法保持一致**，即实验一自己的一致性要求正在被违反。**另给成本分级**：L1 叙事/术语（界面文案与映射说明，≈0，不越界）＜ L2 文档（补「方法论定位与 PMBOK 映射/缺口」章节，走提出→确认→单人改→通知）＜ L3 数据模型（补 RTM 四列：来源/干系人、验证方法、验收结论、WBS 关联 + 接入 AuditLog，需动冻结件 `src/shared/types.ts`/`schema.prisma` 并连带 13 端点与 651 例测试）＜ L4 层级结构（换成 WBS 骨架，等于推翻 US-03 后端交付与实验一的故事地图承诺）。**并提醒课程口径硬事实**：实验二考核维度为「过程参与与 Scrum 仪式 20% / 交付物完整性与规范性 25% / 代码增量质量与 DoD 20% / 人机协同深度与 AI 记录真实性 20% / 自评 15%」，**无一项考 PMBOK** ⇒ 为 PMBOK 重构 Sprint 1 交付物在评分上不划算，而在文档层补「PMBOK 映射与裁剪说明」属加分项（交付物规范性 + 反思质量）
+
+**团队处置及理由：** **待裁决**（人类明确「先理清问题、问得差不多了再进行决策」；本行**未产生任何代码改动**，故不适用采纳/拒绝，后续决策另起一行记录）。**本条同时产出一条对我的更正**：我在上一轮（序号未单列，见对话）把「界面不像 PMBOK」归因为「AC 写法是界面元素清单」与「这套层级属 Story Mapping 而非 WBS」，方向对但**归因不完整**——真正的一手证据是**实验一产出本身就有 WBS 与故事地图两条线**，而实验二只继承了后者；即问题出在**跨实验的基线继承**，不全是 AC 写法。自证：`git status --porcelain` 在本次讨论前后**无新增改动**（仍为 ` M docs/ai-interaction-log.md` + ` M web/src/App.tsx` + `?? web/src/pages/requirement/`，本条仅追加表五）
+
+### 汇编 064 原序号 61
+
+时间：2026-09-20 15:23 角色：编码智能体(US-03 前端) 来源：A、B、D
+
+**任务场景：** **需求与价值辨析（第二轮，纯讨论，未改任何代码）**：回答「这会影响谁的工作，是负责 US-05 的人吗？」，并给出「只换用词」的最小可行修法
+
+**人类输入摘要：** 人类四点：①「进行实验一的时候，我这课程根本还没上到 WBS 和用户故事地图相关的内容，课件也没有，所以当时做的肯定跟 PMBOK 的内容有出入」；②「在现在基础上能改就改吧，**最好把用词换一下**，因为我们学习的是 PMBOK 的用词，到时候评分的时候还可能被老师质疑我们到底有没有听课……**如果说成本过大，那就不动吧**」；③「我想先问问这个影响会影响到哪个人工作的内容，**是负责 US-05 的人的吗**？」；④「虽然说这是我们设计上出现的问题……**我感觉还是尽量修吧**」。上一轮已明确：先理清问题再决策，且**及时记录表五**
+
+**AI输出要点：** **先给人类减负（三条实测证据推翻「设计失败」这个定性）**：①实验一指导书**第 113 行明文要求用户故事地图**——「按『用户角色→**骨干活动**（用户要完成的主要活动）→用户任务/用户故事→发布切片』的层次组织需求」，故平台里的「用户活动」层**是按指导书做的**，不属偏离课程；②实验一指导书里 **WBS = 0 次**（它用的是甘特图 line 116 + 里程碑），所以「平台没有 WBS」**不算违反指导书**，WBS 是团队**自己在产出里加的**（两份方案各 11 次）；③故真实差距只有两条自加承诺 + 一处术语口径。**但查出两处真偏离（这才是老师可能问的）**：**A. 优先级口径**——实验一指导书第 113/154/333 行明确要求 **MoSCoW（Must/Should/Could/Won't）**「故事按 MoSCoW 方法标注优先级」「交付物须含……MoSCoW 优先级」，而**团队实验一产出实际用的是 P0/P1/P2**（`…总1.1` line 183「P0 核心闭环」/191「P1 治理增强」；`…lyh` line 257「P01–P05」），平台又沿用了 P0/P1/P2（契约 line 178/190/256、基线 line 231/501）⇒ **与指导书的偏离在实验一就发生了，不是 Sprint 1 引入的**；**B. 团队自己在实验一承诺的追踪表**——`…总1.1` line 1431「A09：建立**需求—用户故事—任务—测试—验收的追踪表**，至少覆盖 P0 核心链路」**这就是 PMBOK 的需求跟踪矩阵（RTM）**，平台未实现；再加上 line 984「故事地图、**WBS**、甘特图……保持一致」。⇒ **结论：要做的不是「改成 PMBOK 架构」，而是「补上你们自己在实验一里承诺过的三条」，补它们同时满足「自己的承诺」与「PMBOK 用词」。** **影响面分析（回答第 3 点）**：按改动层次分四档——**A 只换界面中文用词（线上字段/常量一字不动）**：代码影响**只有本模块前端的 `labels.ts`**（4 个映射表），零 `src/` 改动、零 schema 改动、零契约改动（这正是决策 I-1「线上常量与界面标签分离」带来的红利）；**但需要成员 4（US-05）与技术负责人对「用哪套词」点头**，因为术语是全项目口径，不是我的私有实现。**B 加「术语对照 + 缺口清单」视图**：只在本模块页面目录内。**C 改线上字段名/类型名**：动冻结件 `src/shared/types.ts` + `schema.prisma`，连带 13 个后端端点、21 文件 651 例测试、成员 2（M3 的 `VisibilityObjectType = 'story' \| 'task'`）、成员 4（`Task.storyId` 挂在故事下）。**D 改层级结构（换成 WBS）**：推翻 US-03 已合入主干的交付物，且违反实验一自定的「四层结构」平台承诺。**⇒ 直接回答「是负责 US-05 的人吗」**：**只换用词的话，不是影响他的代码，而是需要他签字**（他零返工）；**若改字段/层级，他是主要受影响方之一但不是唯一**（还有成员 2 与技术负责人）。**关键时机**：实测 5 条兄弟分支（T5-01/T5-03/T5-05/integration-T5/US-01）在 `web/src/pages/` 下**一条页面都没有**，故除本模块外无任何前端受术语牵连 ⇒ **现在是定术语最便宜的时刻**，一旦成员 4 按旧词写完 T5.5 任务界面，再改名就要返工。另给「去问成员 4 的三个具体问题」（术语是否同意统一为「PMBOK 主词 + 敏捷词括注」的双标签、任务界面是否愿意一起改、是否接受 Sprint 2 再补 RTM/WBS 引用）
+
+**团队处置及理由：** **待裁决**（人类仍在收集信息、准备与其成员 4 沟通；本轮**未改任何代码**，故不写采纳/拒绝）。**本轮对我自己的两处更正**：①上一轮我说「实验一承诺了 WBS 与故事地图一致」，核实后**该承诺确实存在（line 984）**，但 **WBS 不是指导书要求的**，须区分「指导书要求」与「团队自加」；②人类说「当时课程还没讲到 WBS 和用户故事地图」，实测**实验一指导书已明确要求用户故事地图（7 次）与第 3 章预习（line 62「预习第 3 章范围管理中用户故事、用户故事地图、MoSCoW 优先级方法」）** ⇒ 属「指导书要求了、但课堂尚未讲」，两者不矛盾，记录以免后续互相甩锅。自证：`git status --porcelain` 在本次讨论前后无新增代码改动（仍为 ` M docs/ai-interaction-log.md` + ` M web/src/App.tsx` + `?? web/src/pages/requirement/`）
+
+### 汇编 065 原序号 62
+
+时间：2026-09-20 15:37 角色：编码智能体(US-03 前端) 来源：A、B、D
+
+**任务场景：** **事实核对与两处判断的撤回**：`git fetch` 后查出「前端骨架 + M1/M2 后端」早已存在于一条未 fetch 过的分支；并回答「T0 到底完成没有」
+
+**人类输入摘要：** 人类四点：①「**成员4表示他已经写完了 T5**，并且他还催促我审查 T0 的内容，嗯，我也不知道你当时是怎么判断出 T0 已经都完成了的内容，**他表示他发出的 issue 还没被 close 掉**」；②「**我们小组里根本没有技术负责人**……至于指定接口的那个同学，现在就是成员4」；③「我打算直接在我这里先进行修改，然后出一份 .md 文档给他们展示在编程中发现的问题，呃，可以考虑直接在 github 上直接发 issue」；④「好麻烦……尤其是这相互依赖的东西，一旦出现问题就难以修改，还要问东问西等审批」
+
+**AI输出要点：** **`git fetch origin --prune` 成功（exit 0）后立刻暴露一条从未出现在本地 refs 的分支**：`origin/feat/US-01-m2-project-members`（`aa0d6ba`，09-19 23:20），相对 `main` = **43 文件 / +3303 −91**，内含：**端点 1/2**（`src/auth/plugin.ts`+`schemas.ts`+`service.ts`+`auth.test.ts`）、**端点 3–9**（`src/modules/project/{plugin,service,schemas}.ts` + 3 个测试文件）、**官方 seed**（`src/db/seed.ts` + `test/seed.test.ts` + `package.json` 的 `db:seed`，账号 `pm`/`member1`/`member2`/`viewer1`/`outsider`，密码 `Passw0rd!`）、**完整前端骨架**（`App.tsx` 重写 +8−32、`main.tsx`、`routes.tsx`、`layouts/{AppLayout,ProjectLayout}`、`auth/{AuthContext,ProtectedRoute}`、`components/`×5、共享 `web/src/api.ts`、`web/src/labels.ts`、`index.css` +379、`package.json` 加 `react-router-dom@^7.18.4`）、以及 **`docs/frontend-routes.md`**——该文档**已为 US-03 冻结两个占位页**：`/projects/:projectId/requirements` → `ProjectRequirementsPage`、`/projects/:projectId/requirements/:storyId` → `RequirementDetailPage`（各 15/18 行，写着「US-03 后续实现」），并规定「前端骨架为共享文件、由 M2 独占维护，其他模块只在 `web/src/pages/` 下新增页面并挂到既有路由节点」。**⇒ 撤回两处判断**：①「实测 5 条兄弟分支在 `web/src/pages/` 下一条页面都没有」——**错**，那条分支下有 **9 个页面**；根因是**该分支从未被 fetch 进本地 refs**，且我只抽查了 5 条而远端共 **13** 条；② 9-19 曾据本地 `git status -sb` 判断「`origin/main` 可能已同步」——**错**，人类 fetch 后实测 `[ahead 21]`；**两处同一个根因：未 fetch 过的 remote-tracking ref 不可作为事实依据**（该教训已写入新建的 .md）。**T0 逐项核对（回答「怎么判断 T0 已完成」）**：T0.1 ✅（`package.json`/`src/app.ts`/`src/server.ts`）、T0.2 ✅（`schema.prisma` + 迁移 9 表）、T0.3 **一半**（`token.ts`/`password.ts`/`actor.ts` 的 `requireAuth` 在 `main`，而**端点 1/2 只在未合并分支**）、T0.4 ✅（`authz/permissions.ts` 的 `createAuthorization`）、T0.5 **一半**（`vitest.config.ts` ✅、`test/http-support.ts` ✅，但契约点名的 **`test/factories.ts` 与 `test/helpers.ts` 在 `main` 与该分支上都不存在**）⇒ 故「那个 issue 没被 close」**与实测一致**；同时明确：**我从未说过 T0 已完成**，表五序号 58 的原话是「端点 1/2/3 与成员管理**均不存在**」「`test/factories.ts`、`test/helpers.ts` **不存在**」，问题在于我**由"main 上没有"错误地推到"全组没有"**。**冲突清单（会真实挡路）**：我的 `App.tsx` 追加式挂载 vs 其 `App.tsx` 路由化重写（**必冲突**）；我的 `pages/requirement/api.ts` 与 `labels.ts` vs 其**共享** `web/src/api.ts` 与 `web/src/labels.ts`（**术语会分叉成两处**，恰是本轮要修的毛病）；我的开发后门 `devSession.ts` + 自建 seed vs 其**真登录（端点 1/2）**与**官方 seed**（后门完全不必要）。**产出**：新建仓库外文档 `实验\_US-03_前端发现的问题.md`（含 T0 逐项状态、PMBOK/实验指导书/平台三方术语对照、MoSCoW 与 A09(RTM)/WBS 两处未兑现承诺、「未 fetch 过的 ref 不可作为事实依据」的流程结论，以及 **3 条可直接粘贴到 GitHub 的 issue 草案**：A=T0.5 缺 factories/helpers、B=术语与 MoSCoW/RTM/WBS 口径、C=前端骨架分支未合并导致共享文件重复与冲突）。**建议处置顺序**：①先合并 `feat/US-01-m2-project-members` 到 `main`；②我把 US-03 页面改建在已冻结的两个占位页上、复用其 `api.ts`/`labels.ts`/`components/`，并删除重复实现与后门；③术语统一改在 `web/src/labels.ts` + 文档，**不动线上字段**。**另更正上一轮的审批链分析**：小组**没有专职技术负责人**、接口与冻结件的实际所有者就是**成员4**，故「需要技术负责人批准」的环节应改记为「需成员4确认」
+
+**团队处置及理由：** **待裁决**（人类计划先在自己侧修改并整理材料给小组，故本行不写采纳/拒绝）。**本轮未改任何代码**：`src/` 与 `web/src/` 零改动，仅新增仓库外 `实验\_US-03_前端发现的问题.md` 与在表五追加本行。**明确自我更正**：本条的两次撤回都是**我自己的判断错误**，不是我方实现缺陷；按红线第二章「若某轮证据无效必须显式撤回」，此处主动撤回并说明需重新核实的范围是**一切基于未 fetch 的 remote-tracking ref 的跨分支结论**
+
+### 汇编 066 原序号 63
+
+时间：2026-09-20 15:57 角色：编码智能体(US-03 前端) 来源：A、B、D
+
+**任务场景：** 人类发出 3 条 issue 后要求「赶紧解决掉一些风险问题」：本轮做**合并风险实测**，并把 US-03 页面改建到正确基线
+
+**人类输入摘要：** 人类：「我现在已经把3个issue给发出去了。请你赶紧解决掉一些风险问题」。此前指令：按建议顺序来（先合并 M2 分支到 main）、issue 由智能体发（后改为人类自己发）、「直接改，现在成员4去上课了，我们先进行编写，到时候让他再修改」
+
+**AI输出要点：** **① 交付（基线修正）**：新建 `feat/T3.11-web-us03-on-us01`，基点 = `origin/feat/US-01-m2-project-members`（实测 `main` 是该分支祖先 ⇒ 可 ff）；重写 `ProjectRequirementsPage.tsx`（15 行占位 → 两栏 + 3 个页内 tab，含「术语对照与缺口」把四方用词与 6 条缺口摆在界面上）；新增 `pages/requirement/{api.ts,terms.ts}`（复用 M2 的 `apiFetch`、路径带 `/api` 前缀）；删除后门与重复件（`devSession.ts`/`session.ts`/`labels.ts`/`RequirementPage.tsx`/`TreeView.tsx`）；`web/src/api.ts` **仅补一个 `export`**（避免本模块重抄信封解析）；`npm run typecheck` **exit 0**；已提交 `cd64805`。**② 合并风险实测**（临时分支 `tmp/risk-assessment`，跑完即删、未推送）：`main` 合并 M2 分支 = **fast-forward，exit 0**；其上再合并 `origin/integration/T5-task-management` = **唯一冲突文件 `docs/ai-interaction-log.md`，零代码冲突**。**③ 但"零代码冲突"是危险信号**：T5 的 7 个端点（24–30）**从未被注册** —— 全分支 `git grep taskRoutes` 只命中自建装置 `_test-harness.ts:45` 与定义处 `routes.ts:212`；T5 分支的 `src/routes.ts` 与 `src/app.ts` **与基点 `4546cff` 逐字相同**（仍是旧签名 `registerRoutes(app)`、无 `context`）；`taskRoutes(app)` 只收 1 个参数且用**全局单例 `prisma`** 而非 `ctx.prisma` ⇒ 合并后 **T5 端点在生产 app 上一律 404，而 T5 自身测试全绿**。**④ 自我更正**：该项**不是我的新发现** —— T5 分支表五**序号 72 与 87 已记录**（其审查智能体 09-19 实测「真实 buildApp 未注册 taskRoutes，GET/POST 实现 404」并要求「由路由注册表负责人注册 + 补真实 app 冒烟」）。我此前**只读了 main 的表五（到 57 行）、没读 T5 分支的表五**，故误当新发现，现更正为「**独立复现的已知未修阻断项**」。另核实 row 87 的警告「重复注册会抛 `FST_ERR_DUPLICATED_ROUTE` 致服务起不来」**当前不成立**：实测 M2 分支 `src/` 下没有任何任务端点路径。**⑤ 新风险**：表五是本仓库唯一"每条分支各自追加"的文件 ⇒ **每次合并必冲突**（实测即那唯一冲突文件），且它是**分布式计数器**（T5 分支已用到 **88**，main 只到 **57**）；我按"main 到 57"取了 58–62，**实测 T5 的 58–69 为空、本次侥幸未撞号**。**⑥ 其余风险登记**：T0.5 的 `test/factories.ts`/`test/helpers.ts` 仍不存在（M4 自建 `test-fixtures.ts`、M5 自建 `_t0-stubs.ts`+`_test-harness.ts`，后者自述"不得进入 main"）；`_t0-stubs.ts` 的 `can()` 比契约 I-5 宽松（T5 row 72 已记，桩若进 main 会把越权判定放行）；我的分支是**堆叠分支**（基于未合并的 M2 分支），若 M2 被 rebase 则基点漂移
+
+**团队处置及理由：** **待裁决/已交付**：本轮代码改在**自己的分支**上并已提交（`cd64805`），**未触碰 `main`、未推送、未改任何他人分支**；文档侧新增 `_US-03_前端发现的问题.md`（含 T0 逐项核对、三方术语对照、3 条 issue 草案与该发法说明）与 `_实验二_感悟素材_外部输入不完整.md`（人类要求"写个文档作为实验感悟"）。**结论性建议**：合并顺序 ① M2 分支 ff 到 main；② 合 T5 并人工并集表五；③ 由 T5 负责人把 `taskRoutes` 对齐 `(app, ctx)` 范式、在 `src/routes.ts` 注册、删除 `_t0-stubs.ts`/`_test-harness.ts`，并**补一条走真实 `buildApp` 的端点可达性测试**作为护栏（这条护栏正是本次"测试全绿但 404"能成立的缺口）
+
+### 汇编 067 原序号 64
+
+时间：2026-09-20 16:01 角色：编码智能体(US-03 前端) 来源：A、B、D
+
+**任务场景：** **回答「T0 完成了吗」并核定归属**：用基线原文证明 T0 不在任何成员的可领范围，且是「不占人力」的 AI 抄写任务；同时查明 T0.5 的旧产物不可用
+
+**人类输入摘要：** 人类：「我想问问……T0的内容……现在完成了吗？如果没有完成的话，成员4想催我先完成……」
+
+**AI输出要点：** **① T0 逐项实测**：T0.1 ✅ 在 `main`（`package.json`/`src/app.ts`/`src/server.ts`）；T0.2 ✅ 在 `main`（`schema.prisma`+迁移 9 表）；**T0.3 一半**（`token.ts`/`password.ts`/`actor.ts` 在 `main`，而**端点 1/2 只在 `origin/feat/US-01-m2-project-members` 的 `src/auth/plugin.ts`**，未合并）；T0.4 ✅ 在 `main`（`authz/permissions.ts`）；**T0.5 半成品**（`vitest.config.ts` ✅、`test/http-support.ts` ✅ 含 `makeUser`/`makeProject`/`makeMember` 三个工厂；但契约点名的 `test/factories.ts`/`test/helpers.ts` **在 13 条远端分支中的 12 条都不存在**）。**⇒ T0 不是"没做"，而是"做的东西散在三条线上、没凑齐、也没并进 main"。** **② 查实 T0.5 的旧产物**：`origin/feat/US-01-create-project-and-members` 上**确有**这两个文件（更正此前"两文件不存在"的表述），**但不可直接采用**：`factories.ts` 自述「目前只放 T1.1 需要的 makeUser」（**1 个**，契约要 **8 个**：`makeUser/makeProject/makeMember/makeGoal/makeActivity/makeStory/makeTask/makeSensitive`），且 import `../src/auth/session`（**main 无此模块**，main 是 `src/auth/token.ts` 的 `issueToken`）与 `./setup`（**main 无**，main 是 `src/db/test-support.ts`），并以**同步**方式调用 `hashPassword`（**main 的是 async**）⇒ 即便搬运也要按 main 的 API 重写。**③ 归属（关键，用基线原文）**：§4.6「模块归属（初始分坐）」列明 成员1→T1.1–T1.7、成员2→T2.1–T2.8、**成员3→T3.1–T3.10**、成员4→T5.1–T5.9 ⇒ **T0 不在任何成员的"可领任务范围"内**；§4.6 另有专节「**T0 前置任务的处理方式（不占人力）**」明写「T0.1–T0.5 对 AI 是**抄写任务而非设计任务**……把决策 4 的表结构 + 决策 6 的端点清单 + 决策 5 的枚举**一次性交给编码智能体**，要求它生成：仓库骨架、全部建表、全部端点 stub、can() 骨架、测试运行器、**数据工厂**」。⇒ **「成员4 让成员3 先完成 T0」与基线不符**（既非其任务范围，也非人力活）；但其**诉求内核合理**（T0.5 缺口导致各模块自建夹具：M4 有 `test-fixtures.ts`、M5 有 `_t0-stubs.ts`+`_test-harness.ts`），只是**执行方式应改为"派给编码智能体"**。**④ 给人类的三个选项**：A（推荐，最合基线）把 T0.5 派给编码智能体，以 `test/http-support.ts` 为基座补齐 8 个契约工厂（基线估算 15 min）、顺带合并端点 1/2，收益是 M5 可删桩、M4 可删自建夹具；B 不接 T0，只在 issue 里写清「真实缺口 = T0.5 两文件 + T0.3 端点未合并」并指出按 §4.6 应派给 AI；C 若必须人力介入，也应**先做合并**（1 条命令）再谈 T0.5
+
+**团队处置及理由：** **待裁决**（人类只是提问，尚未决定是否接 T0；本轮**未改任何代码**，只读核查）。**本行同时更正两处既有表述**：① 我此前说「`test/factories.ts`/`test/helpers.ts` 在 main 与 M2 分支都不存在」——就这两条分支而言正确，但**漏了那条旧线**，现已补全为"13 条分支中仅 1 条有，且该份不可直接用"；② 表五序号 46 曾将 T0.5 更正为「已交付，但交付在未合并的本地分支上」——**方向正确但高估了完成度**（实为 1/8 个工厂函数 + 依赖已不存在的模块）。
+
+### 汇编 068 原序号 65
+
+时间：2026-09-20 16:10 角色：编码智能体(US-03 前端 / 兼 T0.5) 来源：A、B、D
+
+**任务场景：** **交付 T0.5：测试数据工厂与测试辅助**（人类裁决「A」——把 T0.5 派给编码智能体）
+
+**人类输入摘要：** 人类：「A。等我们搞定后我会在群里说一声」——即选择「把 T0.5 派给编码智能体」（基线 §4.6「T0 前置任务的处理方式（不占人力）」规定的处理方式），并会在完成后于群里通告。执行前已确认：T0.1/0.2/0.4 在 `main`、T0.3 的端点 1/2 只在未合并的 M2 分支、T0.5 的两个契约文件在 13 条远端分支中的 12 条都缺失
+
+**AI输出要点：** **新增 3 个文件（零改动既有文件）**：① `test/helpers.ts`（124 行）——把既有 `test/http-support.ts` 的能力**原样转出**，使契约点名的两个文件落到**同一套实现**上（不造第二套机制），并新增「当前测试库」登记 `createTestContext` / `setActiveDatabase` / `getActiveDatabase`：因为契约给工厂的签名**不带 db 参数**，而 db 是运行时对象，两者只能靠句柄接起来；未设句柄时**立刻抛错并给出修法**，避免「忘了建上下文」表现为 `undefined.id`；② `test/factories.ts`（376 行）——契约的 8 个工厂，签名逐字一致（`makeGoal`/`makeActivity`/`makeTask` 在原参数后各追加 1 个**可选**参数）；四条设计原则均给出理由：直接写库并**复用表默认值**（夹具与端点写入口径天然一致）、子对象 `projectId` **由父级推导**（与契约 I-10 同构，跨项目挂载在夹具层就造不出来）、`sortOrder` **复刻端点口径「现有最大值 + 1」**（不硬编码 0，否则两条目标都是 0 的非法中间态会让 T3.3 全量替换测试失去可信度）、`makeTask` 对「负责人 = 验收人」**显式抛错而非静默换人**（静默换人会让调用方对 `acceptorUserId` 的断言落在错误的行上）；③ `test/factories.test.ts`（368 行）——T0.5 自测，覆盖 8 个工厂的写库结果/归属推导/表默认值 + 四类非法输入（父级不存在、负责人=验收人、对象不存在、未建上下文）+ `createTestContext` 的连通性冒烟。**与既有夹具的关系**：一个文件都没改 —— `test/http-support.ts` 及其 **14 个引用者**保持原样；M4 的 `test-fixtures.ts` 与 M5 的 `_t0-stubs.ts`/`_test-harness.ts` 是否替换由各模块自行决定，差异点（本实现 `makeSensitive` 会同时置 `isSensitive=true`）写在文件头
+
+**团队处置及理由：** **采纳**（人类裁决：把 T0.5 派给编码智能体）。自证：`npm run typecheck` **退出码 0**；另用脚本把 8 个签名与契约原文逐字比对（`docs/sprint1-spec-interface-contract.md` 的工厂清单 vs `test/factories.ts` 的导出），结果 **ALL_PASS**（8/8，其中 3 个多一个附加可选参数）；`git status --porcelain` 显示**仅 3 个新增文件、零修改**。**证据边界（不得夸大）**：本沙箱内 `vitest` 会因 `spawn EPERM` 失败（与 `npm test` 同一环境边界，非代码缺陷），故 **`test/factories.test.ts` 的 17 条用例尚未执行过**，必须由人类在本机跑 `npm test` 确认；`@prisma/client` 类型由 `prisma generate` 生成、`tsc` 已通过，故字段名与查询形状有编译期保证，但**运行期行为（唯一约束、表默认值、聚合空值处理）未经实测**
+
+### 汇编 069 原序号 66
+
+时间：2026-09-20 16:14 角色：编码智能体(US-03 前端 / 兼 T0.5) 来源：A、B、D
+
+**任务场景：** **人类实测 T0.5 报红灯 → 定性为「测试写错」→ 最小复现证实根因 → 修复**（未放宽任何断言）
+
+**人类输入摘要：** 人类贴回本机 `npm test` 的**原始输出**：`Test Files 1 failed | 21 passed (22)`、`Tests 2 failed | 670 passed (672)`、`Errors 2 errors`，附 `Failed Suites 1`（`Hook timed out in 10000ms`）、两条 `Test timed out in 5000ms`（都是走 HTTP 的用例）、以及 `Uncaught Exception: TypeError: Cannot read properties of undefined (reading 'length') at next (fastify/lib/hooks.js:341:32) ← preParsingHookRunner (hooks.js:371:3) ← runPreParsing (route.js:659:5)`；并说明「我现在还没 git 上去」
+
+**AI输出要点：** **① 定性：测试写错（本人测试辅助的缺陷），不是生产缺陷。** 理由三条：`src/server.ts` 走 `app.listen()`，其内部会调 `ready()`，真实服务不经此路径；supertest 是对 `app.server`（Node 原生 http.Server）直接 `listen`，**绕过** Fastify 的 `ready()`，未 boot 时路由的 `preParsing` hook 数组为 `undefined`；既有 **21 个走 HTTP 的测试文件**一律是 `createHttpTestContext()` + `await ctx.app.ready()` 且 `beforeAll` 传 `120_000` 超时，我照抄前者时漏了这两步。**② 机制串起来**：`hooks.js:341` 正是 `if (err || i === functions.length)`，读 `undefined.length`；该异常在 http server 的 **emit 路径异步抛出**，vitest 记为 unhandled error（进程不退出）⇒ 响应永不发出 ⇒ supertest 挂到 5s 超时；**挂死的连接又让 `afterAll` 的 `app.close()` 卡住 ⇒ Hook timed out 10s** —— 三个看似无关的报错实为同一根因。**③ 根因从「推断」升级为「已实测」**：另写**裸 Fastify 最小复现**（不依赖 vitest/esbuild，故在本沙箱内也能跑，用 `require` + 对 `app.server` 直接 listen 复刻 supertest 的做法）：未 `ready()` 时**逐帧复现同一条 TypeError**（`hooks.js:341` → `preParsingHookRunner` → `route.js:659` → `Server.preRouting`），调用 `ready()` 后同一请求应返回 200。**④ 修复（零断言改动）**：`test/helpers.ts` 的 `createTestContext()` 内补 `await ctx.app.ready()`，并把该步骤的必要性与「踩过的坑」（三个报错的因果链）写进注释 —— 由辅助函数代劳，使调用方**没有机会漏掉**；同时说明需要 boot 前注册探针路由者应改用 `createHttpTestContext()`。`test/factories.test.ts` 的 `beforeAll` 补 `120_000` 超时（`createTempDatabase()` 会 `execFileSync` 起 prisma CLI 应用迁移，首轮超过默认 10s）。**⑤ 顺带得出一个重要正面结论**：`670 passed` 中包含本文件**19 条写库用例全绿** ⇒ **契约 8 个工厂的行为已被实测验证**（含 `sortOrder` 取 0/1/2、子对象 `projectId` 由父级推导、表默认值 `DRAFT`/`false`/`TODO`、以及四类非法输入的拒绝），挂掉的只是我自己写的两条 HTTP 冒烟
+
+**团队处置及理由：** **采纳**（修复提交 `da6ea5d`，`npm run typecheck` 退出码 0）。**处置依据**：符合红线第二章「发现失败时先判定是缺陷还是测试写错，并把判断理由写出来」——本条的判定是**测试写错**（辅助函数漏 boot），因此**修测试、保留原有断言强度**，未放宽任何断言、未改任何用例语义。**证据边界**：本沙箱内 `vitest` 因 `spawn EPERM` 无法运行（与 `npm test` 同一环境边界），故「修复后转绿」**尚待人类再执行一次 `npm test` 确认**，预期 `672 passed / 0 failed`；我给出的是「机制已复现 + 修法与仓库既有 21 个文件一致」两条证据，不冒充实测
+
+### 汇编 070 原序号 67
+
+时间：2026-09-20 16:16 角色：编码智能体(US-03 前端 / 兼 T0.5) 来源：A、B、D
+
+**任务场景：** **人类实测确认 T0.5 修复成立（672 例全绿）→ 关闭序号 66 的「尚待确认」，并给出推送前清单**
+
+**人类输入摘要：** 人类贴回本机 `npm test` 的**原始输出**：`Test Files 22 passed (22)`、`Tests 672 passed (672)`、`Duration 35.91s`（`transform 1.99s, setup 0ms, collect 13.77s, tests 324.97s, environment 3ms, prepare 3.10s`），并问「看样子是可以传上去了？」（此前 `git checkout` 输出：`Your branch is ahead of 'origin/main' by 4 commits`）
+
+**AI输出要点：** **① 证据等级升级**：序号 66 的修复此前只有两条证据（「机制已用裸 Fastify 最小复现」+「修法与仓库既有 21 个 HTTP 测试文件一致」），并明确标注**「修复后转绿尚待人类执行确认」**；本次人类实测 `672/672` 全绿 ⇒ 该条**从「未能验证」升级为「已实测」**，并**正式关闭序号 66 标注的待确认项**。**② 同时被证实的一件事**：新增的 `test/factories.test.ts` **21 条用例全部通过**，加上前一轮 `670 passed` 里已含的 19 条写库用例，意味着**契约 8 个工厂的行为已在真实测试运行器下验证**（`sortOrder` 取 0/1/2、子对象 `projectId` 由父级推导、表默认值 `DRAFT`/`false`/`TODO`、四类非法输入的拒绝）。**③ 推送前清单（由本人核对，网络操作一律交人类）**：`git status --porcelain` **空**（工作区干净）；`npm run typecheck` **退出码 0**；本分支相对 `main` 共 4 个提交、**仅新增 3 个文件 + 两行表五记录，零修改既有文件**（故合并不会破坏任何东西）；`main` 是本科分支的祖先 ⇒ **可 `--ff-only` 合并、零冲突**；另实测 `feat/US-01-m2-project-members` 亦基于 `main`、同样可 `--ff-only`（它带来端点 1/2、端点 3–9、前端骨架与官方 seed）。**④ 尚未处理的两件事（留给人类决定）**：其一，仓库外两份 `.md`（`_US-03_前端发现的问题.md`、`_实验二_感悟素材_外部输入不完整.md`）目前**不在版本控制内**，若作为交付物提交需决定是否放入 `docs/`（仓库已有 `docs/tickets-t5-task-management.md` 这类他人新增文档之先例）；其二，本表号段在合并时需**人工并集 + 复查连续性**（本分支 65–67、`feat/T3.11-web-us03-on-us01` 58–64、T5 系列 1–32 与 70–88），这正是序号 63 登记的风险
+
+**团队处置及理由：** **采纳**（T0.5 判定为可合并）。**依据**：红线第二章要求运行结论必须附「命令 + 退出码原始输出」，本条的人类输出满足该要求，故可据此把结论升级为已实测；**不由智能体执行 `git push`**（沿用本项目开头即定的「网络操作交给人类」约定），推送与合并的时机由人类/DRI 决定。**仍未验证的边界（不在本条范围内）**：T0.3 的端点 1/2 虽已存在于 `feat/US-01-m2-project-members`，但**从未被实测跑通**（该分支的测试是否覆盖 `POST /auth/login` 成功路径，本人未核）；本模块前端页面在真实浏览器中的观感亦仍未观测
+
+### 汇编 071 原序号 68
+
+时间：2026-09-20 16:23 角色：编码智能体(US-03 前端) 来源：A、B、D
+
+**任务场景：** **核对人类推送结果；把两份交付文档入库；代做表五并集**
+
+**人类输入摘要：** 人类贴回三条推送输出（`git push origin main` → `3048af9..caead87 main -> main`；`feat/T0.5-test-factories` → `Everything up-to-date`；`feat/T3.11-web-us03-on-us01` → `* [new branch]`）并问「你看看有没有问题」；同时要求「那两件小事请你开始干」（①两份 `.md` 入库；②表五号段并集），并说明「等这部分内容完成了，我们再进行我们自己的 T3 的现有审查和后续的实现」
+
+**AI输出要点：** **① 不凭贴回的文本推断，先 `git fetch` 核真身**：`origin/main = caead87`（T0.5 已并入，实测 `test/factories.ts`/`test/helpers.ts` **在**、`src/auth/plugin.ts`/`src/modules/project/plugin.ts`/`web/src/routes.tsx`/`src/db/seed.ts` **无**）⇒ **推送本身无误**，且 T0.5 只新增文件、零修改既有文件，不可能破坏他人。**但发现一件必须提醒的事**：**`main` 仍不含 M2 分支**，即登录端点 1/2、建项目端点 3–9、前端骨架与官方 seed 都不在主干 ⇒ **检出 main 仍然无法登录、无法建项目、没有前端壳**，「主干看起来好了但其实跑不起来」，需明确告知。**② 两份交付文档入库**：`docs/us-03-frontend-findings.md`（US-03 前端发现的问题）与 `docs/experiment2-reflection-external-input.md`（实验二感悟素材），命名改为 kebab-case 以对齐 `docs/` 既有风格（`sprint1-baseline.md`、`tickets-t5-task-management.md` 等）；**并删除工作区（仓库外）的原件，避免两份副本漂移**（内容已进 git 历史，可恢复）。**③ 表五并集（代做）**：`git merge main` 进本分支，**唯一冲突即 `docs/ai-interaction-log.md`**（与序号 63 登记的实测一致）；用脚本做**机械并集**而非取一边：表格行按序号升序合并（本分支 58–64 ＋ main 的 65–67）、脚注按其中首个序号排序合并、并**自校验每一行的文本与其来源版本逐字相同**；结果 **51 行、序号 1–67、零冲突标记、脚注 18 条**，其中 18/19/23–29/33–39 的缺口是历史上从未使用的号段（非本次遗漏）。并集脚本已存到工作区根 `_table5_union_log.cjs`，供 T5 合并（其号段 1–32 与 70–88）时复用。**④ 合并后的结构性收获**：本分支现已成为 `main` 的**超集**（实测 `main` 是其祖先）⇒ 并入 `main` **可 fast-forward**；且该分支一次性包含 main ＋ T0.5 ＋ M2（端点 1–9、前端骨架、seed）＋ US-03 前端页面 ＋ 两份文档。`npm run typecheck` **退出码 0**；工作区干净
+
+**团队处置及理由：** **采纳**（并集结果与文档入库均已提交）。**建议的后续顺序**：①推送本分支（新增 2 个提交：文档入库 + 合并提交）；②`git checkout main && git merge --ff-only feat/T3.11-web-us03-on-us01`（**一条命令即可让主干变成"可登录、可建项目、有前端壳、有需求页"的可运行状态**）；③在 `main` 上跑一次 `npm test` 复核；④再决定是否推送 `main`。**依据**：基线 §4.6「做完即合、不留长分支」；且本分支相对 main 是纯超集，ff 合并不会产生任何冲突（这次冲突已在合并前于本分支内解决完毕）。**证据边界**：`origin/main` 的核对为 `[已实测]`（fetch 后直接查文件存在性）；但**合并后的运行期行为未经实测** —— 本沙箱内 `npm test` 与 `npm run dev` 均不可跑（`spawn EPERM`），故「合并后主干可运行」**仍待人类验证**
+
+### 汇编 072 原序号 69
+
+时间：2026-09-20 16:32 角色：编码智能体(US-03 前端 / 兼 T0-06) 来源：A、B、D
+
+**任务场景：** **回答「T0 还剩什么问题」：定位唯一真缺口 T0-06「骨架冒烟链路收口」，交付其护栏测试并实测全绿；同时实测出 README「快速开始」的两处致命缺陷**
+
+**人类输入摘要：** 人类告知「我现在这边测试通过，也git上去了」，并要求：「现在请你告诉我目前关于T0还有什么问题，有的话我们先修了，如果没有了，我们再开新会话进行下一步的工作」
+
+**AI输出要点：** **① 先核清 T0 现状（已实测）**：`git fetch` 后核对 `origin/main = b8f4ef5`，T0 交付物（`src/app.ts`、`src/routes.ts`、`src/auth/*`、`src/modules/authz/permissions.ts`、`src/db/seed.ts`、`src/db/migrations/*`、`test/{factories,helpers,factories.test,http-support}.ts`、`vitest.config.ts`）**全部在 main 上** ⇒ T0.1–T0.5 已完成、无遗留。**② 唯一的真缺口是 T0-06**：`docs/tickets-t5-task-management.md` §1.1 把「骨架冒烟链路收口（T0-06）」列为 **T5 全部工单的硬前提**、§2 又断言「T0 链（已完成）」，但**基线 §4.1 的 T0 表里只有 T0.1–T0.5**，而 README 第 66 行写着「前置工单为 T0-01 至 T0-06」⇒ T0-06 是**别处定义、无人认领、无交付物**的一环。其缺失已造成真实损失：M5 把 7 个端点写在 `src/modules/task/` 里却**从未在 `src/routes.ts` 注册**，生产 app 上端点 24–30 一律 404，而 **T5 自己的 183 例测试全绿** —— 因为它的测试装置 `_test-harness.ts` **自己**注册路由，走的不是生产装配路径。**③ 交付 T0-06 的护栏（两层，全部打在真实生产装配上）**：新增 `test/skeleton-smoke.test.ts`（249 行，6 条用例）——(a) **路由清单单向断言**：用 `app.hasRoute()` 逐条检查本分支应交付的 **23 条**路由（`/health` + 契约端点 1–22），任何模块「只导出插件、忘了注册」都会在此红；(b) **行走骨架 HTTP 链路**：走**真实端点**把主链路跑通一遍（登录 → 建项目 → 建目标 → 建活动 → 建故事 → 读层级树 → 读故事详情），并含「非成员读该项目需求 → 404 且不泄漏对象内容」的隔离用例。**全部断言零探针**，与 `test/t0-gap-fix.test.ts`（自行注册 `/__probe__/*` 探针、只验框架能力，因其写作时业务端点尚不存在）恰好互补而非重复；该文件头「30 个业务端点尚未实现」一句**已过期**，本次未改动它，仅在此登记。**④ 实测结果（本次一个重要环境变化：本沙箱的 `spawn EPERM` 限制已消失，故本 Agent 首次能自己跑测试）**：`npx vitest run test/skeleton-smoke.test.ts` → **6 passed**（1.47s）；`npm test` → **`Test Files 28 passed (28)`、`Tests 737 passed (737)`**、`Duration 44.38s`；另用 `glob` 独立核对，仓库恰好 28 个测试文件 ⇒ 两个独立来源一致。**⑤ 顺带实测出 README「快速开始」的两处致命缺陷（全新 clone 跑不起来）** —— 用真机实验证明而非推断（临时探针 `_t0-envcheck.ts`，用完即删；`.env` 先复制备份、再删除、跑完还原并核对 SHA 一致）：其一，`.env` 被 gitignore（入库的只有 `.env.example`），缺它时 `new PrismaClient()` **不在构造时报错**，而是在**首次查询**才抛 `PrismaClientInitializationError: error: Environment variable not found: DATABASE_URL` ⇒ **新 clone 里 `npm run dev` 能起来、`/health` 也正常，但任何走库的接口一律 500**（比直接崩更迷惑人）；其二，`*.db` 同样被 gitignore ⇒ 库文件与表都不存在，首次查询抛 `PrismaClientKnownRequestError: The table main.Project does not exist in the current database`（Prisma 会静默建出一个空库文件）。而 README 第 31–38 行的步骤里**既没有 `cp .env.example .env`，也没有 `npm run db:migrate`，更没有 `npm run db:seed`**（seed 才造出 `pm` / `member1` / `member2` / `viewer1` / `outsider` 这 5 个可登录账号，缺它前端根本登不进去）
+
+**团队处置及理由：** **部分采纳 + 两处待裁决（未提交、未推送）**。**① 护栏测试：采纳并已交付** —— 依据是人类本轮明确指示「有的话我们先修了」，而该护栏正是 T5 已实际发生过的故障模式的直接对策。**② 待裁决 A：README 修复** —— 本人**未改** `README.md`，因为它在我的写入范围之外（本人被授权的范围是 `web/src/pages/requirement/` 与本表末尾追加）；建议补三步与 5 个演示账号说明，约 6 行，请人类指定由谁改。**③ 待裁决 B：分支与提交** —— 本次工作是在**当前所在分支 `main`** 上直接做的（实测 `git rev-parse --abbrev-ref HEAD` = `main`、HEAD = `b8f4ef5`），而仓库约定的做法是「建短分支 `feat/T<编号>-<短描述>`」；新文件目前状态为 `?? test/skeleton-smoke.test.ts`（未跟踪、未提交、未推送），请人类裁决：由我新建 `feat/T0-06-skeleton-smoke` 并提交，还是由人类自行处置。**交付自证（红线要求）**：`git status --porcelain` 仅一行 `?? test/skeleton-smoke.test.ts`，`git diff --stat` **为空**（零修改既有文件），`npm run typecheck` 退出码 0，无残留临时文件（探针脚本与临时库均已删除，`.env` 的 SHA 校验值未变）。**④ 仍未验证的边界（不在本条范围内）**：本模块前端页面在真实浏览器中的观感仍未观测；`web/src/pages/RequirementDetailPage.tsx` 仍是占位实现
+
+### 汇编 073 原序号 89
+
+时间：2026-09-20 17:16 角色：代码审查智能体(US-03) 来源：A、B、D
+
+**任务场景：** T3 现有审查（只读）：端点 10–22 与 US-03 前端全量复审
+
+**人类输入摘要：** 以「代码审查智能体」角色**只读**复审 US-03；先读 `_AGENT_红线.md`（第一章：审查类须只读 + 关闭自动批准；第二章：跑不了的命令交人执行，不得为「跑起来」而提权；第四章：每条结论标证据等级）；只读 git 命令允许；**不得创建/修改/删除任何文件**（含探针、临时脚本、报告文件——报告直接作为文本输出）、不执行 `npm test`/`typecheck`/构建命令、不得自我提权；每条结论须附 `文件:行号` + 契约条文出处 + 证据等级；区分「契约违规（必须修）」与「契约未定义（标待澄清）」；「已定性事项」不重复报告；不要重复检测智能体的工作；若认为实现整体没问题就明确说没问题
+
+**AI输出要点：** 范围 main=`7cd9ea8`、US-03 由**合并提交 `3048af9`** 引入（实测 diff：18 文件 / +10016 −2）。**结论：无阻断项**，与序号 56 的裁定一致且未推翻。逐条走完提示词 A–F 清单与前端专项 12 项，通过项含：A1 权限只经 `can()`（全模块除注释外**零**角色判断，grep 实测）、A2 状态码 13 处直取 `decision.status/code`、A3 端点权限动作与 I-8 索引表逐条一致、A4 错误码全在 I-4 内无自造码（`new AppError(` 34 处全核对）、A5 用 `safeParse` 不抛 `ZodError`、A6 三组 `select` 与 I-2 逐字段吻合且无整行 `send`、B1/B2 归属只从父级推导且请求体里没有该字段（Zod 默认剥除）、C1–C3 不引全局单例/不调他模块 service、E1 并发修复**在位**（11/15 读最大值与写入同事务、14/18 整段单事务）、E2 `_max===null` 显式判断未写 `?? 0`、E6 端点 22 的删除与多态 `ObjectVisibility` 清理同事务且 `delete` 前置短路、E7 除 S1 外 404/403 文案与响应体均不泄漏（「无权限/敏感」仅出现在注释）。**新发现 7 条建议项（均为上一轮未覆盖处）**：**S1** 403 分支复用 404 文案（`plugin.ts:196/279/352/425/490/545/596/640/687/740/830/879/953`，403 时仍回「项目不存在」）——契约 I-8 端点 11 明写 403 是 MEMBER/VIEWER 的**正常结果**；因测试纪律「只断言错误码不断言中文文案」，文案类缺陷按设计不进自动化护栏，只能由审查发现；**S2** 死导出：`service.ts:985` 的 `export type { Prisma }` 全仓零引用（真死代码，且因是 `export`，`tsc` 不会报）、`toUserStory` 与三个 `*Patch` 类型仅模块内使用，而 `service.ts:733-736` 注释称「三个调用方到位、隐患自然消除」不成立（那三个调用方都在同一文件内）；**S3** 前端端点 20 的封装 `web/src/pages/requirement/api.ts:49 getStory` **无任何运行时调用方**（全仓唯一另一处引用是 `shared-types.typecheck.ts:30` 的 `import type`，编译期即被擦除）⇒ **端点 20 前端一次都未联调**，交接说明「api.ts ← 端点 10 / 20 调用」不准确；**S4** 空白字段报错粒度不一（端点 19 一次报全部 vs 端点 21 只报第一个）；**S5** `.max(50)` 在 `trim()` **之前**判定；**S6** `terms.ts:14` 指向一个全工作区不存在的文档路径（glob 零命中）；**S7** 跨模块登记：`web/src/api.ts:68` 的 `JSON.parse` 无兜底、`ProjectLayout.tsx:33-35` 把一切失败归为「不存在」。**实测更正提示词预设**：`routes.ts` 的注册行**已经在 main 上**（`src/routes.ts:56`），且 `test/skeleton-smoke.test.ts:86-128` 用 `app.hasRoute()` 对**真实生产装配**逐条断言 23 条（health 1 + M1 2 + M2 7 + M4 13），端点 10–22 不会 404。**冻结件**：本交付**确实改动** `src/routes.ts`（+7/−2，授权仅见于注释自述，仓库内无法独立验证）；`src/shared/`、`schema.prisma`、`test/` **未动**。**契约空白 10 条**（C1 长度上限数值、C2 sortOrder 空集合起点、C3 空补丁、C4「清空 description」无入口、C5 HAS_CHILDREN 的 `field` 取参数名、C6 无上限自由文本、C7 排序并列的次级键、C8 端点 18 响应序、C9 基线 AC-US-03-04 第二句字面不可实现——活动层无 priority 字段、C10 AC-US-03-09 的「下属数量」在契约里无计数字段）。**AC-US-03-08 今天在运行时不成立**：`visibilityScope()` 对非 PM 返回 `{mode:'all'}`（`permissions.ts:174-192`），MEMBER/VIEWER 读端点 10 会看到全部故事（含敏感者）；`can()` 只保护「按 id 直取」那条路径（`permissions.ts:145-147`）⇒ 属 T2.5 但**不得记为已验证**。证据等级：[已实测] 6 条（全部来自只读 git 命令的原始输出：status 空、HEAD、merge 两父、diff --stat、routes.ts 的具体 diff、分支表），其余 [由代码推断]；运行类结论见「待人工验证」
+
+**团队处置及理由：** 待人类处置（本行为 AI 自记，处置栏留待小组裁决）。建议：① **采纳 S1/S3/S4/S5/S6**（低成本、纯改善），S2 建议连注释一并修；② 提请技术负责人**书面确认** `src/routes.ts` 的冻结件改动授权并计入表五（I-9 规定该文件唯一修改人是技术负责人）；③ **AC-US-03-08 在 T2.5 落地前不得计入验收**，需与技术负责人定 T2.5 的优先顺序；④ 本次审查**未执行任何命令**，`npm test`/`npm run typecheck`/浏览器观测由人类执行后回填证据等级
+
+### 汇编 074 原序号 90
+
+时间：2026-09-20 17:16 角色：编码智能体(US-03 前端) 来源：A、B、D
+
+**任务场景：** 子任务 1 设计稿：需求详情页静态 HTML（先给设计、由人类审核外观与交互）
+
+**人类输入摘要：** 人类指示：先更新表五；接下来进行前端内容编写，**先以 HTML 形式给出设计**、放在工作区中并告知位置，由人类审核后反馈意见；**一次只做一个子任务、做完停下给人类看**；「可以直接初始化一些内容，方便我查看正常情况下网页的外观」
+
+**AI输出要点：** 先把 89 行按「只允许末尾追加」补入表五（本轮审查结论）。随后拆出 5 个子任务序列：① **需求详情页** ② 写路径 A 业务目标（11/12/13/14）③ 写路径 B 用户活动（15/16/17/18）④ 写路径 C 用户故事（19/21/22）⑤ 主页面收口（页签/空态/错误态/角色形态一致性）；本轮**只交付 ① 的设计稿**，落盘 `_设计稿/US-03-详情页-v1.html`（工作区根目录，**在 git 仓库 `code/` 之外**，故 `code/` 仍保持 `git status` 干净）。该稿为**自包含**静态页面（内联 CSS + 内联 JS、不联网、不请求接口），双击即可打开；内含 **7 个可切换状态**：① 正常（PM）② 只读角色（MEMBER）③ 编辑态（含 422 字段级错误）④ 删除二次确认 ⑤ 409 HAS_CHILDREN ⑥ 敏感故事 ⑦ 404。**样式逐条抄自** `web/src/index.css` 与 `web/src/pages/requirement/requirement.css`（同一色板与 `req-*` 类名），以消除「稿子好看但代码做不出来」的偏差。页面按契约锚定端点：数据 20、编辑 21、删除 22、敏感 23（属 M3 未交付 → 只读展示 + 按钮禁用）、任务 24/25（属 M5 未交付 → **显示占位而非 0**，并以折叠块给出「交付后的设计目标形态」）。三处已内嵌的设计判断：**(a)** 编辑表单**只提交被改动字段**（与后端「只写请求体出现的字段」同构，避免全量提交重新引入丢失更新）；**(b)** 清空 `acceptanceCriteria`/`description` 用**空字符串**而非 `null`（后端 schema 无 `min` 且传 `null` 会 422，故界面不提供「置 null」）；**(c)** 删除用**页内内联确认块**而非 `window.confirm`（可统一风格、可断言、便于展示「仍有下级对象」）。另列出 2 处**待人类裁决**：**D1** 写按钮是否按 `myRole` 做**呈现层**禁用（v1 取「可见但禁用 + 说明」，备选为「始终可点、由后端 403 兜底」）；**D2** 「只提交脏字段」的提交语义是否采纳。证据等级：「样式与真实界面同源」为 [已实测]（逐条比对两份 CSS 文件）；「端点归属、错误码与枚举」为 [由代码推断]（引契约 I-8 第 619–639 行、I-4、I-2）；本行为设计稿，**无运行结论**
+
+**团队处置及理由：** 待人类审核（人类将打开该 HTML 并反馈意见后再定稿）。已声明：本轮**未改动 `code/` 内任何文件**（`src/` 与 `web/` 均零改动），设计稿落在仓库外；定稿实现时再落 `web/src/pages/RequirementDetailPage.tsx`。D1/D2 未裁决前不进入实现
+
+### 汇编 075 原序号 91
+
+时间：2026-09-20 19:29 角色：编码智能体(US-03 前端) 来源：A、B、D
+
+**任务场景：** 交付 US-03 前端实现：需求详情页 + 主页面三级写路径 + 薄假数据层 + API 层补齐
+
+**人类输入摘要：** 人类指令：先更新表五；随后按「A 段：前端实现」推进（① 需求详情页 ② 主页面写路径 ③ 接薄假数据层 ④ 收口）。此前人类已批准两个方案：**薄假数据层**（界面按最终形态做完，M3/M5 接口到位后只换数据来源，以便真正并行）与 **MoSCoW 走路径 A**（只改界面标签表，线上枚举一个字节不动）。执行纪律：一次只做一块、做完停下给人类看；不得改他人文件与冻结件
+
+**AI输出要点：** 交付 **6 改 + 2 新增**（未提交）：① `RequirementDetailPage.tsx` 由 18 行占位扩到 784 行（端点 20 正文 + 端点 21 部分更新 + 端点 22 删除 + 任务列表 + 敏感开关 + 两段式面包屑）；② `ProjectRequirementsPage.tsx` 727→1293 行，补齐三级写路径（目标 11/12/13/14、活动 15/16/17/18、需求 19/22），三级新建入口都在树里按层级缩进、行内 ↑↓ 编辑 删除、右栏 `Ops` 按节点类型分派；③ `api.ts` 51→244 行，补齐端点 11–22 全部封装（`updateStory` 入参**刻意不含** `isSensitive`，用类型钉住契约 I-8 端点 21）；④ 新增 `temporary-data.ts`（薄假数据层，**只**覆盖端点 24 读任务与端点 23 写敏感；**端点 25 刻意不做**——「导出了、没人调用、一调用就抛」的假函数属表五 44 号已裁定的危险 API）；⑤ 新增 `Editor.tsx`（三级新建/编辑表单 + `ConfirmDialog`）；⑥ `terms.ts` 优先级改**双标签**（如 P0（Must），并列显示、不宣称等价，映射待小组确认）、新增 `FIELD_LABEL/fieldLabel`（把 422 的 `details[].field` 翻成中文）；⑦ `requirement.css` 新增 12 个类 + `.req-add-row` 缩进 + `.req-node-hit/.req-row-ops`；⑧ 顺带修一处既有缺陷（`removeGoal` 用 `goals = goals.filter(...)` 会让导出的引用变陈旧，改为就地 splice）与一处既有渲染缺陷（`terms.ts` 缺口表里的 Markdown 星号会原样显示到界面）。**另修一处非法 HTML**：把行内操作按钮嵌在行按钮里（嵌套 button 非法，浏览器会把内层按钮搬出外层），改为「行是 div 容器 + `.req-node-hit` 只负责选中 + `.req-row-ops` 操作」，两者为兄弟关系
+
+**团队处置及理由：** 采纳。**交付前自证**：`node node_modules\typescript\bin\tsc -p tsconfig.json --noEmit` 与 `-p web/tsconfig.json --noEmit` **均 exit 0**——**关键经验：直接调 `node .../tsc`，不要用 `npx`**（本沙箱下 npx 需要 spawn 子进程会 EPERM）。这条使编码智能体首次能自行验证类型，不必每次交人执行。另有导入/导出交叉检查与渲染区内部命名扫描全过。人类复跑：`npm run typecheck` exit 0、`npm test` **28 文件 737 例全绿**——但必须注明 `vitest.config.ts` 的 include **不含 `web/**`**，故测试全绿**对本次前端改动不构成证据**，只证明没弄坏后端
+
+### 汇编 076 原序号 92
+
+时间：2026-09-20 19:29 角色：代码审查智能体(US-03) → 修复由编码智能体执行 来源：A、B、D
+
+**任务场景：** 对本轮前端实现做独立只读审查，产出 4 条阻断项 + 18 条建议项；人类逐条转达后由编码智能体当轮修复
+
+**人类输入摘要：** 人类以《_US-03_前端审查智能体提示词.md》（由编码智能体起草）开场，要求：审查对象是**未提交的工作区改动**（先审后提交）；只读、不落盘任何文件；允许跑 `tsc --noEmit`（只读）但**不得用 npx**；明确告知「前端无自动化测试，测试全绿不构成证据」；「已定性事项」8 条不得重复报；第五节列出作者自述的 4 处薄弱点、**要求验证而非重新发现**；须区分契约违规与契约未定义；每条结论附 `文件:行号` + 证据等级
+
+**AI输出要点：** **结论（人类原样贴回）**：范围 = 工作区 diff（6 改 + 2 新增，+2058 −189）。证据分级 `[已实测]` 11 条（含双 tsconfig `tsc` exit 0、表五 6 增 0 删、M2 的 `web/src/api.ts`/`index.css`/`ProjectLayout.tsx` 零改动）、`[由代码推断]` 41 条、`[未能验证]` 5 条。**4 条阻断项**：**B1** `RequirementEditor` 无 `key` ⇒ React 复用实例、`useState` 初值只在挂载时执行 ⇒ 从「编辑目标 A」切到「编辑目标 B」时表单残留 A 的值，而「只提交改动过的字段」是以**新对象**为基准比较的，于是会把 A 的数据写进 B（或静默造出 A 的副本）；**B2** 「打开需求详情页」按钮经 `dispatch` 而 `dispatch` 第一行是 `if (!isPM) return` ⇒ 只读角色点它毫无反应；且该处由 Link 退化成 button，丢掉了复制链接与新标签页 ⇒ MEMBER/VIEWER 在界面上**没有任何入口**进需求详情页；**B3** 端点 23 的 `visibleMemberIds` 里写死了伪造 id，临时层不校验看不出来，换真接口即 422，且若服务端宽松则可能把 PM 自己排除在名单外造成自锁；**B4** 同屏两个「敏感需求」状态互相矛盾（徽标读端点 20 的值、开关读本地视图，而 toggle 从不更新前者）——**且换真接口后依然存在**。**18 条建议项**中较重的：S1 刷新会重置选中、S2 兜底把英文内部名与契约编号渲染到界面、S4 确认框实现两遍且详情页那份漏 `role/aria-modal`、S6 树查找三份实现、S7 `collectStoryRows` 导出无人调用、S8② `nowrap` 类**从未定义**（「计划列不换行」静默失效）、S16 `toggleSensitive` 无守卫无 catch、S17 临时层「界面零改动」承诺不成立。**对作者自述薄弱点的验证**：① `swappedIds` 传 -1 且步长 +1 的越界路径**成立但当前不可达**，建议补 1 行守卫；② 选中项已被删除时三处均有兜底（不崩不空白）但文案误导；③ 写入口双重保护成立、非 PM 无可达写路径，但同一守卫误伤了只读入口（即 B2）；④ 仅靠 `console.info` 不够，且假数据取 member1/member2/pm 与真实 seed 账号同名，最容易被当成真数据
+
+**团队处置及理由：** 采纳（**4 条阻断项全部接受，无一条误报**）。编码智能体当轮修复：B1 加 `key={editorKey(editor)}`（按 kind/mode/id 生成，强制重新挂载并顺带重置表单错误态）；B2 恢复 Link 并把导航动作提到 `isPM` 守卫**之前**（写入规则「守卫管写，不管导航」）；B3 改用 `useAuth().user.id` 真实 id，拿不到则禁用而非塞字面量；B4 引入单一真相来源（开关动过之后以本地视图为准），同时解决 S18。建议项修复 S1/S2/S3(部分)/S4/S5/S6/S7/S8②/S9/S10/S11/S14/S15/S16/S17。**保留未改并写明理由**：S3⑤ 界面**保留** HTTP 状态码与错误码（契约定义的机器码、非内部实现命名，且演示需要证据——人类如否决再改）；S8① 一条不可达的 CSS 规则；S12 web 侧长度常量与后端各一份（架构上 web 不能引服务端代码，固有取舍）；S13 新需求优先级默认 P0（属产品裁决，应走契约空白，不由前端自定）；F1「为纯函数开第二个测试 seam」**采纳但不本轮做**——`vitest.config.ts` 不属本模块，登记为 Sprint 2 待办。**修复后自证**：双 tsconfig `tsc --noEmit` 均 exit 0、5 个文件未使用导入复查全过、四条阻断项落地自检全过、渲染区内部命名扫描干净。**过程失误（如实记录）**：修复过程中编码智能体自己制造并当场修复 3 处——① 改导入时吃掉换行导致两行 import 粘连；② 误留一个死函数；③ 误把状态声明行替换掉导致一个 state 被删。三处均在下一次核验中发现并修正
+
+### 汇编 077 原序号 93
+
+时间：2026-09-20 19:52 角色：编码智能体(US-03 前端) 来源：A、B、D
+
+**任务场景：** 人类在真实浏览器里对已交付的 US-03 前端做走查，抓到 2 个静态审查与自检都没发现的缺陷；当轮修复，并把这两类补进前端审查提示词的走查清单
+
+**人类输入摘要：** 人类贴回走查结果两条：**① 空态死胡同** —— 全新项目（种子库只有账号与演示项目、**没有任何需求**）打开需求层级页，页面上没有任何入口，**第一个业务目标建不出来**；**② 告知型对话框真的发了请求** —— 删除一个有子级的目标时弹出「还不能删除」，但点「知道了」之后**仍然发出 DELETE 并收到 409**。同时要求：把这两条补进《_US-03_前端审查智能体提示词.md》的走查清单，并追加本行。
+
+**AI输出要点：** **缺陷 A 空态死胡同**：定位为**我自己的回归** —— 收口时把「＋ 新建业务目标」按钮从面板外移进 `TreePane`，而渲染条件写的是 `goals.length > 0 ? <div className="req-split">`，于是树为空 ⇒ 树面板不渲染 ⇒ 长在里面的按钮一并消失（**连带熄灭**）。修法：改为 `goals !== null ? <div className="req-split">`（`ProjectRequirementsPage.tsx:479-484`），`EmptyState` 移进 `TreePane` 并置于建按钮**上方**（同文件 `:639-650`），按角色给不同 hint；原型同款死胡同一并修（`_设计稿\原型\需求层级.html:129-136`，空目标时不再提前 `return`，建按钮仍在下方渲染）。**缺陷 B 告知型按钮有副作用**：定位为**只按按钮文案判断、没读 handler** —— 对话框按钮写成 `onConfirm={() => void doDelete()}`，无条件执行；同类还有「标题写『还不能删除』、按钮文案却是『确认删除』」的自相矛盾。修法：主页面新增 `confirmBlocked`（`ProjectRequirementsPage.tsx:404-416`）—— 本地**已经能判定**的两种删不掉（目标下有活动 / 活动下有需求）**不发请求**，对话框退化为纯告知（`:540-597`：`confirmText` 改「知道了」、`danger` 置 false、只关框 + 黄色提示）；「需求下还有任务」那一种本页拿不到任务列表（属端点 24），**仍发一次 DELETE 由服务端裁决 409** —— 这是有意义的试探，已在代码注释里写明是**预期行为**而非缺陷；详情页因任务列表已加载，用 `storyTasks.length > 0` 直接短路（`RequirementDetailPage.tsx:781-799`）。**修完后全仓 grep `onConfirm={() => void` 实测 0 处。**
+
+**团队处置及理由：** 采纳（人类要求当轮修复、不留到下一轮）。**如实复盘**：这两条都属于「结论写在纸上、实现里没有」—— 缺陷 A 我曾在自检里把“空态”当作已覆盖，缺陷 B 我曾在提示词里写过“点『知道了』不发请求”的预期；两处都是**凭原型与推断**写的、不是跑出来的，真实浏览器走查一次就同时证伪了它们。据此提示词补了 **3 处**：第五节第 5/6 条（带「上一轮实测出过」的上下文，要求验证修复是否彻底并搜同类）、第六节 **E8 空态可达性**、**E9 告知型按钮是否真的无副作用**，以及第六节 F2 **强制**走查清单必须含「空库首建」与「告知型按钮零请求」两条实测项。
+
+### 汇编 078 原序号 94
+
+时间：2026-09-20 20:09 角色：编码智能体(US-03 前端) 来源：A、B、D
+
+**任务场景：** 人类按编码智能体交付的《_US-03_二次走查清单.md》在真实浏览器里复验修复后的前端，回报「通过」；本行据此关闭序号 93 遗留的两条 [未能验证] 欠账
+
+**人类输入摘要：** 人类回报**「通过」**（整轮走查结论）。走查清单由编码智能体编写并落盘 `_文档\_US-03_二次走查清单.md`（186 行：10 条主项 + 3 条「本轮验不了」+ 准备动作与记录方式），编写时**逐条按当前代码核对了界面文案与入口**（附 `文件:行号`），而非凭记忆。清单覆盖四组：**① 两条必修缺陷的复验** —— 空态首建（缺陷 A 的修复，用 `outsider` 账号进入 seed 里唯一零需求的「外部用户的项目」，不动数据库）与告知型按钮零请求（缺陷 B 的修复，含 目标A／活动A 两个告知态 + 目标B 的**反向用例**「真能删的必须还能删」）；**② 上一轮 4 条阻断项的用户可见部分** —— 编辑 A→B 表单不残留、只读角色能进需求详情页（并验右键新标签页可用）、敏感状态同屏唯一；**③ 回归** —— 三级 CRUD、上移/下移与首末禁用、**局部更新只看 PATCH 的 Request Body 是否只含改动字段**、页签切换、404 文案；**④ 走查前必须打开 DevTools Network 面板** —— 因为其中一半的判据是「**有没有发请求**」。
+
+**AI输出要点：** 本轮**未改动任何代码**（人类结论为通过，无修复可做）。编码智能体的产出是**走查清单这一交付物的编写方法**：把「某功能是否正常」这种无法执行的条目，改写成「点哪里 → 预期看到什么 → 什么现象算缺陷」的可执行判据，并对每个判据标注了代码依据（如 `ProjectRequirementsPage.tsx:479-484` 空态与建按钮同屏、`:1213/:1228` 首末位置禁用、`RequirementDetailPage.tsx:203-208` `dirtyPatch` 为空即短路不发请求、`:1139-1141`「打开需求详情页」为**无条件** `<Link>`）。**据此关闭序号 93 的两条欠账**：序号 93 的脚注曾记「修复后尚未经人类二次走查」为 [未能验证]，经本轮人类观测，该两条（空态首建、告知型按钮零请求）**转为 [已实测]（人类在真实浏览器观测）**。**同时明确三条不因「通过」而关闭**：需求下还有任务的 409 与告知态、AC-US-03-08 敏感联动、任务列表内容 —— 这三条在**本轮运行时根本走不到**（`Task` 表实测 0 行、`visibilityScope` 仍是待接管骨架），故「通过」**不覆盖它们**。
+
+**团队处置及理由：** 采纳（人类回报的走查结论即为通过）。**记录纪律说明**：人类回报的是**整轮**「通过」，**不是逐条清单回报**；因此本行按人类原话记录为「整轮通过」，**未推断成「10 条逐项均通过」**，也**未把三条「验不了」并入通过**（那三条的本轮结论是「验不了」，不是「通过」）。若日后发现某条实际未被执行或被跳过，按本表只追加的规则**以新的行更正**，不回改本行。
+
+### 汇编 079 原序号 95
+
+时间：2026-09-20 20:31 角色：编码智能体(US-03 前端) 来源：A、B、D
+
+**任务场景：** 登记 MoSCoW 语义待裁决项的处置（人类已开 issue、已在群里同步、根治推迟 Sprint 2）；并据此更新已过期的交接文档、清理遗留物
+
+**人类输入摘要：** 人类说明：`P0/P1/P2` 与 MoSCoW 的映射与语义问题**已在仓库里开了 issue**，也**在群里发过**，因为「要根治还是很困难，可能需要等下次 sprint」。同时指示「请你解决这些还悬着的事情」，指：① 更新 `_文档\_US-03_编程智能体交接.md`；② 登记该 issue 的处置；③ 清理遗留物。**人类未提供 issue 编号**（本 AI 无 `gh` CLI、issue 内容也不在 git 历史里，无法自行查得）。
+
+**AI输出要点：** **① 登记处置**：把上一版交接文档与前端审查提示词里长期标着「待小组确认」的 `P0↔Must` 映射，从**悬空**改为**已开 issue、根治推迟 Sprint 2**，并写明前端采取的中间态 —— 界面取**双标签** `P0（Must）` **并列显示、不宣称等价**，线上枚举一个字节未动（人类选定的路径 A）。**② 重写交接文档**（430 行）：**先核实再写**，逐条实测刷掉了 5 处**已经变成假话**的旧状态 —— 旧版称「端点 1–9 未实现、前端登录不了」（实测 `src/routes.ts` 已注册 `registerAuthRoutes` 与 `registerProjectRoutes`，端点 1–9 已交付）、「前端页面为零」（已交付）、「`test/factories.ts`/`helpers.ts` 不存在」（实测 376/149 行 ⇒ 契约空白 #3 **解除**）、「表五到 57」（已到 94）、「vite 配了 6 个代理前缀」（实测**只代理 `/api` 并 rewrite**，与旧文档互相矛盾）。并把「第二部分：前端页面开场提示词」整体**作废**，改写为当前方向的提示词（**A 对修复做独立复核 / B M3·M5 到位后接线 / C 贴左布局**）。新增踩坑 11–13：**编辑工具会吃掉 UTF-8 BOM**、**静态阅读与自检发现不了「运行态」缺陷**（即序号 93 那两条缺陷的成因）、**不要凭记忆或推断写 `[已实测]`**。**③ 清理遗留物**：删除 `_脚本\_commit_msg.txt` —— 先实测它与提交 `a19f6b3` 的 `git log --format=%B` **逐字一致（1803 字符）**，确认无信息损失后才删；且其内容已**误导**（写着「密码 demo1234」「含示例需求层级」，两项在当前 seed 里都不成立）。**④ 自纠一处格式缺陷**：写交接文档时在文本围栏块里又嵌了一个**同长度的三反引号围栏**，会导致外层提前闭合，已改为四反引号外层（围栏复查 6 行、配对正确）。
+
+**团队处置及理由：** 采纳。**如实说明两处局限**：① **issue 编号未登记** —— 本 AI 无 `gh`、issue 不在 git 历史里，人类亦未提供；本行只登记「已开 issue 并推迟 Sprint 2」这一事实，编号待人类补充后**另追加一行**（按本表只追加规则，不回改本行）。② 交接文档里的**行数与文件数**均为本 AI 2026-09-20 用 .NET `ReadAllLines` 实测（吸取坑 10：不用 `Get-Content` 计数，它会静默少行），但 **`npm test` 的 28 files/737 例仍来自人类实测**（本 AI 跑不了），文中已分别署名。**另**：本行虽把一项待裁决事项转成了「已开 issue + 有时间点」，但它**仍是未决事项**，故在交接文档的遗留问题与待办两处都保留 ⏳ 标记，**未因"已开 issue"而标记为完成**。
+
+## 2026年09月21日
+
+### 汇编 080 原序号 96
+
+时间：2026-09-21 角色：编码智能体(US-02) 来源：A、B
+
+**任务场景：** 将 T2 重新整合到最新 main
+
+**人类输入摘要：** 用户要求保留已有 T2 权限与敏感可见逻辑，同时解决 main 新增的认证、项目成员、T0.5/T0-06 与 US-03 前端冲突
+
+**AI输出要点：** 以 main 的最新文件为准恢复新增模块；合并路由注册与构建排除规则；保留 can()/visibilityScope()、敏感端点、事务审计与 HTTP 测试；接入 US-01 角色变更/成员移除审计与 US-03 真实敏感接口；为受限环境预创建临时 SQLite 文件
+
+**团队处置及理由：** 采纳并实测：typecheck 通过；29 个测试文件、745 个测试全绿；服务端与 Web 生产构建通过。T5 读取路径尚未进入 main，作为跨模块待接入项保留
+
+### 汇编 081 原序号 T2-01
+
+时间：2026-09-21 角色：需求分析智能体 来源：C
+
+**任务场景：** 明确 US-02 负责范围
+
+**人类输入摘要：** 用户确认负责整个 US-02，T0-05 不归本人，暂时保留
+
+**AI输出要点：** 查阅 Sprint 1 基线，将个人范围确定为 T2.1～T2.8：角色矩阵、写权限拦截、敏感标记、白名单、查询层过滤、统一拒绝、即时生效和审计；T0-05 只作为依赖接口使用，不计入个人 T2 交付
+
+**团队处置及理由：** 采纳：避免把公共前置任务与个人用户故事混算，后续按 T2 验收标准实施
+
+### 汇编 082 原序号 T2-02
+
+时间：2026-09-21 角色：代码分析智能体 来源：C
+
+**任务场景：** 开发前检查仓库与依赖
+
+**人类输入摘要：** 用户询问仓库是否提供 T0 接口，以及现有代码能否支撑完整 T2
+
+**AI输出要点：** 检查认证、成员关系、权限骨架、数据库表、路由和测试辅助；确认 T2 必须建立在真实认证、项目成员和对象可见性数据上，并识别与 US-01、US-03、T5 的横切依赖
+
+**团队处置及理由：** 修改后采纳：等待并复用仓库已有基础能力，禁止通过前端隐藏或硬编码角色代替服务端权限
+
+### 汇编 083 原序号 T2-03
+
+时间：2026-09-21 角色：编码智能体 来源：C
+
+**任务场景：** 实现 T2.1、T2.2 角色权限矩阵与写操作拦截
+
+**人类输入摘要：** 要求 PM、MEMBER、VIEWER 三类角色权限真实生效，越权操作不能只靠页面隐藏
+
+**AI输出要点：** 完善 `can()` 的项目、成员、对象和动作判定；写操作统一走权限入口；区分角色不足的 403 与非成员、对象不存在或敏感不可见的 404；避免在业务模块重复硬编码角色判断
+
+**团队处置及理由：** 采纳：形成后续需求与任务模块都能复用的统一授权入口
+
+### 汇编 084 原序号 T2-04
+
+时间：2026-09-21 角色：编码智能体 来源：C
+
+**任务场景：** 实现 T2.3、T2.4 敏感标记和可见成员白名单
+
+**人类输入摘要：** 要求用户故事和任务可以标记敏感，并由项目经理指定可见成员
+
+**AI输出要点：** 新增敏感设置服务与路由，覆盖故事端点 23 和任务端点 30；对白名单成员做项目归属校验；更新时全量覆盖白名单，关闭敏感状态时保留原名单，避免再次开启后配置丢失
+
+**团队处置及理由：** 采纳：敏感状态与白名单由服务端保存和校验，界面只负责提交选择结果
+
+### 汇编 085 原序号 T2-05
+
+时间：2026-09-21 角色：编码智能体 来源：C
+
+**任务场景：** 实现 T2.5、T2.6 查询过滤与防泄漏
+
+**人类输入摘要：** 要求未授权成员在列表、详情和统计中均看不到敏感对象
+
+**AI输出要点：** 实现 `visibilityScope()`，向业务查询返回可直接用于数据库 WHERE 条件的可见 ID 范围；禁止先查全量再在内存过滤；详情和敏感设置接口对不存在、非成员及未授权三种情况统一返回 404，响应体不携带对象字段
+
+**团队处置及理由：** 采纳：同时满足敏感对象不可见和“不泄漏存在性”的验收要求，并供 US-03、T5 复用
+
+### 汇编 086 原序号 T2-06
+
+时间：2026-09-21 角色：编码智能体 来源：C
+
+**任务场景：** 实现 T2.7、T2.8 即时生效与审计留痕
+
+**人类输入摘要：** 要求取消权限后无需重新登录即可生效，权限及可见范围变更必须可追溯
+
+**AI输出要点：** 权限判断每次请求实时查询成员关系和白名单，不使用进程内权限缓存；敏感状态、白名单和 `AuditLog` 在同一事务写入；同时接入 US-01 的角色变更和成员移除审计，避免业务成功但审计缺失
+
+**团队处置及理由：** 采纳：权限撤销对同一 token 的下一次请求立即生效，审计与业务修改保持原子性
+
+### 汇编 087 原序号 T2-07
+
+时间：2026-09-21 角色：测试与代码审查智能体 来源：C
+
+**任务场景：** 按验收标准进行独立验证
+
+**人类输入摘要：** 用户要求完成后按照检测标准审核，不能只证明页面可操作
+
+**AI输出要点：** 新增真实 `buildApp` 与临时 SQLite 的 HTTP 测试，覆盖鉴权、三角色权限、敏感开关、白名单校验、查询层过滤、统一 404、同 token 即时撤权、事务审计及跨项目隔离；同时核对路由注册、返回字段和已有功能回归
+
+**团队处置及理由：** 采纳：测试走生产装配路径，不使用仅测试环境可用的权限旁路
+
+### 汇编 088 原序号 T2-08
+
+时间：2026-09-21 角色：编码智能体（US-02） 来源：C
+
+**任务场景：** 将 T2 重新整合到最新 main
+
+**人类输入摘要：** 用户要求保留已有 T2 权限与敏感可见逻辑，同时解决 main 新增的认证、项目成员、T0.5/T0-06 与 US-03 冲突
+
+**AI输出要点：** 以最新 main 文件为基准恢复新增模块；合并路由注册与构建排除规则；保留 `can()`、`visibilityScope()`、敏感端点、事务审计与 HTTP 测试；接入 US-01 角色变更/成员移除审计和 US-03 真实敏感接口；未用旧分支整体覆盖团队代码
+
+**团队处置及理由：** 采纳：保留其他成员已有逻辑并解决冲突；T0-05 不作为个人交付；当时尚未进入 main 的 T5 读取路径明确列为跨模块待接入项
+
+### 汇编 089 原序号 T2-09
+
+时间：2026-09-21 角色：测试智能体 来源：C
+
+**任务场景：** 全量回归和边界复核
+
+**人类输入摘要：** 用户要求确认 T2 是否完整，是否影响其他成员代码
+
+**AI输出要点：** 实测 `npm run typecheck` 通过；29 个测试文件、745 项测试全部通过；服务端与 Web 生产构建通过；核对本次修改主要集中在授权、敏感设置、项目审计、测试与说明文档
+
+**团队处置及理由：** 采纳：满足类型、测试和构建门禁；明确“无冲突”不等于完全未修改共享文件，而是仅修改接入 T2 所需位置并保留原逻辑
+
+### 汇编 090 原序号 99
+
+时间：2026-09-21 21:05 角色：编码智能体（编排者代执行） 来源：A、B
+
+**任务场景：** T5-07 审查条件二的机械清理与表五更正
+
+**人类输入摘要：** 审查体判定 T5-07 为有条件批准，条件二为「为表五 96 的格式缺陷补更正行，并顺带清理死导入与陈旧注释」。要求只追加、不得回改已有行
+
+**AI输出要点：** 实测 13 个迁移后的测试文件均残留未使用的 supertest 导入，已全部移除；表五 96 行的格式缺陷（AI 输出列内裸竖线未转义、行尾缺竖线、一处游离反引号）按只追加规则无法回改，故在本行登记更正：该行语义以本行为准，96 行内容不再单独修改；另记录两条未处置观察项：skeleton-smoke.test.ts 第 40 行注释仍写「现已实现 22 个」（实际 29 个，属 T0-06 交付方文件）、routes.ts 的注册注释为 3 行而非 96 行所述「两处」
+
+**团队处置及理由：** 修改后采纳：死导入为纯机械清理，改动后全量测试与两份 typecheck 复跑通过；两条观察项因涉及他人文件或注释语义，留待对应负责人处理，不在本工单内擅改
+
+### 汇编 091 原序号 100
+
+时间：2026-09-21 21:05 角色：编码智能体 来源：A、B
+
+**任务场景：** T5-07 收口（issue #14）：删除临时桩、接入真实 requireAuth／can／visibilityScope、注册端点 24–30
+
+**人类输入摘要：** 删除 `src/modules/task/_t0-stubs.ts` 与 `_test-harness.ts`；把 `routes.ts` 接线改为 `registerTaskRoutes(app, context)`，7 个端点全挂 `requireAuth`、取 actor 用 `currentUserId`、鉴权走 `createAuthorization(context.prisma)` 且不 import 全局单例；在冻结 `src/routes.ts` 注册本模块（已获授权，只加 import 与注册行两处）；同步 `test/skeleton-smoke.test.ts` 的 `EXPECTED_ROUTES` 到 30 条；把 13 个 T5 测试文件装置改装为 `createTestContext()` + `test/factories.js` + `ctx.asUser(ctx.loginAs(...))`；以 T2.5 两处语义（敏感对象保守拒绝、`visibilityScope` 尚未过滤）为前提的失败用例用 `it.skip` 并加 `// TODO(T2.5)`，禁止放宽断言；不得改 shared／schema.prisma／authz／test 共享基建；分阶段提交并在表五追加序号 96。
+
+**AI输出要点：** 删桩并 one-file swap：`routes.ts` 现 7 端点全部 `{ preHandler: requireAuth }`、`currentUserId(request)`、注册时 `createAuthorization(prisma)`，保留原有 404 文案／`isRecordNotFoundError`(P2025→404)／`ObjectVisibility` 同事务清理／查询层 `where`＋`id IN` 过滤／审计写入；`src/routes.ts` 只加 `import { registerTaskRoutes }` 与 M5 注释段落的 `registerTaskRoutes(app, context)`；`skeleton-smoke` 的 `EXPECTED_ROUTES` 23→30、清单断言改 30、修正「23–30 共 8 条无一可用」的过期注释，6 例通过。13 个测试文件走真实 `buildApp()` 注册路径（无手动 register），改为 `ctx.reset()`／`makeUser`／`makeMember`／`makeProject+makeGoal+makeActivity+makeStory` 组合，请求一律 `ctx.asUser(ctx.loginAs(actor))`。全量 `node ./node_modules/vitest/vitest.mjs run`：**41 文件 1038 passed
+
+**团队处置及理由：** 31 skipped（1069）**，与基线 1069 差值恰为 skip 数；root 与 web `tsc --noEmit` 均 exit 0。skip 31 例分布：`project-tasks.test.ts` 3、`project-tasks.adversarial.test.ts` 5、`task-sensitivity.test.ts` 11、`task-sensitivity.adversarial.test.ts` 11、`task-create.adversarial.test.ts` 1，逐例归因 T2.5（白名单成员不可见／MEMBER 列表未过滤），均为原 `it` 原样保留仅改 `it.skip` 并加 TODO 注释，未删断言。非 T2.5 失败 1 例：`task-concurrent-delete.test.ts` 的 `deleteTask` 单行请求链在迁移脚本中漏迁 `x-actor-user-id` 使 D2 得 401；已改为 `ctx.asUser(ctx.loginAs(actorUserId))`，重跑 2/2 通过（属接线错误，已按真实缺陷修掉）。`在 `src test` 内检索 `_t0-stubs` 与 `_test-harness` 两个标识：`src` 零结果，`test` 仅剩 `test/helpers.ts:15`、`test/factories.ts:49` 两处历史注释（冻结共享文件，按硬约束未改）。真实 `buildApp()` 冒烟：未认证 401（`未登录（缺少 Actor）创建任务`）、MEMBER 200（`MEMBER 可读取非敏感任务列表`）、非成员 404（`非项目成员查看任务列表`），另 `skeleton-smoke` 断言未登录 `/projects` 401。提交：39390ef（接线＋注册＋删桩＋护栏）、a354dc5／a565e83／138f6cb（三批测试迁移）、本行所在提交（表五）。 | 采纳（自评）：真实 seam 单点替换完成，`grep` 证明桩已全部消失（除冻结共享文件注释）；T2.5 前提失效用例按团队规则保留并 skip，未以放宽断言换绿；发现的唯一非 T2.5 失败（并发删除鉴权头漏迁）当真实缺陷修复。**遗留／未验证**：main 的 `permissions.ts` 是 T0-04 最小骨架，`can()` 对敏感对象保守拒绝、`visibilityScope()` 对非 PM 返回 `{mode:'all'}`，故敏感任务的**列表／计数过滤仍未生效**（AC-US-02-06、AC-US-05-09 待 T2.1–T2.5），被 skip 的 31 例即其证据，不得报成已完成；`test/helpers.ts`、`test/factories.ts` 内两处历史注释因文件冻结而保留；`title` 上限 200、重复 `ownerUserId` 取 `INVALID_VALUE` 等契约空白沿用原记录
+
+### 汇编 092 原序号 97
+
+时间：2026-09-21 21:15 角色：测试智能体 来源：A、B
+
+**任务场景：** T5-07 独立对抗性验证（issue #14）：迁移真实性、31 例 skip 合法性、路由护栏反事实、Bearer 鉴权端到端、P2025 映射仍在、冻结文件与改动范围
+
+**人类输入摘要：** 要求逐条探针 A–G，B/C/E 三处反事实必须给退出码与失败用例名；不得改 `test/`、`src/routes.ts`、`src/modules/authz/permissions.ts`；反事实一律在 `/tmp` 副本做；只在 `src/modules/task/` 内新增测试；表五末尾追加序号 97；报告须含 skip 合法性裁定与缺陷清单
+
+**AI输出要点：** **A 迁移真实性**：`grep -rn x-actor-user-id src test` 0 结果；`_t0-stubs|_test-harness` 在 `src` 0、`test/` 仅 `helpers.ts:15`/`factories.ts:49` 两处注释；`db/client` 在 `src/modules/task` 0；7 个端点 7/7 均 `{ preHandler: requireAuth }`；测试侧无 `app.register`/`registerTaskRoutes` 旁路（仅 skeleton-smoke 注释提及），13 个测试文件全走 `buildApp` 生产注册路径。**B 31 例 skip 合法性（核心）**：分布 3+5+11+11+1 与自报一致；在 `/tmp/t5check` 副本把全部 31 例 `it.skip` 改回 `it` 实跑，全部失败且失败原因**恰好**两类——① 白名单成员被 `can()` 保守拒绝 `expected 404 to be 200/403`；② `visibilityScope()` 对非 PM 返回 `all` 使敏感任务出现在列表/计数 `expected length N to be M`；无断言写错、接线、文案不一致等第三类失败，31 例全部名副其实。**C 护栏反事实**：注释掉 `src/routes.ts` 的 `registerTaskRoutes` → `skeleton-smoke` 退出码 1，失败用例「契约本分支应交付的端点全部注册在真实 app 上」缺 7 条 M5 路由；顶部注释已不含「端点 24–30 不可用」。**D 鉴权**：新增 `src/modules/task/t5-07-migration.adversarial.test.ts` 12 例全绿——有效令牌 200／无头·畸形·伪造 401／移出项目后同 token 404（can() 现查库无缓存）／删用户后旧 token 401／MEMBER·VIEWER 对端点 25/28/29/30 403、非成员 404／响应体无 passwordHash。**E 反事实**：注释 P2025 分支 → `task-concurrent-delete` D1/D2 失败，退出码 1，`expected 500 to be 404`，映射仍在。**F 改动范围**：`3a3c011..HEAD` 共 19 文件，`src/routes.ts` 仅 import＋注册行＋注释；未触碰 `src/shared`、`schema.prisma`、`authz/permissions.ts`、`http-support.ts`、`helpers.ts`、`factories.ts`；`skeleton-smoke` 仅加 7 条＋计数 23→30＋注释修正，无断言削弱。**G 门禁**：全量 `vitest run` 41 文件 **1038 passed | 31 skipped（1069）**；双 `tsc --noEmit` exit 0；表五序号 96 存在且唯一、7 列齐备。
+
+**团队处置及理由：** 采纳：未发现阻断缺陷，31 例 skip 全部合法且原因单一（T2.5 骨架缺口），路由护栏与 P2025 映射经反事实证明有效。**未达成**：敏感任务列表/计数过滤（AC-US-02-06、AC-US-05-09）仍属 T2.5，本轮维持 31 例 skip。新增测试 `t5-07-migration.adversarial.test.ts` 12 例并入全量。
+
+### 汇编 093 原序号 98
+
+时间：2026-09-21 21:20 角色：代码审查智能体 来源：A、B
+
+**任务场景：** T5-07（issue #14）独立审查：真实 seam 迁移可信度、31 例 skip 是否掩盖回归、冻结文件授权与接线正确性
+
+**人类输入摘要：** 审查 39390ef、a354dc5、a565e83、138f6cb、c7d7b7a（基点 3a3c011）；不复用测试体结论，在 /tmp 副本自行把 skip 改回 it 并做正反两向反事实；复核冻结文件与共享基建零改动；实测真实鉴权端到端与权限矩阵；只读审查，仅末尾追加本表
+
+**AI输出要点：** 复现全量 41 文件 1038 通过 / 31 跳过（1069），root 与 web tsc 均 exit 0。grep 实测：src/modules/task 与 13 个测试文件内 x-actor-user-id、_t0-stubs、_test-harness、db/client 零引用；7 个端点逐一 preHandler: requireAuth；13 文件全部 createTestContext()（内部走 buildApp→registerRoutes）且无手动 register。反事实（均在 /tmp 副本）：①把 project-tasks.adversarial A1 与 task-sensitivity「名单内成员可读详情」两例 skip 改 it，分别实测失败为「列表长度 2→3，敏感任务出现在非 PM 列表」与「白名单成员被 404」（exit 1），失败归因恰为 T2.5；②把旧桩语义（can 白名单放行 + visibilityScope 查询层过滤）回填 permissions.ts 后翻转全部 31 例，5 文件 157 例全绿（exit 0），证明 skip 不掩盖其它回归且 T2.5 落地后接线自动生效；③注释掉 src/routes.ts 注册行后 skeleton-smoke 逐条报出缺失的 7 条路由，exit 1，护栏未被弱化；④删端点 29 的 P2025 分支后并发双删用例得 500 而非 404，exit 1；⑤删端点 29 的同事务 deleteMany 后可见性残留 2 条，exit 1。自建 6 例探针实测：有效令牌 200、无头 401、畸形令牌 401、移出成员后同一令牌 404、删除用户后旧令牌 401；端点 25/28/29/30 对 MEMBER 与 VIEWER 403、非成员 404、响应体不含 passwordHash。冻结文件：src/routes.ts 仅 import 行、调用行与注释更新；src/shared、schema.prisma、authz/permissions.ts、test/http-support.ts、test/helpers.ts、test/factories.ts 零 diff。13 个测试文件 it 行数与基点逐一相等且 it.each 数据未变，移除的 expect 全为 ctx.prisma→ctx.db 等价替换，无删测试或删断言痕迹（task-create.adversarial 的 A3b 由桩语义改写为真实 Bearer 401，测试内已注明）。表五 96 为末尾追加、无重号、未改既有行。
+
+**团队处置及理由：** 有条件批准：迁移彻底、接线正确、反事实可证 skip 仅归因 T2.5 且护栏真实有效，诚实性合格（96 行已声明列表与计数过滤未生效）。条件一（发布或关闭 M5 前必须满足）：T2.5 落地后解除全部 31 例 skip 并全绿；在 M3 交付前，端点 24/26 已可达而敏感任务过滤仍缺失，非 PM 项目成员可在列表中看到敏感任务，属合并后引入的临时越权泄漏面，不得把敏感可见性 AC 报为完成。条件二（非阻断）：表五 96 的 AI 输出列内竖线未转义且缺行尾竖线、一处游离反引号，应按只追加规则另起更正行；11 个测试文件残留未使用的 supertest 导入与 task-create.adversarial.test.ts:220「此处桩直接抛」陈旧注释一并清理。未验证：T0-06 交付方授权凭据不在仓库内，无法独立核实；基线 1069 未直接重跑，按文件级 it 计数与 it.each 数据未变间接核对。
+
+### 汇编 094 原序号 101
+
+时间：2026-09-21 22:00 角色：编码智能体 来源：A、B
+
+**任务场景：** T5-07 条件一：T2.5 落地后解除全部 31 例 it.skip 并全绿
+
+**人类输入摘要：** T2.5 已合入 main（can() 按 ObjectVisibility 现查、visibilityScope() 查询层过滤）；解除 31 例 skip 并改 TODO 注释；不得放宽断言，失败按 T5 代码缺陷／M3 代码缺陷／测试前提与契约不符三类归因；顺带核对 AC-US-02-06、AC-US-05-09、AC-US-02-07 并给现实证据；全量回归 skipped=0、双 typecheck；只改 src/modules/task/** 与表五
+
+**AI输出要点：** 31 例全部改回 it，TODO(T2.5) 注释替换为「T2.5 已合入，本用例前提成立」并保留原语义要点；5 文件 157 例初跑因 Fastify FST_ERR_DUPLICATED_ROUTE 全挂——M3 authz/plugin.ts 与 T5 routes.ts 同时注册 PUT /tasks/:taskId/sensitivity，属合入引入的第三类失败（应用无法构建）；硬约束不可改 authz 与 routes.ts，故删除 T5 routes.ts 的重复端点 30 及随之无用的 sensitivitySchema／readVisibleMemberIds／SensitivityView 导入，端点 30 改由 M3 提供；唯一行为差异是 404 文案（T5「资源不存在」对 M3「任务不存在」），按契约 I-3（只冻结 404 与「不存在／不可见」一致）把 task-sensitivity.test.ts 一处字面量改为「任务不存在」并注明；探针实测 AC-US-02-06 未授权成员列表长度 2＝可见普通任务数、库中 3（1 敏感）；AC-US-05-09 敏感任务在故事列表（长度 2）、详情（404 资源不存在）、按负责人过滤（空数组）、计数（列表 2 对库 3）四处均不可见；AC-US-02-07 成员移出白名单后同一 token 下一次详情 404、列表由 3 变 2，无重新登录；全量 43 文件 1089 passed、0 skipped，双 tsc exit 0；提交三次（解除 skip＋注释；删端点 30 去冲突＋文案断言；表五 101）
+
+**团队处置及理由：** 采纳（自评）：31 例全绿且未放宽断言；第三类失败（重复注册）按 T5 侧去重处置：契约 I-11 把端点 30 的 isSensitive／visibleMemberIds／NOT_FOUND／AuditLog 分派给 T2.3／T2.4／T2.6／T2.8（M3），T5.8 仅负责端点 24、30 的可见性接入，故 M3 handler 为合法唯一实现、T5 重复注册应删（T5-07 收口漏删），已如实报告；AC 三点以真实请求／响应数字留档
+
+## 2026年09月23日
+
+### 汇编 095 原序号 102
+
+时间：2026-09-23 角色：编码智能体 来源：A
+
+**任务场景：** US-05 前端：任务数据层与内嵌任务区
+
+**人类输入摘要：** 以契约 I-8 端点 24–30 为准，仿 US-03 的 `pages/requirement/api.ts` 模式，只在 `web/src/pages/task/` 新增；复用 M2 的 `apiFetch`；写入口仅 PM 显示、服务端仍强制校验
+
+**AI输出要点：** 新增 `pages/task/api.ts`（端点 24/25/26/27/28/29/30 封装，含部分更新语义与 `/api` 前缀）、`TaskSection.tsx`（任务列表 + 新建表单 + 行内编辑 + 删除 + 状态下拉 + 复用 `SensitivityEditor` 做任务敏感）；负责人/验收人候选来自 `GET /projects/:id/members`
+
+**团队处置及理由：** 采纳：契约约束（验收人≠负责人、成员≥2、计划起止、`isSensitive` 只能经端点 30）由后端强制，前端只发请求并做体验层校验
+
+### 汇编 096 原序号 103
+
+时间：2026-09-23 角色：编码智能体 来源：A
+
+**任务场景：** 需求详情接真任务数据，删除假数据层
+
+**人类输入摘要：** M5 后端已合入 main，替换 US-03 遗留的 `temporary-data.ts` 假 `listStoryTasks`；`saveSensitivity` 已是真 API，一并移走
+
+**AI输出要点：** `RequirementDetailPage` 改内嵌 `<TaskSection/>`（任务计数回传给删除二次确认）；`listStoryTasks` 切到真实端点 24；`saveSensitivity` 移入 `requirement/api.ts`（端点 23 属 M3，注释说明）；删除 `temporary-data.ts`
+
+**团队处置及理由：** 采纳：假数据层按 US-03 文件头约定的「接口到位后替换实现」处置，界面结构无需改动
+
+### 汇编 097 原序号 104
+
+时间：2026-09-23 角色：编码智能体 来源：A
+
+**任务场景：** ProjectTasksPage 真实现（端点 26）
+
+**人类输入摘要：** 项目级任务总表，只读 + 按负责人过滤；任务 CRUD 留在故事详情
+
+**AI输出要点：** `ProjectTasksPage` 从占位改为调端点 26 + `ownerUserId` 过滤下拉，表格含负责人/验收人/计划/状态/敏感，行内「需求」链接跳故事详情
+
+**团队处置及理由：** 采纳
+
+### 汇编 098 原序号 105
+
+时间：2026-09-23 角色：编码智能体 来源：A
+
+**任务场景：** US-01 收尾 + 交接文档
+
+**人类输入摘要：** 按 9 项 AC 收尾：AC-04 重复添加文案对齐 AC 原文；编写 handoff 与前端验收流程
+
+**AI输出要点：** 端点 6 重复添加文案改「该成员已在项目中」并加文案断言；补 `docs/handoff.md` 与前端验收流程；表 5 追加本组记录
+
+**团队处置及理由：** 采纳
