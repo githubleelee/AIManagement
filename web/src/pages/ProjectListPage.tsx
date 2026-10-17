@@ -11,9 +11,12 @@ export default function ProjectListPage() {
   const [projects, setProjects] = useState<ProjectView[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     let cancelled = false
+    setLoading(true)
+    setError(null)
     listProjects()
       .then((res) => {
         if (!cancelled) setProjects(res.items)
@@ -27,7 +30,7 @@ export default function ProjectListPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [reloadKey])
 
   return (
     <div className="page">
@@ -41,12 +44,17 @@ export default function ProjectListPage() {
         }
       />
 
-      {error ? <p className="error">{error}</p> : null}
-
-      {loading ? (
+      {error ? (
+        <div className="load-error">
+          <p className="error">{error}</p>
+          <button type="button" onClick={() => setReloadKey((k) => k + 1)}>
+            重试
+          </button>
+        </div>
+      ) : loading ? (
         <p className="muted">加载中…</p>
       ) : projects.length === 0 ? (
-        <EmptyState title="还没有项目" hint="点击右上角「新建项目」开始。" />
+        <EmptyState level={2} title="还没有项目" hint="点击右上角「新建项目」开始。" />
       ) : (
         <ul className="project-cards">
           {projects.map((project) => (

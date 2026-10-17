@@ -21,6 +21,7 @@
 |---|---|
 | [Sprint 1 基线](docs/sprint1-baseline.md) | 验收标准、实现决策、任务拆解、任务领取约定、风险清单、决策记录 |
 | [需求规格说明书 · 接口契约](docs/sprint1-spec-interface-contract.md) | 共享类型与枚举、错误码表、鉴权入口、30 个端点契约、数据模型、测试决策 |
+| [阶段交接与开工指南](docs/team-handoff.md) | 下一阶段 11 个用户故事 + 附件 / 公共事件的角色分工、文件边界、开工命令、依赖与验收口径（配套 `docs/handoff-issues.json`） |
 
 ## 技术栈
 

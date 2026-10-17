@@ -11,7 +11,8 @@
  *   端点 10 `GET /projects/:projectId/goals`（权限 `project.read`）—— 只为面包屑取上级名称
  *   端点 21 `PATCH /stories/:storyId`（权限 `requirement.write`）—— 编辑
  *   端点 22 `DELETE /stories/:storyId`（权限 `requirement.write`）—— 删除
- *   端点 23 / 24（属 M3 / M5，尚未交付）—— 敏感名单与任务列表，见 `temporary-data.ts`
+ *   端点 23 `PUT /stories/:storyId/sensitivity`（权限 `sensitivity.manage`）—— 敏感开关（见 `requirement/api.ts`）
+ *   端点 24 等任务接口（M5）—— 关联任务列表由 `<TaskSection />` 内嵌承载
  *
  * 三条容易写错的契约约束（都在代码里钉住）
  *   1. **编辑里没有 `isSensitive`**：契约 I-8 端点 21 明文「该字段只能通过端点 23 修改」。
@@ -30,12 +31,12 @@ import type {
   GoalNode,
   Priority,
   ProjectView,
+  ProjectMemberView,
   StoryStatus,
-  TaskView,
   UserStory,
 } from '../../../src/shared/types'
 import { useAuth } from '../auth/AuthContext'
-import { ApiError } from '../api'
+import { ApiError, listMembers } from '../api'
 import PageHeader from '../components/PageHeader'
 import { ConfirmDialog } from './requirement/Editor'
 import {
@@ -43,10 +44,11 @@ import {
   findStoryRow,
   getGoalTree,
   getStory,
+  saveSensitivity,
   updateStory,
   type StoryRow,
 } from './requirement/api'
-import { listStoryTasks, saveSensitivity } from './requirement/temporary-data'
+import TaskSection from './task/TaskSection'
 import {
   PRIORITY_LABEL,
   PRIORITY_ORDER,
@@ -54,6 +56,7 @@ import {
   STORY_STATUS_ORDER,
   fieldErrorHint,
   fieldLabel,
+  storySentencePart,
 } from './requirement/terms'
 import './requirement/requirement.css'
 
@@ -100,7 +103,7 @@ export default function RequirementDetailPage() {
 
   const [goals, setGoals] = useState<GoalNode[] | null>(null)
   const [story, setStory] = useState<UserStory | null>(null)
-  const [tasks, setTasks] = useState<TaskView[] | null>(null)
+  const [taskCount, setTaskCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<ApiError | null>(null)
   const [tab, setTab] = useState<DetailTab>('detail')
@@ -113,6 +116,8 @@ export default function RequirementDetailPage() {
   const [saving, setSaving] = useState(false)
 
   const [sensitive, setSensitive] = useState<{ isSensitive: boolean; visibleMemberIds: string[] } | null>(null)
+  const [members, setMembers] = useState<ProjectMemberView[]>([])
+  const [membersError, setMembersError] = useState(false)
   const [savingSensitive, setSavingSensitive] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -126,7 +131,8 @@ export default function RequirementDetailPage() {
       const [tree, detail] = await Promise.all([getGoalTree(project.id), getStory(storyId)])
       setGoals(tree)
       setStory(detail)
-      // 端点 20 给出敏感状态；端点 23 的响应会在本页操作后补齐当前白名单。
+      // 契约只提供写端点（端点 23），没有读取名单的接口：以空名单开始，
+      // 保存时全量覆盖原名单；isSensitive 取自故事正文。
       setSensitive({ isSensitive: detail.isSensitive, visibleMemberIds: [] })
     } catch (caught) {
       setGoals(null)
@@ -135,27 +141,18 @@ export default function RequirementDetailPage() {
     } finally {
       setLoading(false)
     }
-  }, [project.id, storyId])
+  }, [project.id, storyId, isPM])
 
   useEffect(() => {
     void load()
   }, [load])
 
   useEffect(() => {
-    let cancelled = false
-    setTasks(null)
-    listStoryTasks(storyId)
-      .then((rows) => {
-        if (!cancelled) setTasks(rows)
-      })
-      .catch(() => {
-        // 任务列表取不到不该让整页失败（端点 24 未交付时也走这里）
-        if (!cancelled) setTasks([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [storyId])
+    if (!isPM) return
+    void listMembers(project.id)
+      .then(result => { setMembers(result.items); setMembersError(false) })
+      .catch(() => { setMembers([]); setMembersError(true) })
+  }, [isPM, project.id])
 
   /* ---------------- 编辑 ---------------- */
 
@@ -295,11 +292,25 @@ export default function RequirementDetailPage() {
     }
   }
 
+  async function saveVisibleMembers(current: UserStory, ids: string[]) {
+    if (!sensitive || savingSensitive) return
+    setSavingSensitive(true)
+    try {
+      const view = await saveSensitivity(current.id, { isSensitive: sensitive.isSensitive, visibleMemberIds: ids })
+      setSensitive(view)
+      setNotice({ tone: 'ok', text: '可见成员已保存。' })
+    } catch (caught) {
+      setNotice({ tone: 'warn', text: caught instanceof Error ? caught.message : '保存可见成员失败' })
+    } finally {
+      setSavingSensitive(false)
+    }
+  }
+
   /* ---------------- 渲染 ---------------- */
 
   if (loading) {
     return (
-      <div className="page">
+      <div className="page req-redesign req-detail-screen">
         <PageHeader title="需求详情" description="加载中…" />
         <div className="page-loading">加载中…</div>
       </div>
@@ -312,7 +323,7 @@ export default function RequirementDetailPage() {
     const status = error?.status ?? 404
     const isNotFound = status === 404
     return (
-      <div className="page">
+      <div className="page req-redesign req-detail-screen">
         <PageHeader
           title="需求详情"
           actions={
@@ -347,11 +358,10 @@ export default function RequirementDetailPage() {
   const row: StoryRow | null = goals ? findStoryRow(goals, story.id) : null
   const goalName = row?.goal.name
   const activityName = row?.activity.name
-  const storyTasks = tasks ?? []
   const visibleCount = sensitive?.visibleMemberIds.length ?? 0
 
   return (
-    <div className="page">
+    <div className="page req-redesign req-detail-screen">
       <PageHeader
         title="需求详情"
         description="查看这条需求的完整信息、验收标准与关联任务，并可编辑或删除。"
@@ -403,7 +413,7 @@ export default function RequirementDetailPage() {
             <>
               <span>
                 <span className="req-crumb-kind">目标</span>
-                <Link className="req-crumb" to={`/projects/${project.id}/requirements`}>
+                <Link className="req-crumb" to={`/projects/${project.id}/requirements/goals/${row?.goal.id}`}>
                   {goalName}
                 </Link>
               </span>
@@ -414,7 +424,7 @@ export default function RequirementDetailPage() {
             <>
               <span>
                 <span className="req-crumb-kind">活动</span>
-                <Link className="req-crumb" to={`/projects/${project.id}/requirements`}>
+                <Link className="req-crumb" to={`/projects/${project.id}/requirements/activities/${row?.activity.id}`}>
                   {activityName}
                 </Link>
               </span>
@@ -454,8 +464,7 @@ export default function RequirementDetailPage() {
         {/* ---------------- 左栏：正文 ---------------- */}
         <div className="req-main">
           <p className="req-story-sentence">
-            作为 <em>{story.roleText}</em>，我要 <em>{story.capabilityText}</em>，以便{' '}
-            <em>{story.valueText}</em>
+            作为<em>{storySentencePart(story.roleText, ['作为'])}</em>，我要<em>{storySentencePart(story.capabilityText, ['我要', '我能', '我可以'])}</em>，以便<em>{storySentencePart(story.valueText, ['以便'])}</em>
           </p>
 
           <div className="req-tabs">
@@ -640,15 +649,15 @@ export default function RequirementDetailPage() {
             </div>
           ) : tab === 'ac' ? (
             <>
-              <p className="req-side-title">验收标准（由项目经理维护）</p>
+              <div className="req-ac-heading">
+                <p className="req-side-title">验收标准</p>
+                {isPM ? <button type="button" className="req-button-small req-button-plain" onClick={() => startEdit(story)}>编辑验收标准</button> : null}
+              </div>
               {story.acceptanceCriteria ? (
                 <blockquote className="req-quote">{story.acceptanceCriteria}</blockquote>
               ) : (
                 <p className="req-placeholder">这条需求还没有填写验收标准。</p>
               )}
-              <p className="req-hint">
-                本需求下有 {storyTasks.length} 个任务；任务的验收人由负责人之外的成员担任。
-              </p>
             </>
           ) : (
             <dl className="req-fields">
@@ -678,7 +687,7 @@ export default function RequirementDetailPage() {
           )}
         </div>
 
-        {/* ---------------- 右栏：操作 / 任务 / 敏感 ---------------- */}
+        {/* ---------------- 右栏：操作 / 敏感 ---------------- */}
         <aside className="req-detail">
           <div className="req-op-block">
             <p className="req-side-title">操作</p>
@@ -711,55 +720,38 @@ export default function RequirementDetailPage() {
           </div>
 
           <div className="req-op-block">
-            <p className="req-side-title">
-              关联任务（{tasks === null ? '…' : storyTasks.length}）
-            </p>
-            {tasks === null ? (
-              <p className="req-placeholder">正在加载任务…</p>
-            ) : storyTasks.length === 0 ? (
-              <p className="req-placeholder">这条需求下还没有任务。</p>
-            ) : (
-              <table className="req-table">
-                <thead>
-                  <tr>
-                    <th>任务</th>
-                    <th>负责人</th>
-                    <th>验收人</th>
-                    <th className="nowrap">计划</th>
-                    <th>状态</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {storyTasks.map((t) => (
-                    <tr key={t.id}>
-                      <td>{t.title}</td>
-                      <td className="req-mono">{t.owner?.account ?? t.ownerUserId}</td>
-                      <td className="req-mono">{t.acceptor?.account ?? t.acceptorUserId}</td>
-                      <td className="req-mono nowrap">
-                        {t.planStart} → {t.planEnd}
-                      </td>
-                      <td>{taskStatusLabel(t.status)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          <div className="req-op-block">
             <p className="req-side-title">敏感与可见成员</p>
             {isPM ? (
               <>
                 <button
                   type="button"
                   className={isSensitive ? 'req-switch is-on' : 'req-switch'}
-                  disabled={savingSensitive}
+                  disabled={savingSensitive || !sensitive}
                   onClick={() => void toggleSensitive(story)}
                 >
                   {savingSensitive ? '保存中…' : isSensitive ? '敏感需求：开启' : '敏感需求：关闭'}
                 </button>
                 {isSensitive ? (
-                  <p className="req-hint">当前名单里有 {visibleCount} 人。</p>
+                  <>
+                    <p className="req-hint">当前名单里有 {visibleCount} 人。</p>
+                    {membersError ? <p role="alert">成员列表加载失败，请刷新后重试。</p> : null}
+                    <div className="req-visible-members">
+                      {members.map(member => (
+                        <label key={member.userId} className="req-visible-member">
+                          <input type="checkbox" disabled={savingSensitive || !sensitive}
+                            checked={sensitive?.visibleMemberIds.includes(member.userId) ?? false}
+                            onChange={event => {
+                              if (!sensitive) return
+                              const ids = event.target.checked
+                                ? [...new Set([...sensitive.visibleMemberIds, member.userId])]
+                                : sensitive.visibleMemberIds.filter(id => id !== member.userId)
+                              void saveVisibleMembers(story, ids)
+                            }} />
+                          <span>{member.user.displayName}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </>
                 ) : null}
                 <p className="req-hint">
                   开启后，只有名单里的成员能看到这条需求；其余成员在需求层级里看不到它，
@@ -773,6 +765,15 @@ export default function RequirementDetailPage() {
         </aside>
       </div>
 
+      <section className="req-task-panel">
+        <TaskSection
+          storyId={storyId}
+          projectId={project.id}
+          isPm={isPM}
+          onCountChange={setTaskCount}
+        />
+      </section>
+
       {/* ---------------- 删除二次确认 ----------------
           复用主页面同一个 ConfirmDialog：同一件事原先在详情页又手写了一遍模态框，
           而那一份还漏了 role/aria-modal 与 Esc 关闭（审查建议项 S4）。 */}
@@ -781,16 +782,16 @@ export default function RequirementDetailPage() {
           // 任务列表已经加载出来了，「还有没有任务」本地就知道 ——
           // 有任务时这个框只是**告知**，按钮不能真发 DELETE（发了必然 409）。
           // 同一类问题由人类走查在主页面上先抓到，这里一并修。
-          title={storyTasks.length > 0 ? '这条需求还不能删除' : '确认删除这条需求？'}
-          confirmText={storyTasks.length > 0 ? '知道了' : '确认删除'}
-          danger={storyTasks.length === 0}
+          title={taskCount > 0 ? '这条需求还不能删除' : '确认删除这条需求？'}
+          confirmText={taskCount > 0 ? '知道了' : '确认删除'}
+          danger={taskCount === 0}
           onCancel={() => setConfirmDelete(false)}
           onConfirm={() => {
-            if (storyTasks.length > 0) {
+            if (taskCount > 0) {
               setConfirmDelete(false)
               setNotice({
                 tone: 'warn',
-                text: `这条需求下还有 ${storyTasks.length} 个任务，请先删除或转移它们再删除本需求。系统不会连带删除。`,
+                text: `这条需求下还有 ${taskCount} 个任务，请先删除或转移它们再删除本需求。系统不会连带删除。`,
               })
               return
             }
@@ -803,10 +804,10 @@ export default function RequirementDetailPage() {
             <dt>需求编号</dt>
             <dd className="req-mono">{story.id}</dd>
             <dt>关联任务</dt>
-            <dd>{storyTasks.length} 个</dd>
+            <dd>{taskCount} 个</dd>
           </dl>
-          <p className="req-hint" style={{ color: storyTasks.length > 0 ? '#fcd34d' : '#fecaca' }}>
-            {storyTasks.length > 0
+          <p className="req-hint" style={{ color: taskCount > 0 ? '#fcd34d' : '#fecaca' }}>
+            {taskCount > 0
               ? '请先删除或转移下面这些任务，然后再回来删除这条需求。'
               : '删除后无法恢复。'}
           </p>
@@ -828,12 +829,4 @@ export default function RequirementDetailPage() {
  */
 function priorityLabel(priority: string): string {
   return (PRIORITY_LABEL as Readonly<Record<string, string>>)[priority] ?? priority
-}
-
-/** 任务状态标签（任务属 M5，标签表还没进 terms.ts，先用本页的局部表）。 */
-function taskStatusLabel(status: string): string {
-  if (status === 'TODO') return '待办'
-  if (status === 'DOING') return '进行中'
-  if (status === 'DONE') return '已完成'
-  return status
 }

@@ -139,11 +139,9 @@ describe('D1 真实鉴权：令牌有效性与 401', () => {
     }
   })
 
-  it('伪造令牌（篡改签名）→ 401', async () => {
+  it('伪造令牌（篡改）→ 401', async () => {
     const valid = ctx.loginAs(pm.id)
-    const [payload, signature] = valid.split('.') as [string, string]
-    const flipped = (signature[0] === 'A' ? 'B' : 'A') + signature.slice(1)
-    const forged = `${payload}.${flipped}`
+    const forged = `${valid}x`
     expect(forged).not.toBe(valid)
 
     const res = await ctx.asUser(forged).get(`/tasks/${taskId}`)
@@ -175,7 +173,7 @@ describe('D2 移除项目成员后，同一令牌立即失去访问（无进程�
     const detailAfter = await ctx.asUser(memberToken).get(`/tasks/${taskId}`)
     expect(detailAfter.status).toBe(404)
 
-    // 令牌本身没有被吊销（无状态），但 can() 现查库得出非成员 → 404。
+    // 令牌本身仍有效（会话存库、不随成员移除而吊销），但 can() 现查库得出非成员 → 404。
     const stillValidForPm = await ctx.asUser(ctx.loginAs(pm.id)).get(`/tasks/${taskId}`)
     expect(stillValidForPm.status).toBe(200)
   })

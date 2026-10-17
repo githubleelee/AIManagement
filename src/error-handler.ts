@@ -7,8 +7,8 @@
  *      toFieldErrors 映射。契约 I-2b 要求「Zod 校验失败自动转换」，业务处理器只需
  *      `schema.parse(...)`，不自行拼装错误响应。
  *   3. Fastify 请求体**解析层**错误（FST_ERR_CTP_INVALID_JSON_BODY /
- *      FST_ERR_CTP_EMPTY_JSON_BODY）→ 400 BAD_REQUEST。只按 Fastify 的错误码匹配，
- *      **不按 statusCode 区间匹配**，避免把其它 4xx 一律改写。
+ *      FST_ERR_CTP_EMPTY_JSON_BODY）→ 422 VALIDATION_FAILED。契约 I-4 的错误码表
+ *      没有 400 一档，故解析层错误收敛到最接近的 VALIDATION_FAILED（保持统一信封）。
  *   4. 其它 Fastify 客户端错误（401 / 403 / 413 / 415 / 429 等）→ **保持原始状态码**。
  *      例如 T0-04 的 requireAuth 以 `throw errorWithStatus(401)` 报错时，若被改写成
  *      422 会破坏契约 I-4 的 UNAUTHENTICATED 流程。
@@ -35,7 +35,7 @@ function toErrorResponse(
 
 /**
  * 请求体解析层错误：仅这两个 Fastify 错误码属于「请求体语法非法」，
- * 由解析层产生、没有可归属的字段，按契约 I-4 归 400 BAD_REQUEST。
+ * 由解析层产生、没有可归属的字段。契约 I-4 无 400 一档，收敛为 VALIDATION_FAILED。
  */
 const PARSE_ERROR_CODES = new Set([
   'FST_ERR_CTP_INVALID_JSON_BODY',
@@ -62,11 +62,10 @@ function clientStatusCode(error: unknown): number | undefined {
 
 /**
  * 已知客户端状态码 → 契约 I-4 顶层码。
- * 未列出的 4xx（如 413 / 415 / 429）本轮不新增错误码，
- * 用通用的 BAD_REQUEST 承载，是否单列留 Sprint 2 评估（状态码本身保持不变）。
+ * 契约 I-4 无 400 一档；未列出的 4xx（如 413 / 415 / 429）本轮不单列错误码，
+ * 用通用的 VALIDATION_FAILED 承载，是否单列留 Sprint 2 评估（状态码本身保持不变）。
  */
 const STATUS_TO_CODE: Record<number, ErrorCode> = {
-  400: 'BAD_REQUEST',
   401: 'UNAUTHENTICATED',
   403: 'FORBIDDEN',
   404: 'NOT_FOUND',
@@ -88,17 +87,19 @@ export function registerErrorHandler(app: FastifyInstance): void {
       return reply.status(422).send(body)
     }
 
-    // 3) 请求体解析层错误：只匹配 Fastify 的错误码，不透传解析器内部信息
+    // 3) 请求体解析层错误：只匹配 Fastify 的错误码，收敛为 422 VALIDATION_FAILED
     if (PARSE_ERROR_CODES.has(fastifyErrorCode(error) ?? '')) {
-      return reply.status(400).send(toErrorResponse('BAD_REQUEST', '请求体不是合法的 JSON'))
+      return reply.status(422).send(toErrorResponse('VALIDATION_FAILED', '请求体不是合法的 JSON'))
     }
 
     // 4) 其它 Fastify 客户端错误：保持原始状态码，禁止按 4xx 区间改写。
     //    401/403/413/415/429 等必须原样透出，避免劫持鉴权与传输层语义。
+    //    文案优先使用错误自带 message（如 M1 的「账号或密码错误」「请先登录」）。
     const statusCode = clientStatusCode(error)
     if (typeof statusCode === 'number' && statusCode >= 400 && statusCode < 500) {
-      const code = STATUS_TO_CODE[statusCode] ?? 'BAD_REQUEST'
-      return reply.status(statusCode).send(toErrorResponse(code, '请求无法处理'))
+      const code = STATUS_TO_CODE[statusCode] ?? 'VALIDATION_FAILED'
+      const message = error instanceof Error && error.message ? error.message : '请求无法处理'
+      return reply.status(statusCode).send(toErrorResponse(code, message))
     }
 
     // 5) 未知异常：不把 error.message 与堆栈暴露给调用方，仅服务端记录

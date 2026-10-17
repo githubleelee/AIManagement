@@ -29,7 +29,8 @@
  *   21 PATCH  /stories/:storyId                         改需求（部分更新）
  *   22 DELETE /stories/:storyId                         删需求
  *
- * 属别的模块、本文件**不碰**：端点 23（敏感，M3）、24–30（任务，M5）。
+ * 属别的模块、本文件**不碰**：24–30（任务，M5）。
+ * 例外：端点 23（敏感，M3）的 `saveSensitivity` 由需求详情页的敏感开关消费，故一并封装在此。
  */
 import type {
   BusinessGoal,
@@ -37,6 +38,8 @@ import type {
   GoalStatus,
   ListResponse,
   Priority,
+  SensitivityInput,
+  SensitivityView,
   StoryStatus,
   UserActivity,
   UserStory,
@@ -222,6 +225,21 @@ export function deleteStory(storyId: string): Promise<void> {
 }
 
 /* ===========================================================================
+ * 端点 23 —— 需求敏感可见（属 M3，由需求详情页的敏感开关消费）
+ * =========================================================================== */
+
+/** 端点 23：全量替换敏感可见名单（isSensitive=false 时忽略名单，但保留其值）。 */
+export function saveSensitivity(
+  storyId: string,
+  input: SensitivityInput,
+): Promise<SensitivityView> {
+  return apiFetch<SensitivityView>(`/stories/${encodeURIComponent(storyId)}/sensitivity`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
+}
+
+/* ===========================================================================
  * 本地助手
  * =========================================================================== */
 
@@ -245,4 +263,3 @@ export function findStoryRow(goals: GoalNode[], storyId: string): StoryRow | nul
   }
   return null
 }
-

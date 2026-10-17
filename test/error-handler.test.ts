@@ -7,7 +7,7 @@
  *   - details 为可选：无字段错误时不得输出 `[]` 或 `null`
  *   - 未知异常 → 500，且响应体不含堆栈 / 原始错误文案 / 文件路径
  *   - 未知路由 → 404，结构与其它失败一致
- *   - 非法 JSON 请求体（请求体解析层错误）→ 400 BAD_REQUEST
+ *   - 非法 JSON 请求体（请求体解析层错误）→ 422 VALIDATION_FAILED（契约 I-4 无 400 一档）
  *   - 非解析层 4xx（401 / 403 / 413 / 415）保持原始状态码，不得被改写为 422
  *
  * 本测试通过 HTTP seam（supertest）验证，不断言内部实现。
@@ -195,18 +195,18 @@ describe('未知路由 → 统一 404 信封', () => {
   })
 })
 
-describe('非法 JSON 请求体 → 400 BAD_REQUEST（不得误报 500，也不得劫持其它 4xx）', () => {
-  it('malformed JSON 返回 400 BAD_REQUEST，而非 500', async () => {
+describe('非法 JSON 请求体 → 422 VALIDATION_FAILED（不得误报 500，也不得劫持其它 4xx）', () => {
+  it('malformed JSON 返回 422 VALIDATION_FAILED，而非 500', async () => {
     const response = await request(app.server)
       .post('/__test__/echo')
       .set('content-type', 'application/json')
       .send('{"name": ')
 
-    // 契约 I-4：请求体无法解析为 JSON 是语法层错误，归 400 BAD_REQUEST
-    expect(response.status).toBe(400)
+    // 契约 I-4 无 400 一档：请求体无法解析收敛为 VALIDATION_FAILED
+    expect(response.status).toBe(422)
     expect(response.status).toBeLessThan(500)
     expect(response.body).toEqual({
-      error: { code: 'BAD_REQUEST', message: '请求体不是合法的 JSON' },
+      error: { code: 'VALIDATION_FAILED', message: '请求体不是合法的 JSON' },
     })
   })
 

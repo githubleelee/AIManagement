@@ -29,10 +29,16 @@
  */
 import type { FastifyInstance } from 'fastify'
 import request from 'supertest'
+import { createRequire } from 'node:module'
 import { buildApp } from '../src/app.js'
 import { createTempDatabase, resetDatabase, type TestDatabase } from '../src/db/test-support.js'
-import { issueToken } from '../src/auth/token.js'
+import { hashToken } from '../src/auth/token.js'
 import { hashPassword } from '../src/auth/password.js'
+
+// `node:sqlite` 不在（本仓 Vite 6 的）node 内置模块名单里，静态 import 会被误解析为
+// 裸模块 `sqlite`。用 createRequire 在运行时加载，绕开构建期解析。
+const nodeRequire = createRequire(import.meta.url)
+const { DatabaseSync } = nodeRequire('node:sqlite') as typeof import('node:sqlite')
 
 export type HttpTestContext = {
   app: FastifyInstance
@@ -62,6 +68,14 @@ export async function createHttpTestContext(): Promise<HttpTestContext> {
   // 关键：把临时库注入 app，使其不读 dev.db 单例
   const app = buildApp({ logger: false, prisma: tempDb.prisma })
 
+  // 同步写会话表：契约 I-8 要求令牌「存库校验」，而 `loginAs` 必须保持同步签名
+  // （200+ 调用点直接 `ctx.asUser(ctx.loginAs(x))`）。Prisma 无同步 API，故用
+  // Node 内置 `node:sqlite` 的 DatabaseSync 直连同一临时库写入哈希。
+  const sqlite = new DatabaseSync(tempDb.file)
+  const setSession = sqlite.prepare(
+    'UPDATE "User" SET "sessionTokenHash" = ?, "sessionTokenExpiresAt" = ? WHERE "id" = ?',
+  )
+
   // 注意：此处**不调用** app.ready()。
   // Fastify 一旦 booted 就不允许再注册路由（会抛 "Root plugin has already booted"），
   // 而调用方通常需要在 ready 之前注册自己的探针端点。
@@ -87,9 +101,20 @@ export async function createHttpTestContext(): Promise<HttpTestContext> {
     app,
     db: tempDb.prisma,
     reset: () => resetDatabase(tempDb.prisma),
-    loginAs: (userId: string) => issueToken(userId),
+    // 为指定用户签发**存库**的会话令牌（不经过 /auth/login，故不依赖 M1）。
+    // 确定性令牌，使同一用户的多次 loginAs 不会互相作废。
+    loginAs: (userId: string) => {
+      const token = `test-token-${userId}`
+      setSession.run(
+        hashToken(token),
+        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        userId,
+      )
+      return token
+    },
     asUser,
     dispose: async () => {
+      sqlite.close()
       await app.close()
       await tempDb.dispose()
     },

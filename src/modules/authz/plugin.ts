@@ -6,7 +6,12 @@ import type { RouteContext } from '../../routes.js'
 import { createAuthorization } from './permissions.js'
 import { objectNotFound, parseSensitivityInput, setSensitivity } from './sensitivity.js'
 
-/** M3 只导出插件，由路由总表注册。 */
+/**
+ * M3 只导出插件，由路由总表注册。
+ *
+ * 仅提供契约 I-8 的两个写端点：23 `PUT /stories/:storyId/sensitivity`、
+ * 30 `PUT /tasks/:taskId/sensitivity`。令牌与敏感名单的读取不在 Sprint 1 契约范围内。
+ */
 export function registerSensitivityRoutes(app: FastifyInstance, ctx: RouteContext): void {
   const { can } = createAuthorization(ctx.prisma)
   for (const [path, param, objectType] of [

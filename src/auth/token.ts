@@ -1,112 +1,77 @@
 /**
- * 会话令牌的签发与校验（T0-03 最小骨架）
+ * 会话令牌的签发与校验（决策 I-8 认证约定）
  *
  * ===========================================================================
- * 设计决策：**无状态签名令牌**，不改动 schema
+ * 设计：**不透明随机串 + 存库校验**（不使用 JWT，不引入签名密钥）
  * ===========================================================================
  *
- * 背景：契约决策 I-7 冻结的 `User` 模型**没有会话字段**（只有 id / account /
- * displayName / passwordHash / createdAt），M1 也尚未实现，所以「token 存哪」
- * 在契约里是空白。三种可选方案：
+ * 契约决策 I-8「认证约定」原文：凭证为不透明随机串，**存库校验**，不使用 JWT
+ * （避免密钥管理）。因此本实现：
  *
- *   A. 在 `User` 增字段（如 sessionTokenHash）
- *   B. 新建会话表（第 10 张表）
- *   C. **自包含签名令牌，不落库**（本实现）
+ *   - `issueToken()` 生成 32 字节随机串（base64url），把它的 **SHA-256 哈希**
+ *     写入 `User.sessionTokenHash`，并把到期时间写入 `User.sessionTokenExpiresAt`
+ *     （ISO 8601 UTC 字符串）。**不存明文**。
+ *   - `verifyToken()` 对来串取哈希后查库比对，并检查是否过期。
+ *   - 没有 HMAC、没有 `TOKEN_SECRET`、没有进程内缓存 —— 每次请求现查库，
+ *     因此「权限变更即时生效」（决策 I-10）不受影响。
  *
- * 选 C 的理由：
- *   - A 要改 `src/db/schema.prisma`，那是**冻结文件**，改动需走契约变更流程；
- *     而当前 T0 的接口部分尚未归属到人，贸然改 schema 会与后续实现冲突。
- *   - B 会新增第 10 张表，直接违反决策 I-7「9 张表」的冻结约定。
- *   - C **零 schema 改动、零新依赖、多进程可用**，能立刻解开 US-03 等模块的
- *     「无法发带凭证请求」死结，是最小且可逆的介入。
+ * 已知取舍（如实记录，供表 7 引用）：单用户单会话（再次登录会覆盖旧令牌）。
+ * Sprint 1 不需要多端同时在线，故可接受；Sprint 2 若需要，改用会话表。
  *
- * 取舍（如实记录，供表 7 / 表五引用）：**无服务端状态 = 无法在过期前强制吊销
- * 单个令牌**。Sprint 1 的验收标准（AC-US-01-07 未登录拦截、AC-US-02-07 权限变更
- * 即时生效）都不要求令牌吊销，故本轮可接受。
- *
- * 权限即时生效仍然成立：令牌只证明「你是谁」，「你能做什么」由 `can()` /
- * `visibilityScope()` 每次请求现查 `ProjectMember` 表得出（契约决策 I-10
- * 「不做进程内缓存」）。因此移除成员或取消白名单后，下一次请求立即被拒。
- *
- * 后续接管建议：若 M1 负责人选择方案 A 或 B，只需替换本文件的
- * `issueToken` / `verifyToken` 两个函数内部实现——`requireAuth` 及所有调用方
- * 的接口不变。
- * ===========================================================================
+ * 说明：`User` 表新增两个可空列是本实现为满足「存库校验」所必需的最小改动，
+ * 契约 I-7 未给出令牌存放位置（其 User 模型无会话字段），此处为补齐该空白。
  */
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
+import type { PrismaClient } from '@prisma/client'
 
 /** 令牌有效期：7 天。教学模拟 Sprint 足够，同时避免长期有效令牌。 */
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
+/** 对令牌取 SHA-256 十六进制哈希。存库与比对都用它，明文不落库。 */
+export function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex')
+}
+
+/** 生成不透明随机令牌（32 字节，base64url，无填充）。 */
+export function generateToken(): string {
+  return randomBytes(32).toString('base64url')
+}
+
 /**
- * 签名密钥。
+ * 签发令牌：把随机串的哈希与到期时间写入该用户，返回明文令牌。
  *
- * 开发环境允许回落到固定值，使克隆后开箱即用；生产环境必须由环境变量提供。
- * 注意不要把真实密钥写进仓库（`.env` 已被 .gitignore 忽略）。
+ * 同一用户再次登录会覆盖旧令牌（单会话）。
  */
-function getSecret(): string {
-  const fromEnv = process.env.TOKEN_SECRET
-  if (fromEnv && fromEnv.length > 0) return fromEnv
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('生产环境必须设置 TOKEN_SECRET 环境变量')
-  }
-  return 'ai-management-sprint1-dev-secret'
-}
-
-function base64url(input: Buffer | string): string {
-  const buf = typeof input === 'string' ? Buffer.from(input, 'utf8') : input
-  return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-}
-
-function fromBase64url(input: string): Buffer {
-  const padded = input.replace(/-/g, '+').replace(/_/g, '/')
-  const pad = padded.length % 4 === 0 ? '' : '='.repeat(4 - (padded.length % 4))
-  return Buffer.from(padded + pad, 'base64')
-}
-
-function sign(payload: string): string {
-  return base64url(createHmac('sha256', getSecret()).update(payload).digest())
-}
-
-/** 令牌载荷：userId + 签发时间 + 随机 nonce（避免同毫秒签发相同令牌）。 */
-type TokenPayload = { u: string; t: number; n: string }
-
-/**
- * 签发令牌。格式：`base64url(JSON载荷).base64url(HMAC-SHA256签名)`。
- */
-export function issueToken(userId: string): string {
-  const payload: TokenPayload = {
-    u: userId,
-    t: Date.now(),
-    n: base64url(randomBytes(8)),
-  }
-  const encoded = base64url(JSON.stringify(payload))
-  return `${encoded}.${sign(encoded)}`
+export async function issueToken(prisma: PrismaClient, userId: string): Promise<string> {
+  const token = generateToken()
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      sessionTokenHash: hashToken(token),
+      sessionTokenExpiresAt: new Date(Date.now() + TOKEN_TTL_MS).toISOString(),
+    },
+  })
+  return token
 }
 
 /**
- * 校验令牌并返回 userId；无效、被篡改或已过期时返回 null。
+ * 校验令牌并返回 userId；未提供、不存在或已过期时返回 null。
  *
- * 用 `timingSafeEqual` 做常量时间比较，避免通过响应时间推测签名。
+ * 每次调用现查数据库（决策 I-10：不做进程内缓存）。
  */
-export function verifyToken(token: string): string | null {
-  const parts = token.split('.')
-  if (parts.length !== 2) return null
-  const [encoded, signature] = parts as [string, string]
+export async function verifyToken(prisma: PrismaClient, token: string): Promise<string | null> {
+  if (!token) return null
 
-  const expected = sign(encoded)
-  const a = Buffer.from(signature)
-  const b = Buffer.from(expected)
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null
+  const user = await prisma.user.findUnique({
+    where: { sessionTokenHash: hashToken(token) },
+    select: { id: true, sessionTokenExpiresAt: true },
+  })
+  if (!user) return null
 
-  let payload: TokenPayload
-  try {
-    payload = JSON.parse(fromBase64url(encoded).toString('utf8')) as TokenPayload
-  } catch {
-    return null
+  if (user.sessionTokenExpiresAt !== null) {
+    const expiresAt = Date.parse(user.sessionTokenExpiresAt)
+    if (Number.isNaN(expiresAt) || expiresAt <= Date.now()) return null
   }
-  if (typeof payload.u !== 'string' || typeof payload.t !== 'number') return null
-  if (Date.now() - payload.t > TOKEN_TTL_MS) return null
 
-  return payload.u
+  return user.id
 }

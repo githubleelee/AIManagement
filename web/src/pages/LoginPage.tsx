@@ -1,7 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../api'
-import { useAuth } from '../auth/AuthContext'
+import { POST_SIGN_OUT_KEY, useAuth } from '../auth/AuthContext'
 import Button from '../components/Button'
 import FormField from '../components/FormField'
 
@@ -11,12 +11,13 @@ function safeRedirect(raw: string | null): string {
   return '/projects'
 }
 
-/** 登录页（端点 1）。支持 ?redirect= 深链回跳。 */
+/** 明确退出后换账号回主页；首次深链登录仍能返回原目标。 */
 export default function LoginPage() {
   const { user, signIn } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const redirectTo = safeRedirect(params.get('redirect'))
+  const submitting = useRef(false)
 
   const [account, setAccount] = useState('')
   const [password, setPassword] = useState('')
@@ -24,16 +25,21 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    if (user) navigate(redirectTo, { replace: true })
-  }, [user, redirectTo, navigate])
+    if (user && !submitting.current) navigate('/projects', { replace: true })
+  }, [user, navigate])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
+    submitting.current = true
     setError(null)
     setBusy(true)
     try {
       await signIn(account, password)
+      const switchedAccount = sessionStorage.getItem(POST_SIGN_OUT_KEY) === '1'
+      sessionStorage.removeItem(POST_SIGN_OUT_KEY)
+      window.location.replace(switchedAccount ? '/projects' : redirectTo)
     } catch (err) {
+      submitting.current = false
       setError(err instanceof ApiError ? err.message : '登录失败')
     } finally {
       setBusy(false)
@@ -70,4 +76,3 @@ export default function LoginPage() {
     </main>
   )
 }
-

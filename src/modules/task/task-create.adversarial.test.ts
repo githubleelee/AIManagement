@@ -216,9 +216,8 @@ describe('A. 服务端强制校验', () => {
     expect(get.status).toBe(401)
     expect((post.body as ErrorBody).error.code).toBe('UNAUTHENTICATED')
     expect((get.body as ErrorBody).error.code).toBe('UNAUTHENTICATED')
-    // I-4：401 不得被按状态码区间改写（此处桩直接抛 AppError(401)，断言原样透出）
+    // I-4：401 不得被按状态码区间改写（此处桩直接抛带 statusCode 的错误，断言原样透出）
     expect((post.body as ErrorBody).error.code).not.toBe('VALIDATION_FAILED')
-    expect((post.body as ErrorBody).error.code).not.toBe('BAD_REQUEST')
   })
 
   it('A3b 只带契约的 Authorization: Bearer（非法 token）→ 401（真实 requireAuth 已接线）', async () => {

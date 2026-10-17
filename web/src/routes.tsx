@@ -11,6 +11,8 @@ import ProjectOverviewPage from './pages/ProjectOverviewPage'
 import ProjectRequirementsPage from './pages/ProjectRequirementsPage'
 import ProjectTasksPage from './pages/ProjectTasksPage'
 import RequirementDetailPage from './pages/RequirementDetailPage'
+import RequirementHierarchyDetailPage from './pages/RequirementHierarchyDetailPage'
+import NewRequirementPage from './pages/NewRequirementPage'
 
 /**
  * 路由表（见 docs/frontend-routes.md，冻结）。
@@ -30,6 +32,11 @@ export default function AppRoutes() {
             <Route index element={<Navigate to="overview" replace />} />
             <Route path="overview" element={<ProjectOverviewPage />} />
             <Route path="requirements" element={<ProjectRequirementsPage />} />
+            <Route path="requirements/new/goal" element={<NewRequirementPage kind="goal" />} />
+            <Route path="requirements/goals/:goalId/new-activity" element={<NewRequirementPage kind="activity" />} />
+            <Route path="requirements/activities/:activityId/new-story" element={<NewRequirementPage kind="story" />} />
+            <Route path="requirements/goals/:goalId" element={<RequirementHierarchyDetailPage kind="goal" />} />
+            <Route path="requirements/activities/:activityId" element={<RequirementHierarchyDetailPage kind="activity" />} />
             <Route path="requirements/:storyId" element={<RequirementDetailPage />} />
             <Route path="tasks" element={<ProjectTasksPage />} />
             <Route path="members" element={<ProjectMembersPage />} />
@@ -41,4 +48,3 @@ export default function AppRoutes() {
     </Routes>
   )
 }
-

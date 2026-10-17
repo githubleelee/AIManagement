@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useParams } from 'react-router-dom'
 import type { ProjectView } from '../../../src/shared/types'
-import { getProject } from '../api'
+import { ApiError, getProject } from '../api'
 import { ROLE_LABELS } from '../labels'
 import EmptyState from '../components/EmptyState'
 
@@ -13,11 +13,13 @@ import EmptyState from '../components/EmptyState'
 type LoadState =
   | { status: 'loading' }
   | { status: 'notfound' }
+  | { status: 'error'; message: string }
   | { status: 'ready'; project: ProjectView }
 
 export default function ProjectLayout() {
   const { projectId } = useParams()
   const [state, setState] = useState<LoadState>({ status: 'loading' })
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     if (!projectId) {
@@ -30,13 +32,22 @@ export default function ProjectLayout() {
       .then((project) => {
         if (!cancelled) setState({ status: 'ready', project })
       })
-      .catch(() => {
-        if (!cancelled) setState({ status: 'notfound' })
+      .catch((err) => {
+        if (cancelled) return
+        // 只有真正的 404 才当作「不存在 / 无权」；网络或 5xx 不能误报成 404。
+        if (err instanceof ApiError && err.status === 404) {
+          setState({ status: 'notfound' })
+        } else {
+          setState({
+            status: 'error',
+            message: err instanceof ApiError ? err.message : '加载项目失败',
+          })
+        }
       })
     return () => {
       cancelled = true
     }
-  }, [projectId])
+  }, [projectId, reloadKey])
 
   if (state.status === 'loading') {
     return <div className="page-loading">加载中…</div>
@@ -45,10 +56,30 @@ export default function ProjectLayout() {
   if (state.status === 'notfound') {
     return (
       <div className="project-notfound">
-        <EmptyState title="项目不存在或无权访问" hint="它可能已被删除，或你不在该项目中。" />
+        <EmptyState
+          level={1}
+          title="项目不存在或无权访问"
+          hint="它可能已被删除，或你不在该项目中。"
+        />
         <Link className="link" to="/projects">
           返回项目列表
         </Link>
+      </div>
+    )
+  }
+
+  if (state.status === 'error') {
+    return (
+      <div className="project-notfound">
+        <EmptyState level={1} title="项目加载失败" hint={state.message} />
+        <div className="page-header-actions">
+          <button type="button" onClick={() => setReloadKey((k) => k + 1)}>
+            重试
+          </button>
+          <Link className="link" to="/projects">
+            返回项目列表
+          </Link>
+        </div>
       </div>
     )
   }
@@ -61,23 +92,28 @@ export default function ProjectLayout() {
     <div className="project-layout">
       <aside className="project-sidebar">
         <div className="project-sidebar-head">
-          <h1>{project.name}</h1>
-          <p className="muted">我的角色：{ROLE_LABELS[project.myRole]}</p>
+          <span className="sidebar-brand">爱管理</span>
+          <span className="sidebar-kicker">PROJECT SPACE</span>
+          <div className="sidebar-project-name" title={project.name}>{project.name}</div>
         </div>
-        <nav className="project-nav">
+        <nav className="project-nav" aria-label="项目导航">
           <NavLink to="overview" className={navClass}>
-            概览
+            <span aria-hidden="true">◫</span>概览
           </NavLink>
           <NavLink to="requirements" className={navClass}>
-            需求
+            <span aria-hidden="true">◇</span>需求
           </NavLink>
           <NavLink to="tasks" className={navClass}>
-            任务
+            <span aria-hidden="true">☑</span>任务
           </NavLink>
           <NavLink to="members" className={navClass}>
-            成员
+            <span aria-hidden="true">♙</span>成员
           </NavLink>
         </nav>
+        <Link className="project-switcher" to="/projects">
+          <span>当前项目 · {ROLE_LABELS[project.myRole]}</span>
+          <strong>{project.name}</strong>
+        </Link>
       </aside>
       <section className="project-content">
         <Outlet context={project} />
@@ -85,4 +121,3 @@ export default function ProjectLayout() {
     </div>
   )
 }
-

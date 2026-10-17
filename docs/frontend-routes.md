@@ -2,6 +2,7 @@
 
 > 本文档冻结前端路由表与页面职责，供 M2（US-01）、M4（US-03）、M5（US-05）后续填页面对齐。
 > 权威接口定义仍以《需求规格说明书 · 接口契约》为准；本文档只约定**前端 URL 与页面**。
+> **实现进度不写在这里**：各页面「已实现 / 占位 / 在收尾分支」的当前状态见 [`docs/sprint1-current-status.md`](sprint1-current-status.md)（下表最后一列只标归属，不再标占位）。
 
 ## 冻结约定
 
@@ -13,22 +14,24 @@
 
 | URL | 页面 | 说明 | 归属 |
 |---|---|---|---|
-| `/login` | `LoginPage` | 登录；支持 `?redirect=` 回跳 | M1/M2 |
+| `/login` | `LoginPage` | 换账号登录后进入我的项目主页；首次深链登录支持回跳 | M1/M2 |
 | `/projects` | `ProjectListPage` | 我的项目列表（端点 4） | M2 / T1.2 |
 | `/projects/new` | `NewProjectPage` | 新建项目（端点 3） | M2 / T1.1 |
 | `/projects/:projectId` | `ProjectLayout` | 工作台骨架：拉项目（端点 5）、左导航；无权限/不存在 → 404 页 | M2 / T1.2、T1.7 |
 | `/projects/:projectId`（index） | → 重定向 `overview` | | M2 |
 | `/projects/:projectId/overview` | `ProjectOverviewPage` | 项目概览：元信息 + 成员数 + 需求/任务占位卡片 | M2 / T1.2 |
 | `/projects/:projectId/members` | `ProjectMembersPage` | 成员管理：添加 / 列表 / 改角色 / 移除（端点 6–9） | M2 / T1.3–T1.6 |
-| `/projects/:projectId/requirements` | `ProjectRequirementsPage` | 需求层级占位 | M4 / US-03（T3.x） |
-| `/projects/:projectId/requirements/:storyId` | `RequirementDetailPage` | 需求详情占位 | M4 / US-03（T3.x） |
-| `/projects/:projectId/tasks` | `ProjectTasksPage` | 任务列表占位 | M5 / US-05（T5.x） |
+| `/projects/:projectId/requirements` | `ProjectRequirementsPage` | 需求层级树：目标 → 活动 → 故事（端点 10–22，**已实现**） | M4 / US-03（T3.x） |
+| `/projects/:projectId/requirements/goals/:goalId` | `RequirementHierarchyDetailPage` | 业务目标详情与管理操作 | M4 / US-03 |
+| `/projects/:projectId/requirements/activities/:activityId` | `RequirementHierarchyDetailPage` | 用户活动详情与管理操作 | M4 / US-03 |
+| `/projects/:projectId/requirements/:storyId` | `RequirementDetailPage` | 需求详情：编辑 / 敏感 / 故事内任务（端点 20/21/23；任务区端点 24/25/27/28/29/30 **已实现，随收尾分支合入**） | M4 / US-03、M5 / US-05 |
+| `/projects/:projectId/tasks` | `ProjectTasksPage` | 项目任务总表（端点 26 + `ownerUserId` 过滤，**已实现，随收尾分支合入**） | M5 / US-05（T5.x） |
 | `*` | `NotFoundPage` | 全局 404 | M2 |
 
 ## 页面职责与数据来源
 
 - **AppLayout**：顶栏（品牌、当前用户、退出登录）+ 内容区。已登录用户可见。
-- **ProtectedRoute**：未登录重定向 `/login?redirect=<原路径>`；令牌失效（401）清理后回登录页。
+- **ProtectedRoute**：明确退出后重定向 `/login` 并清除旧页面回跳；首次访问深链时使用 `/login?redirect=<原路径>`。
 - **ProjectLayout**：按 `:projectId` 调 `GET /projects/:projectId`：
   - 成功：左侧导航（概览 / 需求 / 任务 / 成员）+ `<Outlet context={project}>`
   - 404：渲染「项目不存在或无权访问」页（与后端非成员 404 行为一致，不泄漏对象）
@@ -53,4 +56,3 @@
 |---|---|---|
 | `pm` / `member1` / `member2` / `viewer1` | `Passw0rd!` | 均在「演示项目」中，角色见 seed |
 | `outsider` | `Passw0rd!` | 不属于演示项目，用于演示非成员 404 与列表隔离 |
-

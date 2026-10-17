@@ -7,20 +7,16 @@
  * 或由 Zod 校验失败自动转换；Fastify 统一错误处理器负责转成决策 I-3 的
  * ErrorResponse。未抛 AppError 的异常一律转 500，且响应体不包含堆栈。
  *
- * 401 出口规则：未登录 / 凭证失效时抛 AppError(401, 'UNAUTHENTICATED')，
- * 由统一错误处理器原样透出；不得改写为其它状态码（契约 I-2b / I-4）。
+ * 401 出口规则：未登录 / 凭证失效不属于 AppError 的 4xx 子集（契约 I-2b 的
+ * AppError 仅为 403/404/409/422），由 M1 抛「带 statusCode=401 的错误」，
+ * 统一错误处理器按原始状态码透出并映射为 UNAUTHENTICATED（契约 I-4）。
  */
 import type { FieldError } from './types.js'
 
 export class AppError extends Error {
   constructor(
-    public status: 401 | 403 | 404 | 409 | 422,
-    public code:
-      | 'UNAUTHENTICATED'
-      | 'FORBIDDEN'
-      | 'NOT_FOUND'
-      | 'CONFLICT'
-      | 'VALIDATION_FAILED',
+    public status: 403 | 404 | 409 | 422,
+    public code: 'FORBIDDEN' | 'NOT_FOUND' | 'CONFLICT' | 'VALIDATION_FAILED',
     message: string,
     public details?: FieldError[],
   ) {

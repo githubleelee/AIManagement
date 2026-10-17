@@ -18,24 +18,26 @@ export default function DataTable<T>({
     return <div className="empty">{empty ?? '暂无数据'}</div>
   }
   return (
-    <table className="table">
-      <thead>
-        <tr>
-          {columns.map((column) => (
-            <th key={column.key}>{column.header}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={rowKey(row)}>
+    <div className="table-scroll">
+      <table className="table">
+        <thead>
+          <tr>
             {columns.map((column) => (
-              <td key={column.key}>{column.render(row)}</td>
+              <th key={column.key}>{column.header}</th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={rowKey(row)}>
+              {columns.map((column) => (
+                <td key={column.key}>{column.render(row)}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 

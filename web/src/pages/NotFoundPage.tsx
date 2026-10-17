@@ -6,7 +6,7 @@ export default function NotFoundPage() {
   return (
     <main className="login-page">
       <div className="card">
-        <EmptyState title="页面不存在" hint="请检查地址，或返回项目列表。" />
+        <EmptyState level={1} title="页面不存在" hint="请检查地址，或返回项目列表。" />
         <Link className="link" to="/projects">
           返回项目列表
         </Link>

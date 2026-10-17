@@ -1,0 +1,229 @@
+[
+  {
+    "key": "ROLE-A",
+    "title": "ROLE-A 汇总：成员工作台 / 任务验收 / 进度与风险 / AI 分析",
+    "role": "A",
+    "kind": "role",
+    "depends_on": [],
+    "interface_depends_on": [],
+    "body": "## 角色\nROLE-A（本票）。**汇总/协调票**，不是执行依赖：任何子票的 `depends_on` / `interface_depends_on` 都不得写入本票，否则会形成\"父票挡住子票\"的伪串行与环。\n\n## 本域子票与估算\n| 子票 | 内容 | 估算（人日） |\n|---|---|---|\n| #28 | 个人工作台与任务状态 / 进度更新 | 6 |\n| #29 | 任务验收（通过 / 驳回 / 重验） | 5 |\n| #30 | 进度、健康度与风险（含项目关闭阻断） | 8 |\n| #33 | AI 质量 / 进度 / 风险 / 效率分析 | 11 |\n| **合计** | 用户给定汇总口径 **A = 30 人日**；内部拆分 **6/5/8/11**，合计 30 | **30** |\n\n1 人日 ≈ 6 小时。全局验收与联调另预留 **15–20%**（见文档《团队交接与开工指南》\"估算与预留\"节），不承诺 agent 线性提速或 8 周必完。\n\n## 域内协作约定\n- 四票共用一个**任务状态机**契约：实际枚举仅 `TODO / DOING / DONE`；`BLOCKED / SUSPENDED / CLOSED` 目前只是文档规划位，需在 #24 确认后再由唯一修改人落到 `src/shared/types.ts` 与 schema。**不得**在任何票里假设四态、五态已存在。\n- `DONE != 验收关闭`：`DONE` 只代表执行人提交，`CLOSED`（验收通过）是另一状态；验收人是**任务字段**，不是新增项目角色。\n- 四票**可接口并行**：先冻结状态流转接口、审计字段与风险字段签名，再各自做界面。不要用\"US08 先做完 US09 才能动\"这类串行假设。\n- 敏感不泄漏：所有列表、统计计数、AI 上下文、通知内容一律复用 `can()` / `visibilityScope()`（`src/modules/authz/permissions.ts`），禁止内存过滤后再计数。\n\n## 接单 comment 模板（子票通用，先在本票留言）\n```\n接单确认：我是 <姓名 / GitHub 账号>，认领 <子票 KEY>（<标题>）。\n- 我确认已读 docs/team-handoff.md 与 三份 sprint1 既有规则文档（baseline / 接口契约 / frontend-routes）。\n- 我的分支将从最新 main 起；同模块单写者；公共冻结区改动先在本票留言申请。\n- 我确认删除 needs-confirmation 前已核对：适用契约、文件边界、验收口径。\n- 我需要 ROLE-A / CONTRACT 澄清的事项：<列出或写\"无\">\n```\n\n## 接单与完成确认\n- [ ] 已在角色父票留言确认身份与权限（模板见上）。\n- [ ] 已核对本域适用契约、文件边界与验收口径，再移除 needs-confirmation。\n- [ ] 四个子票均达到各自 AC 并有可复现证据。\n- [ ] 域内接口与状态机在文档中冻结并回写。\n- [ ] 未决业务规则已登记到 #24 而不是自行拍定。\n\n\n## 交接文档入口\n[阶段交接与开工指南（main）](https://github.com/githubleelee/AIManagement/blob/main/docs/team-handoff.md)；文档 PR 尚未合入 main 时，请先阅读[文档分支预览](https://github.com/githubleelee/AIManagement/blob/docs/team-handoff/docs/team-handoff.md)。业务分支仍从最新 main 创建。",
+    "number": 20,
+    "url": "https://github.com/githubleelee/AIManagement/issues/20"
+  },
+  {
+    "key": "ROLE-B",
+    "title": "ROLE-B 汇总：故事看板 / 甘特图 / 成员负载 + 开工契约统筹",
+    "role": "B",
+    "kind": "role",
+    "depends_on": [],
+    "interface_depends_on": [],
+    "body": "## 角色\nROLE-B（本票）。**汇总/协调票**，不是执行依赖：任何子票不得把本票写入 `depends_on`。\n\n## 本域子票与估算\n| 子票 | 内容 | 估算（人日） |\n|---|---|---|\n| #25 | 故事看板：查看与调整需求状态 | 4 |\n| #26 | 甘特图：需求 / 任务 / 里程碑 + FS 依赖 | 8 |\n| #27 | 成员任务图与负载 | 4 |\n| #24 | 开工契约确认（gate，非执行票） | 2 |\n| **合计** | 用户给定 **B = 18 人日** | **18** |\n\n1 人日 ≈ 6 小时。全局验收与联调另预留 **15–20%**，不承诺 agent 线性提速或 8 周必完。\n\n## 职责边界（关键）\n- B **只统筹**公共契约与冻结区申请，**不直接修改**以下文件；它们由原唯一修改人修改：\n  - `src/shared/types.ts`、`src/shared/validation.ts`、`src/shared/errors.ts`（技术负责人）\n  - `src/db/schema.prisma`（技术负责人）\n  - `src/routes.ts`（技术负责人）\n  - `src/modules/authz/permissions.ts`（`can()` / `visibilityScope()` 签名，权限模块负责人）\n  - `web/src/routes.tsx`、`web/src/App.tsx`、`web/src/layouts/`、`web/src/components/`（前端骨架原唯一修改人）\n- **本文档不能自动覆盖原冻结归属**：切换任一处唯一修改人，必须在 #24 留下明确、可追溯的交接记录，并经原负责人同意。未经同意不得改旧归属。\n- B 负责把各票的冻结区改动申请汇总给唯一修改人，避免多人在同一文件并行。\n\n## 域内协作约定\n- #25 / #26 / #27 只读需求与任务数据（直接读库，不调用其他模块 service，遵循决策 I-9）；各自新增独立目录，不抢 `requirement/`、`task/` 既有文件。\n- #24 是**软门**：先确认本模块要开工所需的最小契约（枚举、字段、端点、边界），**不必等所有话题都锁死**；未决业务规则登记为待确认，不得假装已批准。\n- 父票不充当执行依赖，避免 US06→US12 等真实执行边被本票挡住。\n\n## 接单 comment 模板（子票通用，先在本票留言）\n```\n接单确认：我是 <姓名 / GitHub 账号>，认领 <子票 KEY>（<标题>）。\n- 我确认已读 docs/team-handoff.md 与三份 sprint1 既有规则文档。\n- 分支从最新 main 起；我承诺不改共享/骨架文件，需要时向 ROLE-B 提冻结区申请。\n- 删除 needs-confirmation 前已核对适用契约、文件边界、验收口径。\n- 我需要 B / CONTRACT 澄清的事项：<列出或写\"无\">\n```\n\n## 接单与完成确认\n- [ ] 已在角色父票留言确认身份与权限（模板见上）。\n- [ ] 已核对本域适用契约、文件边界与验收口径，再移除 needs-confirmation。\n- [ ] 三个子票达到 AC 并有证据。\n- [ ] #24 形成书面确认与待确认清单。\n- [ ] 冻结区申请均有唯一修改人留痕。\n\n\n## 交接文档入口\n[阶段交接与开工指南（main）](https://github.com/githubleelee/AIManagement/blob/main/docs/team-handoff.md)；文档 PR 尚未合入 main 时，请先阅读[文档分支预览](https://github.com/githubleelee/AIManagement/blob/docs/team-handoff/docs/team-handoff.md)。业务分支仍从最新 main 创建。",
+    "number": 21,
+    "url": "https://github.com/githubleelee/AIManagement/issues/21"
+  },
+  {
+    "key": "ROLE-C",
+    "title": "ROLE-C 汇总：AI 排期 / 在线 UML",
+    "role": "C",
+    "kind": "role",
+    "depends_on": [],
+    "interface_depends_on": [],
+    "body": "## 角色\nROLE-C（本票）。**汇总/协调票**，不是执行依赖。\n\n## 本域子票与估算\n| 子票 | 内容 | 估算（人日） |\n|---|---|---|\n| #32 | AI 排期建议（人工确认后进入计划） | 9 |\n| #35 | 在线用例图 / 时序图并关联项目数据 | 9 |\n| **合计** | 用户给定 **C = 18 人日** | **18** |\n\n1 人日 ≈ 6 小时。全局验收与联调另预留 **15–20%**，不承诺 agent 线性提速或 8 周必完。\n\n## 域内协作约定\n- #35 可**独立开工**，只读项目 / 业务目标 / 用户活动 / 用户故事 / 任务做关联，不依赖其他新票。\n- #32 整体验收依赖 #26 与 #27 的数据，同时 `interface_depends_on` #31（AI 框架接口先行）；界面与提示词设计可在接口冻结后先行，不必等 US06/US07 全部验收。\n- **不直接调用 D 的业务模块 service**（决策 I-9 禁止跨业务模块互调 service）。AI 能力只通过 #24 确认的公共基础设施接口 / 注入端口接入；确认前先提交类型与接口设计，**不自行创造跨模块例外**。\n- AI 只提供建议：未经人工确认不得写入正式项目数据；AI 上下文不得包含无权或敏感对象。\n\n## 接单 comment 模板（子票通用，先在本票留言）\n```\n接单确认：我是 <姓名 / GitHub 账号>，认领 <子票 KEY>（<标题>）。\n- 我确认已读 docs/team-handoff.md 与三份 sprint1 既有规则文档。\n- 分支从最新 main 起；AI 接入只走 CONTRACT 确认的公共接口，不调 D 业务模块 service。\n- 删除 needs-confirmation 前已核对适用契约、文件边界、验收口径。\n- 我需要 ROLE-C / CONTRACT 澄清的事项：<列出或写\"无\">\n```\n\n## 接单与完成确认\n- [ ] 已在角色父票留言确认身份与权限（模板见上）。\n- [ ] 已核对本域适用契约、文件边界与验收口径，再移除 needs-confirmation。\n- [ ] 两子票达到 AC 且有证据。\n- [ ] AI 接入方式在 #24 有结论。\n- [ ] UI 端到端（浏览器）证据齐备。\n\n\n## 交接文档入口\n[阶段交接与开工指南（main）](https://github.com/githubleelee/AIManagement/blob/main/docs/team-handoff.md)；文档 PR 尚未合入 main 时，请先阅读[文档分支预览](https://github.com/githubleelee/AIManagement/blob/docs/team-handoff/docs/team-handoff.md)。业务分支仍从最新 main 创建。",
+    "number": 22,
+    "url": "https://github.com/githubleelee/AIManagement/issues/22"
+  },
+  {
+    "key": "ROLE-D",
+    "title": "ROLE-D 汇总：AI 需求拆解 / 通知 / 附件 / 公共事件",
+    "role": "D",
+    "kind": "role",
+    "depends_on": [],
+    "interface_depends_on": [],
+    "body": "## 角色\nROLE-D（本票）。**汇总/协调票**，不是执行依赖。\n\n## 本域子票与估算\n| 子票 | 内容 | 估算（人日） |\n|---|---|---|\n| #31 | AI 需求拆解（AI 框架接口 + 人工确认） | 6 |\n| #34 | 站内通知（6 类，1 分钟目标） | 6 |\n| #36 | 任务附件（≤10MB、受限类型） | 3 |\n| #37 | 公共领域事件（传输 / 存储 / 幂等基础） | 3 |\n| **合计** | 用户给定 **D = 18 人日** | **18** |\n\n1 人日 ≈ 6 小时。全局验收与联调另预留 **15–20%**，不承诺 agent 线性提速或 8 周必完。\n\n## 域内协作约定\n- #31 先输出 **AI 框架接口**（类型 / 端口 + 人工确认与审计记录），供 A（#33）与 C（#32）接入；**无 SDK 绑定、不外发真实项目数据**。\n- #37 只提供**传输 / 存储 / 幂等基础**，不替其他域实现业务；发出方各自实现自己的领域事件。**不把所有修改丢给 D**。\n- 公共基础设施（AI / 事件）的**可复用接口与放置位置**须在 #24 确认，或明确批准对决策 I-9 的扩展；确认前只提供类型 / 接口设计，**不自建跨业务模块 service 调用例外**。\n- #34 通知基础可先做（订阅事件 → 落库 → 拉取），验收阶段再与 #29 / #30 / #26 / #28 对账；**不要**制造 US08↔US14 的硬环。\n- 通知内容、附件、事件载荷同样不得泄漏敏感对象信息（复用 `can()` / `visibilityScope()`）。\n\n## 接单 comment 模板（子票通用，先在本票留言）\n```\n接单确认：我是 <姓名 / GitHub 账号>，认领 <子票 KEY>（<标题>）。\n- 我确认已读 docs/team-handoff.md 与三份 sprint1 既有规则文档。\n- 分支从最新 main 起；公共基础设施放置与接入方式以 CONTRACT 结论为准。\n- 删除 needs-confirmation 前已核对适用契约、文件边界、验收口径。\n- 我需要 ROLE-D / CONTRACT 澄清的事项：<列出或写\"无\">\n```\n\n## 接单与完成确认\n- [ ] 已在角色父票留言确认身份与权限（模板见上）。\n- [ ] 已核对本域适用契约、文件边界与验收口径，再移除 needs-confirmation。\n- [ ] 四子票达到 AC 且有证据。\n- [ ] AI / 事件公共接口在 #24 有结论。\n- [ ] 各域自实现领域事件，D 只做基础，无跨模块 service 调用。\n\n\n## 交接文档入口\n[阶段交接与开工指南（main）](https://github.com/githubleelee/AIManagement/blob/main/docs/team-handoff.md)；文档 PR 尚未合入 main 时，请先阅读[文档分支预览](https://github.com/githubleelee/AIManagement/blob/docs/team-handoff/docs/team-handoff.md)。业务分支仍从最新 main 创建。",
+    "number": 23,
+    "url": "https://github.com/githubleelee/AIManagement/issues/23"
+  },
+  {
+    "key": "CONTRACT",
+    "title": "开工契约确认（四角色分域确认；未决业务规则只登记不实现）",
+    "role": "B",
+    "kind": "gate",
+    "depends_on": [],
+    "interface_depends_on": [],
+    "body": "## 这是什么\n开工**契约确认（gate）**，不是执行票、不是依赖边。B 统筹本票；**四个角色各确认本域**需要开工的最小契约即可，**不必等所有话题锁死**。未确认前，各票只提交类型 / 接口设计，不得自行拍定业务规则，也不得自行创造跨模块例外。\n\n标签：`handoff` + `needs-confirmation`。确认适用契约、文件边界、验收口径后，由**各执行票自行移除** `needs-confirmation` 再开工（本票不代删）。\n\n## 必须确认（本域所需最小集）\n1. **冻结归属不变**：本阶段分工文档**不能自动覆盖** sprint1 基线 / 接口契约的冻结归属。切换 `src/shared/*`、`src/db/schema.prisma`、`src/routes.ts`、`src/modules/authz/permissions.ts`（`can()` / `visibilityScope()` 签名）以及前端骨架 / `docs/frontend-routes.md` 的唯一修改人，需**原技术负责人 / 权限负责人同意**并在此留痕。B 只统筹申请，不直接改。\n2. **六状态落地（本阶段必交）**：本阶段必须交付 `TODO / DOING / BLOCKED / SUSPENDED / DONE / CLOSED` 六状态，**不接受\"是否扩展\"的替代结论**，也**不接受用接口评审替代最终 AC**。CONTRACT 需确认：线上常量与展示标签的**枚举映射**、状态**转换规则**（阻塞原因、提交验收、驳回重验、关闭）、**操作授权**（见 C11）、`src/shared/types.ts` 与 `src/db/schema.prisma` 的**迁移**与**单写人**。未落地前 #28 / #29 / #30 的**最终 AC 不可勾**；其只读接口 / 设计可先做。\n3. **公共基础设施放置**：决策 I-9 禁止跨业务模块 service 互调。A（#33）/ C（#32）接入 AI、各域接入事件时，可复用的**公共接口与放置位置**在此确认（例如类型 / 端口放 `src/shared`、运行时在 app 组装根注入），或**明确批准**对 I-9 的扩展。未确认前只出类型 / 接口设计，**不自行创造例外**。\n4. **文件边界与旧模块扩展授权**：新模块各自独立目录；`src/shared`、`src/db/schema.prisma`、`src/routes.ts`、`src/modules/authz/permissions.ts`、`web` 骨架保持原唯一修改人。实现必需的**旧模块扩展不必禁止，也不由其他角色代写**：由原 owner 审核并**明确授权本票负责人改具体文件 / 范围**（或书面转交）后，业务改动仍由**本票角色**完成；**共享冻结区仍单写合入**。**不得旁路旧规则新建镜像写路径**。`schema.prisma` 允许**小批次按顺序合入**，不要求所有模块一次做完。\n5. **依赖口径**：`depends_on` 是**整体验收依赖，不是开发开工依赖**；接口先行（`interface_depends_on`）与整体验收（`depends_on`）分开；父票（ROLE-*）不得充当执行依赖；各票可用 mock 接口 / 独立目录并行开发，阻塞只阻塞被依赖部分的**最终验收**。\n\n### 旧模块扩展授权申请（C13 相关，先申请后改）\n- #25：`src/modules/requirement/service.ts` 与相关路由（故事状态写路径）；**既有故事 `PATCH` 须补审计与事件，不得假设已有**。\n- #28 / #29：`src/modules/task/` 与 `src/modules/authz/permissions.ts` 的 `Action` 扩展（含 `task.accept` 等，见 C11）。\n- #30：项目关闭入口（当前**无 close endpoint**）。\n- 授权形式：原 owner 在本票留言「授权 <KEY> 负责人修改 <文件 / 范围>」，或书面转交；未获授权前不改旧文件。\n\n### 本域确认清单（可勾）\n- [ ] 已确认本域开工所需的最小契约（枚举 / 字段 / 端点 / 接口 / 边界）。\n- [ ] 已确认不改原冻结归属；切换唯一修改人需原技术负责人 / 权限负责人同意。\n- [ ] 已确认公共基础设施（AI / 事件）的接入方式，或明确延期。\n- [ ] 已确认六状态落地路径（枚举映射 / 转换 / 授权 / 迁移 / 单写人），否则 US08/09/10 最终 AC 不勾。\n- [ ] 已确认 C1–C13 中与本域相关项的“确认 / 待确认”状态。\n\n## 待确认业务规则（未知项，不得假装已批准）\n| # | 话题 | 现状 | 需谁拍板 |\n|---|---|---|---|\n| C1 | 项目健康度阈值 | 报告只说\"健康 / 预警 / 风险\"，无具体偏差阈值 | 项目负责人 + A |\n| C2 | FS 放行条件 | 前置任务\"完成（DONE）\"即放行，还是\"验收关闭（CLOSED）\"才放行 | 项目负责人 + A + B |\n| C3 | 逾期判定时区 | `planEnd` 为 `YYYY-MM-DD`，逾期按 UTC 还是本地时区跨界 | 技术负责人 + A |\n| C4 | AI 服务与资源 | 本地化 / 私有化 AI 服务、模型、资源、是否可离线，均未定；不得绑定具体 SDK | 技术负责人 + D |\n| C5 | UML 交互方案 | 在线创建 / 编辑用例图、时序图的交互方式未定；不引入额外外部服务 | B + C + 项目负责人 |\n| C6 | 汇总权限口径 | 进度 / 健康度 / 负载 / 质量汇总对 PM / member / viewer 各看到什么；保留**全局基数 / 可见基数**语义 | 项目负责人 + A |\n| C7 | 附件约束清单 | 受限类型列表、单文件 ≤10MB 的执行点、存储位置（含 `.gitignore` 的 `var/uploads`） | 技术负责人 + D |\n| C8 | 通知 6 类与时效 | 分配 / @提及 / 逾期 / 验收 / 风险 / 关键节点的判定与\"1 分钟内\"口径 | 项目负责人 + D |\n| C9 | 项目关闭阻断 | \"存在未关闭任务或未处理 / 处理中风险则阻止关闭\"的执行入口与清单口径 | 项目负责人 + A |\n| C10 | 进度口径确认 | 明确 `进度 = 已关闭任务数 ÷ 项目任务总数`，并确认 `DONE` 不计入 | 项目负责人 + A |\n| C11 | 操作授权 Action / 角色映射 | 现有 `Action` 仅 `project.read` / `project.manage_members` / `requirement.write` / `task.write` / `sensitivity.manage`，**无 `task.accept`**，写操作目前基本只对 PM。需确认：#25 成员能否改故事状态；#28 负责人更新 / PM 管理边界；#29 指定验收人可验、VIEWER 是否允许、验收人可选范围。各票**不得绕 `can()` / `visibilityScope()` 自行判权** | 权限负责人 + 项目负责人 |\n| C12 | 协作人模型 / 任务成员权限 | 当前 `Task` **无协作人字段**，\"协作人\"来自报告范围。是否本轮建模、如何授权、是否影响 US08 / US09 的可见与可编辑范围，在此确认；**不得擅自缩减报告范围** | 技术负责人 + 项目负责人 + A |\n| C13 | 旧模块修改归属与项目关闭入口 | 旧模块改动需原 owner 授权（见上）；项目关闭入口当前**无 close endpoint**（见 C9），入口归属、路由与单写人需确认 | 技术负责人 + B |\n\n> 上表为**待确认**，不是已批准结论。任何一项在本票留言形成书面结论后可被引用；未结论的按\"仅设计、不实现\"处理（六状态除外，见第 2 点）。\n\n## 四角色分域确认模板\n```\nCONTRACT 域确认：我是 ROLE-<A/B/C/D> 负责人 <姓名 / 账号>。\n- 本域开工所需最小契约：<枚举 / 字段 / 端点 / 接口 / 边界>，已核对的既有文档：<baseline / 接口契约 / frontend-routes>。\n- 我确认：不改原冻结归属；六状态落地路径以第 2 点结论为准；公共基础设施接入方式待确认；未决业务规则只登记不实现。\n- 旧模块扩展授权申请：<文件 / 范围，或\"无\">\n- 待澄清：<引用 C 编号或写\"无\">\n```\n\n## 完成定义（本票）\n四条域确认均有留言；C1–C13 至少给出\"确认 / 待确认 / 后续处理\"的书面状态；**六状态落地路径（第 2 点）**与公共基础设施放置（第 3 点）有结论或明确的延期决定；旧模块扩展授权均有原 owner 留痕。\n\n\n## 交接文档入口\n[阶段交接与开工指南（main）](https://github.com/githubleelee/AIManagement/blob/main/docs/team-handoff.md)；文档 PR 尚未合入 main 时，请先阅读[文档分支预览](https://github.com/githubleelee/AIManagement/blob/docs/team-handoff/docs/team-handoff.md)。业务分支仍从最新 main 创建。",
+    "number": 24,
+    "url": "https://github.com/githubleelee/AIManagement/issues/24"
+  },
+  {
+    "key": "US04",
+    "title": "US-04 故事看板：查看与调整需求状态",
+    "role": "B",
+    "kind": "story",
+    "depends_on": [],
+    "interface_depends_on": [
+      "EVENTS"
+    ],
+    "body": "## 角色\nROLE-B（#21）。执行票。\n\n## 范围 / 不做\n- 范围：故事看板视图，按**正式需求状态**（`DRAFT / PLANNING / DONE`，决策 I-1）分列展示，可在看板内调整状态，调整复用现有故事写路径（`PATCH /stories/:storyId`）；调整后故事地图 / 详情 / 统计同步，并保留变更 / 审计记录。\n- 注意：现有故事 `PATCH` **未必**已写审计与事件，**不得假设已有**；需在 #24 C13 授权后补齐审计与 story 状态变更事件。\n- 不做：自定义列、看板级拖拽排序、新状态枚举、按看板单独存状态、复杂拖拽交互（报告后置范围）。沿用既有状态，不反向修改需求模型。\n\n## 基础路径建议\n- 后端：`src/modules/board/`（仅必要聚合读；状态写仍走 requirement 端点，不复制其 service）\n- 前端：`web/src/pages/board/`（新目录）\n- 冻结区申请：`src/routes.ts` 挂载、`web/src/routes.tsx` 挂载行（由骨架 owner 加）；类型 / 枚举不改\n- **旧模块扩展授权申请**：`src/modules/requirement/service.ts` 与相关路由（故事状态写路径，含补审计与事件）。需原 owner 书面授权本票负责人改**具体文件 / 范围**，否则不改；**不得旁路新建镜像写路径**（见 #24 C11 / C13）\n\n## 交付物\n1. 看板页面（状态列 + 卡片）；2. 状态调整交互与调用；3. 变更 / 审计留痕；4. 模块测试与浏览器证据。\n\n## 验收标准（可测，逐条）\n- [ ] AC1 看板列与正式需求状态一致，无自造状态。\n- [ ] AC2 调整状态后重新拉取，故事地图 / 详情页状态同步。\n- [ ] AC3 状态调整写审计记录（who / when / before / after）。\n- [ ] AC4 无权限 / 跨项目访问被拒（复用 `can()`，非成员 404）。\n- [ ] AC5 敏感故事对无权者不出现在看板；看板计数与列表一致（不内存过滤后计数）。\n- [ ] AC6 不通过看板绕过 `requirement.write` 权限。\n\n## 依赖\n- 接口先行：#37（发布 story.status 变更事件供跨视图同步；接口先冻结即可开工）。\n- 整体验收：无（US-03 已交付）。\n- 待确认前置：#24 C11（成员能否改故事状态、是否需新增 Action）、C13（旧模块修改归属）。未确认前按只读接口 / 设计先行，不写死授权规则。\n\n## 权限与敏感用例（至少）\n- PM：可调整状态；member：只读 +（如经 #24 C11 授权）按规则操作，越权 403；viewer：只读，不可调整；outsider：404。\n- 敏感故事：未在白名单的 member / viewer 看不到卡片，计数不增加。\n\n## 验证证据\n- `src/modules/board/*.test.ts`（状态同步 / 审计 / 越权 / 敏感计数）；`npm run typecheck`；浏览器端到端：看板→改状态→地图 / 详情同步截图。\n\n## 分支与收尾\n- 分支 `feat/US04-story-board`（从最新 main）；PR 描述 `Closes #25`；公共冻结区改动先在本票留言申请。\n\n\n## 交接文档入口\n[阶段交接与开工指南（main）](https://github.com/githubleelee/AIManagement/blob/main/docs/team-handoff.md)；文档 PR 尚未合入 main 时，请先阅读[文档分支预览](https://github.com/githubleelee/AIManagement/blob/docs/team-handoff/docs/team-handoff.md)。业务分支仍从最新 main 创建。",
+    "number": 25,
+    "url": "https://github.com/githubleelee/AIManagement/issues/25"
+  },
+  {
+    "key": "US06",
+    "title": "US-06 甘特图：需求 / 任务 / 里程碑与 FS 依赖",
+    "role": "B",
+    "kind": "story",
+    "depends_on": [],
+    "interface_depends_on": [
+      "EVENTS"
+    ],
+    "body": "## 角色\nROLE-B（#21）。执行票（本域最长路径，US12 依赖本票数据）。\n\n## 范围 / 不做\n- 范围：甘特图统一展示**需求（用户故事）/ 任务 / 里程碑**；故事可展开关联任务；计划时间与进度从任务汇总；里程碑支持**任务里程碑 + 汇总**；本期**仅 FS（完成—开始）**依赖。\n- 不做：SS / FF / SF 等复杂依赖、高级排期 / 资源平衡 / 自动调度、复杂拖拽编辑、外部日历服务（报告后置范围）。\n- FS 放行条件（前置\"完成\"还是\"验收关闭\"）未定，登记 #24 C2，未决前只做数据模型与展示，不写死放行规则。\n\n## 基础路径建议\n- 后端：`src/modules/gantt/`（新目录）\n- 前端：`web/src/pages/gantt/`（新目录）\n- 冻结区申请：`src/db/schema.prisma` 加 `Milestone`、`TaskDependency` 表；`src/shared/types.ts` 加类型；`src/routes.ts` 挂载；`web/src/routes.tsx` 挂载行由骨架 owner 加\n\n## 交付物\n1. 甘特数据端点（故事 / 任务 / 里程碑 / 依赖）+ Zod 校验；2. `Milestone` / `TaskDependency` 表与迁移；3. 甘特图页面（时间轴、展开、里程碑）；4. FS 校验（拒绝环、跨项目）；5. 模块测试。\n\n## 验收标准（可测，逐条）\n- [ ] AC1 同一视图同时展示需求、任务、里程碑。\n- [ ] AC2 故事可展开其关联任务；任务显示计划开始 / 结束。\n- [ ] AC3 故事计划时间与进度可从关联任务汇总，且与任务视图一致。\n- [ ] AC4 里程碑关联任务并可汇总（任务里程碑 + 汇总口径）。\n- [ ] AC5 依赖仅接受 FS；前置未按 #24 C2 结论放行时不允许后置开工；检出环即拒绝。\n- [ ] AC6 跨项目依赖拒绝（直接读库校验，不跨模块 service）。\n- [ ] AC7 敏感对象不出现在甘特与汇总计数（查询层过滤）。\n\n## 依赖\n- 接口先行：#37（里程碑 / 计划变更事件，供通知同步；接口冻结即可开工）。\n- 整体验收：无（US-05 已交付）。注意被 #32 整体依赖，但不要在 US12 上形成环。\n\n## 权限与敏感用例（至少）\n- PM：可建 / 改里程碑与依赖；member：只读（或按规则参与），越权 403；viewer：只读；outsider：404。\n- 敏感任务 / 故事：无权者看不到条与汇总计数。\n\n## 验证证据\n- `src/modules/gantt/*.test.ts`（展示 / 汇总 / FS / 环 / 跨项目 / 敏感）；`npm run typecheck`；浏览器端到端：展开故事→看任务汇总→里程碑截图。\n\n## 分支与收尾\n- 分支 `feat/US06-gantt`（从最新 main）；PR 描述 `Closes #26`；冻结区改动先申请。\n\n\n## 交接文档入口\n[阶段交接与开工指南（main）](https://github.com/githubleelee/AIManagement/blob/main/docs/team-handoff.md)；文档 PR 尚未合入 main 时，请先阅读[文档分支预览](https://github.com/githubleelee/AIManagement/blob/docs/team-handoff/docs/team-handoff.md)。业务分支仍从最新 main 创建。",
+    "number": 26,
+    "url": "https://github.com/githubleelee/AIManagement/issues/26"
+  },
+  {
+    "key": "US07",
+    "title": "US-07 成员任务图与负载",
+    "role": "B",
+    "kind": "story",
+    "depends_on": [],
+    "interface_depends_on": [],
+    "body": "## 角色\nROLE-B（#21）。执行票。\n\n## 范围 / 不做\n- 范围：成员任务图与负载：获取项目成员列表、统计每名成员未关闭任务、展示成员—任务关联与状态、查看单个成员任务详情。\n- 不做：技能匹配、请假 / 工时、并行度、高级排期（报告后置范围）；不新增项目角色。\n- \"明显积压\"的 AI 优化建议属 #33，本票只提供可被 AI 消费的负载数据。\n\n## 基础路径建议\n- 后端：`src/modules/workload/`（新目录；直接读库，不调用 project / task 模块 service）\n- 前端：`web/src/pages/workload/`（新目录）\n- 冻结区申请：`src/routes.ts` 挂载；`web/src/routes.tsx` 挂载行由骨架 owner 加；类型按需申请\n\n## 交付物\n1. 成员负载端点（成员 / 未关闭任务数 / 关联任务）；2. 成员任务图页面与单成员详情；3. 模块测试。\n\n## 验收标准（可测，逐条）\n- [ ] AC1 按成员列出未关闭任务数量与任务清单。\n- [ ] AC2 点击成员可看其任务详情（状态 / 计划时间）。\n- [ ] AC3 负载计数与任务列表、个人工作台口径一致（同一数据模型）。\n- [ ] AC4 只统计本项目成员；outsider 404。\n- [ ] AC5 敏感任务不计入无权者的负载与计数。\n- [ ] AC6 viewer 的可见范围按 #24 C6 结论执行，未决前只读实现 + 待确认登记。\n\n## 依赖\n- 接口先行：无（只读既有任务数据）。\n- 整体验收：无（US-05 已交付）。\n\n## 权限与敏感用例（至少）\n- PM：全量；member：只读，按可见性；viewer：只读（范围待 C6）；outsider：404。\n- 敏感任务：无权者负载不增。\n\n## 验证证据\n- `src/modules/workload/*.test.ts`（计数一致性 / 敏感过滤 / 越权）；`npm run typecheck`；浏览器端到端：负载图→成员详情截图。\n\n## 分支与收尾\n- 分支 `feat/US07-member-workload`（从最新 main）；PR 描述 `Closes #27`；冻结区先申请。\n\n\n## 交接文档入口\n[阶段交接与开工指南（main）](https://github.com/githubleelee/AIManagement/blob/main/docs/team-handoff.md)；文档 PR 尚未合入 main 时，请先阅读[文档分支预览](https://github.com/githubleelee/AIManagement/blob/docs/team-handoff/docs/team-handoff.md)。业务分支仍从最新 main 创建。",
+    "number": 27,
+    "url": "https://github.com/githubleelee/AIManagement/issues/27"
+  },
+  {
+    "key": "US08",
+    "title": "US-08 个人工作台与任务状态 / 进度更新",
+    "role": "A",
+    "kind": "story",
+    "depends_on": [],
+    "interface_depends_on": [
+      "EVENTS"
+    ],
+    "body": "## 角色\nROLE-A（#20）。执行票。\n\n## 范围 / 不做\n- 范围：个人工作台，固定 **5 块**：个人待办、逾期任务、待验收事项、被提及信息、近期计划；并支持任务状态 / 进度更新（本人负责或参与协作的任务）。阻塞态需填阻塞原因。\n- 不做：工作台自定义首页、独立个人统计报表、高级拖拽。验收人是任务字段，不新增项目角色。\n- `DONE` 只表示**提交验收**，不等于验收关闭。**六状态（TODO / DOING / BLOCKED / SUSPENDED / DONE / CLOSED）为本阶段必交**；落地路径见 #24 第 2 点。**未落地前本票最终 AC 不可勾**，只读接口 / 设计可先做。\n\n## 基础路径建议\n- 后端：`src/modules/workbench/`（新目录）\n- 前端：`web/src/pages/workbench/`（新目录）\n- 冻结区申请：`src/db/schema.prisma`（任务进度 / 阻塞原因 / 六状态）、`src/shared/types.ts`、`src/routes.ts` 挂载、`web/src/routes.tsx` 挂载行\n- **旧模块 / Action 扩展授权申请**：`src/modules/task/`、`src/modules/authz/permissions.ts` 的 `Action` 扩展（见 #24 C11 / C12）；需原 owner 书面授权，不得旁路新建镜像写路径\n\n## 交付物\n1. 工作台 5 块端点与聚合；2. 任务状态 / 进度更新端点与校验；3. 工作台页面；4. 模块测试。\n\n## 验收标准（可测，逐条）\n- [ ] AC1 工作台含 5 块且数据来自同一数据模型。\n- [ ] AC2 个人待办 = 我为负责人且未关闭的任务。\n- [ ] AC3 逾期 = 计划结束早于今天（时区口径待 #24 C3）。\n- [ ] AC4 待验收 = 我作为验收人、处于待验收状态的任务（与 #29 状态机一致）。\n- [ ] AC5 被提及来自通知 / 提及数据；**必须接真通知数据（#34）后才验收**，模块内模拟数据不替代（接口可先对接，不制造硬环）。\n- [ ] AC6 近期计划 = 近期计划开始 / 结束的任务。\n- [ ] AC7 仅负责人 / 协作人可更新状态与进度；越权 403（授权口径见 #24 C11：负责人更新 / PM 管理边界；协作人见 C12）。\n- [ ] AC8 进入阻塞态必须填原因，缺原因拒绝。\n- [ ] AC9 敏感任务不计入无权者的任一块与计数。\n\n## 依赖\n- 接口先行：#37（任务状态 / 进度变更事件，供跨视图与通知同步）。\n- 整体验收：本票本身不依赖其他执行票；但其**最终 AC 受 #24 六状态落地前置**。#29 / #30 / #33 的**整体验收**反向依赖本票。`depends_on` 是整体验收依赖、**不是开发开工依赖**：本票可与下游票 mock 接口 / 独立目录并行开发。\n\n## 权限与敏感用例（至少）\n- PM / member：本人任务可更新（PM 管理边界与 member 授权见 #24 C11；协作人见 C12）；viewer：只读；outsider：404。\n- 敏感任务：无权者工作台不出现，计数不增加。\n\n## 验证证据\n- `src/modules/workbench/*.test.ts`（5 块 / 状态规则 / 阻塞原因 / 越权 / 敏感）；`npm run typecheck`；浏览器端到端：工作台 5 块 + 改状态截图。\n\n## 分支与收尾\n- 分支 `feat/US08-workbench`（从最新 main）；PR 描述 `Closes #28`；冻结区先申请。\n\n\n## 交接文档入口\n[阶段交接与开工指南（main）](https://github.com/githubleelee/AIManagement/blob/main/docs/team-handoff.md)；文档 PR 尚未合入 main 时，请先阅读[文档分支预览](https://github.com/githubleelee/AIManagement/blob/docs/team-handoff/docs/team-handoff.md)。业务分支仍从最新 main 创建。",
+    "number": 28,
+    "url": "https://github.com/githubleelee/AIManagement/issues/28"
+  },
+  {
+    "key": "US09",
+    "title": "US-09 任务验收（通过 / 驳回 / 重验）",
+    "role": "A",
+    "kind": "story",
+    "depends_on": [
+      "US08"
+    ],
+    "interface_depends_on": [
+      "ATTACH",
+      "EVENTS"
+    ],
+    "body": "## 角色\nROLE-A（#20）。执行票。\n\n## 范围 / 不做\n- 范围：任务验收闭环：验收人按验收条件**通过 / 驳回**，记录原因；驳回后任务返回执行、修复后重验；通过后进入关闭（`CLOSED`）。验收人是任务字段。\n- 不做：独立缺陷管理模块（质量信号用验收驳回 + 阻塞原因）；不跳过验收直接关闭。\n- **六状态（TODO / DOING / BLOCKED / SUSPENDED / DONE / CLOSED）为本阶段必交**，`CLOSED` 与验收状态转换见 #24 第 2 点；`DONE != 验收关闭`。**未落地前本票最终 AC 不可勾**，只读接口 / 设计可先做。\n\n## 基础路径建议\n- 后端：`src/modules/acceptance/`（新目录）\n- 前端：`web/src/pages/acceptance/`（新目录）\n- 冻结区申请：`src/db/schema.prisma`（验收记录 / 状态）、`src/shared/types.ts`、`src/routes.ts` 挂载、`web/src/routes.tsx` 挂载行\n- **旧模块 / Action 扩展授权申请**：`src/modules/task/`、`src/modules/authz/permissions.ts`（需新增 / 明确 `task.accept` 等 `Action`，见 #24 C11）；需原 owner 书面授权，不得旁路新建镜像写路径\n\n## 交付物\n1. 验收端点（通过 / 驳回 / 重验）与校验；2. 验收记录与审计；3. 验收界面；4. 模块测试。\n\n## 验收标准（可测，逐条）\n- [ ] AC1 仅任务验收人可执行验收；他人 403（“指定验收人可验”、是否允许 VIEWER、验收人可选范围均见 #24 C11，不得自行判权）。\n- [ ] AC2 验收人 ≠ 负责人（沿用 Sprint 1 决策 3），违规拒绝。\n- [ ] AC3 通过后任务进入关闭流程并有记录；未通过不得关闭。\n- [ ] AC4 驳回必须填原因；驳回后任务返回执行阶段。\n- [ ] AC5 重验可再次通过 / 驳回，全过程可追溯（who / when / 结论 / 原因）。\n- [ ] AC6 验收结果进入质量信号（供 #30 / #33 读取）。\n- [ ] AC7 敏感任务验收仅相关有权者可见。\n\n## 依赖\n- 接口先行：#36（验收证据附件，可选接入）、#37（验收结果事件）。\n- 整体验收：#28（依赖其状态机与任务数据）。`depends_on` 为整体验收依赖、**不是开发开工依赖**：可按 #28 接口 / mock 并行开发，最终验收再对账。\n\n## 权限与敏感用例（至少）\n- PM 作为验收人：可验收；member 作为验收人：按 C11 确认后的指定验收人授权规则验收，C11 未确认前不可勾此用例；非验收人 403；viewer：**默认不可验收，是否允许待 #24 C11**；outsider：404。\n- 敏感任务：无权者看不到验收记录与计数。\n\n## 验证证据\n- `src/modules/acceptance/*.test.ts`（通过 / 驳回 / 重验 / 越权 / 非验收人 / 敏感）；`npm run typecheck`；浏览器端到端：提交→驳回→重验→通过关闭截图。\n\n## 分支与收尾\n- 分支 `feat/US09-acceptance`（从最新 main）；PR 描述 `Closes #29`；冻结区先申请。\n\n\n## 交接文档入口\n[阶段交接与开工指南（main）](https://github.com/githubleelee/AIManagement/blob/main/docs/team-handoff.md)；文档 PR 尚未合入 main 时，请先阅读[文档分支预览](https://github.com/githubleelee/AIManagement/blob/docs/team-handoff/docs/team-handoff.md)。业务分支仍从最新 main 创建。",
+    "number": 29,
+    "url": "https://github.com/githubleelee/AIManagement/issues/29"
+  },
+  {
+    "key": "US10",
+    "title": "US-10 进度、健康度与风险（含项目关闭阻断）",
+    "role": "A",
+    "kind": "story",
+    "depends_on": [
+      "US08",
+      "US09"
+    ],
+    "interface_depends_on": [
+      "EVENTS"
+    ],
+    "body": "## 角色\nROLE-A（#20）。执行票（含风险台账与项目关闭阻断）。\n\n## 范围 / 不做\n- 范围：项目仪表盘——**进度 = 已关闭任务数 ÷ 项目任务总数**（`DONE` 不计入）；健康度按实际进度与计划时间进度偏差分**健康 / 预警 / 风险**；风险台账**三级**（高 / 中 / 低）与**四态**（未处理 / 处理中 / 已解决 / 已关闭）；存在未关闭任务或未处理 / 处理中风险时**阻止项目关闭**并列出清单。\n- 不做：AI 预测（属 #33）、外部 BI、自定义报表。\n- 健康度阈值（C1）、项目关闭口径（C9）、汇总权限口径（C6）、关闭入口归属（C13）未定，登记 #24，未决前实现结构 + 待确认登记，不写死阈值。\n- **六状态（含 `CLOSED`）为本阶段必交**；**未落地 / 无 close endpoint 前，本票涉及关闭与进度的最终 AC 不可勾**，只读接口 / 设计可先做。\n\n## 基础路径建议\n- 后端：`src/modules/risk/`（风险 + 关闭阻断）、`src/modules/analytics/`（进度 / 健康度）\n- 前端：`web/src/pages/risk/`、`web/src/pages/analytics/`（新目录）\n- 冻结区申请：`src/db/schema.prisma` 加 `Risk`（及关闭校验所需字段）、`src/shared/types.ts`、`src/routes.ts` 挂载、`web/src/routes.tsx` 挂载行\n- **旧模块扩展授权申请**：项目关闭入口（当前**无 close endpoint**，见 #24 C9 / C13）——需原 owner 书面授权本票负责人改**具体路由 / 文件与范围**；不得旁路新建镜像写路径\n\n## 交付物\n1. 进度 / 健康度聚合端点；2. 风险 CRUD 与状态流转；3. 项目关闭阻断校验与清单；4. 仪表盘页面；5. 模块测试。\n\n## 验收标准（可测，逐条）\n- [ ] AC1 进度严格按“已关闭任务 ÷ 任务总数”计算，`DONE` 不计入；口径与任务的关闭 / 验收一致（可对照 #29）；依赖六状态落地（#24 第 2 点）方可勾。\n- [ ] AC2 健康度按计划时间进度偏差输出三态；阈值来自 #24 C1。\n- [ ] AC3 风险支持三级 + 四态，非法值拒绝。\n- [ ] AC4 存在未关闭任务或未处理 / 处理中风险时，项目关闭被拒绝并返回清单（关闭入口见 #24 C9 / C13，无 close endpoint 前不勾）。\n- [ ] AC5 条件解除后可关闭；关闭动作留审计。\n- [ ] AC6 汇总权限按 #24 C6；未决前只实现结构。\n- [ ] AC7 敏感任务 / 风险不计入无权者看到的总数与清单。\n\n## 依赖\n- 接口先行：#37（风险状态变化、项目关闭事件，供通知与审计）。\n- 整体验收：#28、#29（依赖任务状态 / 关闭与验收数据）。`depends_on` 为整体验收依赖、**不是开发开工依赖**：可按接口占位 / mock 并行开发，最终验收对账。\n\n## 权限与敏感用例（至少）\n- PM：可管风险 / 关闭项目；member：只读按可见性；viewer：只读（范围待 C6）；outsider：404。\n- 敏感任务 / 风险：无权者计数与清单不含。\n\n## 验证证据\n- `src/modules/risk/*.test.ts`、`src/modules/analytics/*.test.ts`（口径 / 阻断 / 状态 / 敏感 / 越权）；`npm run typecheck`；浏览器端到端：仪表盘 + 阻断关闭截图。\n\n## 分支与收尾\n- 分支 `feat/US10-progress-risk`（从最新 main）；PR 描述 `Closes #30`；冻结区先申请。\n\n\n## 交接文档入口\n[阶段交接与开工指南（main）](https://github.com/githubleelee/AIManagement/blob/main/docs/team-handoff.md)；文档 PR 尚未合入 main 时，请先阅读[文档分支预览](https://github.com/githubleelee/AIManagement/blob/docs/team-handoff/docs/team-handoff.md)。业务分支仍从最新 main 创建。",
+    "number": 30,
+    "url": "https://github.com/githubleelee/AIManagement/issues/30"
+  },
+  {
+    "key": "US11",
+    "title": "US-11 AI 需求拆解与 AI 框架接口（人工确认）",
+    "role": "D",
+    "kind": "story",
+    "depends_on": [],
+    "interface_depends_on": [],
+    "body": "## 角色\nROLE-D（#23）。执行票，同时是 A / C 的 **AI 接口先行**来源。\n\n## 范围 / 不做\n- 范围：需求详情页的 AI 需求拆解建议；**AI 只给建议**，经项目经理**人工确认**后才应用；保存可追溯记录（场景 / 输入数据范围 / 模型版本 / 生成时间 / 建议内容 / 审核人 / 采纳·修改·拒绝结论 / 最终应用结果 / 说明）。\n- 同时输出 **AI 框架接口**（类型 / 端口 + 确认与审计记录），供 #33（A）与 #32（C）接入。\n- 不做：绑定具体大模型 SDK；把真实项目数据外发至公有云；自动写入正式数据；独立 AI 助手页面。\n- **AI 数据边界（统一口径）**：默认不纳入敏感对象；已授权且最小必要是否可纳入、以及脱敏 / 隔离方式，由 #24 C4 **书面批准**——未批准不纳入；**无论如何真实数据不得外发公有云**。\n- 公共接口放置位置与 I-9 扩展需 #24 第 3 点确认；确认前只出设计。\n\n## 基础路径建议\n- 后端：`src/modules/ai/`（新目录；A / C 的场景代码放各自目录，不写进本目录）\n- 前端：`web/src/pages/ai/`（新目录；需求详情嵌入由需求页 owner 协助挂载）\n- 冻结区申请：`src/db/schema.prisma` 加 AI 建议 / 确认记录表、`src/shared/types.ts`、`src/routes.ts` 与 app 组装根注入点、`web/src/routes.tsx` 挂载行\n\n## 交付物\n1. AI 框架接口（类型 / 端口）与注入方式；2. 需求拆解建议端点与确认应用；3. AI 审计记录；4. 需求详情页嵌入界面；5. 模块测试。\n\n## 验收标准（可测，逐条）\n- [ ] AC1 生成拆解建议不直接改正式数据；确认前保持\"建议\"状态。\n- [ ] AC2 确认后按采纳 / 修改 / 拒绝落记录并可追溯（字段齐全）。\n- [ ] AC3 记录含输入数据范围与模型 / 智能体版本；敏感对象默认不纳入 AI 上下文，纳入须 C4 书面批准并脱敏 / 隔离，未批准不纳入。\n- [ ] AC4 无 SDK 绑定；真实项目数据不出私有环境（以出站检查 / 桩验证）。\n- [ ] AC5 接口可供 #33 / #32 复用，且不要求它们调用 D 的 service（放置方式见 #24）。\n- [ ] AC6 无权者不得触发 / 查看 AI 建议与记录。\n\n## 依赖\n- 接口先行：无（本票即 AI 接口先行来源；放置方式待 #24）。\n- 整体验收：无。\n\n## 权限与敏感用例（至少）\n- PM：可生成 / 确认；member：按权限（默认不可确认）；viewer：只读或不可见；outsider：404。\n- 敏感故事：默认不纳入 AI 上下文（纳入须 C4 批准并脱敏 / 隔离，未批准不纳入）；无权者看不到建议。\n\n## 验证证据\n- `src/modules/ai/*.test.ts`（建议 / 确认 / 审计 / 敏感上下文 / 无外发桩）；`npm run typecheck`；浏览器端到端：生成建议→确认应用→记录截图。\n\n## 分支与收尾\n- 分支 `feat/US11-ai-breakdown`（从最新 main）；PR 描述 `Closes #31`；冻结区先申请。\n\n\n## 交接文档入口\n[阶段交接与开工指南（main）](https://github.com/githubleelee/AIManagement/blob/main/docs/team-handoff.md)；文档 PR 尚未合入 main 时，请先阅读[文档分支预览](https://github.com/githubleelee/AIManagement/blob/docs/team-handoff/docs/team-handoff.md)。业务分支仍从最新 main 创建。",
+    "number": 31,
+    "url": "https://github.com/githubleelee/AIManagement/issues/31"
+  },
+  {
+    "key": "US12",
+    "title": "US-12 AI 排期建议（人工确认）",
+    "role": "C",
+    "kind": "story",
+    "depends_on": [
+      "US06",
+      "US07"
+    ],
+    "interface_depends_on": [
+      "US11"
+    ],
+    "body": "## 角色\nROLE-C（#22）。执行票。\n\n## 范围 / 不做\n- 范围：基于甘特计划（#26）与成员负载（#27）生成 **AI 排期建议**，识别冲突与延期风险；经**人工确认**后进入计划；保留与 #31 同口径的确认 / 审计记录。\n- 不做：高级排期因素（技能 / 请假 / 并行度）、自动写入计划、外部排期服务、绑定具体大模型 SDK。\n- **AI 数据边界（统一口径）**：默认不纳入敏感对象；已授权且最小必要是否可纳入、以及脱敏 / 隔离方式，由 #24 C4 **书面批准**——未批准不纳入；**无论如何真实数据不得外发公有云**。\n- 待确认：AI 服务与资源（#24 C4）。\n\n## 基础路径建议\n- 后端：`src/modules/ai-scheduling/`（新目录；只消费 #31 的公共接口，**不调用 D 的业务模块 service**）\n- 前端：`web/src/pages/scheduling/`（新目录）\n- 冻结区申请：`src/db/schema.prisma`（如复用建议表则申请）、`src/routes.ts` 挂载、`web/src/routes.tsx` 挂载行\n\n## 交付物\n1. 排期建议端点（含冲突 / 延期提示）；2. 人工确认后进入计划的写入；3. 审计记录；4. 排期建议界面；5. 模块测试。\n\n## 验收标准（可测，逐条）\n- [ ] AC1 建议基于当前计划与负载数据生成，不直接改动正式计划。\n- [ ] AC2 人工确认前保持\"建议\"；确认后才进入计划。\n- [ ] AC3 能提示冲突与延期风险，且理由可追溯。\n- [ ] AC4 记录含输入范围 / 模型版本 / 审核与结论。\n- [ ] AC5 接入 #31 公共接口，不建立 A/C 直调 D service 的例外（以 #24 结论为准）。\n- [ ] AC6 敏感对象默认不纳入 AI 上下文（纳入须 C4 批准并脱敏 / 隔离，未批准不纳入）；无权者不可见建议。\n\n## 依赖\n- 接口先行：#31（AI 框架接口）。\n- 整体验收：#26、#27（甘特与负载数据到位后做端到端验收；数据接口冻结后可先开发界面与提示词）。\n\n## 权限与敏感用例（至少）\n- PM：可生成 / 确认；member：不可确认；viewer：只读或不可见；outsider：404。\n- 敏感任务：默认不纳入上下文（纳入须 C4 批准并脱敏 / 隔离，未批准不纳入）、不计入建议基数。\n\n## 验证证据\n- `src/modules/ai-scheduling/*.test.ts`（建议 / 确认 / 冲突 / 审计 / 无跨模块 service）；`npm run typecheck`；浏览器端到端：生成建议→确认→计划变化截图。\n\n## 分支与收尾\n- 分支 `feat/US12-ai-scheduling`（从最新 main）；PR 描述 `Closes #32`；冻结区先申请。\n\n\n## 交接文档入口\n[阶段交接与开工指南（main）](https://github.com/githubleelee/AIManagement/blob/main/docs/team-handoff.md)；文档 PR 尚未合入 main 时，请先阅读[文档分支预览](https://github.com/githubleelee/AIManagement/blob/docs/team-handoff/docs/team-handoff.md)。业务分支仍从最新 main 创建。",
+    "number": 32,
+    "url": "https://github.com/githubleelee/AIManagement/issues/32"
+  },
+  {
+    "key": "US13",
+    "title": "US-13 AI 质量 / 进度 / 风险 / 效率分析",
+    "role": "A",
+    "kind": "story",
+    "depends_on": [
+      "US07",
+      "US09",
+      "US10"
+    ],
+    "interface_depends_on": [
+      "US11"
+    ],
+    "body": "## 角色\nROLE-A（#20）。执行票。\n\n## 范围 / 不做\n- 范围：AI **质量 / 进度 / 风险 / 效率**分析，服务于仪表盘；只给建议，关键建议需人工确认；识别明显积压、负载不均、流程瓶颈；记录采纳 / 修改 / 拒绝。\n- 不做：自动决策、替代验收、外部公有云模型、独立 AI 助手页面。\n- **AI 数据边界（统一口径）**：默认不纳入敏感对象；已授权且最小必要是否可纳入、以及脱敏 / 隔离方式，由 #24 C4 **书面批准**——未批准不纳入；**无论如何真实数据不得外发公有云**。\n- 待确认：AI 服务与资源（#24 C4）；汇总权限口径（C6）。\n\n## 基础路径建议\n- 后端：`src/modules/ai-insights/`（新目录；消费 #31 公共接口，**不调用 D 的业务模块 service**）\n- 前端：`web/src/pages/insights/`（新目录；仪表盘嵌入由 #30 / 骨架 owner 协助）\n- 冻结区申请：`src/routes.ts` 挂载、`web/src/routes.tsx` 挂载行；类型 / 表按需申请\n\n## 交付物\n1. 四类分析建议端点；2. 人工确认与审计；3. 仪表盘嵌入界面；4. 模块测试。\n\n## 验收标准（可测，逐条）\n- [ ] AC1 输出质量 / 进度 / 风险 / 效率四类建议，不写成正式结论。\n- [ ] AC2 关键建议未经人工确认不进入正式数据。\n- [ ] AC3 记录采纳 / 修改 / 拒绝及原因，并可统计采纳质量。\n- [ ] AC4 数据来源限于有权可见的任务 / 验收 / 风险；敏感对象默认不纳入上下文（纳入须 C4 批准并脱敏 / 隔离，未批准不纳入）。\n- [ ] AC5 接入 #31 公共接口，无跨业务模块 service 调用。\n- [ ] AC6 与 #30 的口径一致（如进度 = closed/total），不各自定义。\n\n## 依赖\n- 接口先行：#31（AI 框架接口）。\n- 整体验收：#27、#29、#30（依赖负载 / 验收 / 进度风险数据）。`depends_on` 为整体验收依赖、**不是开发开工依赖**：可先按接口占位 / mock 并行开发，最终验收对账。\n\n## 权限与敏感用例（至少）\n- PM / 授权 viewer：可按 C6 查看；member：有限；outsider：404。\n- 敏感对象：默认不纳入上下文（纳入须 C4 批准并脱敏 / 隔离，未批准不纳入）、不计入分析基数。\n\n## 验证证据\n- `src/modules/ai-insights/*.test.ts`（四类 / 确认 / 审计 / 敏感 / 无跨模块 service）；`npm run typecheck`；浏览器端到端：仪表盘 AI 建议 + 确认截图。\n\n## 分支与收尾\n- 分支 `feat/US13-ai-insights`（从最新 main）；PR 描述 `Closes #33`；冻结区先申请。\n\n\n## 交接文档入口\n[阶段交接与开工指南（main）](https://github.com/githubleelee/AIManagement/blob/main/docs/team-handoff.md)；文档 PR 尚未合入 main 时，请先阅读[文档分支预览](https://github.com/githubleelee/AIManagement/blob/docs/team-handoff/docs/team-handoff.md)。业务分支仍从最新 main 创建。",
+    "number": 33,
+    "url": "https://github.com/githubleelee/AIManagement/issues/33"
+  },
+  {
+    "key": "US14",
+    "title": "US-14 站内通知（6 类，1 分钟目标）",
+    "role": "D",
+    "kind": "story",
+    "depends_on": [],
+    "interface_depends_on": [
+      "EVENTS"
+    ],
+    "body": "## 角色\nROLE-D（#23）。执行票。\n\n## 范围 / 不做\n- 范围：站内通知，覆盖 **6 类**：任务分配、@提及、逾期、验收结果、风险预警、关键节点提醒；目标事件后 **1 分钟内**送达；保留必要记录用于测试与追踪。基础先行：订阅事件 → 落库 → 列表 / 已读；验收阶段再与 #29 / #30 / #26 / #28 对账。\n- 不做：邮件 / 短信 / 企业 IM 等外部集成（本期站内为核心）；不做实时推送协议扩展。\n- 通知 6 类判定与\"1 分钟\"口径待 #24 C8。\n- 最终送达 AC（AC1 / AC2）需 #26 / #28 / #29 / #30 等**真实生产方联动证据齐备**才勾；**模块内模拟事件测试不替代端到端**。各票不互相硬等待：接口先行，集成证据在验收阶段补齐。\n\n## 基础路径建议\n- 后端：`src/modules/notification/`（新目录；消费 #37 基础，不调用其他业务模块 service）\n- 前端：`web/src/pages/notification/`（新目录）；顶栏入口属骨架，由骨架 owner 加挂载行\n- 冻结区申请：`src/db/schema.prisma` 加通知表、`src/shared/types.ts`、`src/routes.ts` 挂载\n\n## 交付物\n1. 通知落库 / 列表 / 已读端点；2. 6 类事件的订阅处理；3. 通知中心界面；4. 模块测试。\n\n## 验收标准（可测，逐条）\n- [ ] AC1 6 类事件均能生成通知并落库（真实生产方联动证据齐备才勾最终送达）。\n- [ ] AC2 事件到通知落库有时延测量，满足 #24 C8 结论（默认目标 ≤1 分钟；真实生产方联动证据齐备才勾）。\n- [ ] AC3 通知列表只返回接收者本人可见的；越权 404。\n- [ ] AC4 敏感对象通知不含标题 / 内容等敏感细节（只带必要引用，按权限再取）。\n- [ ] AC5 已读 / 未读状态可维护。\n- [ ] AC6 通过 #37 订阅，不与其他业务模块 service 互调。\n\n## 依赖\n- 接口先行：#37（订阅公共事件）。\n- 整体验收：无硬依赖（基础可先做）。6 类通知的**最终送达 AC** 需 #26 / #28 / #29 / #30 真实生产方联动证据；集成在验收阶段对账，避免 US08↔US14 硬环。\n\n## 权限与敏感用例（至少）\n- 每类通知只发给相关人；PM / member / viewer / outsider 各验证\"是否应收到\"。\n- 敏感任务：无权者收不到含敏感内容的通知。\n\n## 验证证据\n- `src/modules/notification/*.test.ts`（6 类 / 时延 / 越权 / 敏感 / 已读）；`npm run typecheck`；浏览器端到端：触发事件→通知出现截图。\n\n## 分支与收尾\n- 分支 `feat/US14-notifications`（从最新 main）；PR 描述 `Closes #34`；冻结区先申请。\n\n\n## 交接文档入口\n[阶段交接与开工指南（main）](https://github.com/githubleelee/AIManagement/blob/main/docs/team-handoff.md)；文档 PR 尚未合入 main 时，请先阅读[文档分支预览](https://github.com/githubleelee/AIManagement/blob/docs/team-handoff/docs/team-handoff.md)。业务分支仍从最新 main 创建。",
+    "number": 34,
+    "url": "https://github.com/githubleelee/AIManagement/issues/34"
+  },
+  {
+    "key": "US15",
+    "title": "US-15 在线用例图 / 时序图并关联项目数据",
+    "role": "C",
+    "kind": "story",
+    "depends_on": [],
+    "interface_depends_on": [],
+    "body": "## 角色\nROLE-C（#22）。执行票（可独立开工）。\n\n## 范围 / 不做\n- 范围：平台内**在线创建 / 编辑用例图与时序图**，并关联**项目 / 业务目标 / 用户活动 / 用户故事 / 任务**；**上传图片只能作补充，不能替代在线绘图**。至少一条核心业务场景时序图与需求可追踪。\n- 不做：高级 / 专业 UML、其他图种、外部建模服务。\n- 交互方案（在线编辑方式）待 #24 C5；未决前先做数据模型与关联结构。\n\n## 基础路径建议\n- 后端：`src/modules/uml/`（新目录；直接读库关联项目数据，不调用其他模块 service）\n- 前端：`web/src/pages/uml/`（新目录）\n- 冻结区申请：`src/db/schema.prisma` 加 UML 图表 / 关联表、`src/shared/types.ts`、`src/routes.ts` 挂载、`web/src/routes.tsx` 挂载行\n\n## 交付物\n1. UML 图表 CRUD 与关联端点；2. 图数据模型（用例图 / 时序图）；3. 在线编辑界面；4. 与项目数据的关联展示；5. 模块测试。\n\n## 验收标准（可测，逐条）\n- [ ] AC1 可在线创建并编辑用例图与时序图（非仅上传）。\n- [ ] AC2 图可关联项目 / 业务目标 / 用户活动 / 用户故事 / 任务中的目标对象。\n- [ ] AC3 关联对象跨项目时拒绝。\n- [ ] AC4 至少一条核心时序图可从图跳转到关联需求 / 任务。\n- [ ] AC5 无权者看不到不可见图及其关联；越权 404。\n- [ ] AC6 上传图片仅作补充展示，不替代在线编辑能力。\n\n## 依赖\n- 接口先行：无。\n- 整体验收：无（独立）。\n\n## 权限与敏感用例（至少）\n- PM：可建 / 改 / 关联；member：按权限参与或只读，越权 403；viewer：只读；outsider：404。\n- 敏感对象：关联的敏感故事 / 任务不被无权者看到。\n\n## 验证证据\n- `src/modules/uml/*.test.ts`（CRUD / 关联 / 跨项目拒绝 / 越权 / 敏感）；`npm run typecheck`；浏览器端到端：新建用例图→时序图→关联截图。\n\n## 分支与收尾\n- 分支 `feat/US15-uml`（从最新 main）；PR 描述 `Closes #35`；冻结区先申请。\n\n\n## 交接文档入口\n[阶段交接与开工指南（main）](https://github.com/githubleelee/AIManagement/blob/main/docs/team-handoff.md)；文档 PR 尚未合入 main 时，请先阅读[文档分支预览](https://github.com/githubleelee/AIManagement/blob/docs/team-handoff/docs/team-handoff.md)。业务分支仍从最新 main 创建。",
+    "number": 35,
+    "url": "https://github.com/githubleelee/AIManagement/issues/35"
+  },
+  {
+    "key": "ATTACH",
+    "title": "附件公共能力：任务附件（≤10MB、受限类型）",
+    "role": "D",
+    "kind": "common",
+    "depends_on": [],
+    "interface_depends_on": [],
+    "body": "## 角色 / 类型\nROLE-D · 公共能力（`common`）。不属于任何单一用户故事，各域按接口接入。\n\n## 范围\n- 任务附件上传 / 列表 / 下载 / 删除；单文件 **≤ 10MB**；仅允许受限类型（图片 / PDF / Word / Excel / ZIP，具体清单待 #24 C7 确认）。\n- 附件元数据落库；文件落地到**仓库外**的本地目录（如 `var/uploads/`；`.gitignore` 的 `var/uploads` 规则由本票向原唯一修改人**申请后落实**）。\n- 列表与下载复用 `can()` / `visibilityScope()`，不得因附件泄漏敏感任务的存在性。\n\n## 不做\n- 字段级 / 附件内容级脱敏（本轮不做）；外部对象存储 / OSS（除非 #24 明确批准）；在线预览渲染、版本管理、断点续传。\n- 不在本票内实现业务域（验收证据、AI 输入）对附件的调用；只提供接口，由各域按已确认边界接入。\n\n## 基础路径建议（新增文件只落本票目录）\n- 后端：`src/modules/attachment/`（新目录）\n- 前端：`web/src/pages/attachment/`（新目录）\n- 冻结区申请：`src/db/schema.prisma` 加 `Attachment` 表、`src/shared/types.ts` 加类型、`src/routes.ts` 挂路由、`.gitignore` 加 `var/uploads`（**由 D 向原唯一修改人申请后落实**，不自行改冻结区）\n- 以上均由原唯一修改人改，本票先留言申请；同模块单写者，不与他人并行改同一文件。\n\n## 交付物\n1. 上传 / 列表 / 下载 / 删除端点与 Zod 校验；2. `Attachment` 表与迁移；3. 前端上传与列表组件；4. 模块测试。\n\n## 验收标准（可测，逐条）\n- [ ] AC1 上传合法文件成功，元数据（原名 / 大小 / MIME / 上传人 / 时间）可查。\n- [ ] AC2 单文件 > 10MB 拒绝（返回契约既有错误码，不吞异常）。\n- [ ] AC3 非受限类型拒绝；具体清单以 #24 C7 为准。\n- [ ] AC4 下载与删除做权限校验；非本项目成员一律 404，不泄漏对象存在性。\n- [ ] AC5 删除任务时附件记录与文件一并清理（或按 #24 结论处理），无孤儿。\n- [ ] AC6 列表计数在敏感任务下对无权者不可见（查询层过滤，不内存过滤后计数）。\n\n## 依赖\n- 接口先行：无。本票是其他票可选的接口先行依赖。\n- 整体验收：无。\n\n## 权限与敏感用例（至少）\n- PM：上传 / 下载 / 删除成功；member：对本人可见任务可用，对不可见任务 404；viewer：只读列表 / 下载，不可上传删除；outsider：404。\n- 敏感任务：未在白名单的 member 看不到其附件，且列表计数不增加。\n\n## 验证证据\n- `src/modules/attachment/*.test.ts`（成功 / 超限 / 类型拒绝 / 越权 / 敏感计数）；`npm run typecheck`；界面浏览器端到端：上传→列表→下载→删除各一张截图。\n\n## 分支与收尾\n- 分支 `feat/ATTACH-task-attachment`（从最新 main）；PR 描述写本票号作 `Closes #`；冻结区改动先在本票留言申请。\n\n\n## 交接文档入口\n[阶段交接与开工指南（main）](https://github.com/githubleelee/AIManagement/blob/main/docs/team-handoff.md)；文档 PR 尚未合入 main 时，请先阅读[文档分支预览](https://github.com/githubleelee/AIManagement/blob/docs/team-handoff/docs/team-handoff.md)。业务分支仍从最新 main 创建。",
+    "number": 36,
+    "url": "https://github.com/githubleelee/AIManagement/issues/36"
+  },
+  {
+    "key": "EVENTS",
+    "title": "公共事件基础：领域事件传输 / 存储 / 幂等",
+    "role": "D",
+    "kind": "common",
+    "depends_on": [],
+    "interface_depends_on": [],
+    "body": "## 角色 / 类型\nROLE-D · 公共能力（`common`）。只做**传输 / 存储 / 幂等基础**，不替其他域实现业务。\n\n## 范围\n- 定义领域事件信封（事件名、projectId、actorId、对象类型 / id、发生时间、载荷、幂等键）。\n- 提供进程内发布 / 订阅通道、事件落库（可追溯、可重放）、**幂等**（按幂等键去重）基础。\n- **发出方各自实现自己的领域事件**（看板状态变更、任务状态 / 进度、验收结果、风险变化、里程碑、通知触发等）；D 不替它们写业务逻辑。\n- 公共基础设施的**可复用接口与放置位置**以 #24 结论为准；未确认前只提供类型 / 接口设计，不建立跨业务模块 service 调用。\n\n## 不做\n- 不实现任何业务域事件；不引入外部消息队列 / 中间件；不承诺精确一次；不做跨进程分布式投递。\n- 不把所有修改集中到 D：各域在自己票内发布 / 订阅自己的事件。\n\n## 基础路径建议\n- 后端：`src/modules/events/`（新目录）\n- 冻结区申请：`src/shared/types.ts` 事件信封类型、`src/db/schema.prisma` 事件表、`src/routes.ts` / app 组装根注入点\n- 由原唯一修改人改；本票留言申请，禁止自行制造跨模块例外。\n\n## 交付物\n1. 事件信封类型与校验；2. 发布 / 订阅基础与落库；3. 幂等去重；4. 模块测试与最小使用示例。\n\n## 验收标准（可测，逐条）\n- [ ] AC1 发布事件后可按事件名 / projectId / 时间查询到记录。\n- [ ] AC2 同一幂等键重复发布只落一条（或明确记录的幂等语义）。\n- [ ] AC3 订阅方注册后能收到事件；未注册事件不报错。\n- [ ] AC4 事件载荷不含无权对象细节（敏感对象只带 id，不带标题 / 内容）。\n- [ ] AC5 断言无跨业务模块 service 直接调用（依赖方向测试 / 代码检查）。\n\n## 依赖\n- 接口先行：无。本票是 #25 / #28 / #29 / #30 / #34 等的接口先行依赖。\n- 整体验收：无。\n\n## 权限与敏感用例（至少）\n- 事件记录查询仅限本项目成员；outsider 非成员 404；敏感对象事件不泄漏标题与内容。\n\n## 验证证据\n- `src/modules/events/*.test.ts`（落库 / 幂等 / 订阅 / 敏感载荷 / 依赖方向）；`npm run typecheck`；示例事件端到端截图或日志证据。\n\n## 分支与收尾\n- 分支 `feat/EVENTS-domain-events`（从最新 main）；PR 描述写本票号作 `Closes #`；冻结区先申请。\n\n\n## 交接文档入口\n[阶段交接与开工指南（main）](https://github.com/githubleelee/AIManagement/blob/main/docs/team-handoff.md)；文档 PR 尚未合入 main 时，请先阅读[文档分支预览](https://github.com/githubleelee/AIManagement/blob/docs/team-handoff/docs/team-handoff.md)。业务分支仍从最新 main 创建。",
+    "number": 37,
+    "url": "https://github.com/githubleelee/AIManagement/issues/37"
+  }
+]
