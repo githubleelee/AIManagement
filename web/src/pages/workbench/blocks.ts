@@ -20,8 +20,8 @@ export type WorkbenchBlock = {
 }
 
 export const WORKBENCH_BLOCKS: readonly WorkbenchBlock[] = [
-  { key: 'todo', title: '我的待办', hint: '我是负责人、还没提交验收的任务', tall: true },
-  { key: 'overdue', title: '逾期', hint: '计划结束日期已过、还没提交验收' },
+  { key: 'todo', title: '我的待办', hint: '我是负责人、还没验收关闭的任务', tall: true },
+  { key: 'overdue', title: '逾期', hint: '计划结束日期已过、还没验收关闭' },
   { key: 'accept', title: '待验收', hint: '我是验收人、等我验收' },
   { key: 'mention', title: '被提及', hint: '通知里 @ 到我的内容' },
   { key: 'upcoming', title: '近期计划', hint: '近期要开始或要结束' },

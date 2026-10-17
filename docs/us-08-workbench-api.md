@@ -59,17 +59,17 @@
 
 | 块 | 条件 | 排序 |
 |---|---|---|
-| `todo` 我的待办 | 我是负责人，且状态不是 `DONE` | `planEnd` 升序，再 `planStart` |
-| `overdue` 逾期 | 我是负责人，状态不是 `DONE`，且 `planEnd < 今天` | `planEnd` 升序 |
+| `todo` 我的待办 | 我是负责人，且状态不是 `CLOSED`（DONE 只代表已提交，仍需验收） | `planEnd` 升序，再 `planStart` |
+| `overdue` 逾期 | 我是负责人，状态不是 `CLOSED`，且 `planEnd < 今天` | `planEnd` 升序 |
 | `accept` 待验收 | 我是验收人，且状态 `= DONE`（执行人已提交） | `planEnd` 升序 |
 | `mention` 被提及 | **暂无数据源** → `state=unavailable`、`total=null` | — |
-| `upcoming` 近期计划 | 我是负责人，状态不是 `DONE`，且 `planStart` 或 `planEnd` 落在 [今天, 今天+7] | `planStart`、`planEnd` 升序 |
+| `upcoming` 近期计划 | 我是负责人，状态不是 `CLOSED`，且 `planStart` 或 `planEnd` 落在 [今天, 今天+7] | `planStart`、`planEnd` 升序 |
 
 **两条口径是"当前断言"而非"定论"**（已随 `basis` 返回，便于审查核对）：
 
 1. **"今天"取 UTC 日期** —— 逾期判定时区属待确认项 **C3**，定案后只改
    `service.ts` 的 `isoToday()` 一处。
-2. **"未关闭" ≈ 状态不是 `DONE`** —— 六状态（`TODO/DOING/BLOCKED/SUSPENDED/DONE/CLOSED`）
+2. **"未关闭" = 状态不是 `CLOSED`（已更新：六状态已于 2026-10-17 落地）** —— 原记录（历史）
    尚未落地（交接文档 §6 / #24 第 2 点）。当前 `DONE` 表示"执行人提交验收"，
    不等于"验收关闭"，因此这是**近似**；六状态落地后应改为 `status != 'CLOSED'`。
 
@@ -104,8 +104,8 @@
 | AC4 待验收 = 我为验收人且待验收 | ⚠️ 近似 | 与 #29 状态机一致性待六状态落地 |
 | AC5 被提及来自真通知 | ❌ 未覆盖 | 等通知模块；`state=unavailable` |
 | AC6 近期计划 | ✅ | 窗口 7 天为本票自定口径 |
-| AC7 仅负责人/协作人可更新 | ❌ 写路径未做 | 属第 3 步；"协作人"当前**无数据模型**（C12） |
-| AC8 阻塞态必填原因 | ❌ 写路径未做 | 依赖六状态里的 `BLOCKED` |
+| AC7 仅负责人/协作人可更新 | ✅（负责人/验收人；协作人仍无模型） | 端点 28 按字段选择 task.progress / task.accept；VIEWER 一律拒 |
+| AC8 阻塞态必填原因 | ✅ | 服务端强制（422 blockedReason REQUIRED），非阻塞态自动清空 |
 | AC9 敏感不计入 | ✅ | 查询层过滤，含 `total` |
 
 **结论**：本端点解决 AC1 / AC6 / AC9 与 AC2·AC3·AC4 的**读取部分**；

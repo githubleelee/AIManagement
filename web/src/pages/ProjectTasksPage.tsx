@@ -8,7 +8,7 @@ import { listProjectTasks } from './task/api'
 import { TASK_STATUS_LABEL, TaskStatusBadge } from './task/TaskStatusBadge'
 import './task/task.css'
 
-const STATUS_OPTIONS: TaskStatus[] = ['TODO', 'DOING', 'DONE']
+const STATUS_OPTIONS: TaskStatus[] = ['TODO', 'DOING', 'BLOCKED', 'SUSPENDED', 'DONE', 'CLOSED']
 
 export default function ProjectTasksPage() {
   const project = useOutletContext<ProjectView>()
@@ -42,7 +42,8 @@ export default function ProjectTasksPage() {
     (!status || task.status === status) && task.title.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()),
   ) ?? []
   const doingCount = tasks?.filter((task) => task.status === 'DOING').length ?? 0
-  const doneCount = tasks?.filter((task) => task.status === 'DONE').length ?? 0
+  // 六状态落地后：「完成」只代表提交待验收，「已验收」才是结束
+  const doneCount = tasks?.filter((task) => task.status === 'CLOSED').length ?? 0
 
   return (
     <div className="page task-page">
@@ -73,7 +74,7 @@ export default function ProjectTasksPage() {
       <section className="task-list-panel" aria-labelledby="task-list-heading">
         <div className="task-list-heading">
           <h3 id="task-list-heading">任务列表</h3>
-          {!error && tasks !== null ? <p>{doingCount} 个进行中 · {doneCount} 个已完成 · 共 {visibleTasks.length} 条匹配</p> : null}
+          {!error && tasks !== null ? <p>{doingCount} 个进行中 · {doneCount} 个已验收 · 共 {visibleTasks.length} 条匹配</p> : null}
         </div>
         {error ? (
           <div className="load-error" role="alert"><p className="error">{error}</p><button type="button" onClick={() => setReloadKey((key) => key + 1)}>重试</button></div>
