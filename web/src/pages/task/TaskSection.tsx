@@ -7,13 +7,13 @@
  * 负责人 / 验收人候选、敏感可见成员，都来自 `GET /projects/:id/members`（真实成员，非占位）。
  */
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import type { ProjectMemberView, TaskStatus, TaskView } from '../../../../src/shared/types'
+import type { ProjectMemberView, TaskView } from '../../../../src/shared/types'
 import { ApiError, listMembers } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import TaskUpdateForm from './TaskUpdateForm'
 import { SensitivityEditor } from '../SensitivityEditor'
 import ConfirmDialog from '../../components/ConfirmDialog'
-import { TASK_STATUS_LABEL, TaskStatusBadge } from './TaskStatusBadge'
+import { TaskStatusBadge } from './TaskStatusBadge'
 import './task.css'
 import {
   createTask,
@@ -24,7 +24,6 @@ import {
   type UpdateTaskInput,
 } from './api'
 
-const TASK_STATUS_OPTIONS: TaskStatus[] = ['TODO', 'DOING', 'BLOCKED', 'SUSPENDED', 'DONE', 'CLOSED']
 type Props = {
   storyId: string
   projectId: string
@@ -202,7 +201,6 @@ export default function TaskSection({ storyId, projectId, isPm, onCountChange }:
   const [pendingDelete, setPendingDelete] = useState<TaskView | null>(null)
   const [deleting, setDeleting] = useState(false)
   const deletingRef = useRef(false)
-  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null)
   // US-08：哪一行打开了「更新」表单（状态 / 进度 / 卡住原因）
   const [updateFormFor, setUpdateFormFor] = useState<string | null>(null)
   const { user } = useAuth()
@@ -265,20 +263,6 @@ export default function TaskSection({ storyId, projectId, isPm, onCountChange }:
     } finally {
       deletingRef.current = false
       setDeleting(false)
-    }
-  }
-
-  async function handleStatus(taskId: string, status: TaskStatus) {
-    if (updatingStatusId) return
-    setUpdatingStatusId(taskId)
-    setError(null)
-    try {
-      await updateTask(taskId, { status })
-      await reload()
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : '更新状态失败')
-    } finally {
-      setUpdatingStatusId(null)
     }
   }
 
@@ -353,22 +337,7 @@ export default function TaskSection({ storyId, projectId, isPm, onCountChange }:
                   {t.planStart} → {t.planEnd}
                 </td>
                 <td>
-                  {isPm ? (
-                    <select
-                      value={t.status}
-                      aria-label={`修改「${t.title}」的状态`}
-                      disabled={updatingStatusId !== null}
-                      onChange={(e) => void handleStatus(t.id, e.target.value as TaskStatus)}
-                    >
-                      {TASK_STATUS_OPTIONS.map((s) => (
-                        <option key={s} value={s}>
-                          {TASK_STATUS_LABEL[s]}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <TaskStatusBadge status={t.status} />
-                  )}
+                  <TaskStatusBadge status={t.status} />
                 </td>
                 <td className="req-mono nowrap">{t.progress === null ? '—' : String(t.progress) + '%'}</td>
                 <td className="nowrap">
