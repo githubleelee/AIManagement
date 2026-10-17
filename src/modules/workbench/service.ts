@@ -22,9 +22,9 @@
  * ===========================================================================
  *
  *   - 「今天」按 **UTC 日期**（`逾期判定时区` 属待确认项 C3，定案后只改 `isoToday()`）；
- *   - 「未关闭」目前只能近似为 `status != 'DONE'`（六状态未落地，见交接文档 §6）：
- *     当前只有 TODO / DOING / DONE，而 DONE 是"执行人提交验收"、不等于"验收关闭"。
- *     六状态落地后此处应改为 `status != 'CLOSED'`。该口径随响应返回（见 `basis`）。
+ *   - 「未关闭」= `status != 'CLOSED'`（六状态已于 2026-10-17 落地）：
+ *     DONE 只代表执行人已提交验收、不等于关闭，因此仍算「未关闭」。
+ *     该口径随响应返回（见 `basis`），便于审查核对。
  */
 import type { Prisma, PrismaClient } from '@prisma/client'
 import { createAuthorization } from '../authz/permissions.js'

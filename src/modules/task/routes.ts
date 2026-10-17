@@ -75,7 +75,7 @@ const createTaskSchema = z.object({
  * - **不含 `isSensitive`**：Zod object 默认剥离未知键，因此请求体里带 `isSensitive`
  *   也不会被写入，该字段只能通过端点 30（T5-05）修改（契约决策 I-10 的敏感字段写入路径）。
  * - 单字段形状仍由 Zod 负责（决策 I-2b）；跳字段比较与查库规则交给 `assertTaskAssignment`。
- * - `status` 只接受 TODO / DOING / DONE，其它取值（BLOCKED / SUSPENDED / CLOSED）
+ * - `status` 接受六个取值（TODO / DOING / BLOCKED / SUSPENDED / DONE / CLOSED；US-08 起）；
  *   由 Zod 枚举产出 `INVALID_VALUE`（Sprint 1 只做三态，见工单 §1.3）。
  */
 const updateTaskSchema = z.object({
