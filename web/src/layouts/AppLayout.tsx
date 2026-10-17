@@ -15,6 +15,10 @@ export default function AppLayout() {
           爱管理
         </Link>
         <span className="topbar-breadcrumb">工作台{inProject ? ' / 项目空间' : ''}</span>
+        {/* US-08 个人工作台（工单 #28）的入口。骨架文件，按流程需 M2 授权后合入。 */}
+        <Link to="/workbench" className="link">
+          我的工作台
+        </Link>
         <div className="app-topbar-right">
           {user ? (
             <span className="user-avatar" title={`${user.displayName}（${user.account}）`} aria-label={`当前用户：${user.displayName}`}>

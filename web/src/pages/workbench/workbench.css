@@ -1,0 +1,38 @@
+/* ===========================================================================
+ * 个人工作台（US-08 / 工单 #28）—— 本票自有样式
+ *
+ * 为什么不写进 web/src/index.css：那是前端骨架（M2）独占维护的公共文件。
+ * 各票在自己的 pages/<票>/ 下自建 css 并在页内 import，是本仓库既有做法
+ * （见 pages/requirement/requirement.css、pages/task/task.css）。
+ * =========================================================================== */
+
+.wb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.wb-card {
+  border: 1px solid var(--border, #334155);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.wb-card-title {
+  margin: 0 0 0.3rem;
+  font-size: 1rem;
+}
+
+.wb-card-hint {
+  margin: 0 0 0.7rem;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.wb-card-body {
+  margin: 0;
+  font-size: 0.9rem;
+  min-height: 1.2em;
+}
