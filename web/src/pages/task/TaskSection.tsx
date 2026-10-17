@@ -385,6 +385,7 @@ export default function TaskSection({ storyId, projectId, isPm, onCountChange }:
             //   表单残留 A 的状态/进度/原因，保存会把 A 的值写进 B。
             key={target.id}
             task={target}
+            canProgress={isPm || (myId !== null && target.ownerUserId === myId)}
             canClose={canCloseRow(target)}
             onSaved={() => {
               setUpdateFormFor(null)

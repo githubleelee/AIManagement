@@ -27,11 +27,14 @@ const ALL_STATUSES: readonly TaskStatus[] = [
 
 export default function TaskUpdateForm({
   task,
+  canProgress,
   canClose,
   onSaved,
   onCancel,
 }: {
   task: TaskView
+  /** 是否允许推进状态/进度（负责人或项目经理）。验收人只能做「验收关闭」。 */
+  canProgress: boolean
   /** 是否允许把状态设为「已验收关闭」（验收人或项目经理） */
   canClose: boolean
   onSaved: () => void
@@ -43,8 +46,12 @@ export default function TaskUpdateForm({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  /** 负责人看不到「已验收关闭」；验收人/项目经理才能选。 */
-  const options = ALL_STATUSES.filter((value) => value !== 'CLOSED' || canClose)
+  // 只列出「真的能提交成功」的状态：否则验收人会看到 5 个选了必报 403 的选项。
+  //   当前值必带 —— 否则受控 select 的 value 不在选项里，显示会与 state 脱节。
+  //   其余按权限分流：验收人只有「已验收关闭」，负责人只有非 CLOSED 的状态。
+  const options = ALL_STATUSES.filter((value) =>
+    value === task.status ? true : value === 'CLOSED' ? canClose : canProgress
+  )
 
   async function handleSubmit(): Promise<void> {
     setError(null)
