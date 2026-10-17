@@ -93,6 +93,73 @@
   opacity: 0.7;
 }
 
+/* ---------- 条数下面的小列表（前 2~3 条） ---------- */
+.wb-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wb-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.32rem 0.5rem;
+  border-left: 2px solid var(--wb-accent, #38bdf8);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.045);
+  font-size: 0.85rem;
+}
+
+.wb-row-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.wb-row-meta {
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 占位条：只表达"这里将来是列表"，不是数据 */
+.wb-row--ph {
+  border-left-color: transparent;
+  background: transparent;
+}
+
+.wb-row--ph span {
+  display: block;
+  width: 100%;
+  height: 0.68rem;
+  border-radius: 4px;
+  background: var(--wb-accent, #38bdf8);
+  opacity: 0.16;
+}
+
+.wb-row--ph:nth-child(1) span {
+  width: 88%;
+}
+.wb-row--ph:nth-child(2) span {
+  width: 68%;
+}
+.wb-row--ph:nth-child(3) span {
+  width: 78%;
+}
+.wb-row--ph:nth-child(4) span {
+  width: 58%;
+}
+
 .wb-card-hint {
   margin: auto 0 0; /* 说明文字压到底部，卡片高度变化时对齐好看 */
   font-size: 0.85rem;
