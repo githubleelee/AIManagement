@@ -35,19 +35,17 @@ import type { Prisma, PrismaClient } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
 import type { TaskStatus } from '../../shared/types.js'
 import { createAuthorization } from '../authz/permissions.js'
-import type {
-  AggregationScope,
-  DashboardBasis,
-  HealthState,
-  ProjectDashboardView,
-} from './types.js'
-
-/** 分级阈值（百分点）。冻结口径：≤ 10pp 健康；≤ 25pp 预警；> 25pp 风险。 */
-export const HEALTHY_THRESHOLD_PP = 10
-export const WARNING_THRESHOLD_PP = 25
-
-/** 口径时区（批复冻结：Asia/Shanghai）。 */
-export const CALC_TIMEZONE = 'Asia/Shanghai'
+// ★ 冻结口径的纯函数在 `caliber.ts`（2026-10-19 #33 评审 P1：口径与 I/O 分层，
+//   使跨模块复用口径不再需要 import 一个 service 文件）。
+import {
+  CALC_TIMEZONE,
+  HEALTHY_THRESHOLD_PP,
+  WARNING_THRESHOLD_PP,
+  healthOf,
+  isoToday,
+  planTimeDaysOf,
+} from './caliber.js'
+import type { AggregationScope, DashboardBasis, ProjectDashboardView } from './types.js'
 
 const TASK_STATUSES: readonly TaskStatus[] = [
   'TODO',
@@ -68,141 +66,6 @@ function forbidden(): AppError {
 
 function denied(decision: { status: 403 | 404; code: 'FORBIDDEN' | 'NOT_FOUND' }): AppError {
   return decision.code === 'NOT_FOUND' ? notFound() : forbidden()
-}
-
-/**
- * 按口径时区取"今天"（`YYYY-MM-DD`）。
- *
- * 用 `Intl` 而不是本地时钟：服务器时区不可控，而冻结口径写死 Asia/Shanghai。
- * `en-CA` 的日期格式恰好是 `YYYY-MM-DD`。
- */
-function isoToday(): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: CALC_TIMEZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date())
-}
-
-/** ISO 日期 → UTC 天序号（只用于算"相差几天"，与展示时区无关）。 */
-function dayIndex(iso: string): number {
-  const ms = Date.parse(`${iso}T00:00:00.000Z`)
-  if (Number.isNaN(ms)) throw new Error(`非法日期：${iso}`)
-  return Math.floor(ms / 86_400_000)
-}
-
-/** 保留 1 位小数（仅用于**展示**；比较一律用未舍入值）。 */
-function round1(value: number): number {
-  return Math.round(value * 10) / 10
-}
-
-/**
- * 计划窗口的**天数分解**（整数）：已过自然日数 / 计划总自然日数，**含首尾**。
- *
- * ★ 为什么把「天数」单独暴露出来：健康度分级必须用**整数**比较（见 `healthOf`），
- *   而两个比值一旦相减就会引入浮点误差。算天数只做整数加减，因此这里是口径的
- *   唯一来源，`planTimeProgressOf` 只是它的一层比值封装。
- */
-export type PlanTimeWindow = {
-  /** 已过自然日数，截断到 `[0, totalDays]` */
-  elapsedDays: number
-  /** 计划总自然日数（含首尾）= `end − start + 1` */
-  totalDays: number
-}
-
-/**
- * 计划窗口天数（整数）。
- *
- * - 区间天数 = `end − start + 1`；
- * - 已过 = `今天 − start + 1`，截断到 `[0, 区间天数]`；
- *   ⇒ 今天等于开始日时算 1 天已过（含首尾的必然结果），不是 0；
- * - 数据异常（`end < start`）时按「计划时间已用完」处理（`1/1`），不抛错。
- */
-export function planTimeDaysOf(asOf: string, start: string, end: string): PlanTimeWindow {
-  const totalDays = dayIndex(end) - dayIndex(start) + 1
-  if (totalDays <= 0) return { elapsedDays: 1, totalDays: 1 }
-  const elapsedDays = Math.min(Math.max(dayIndex(asOf) - dayIndex(start) + 1, 0), totalDays)
-  return { elapsedDays, totalDays }
-}
-
-/**
- * 计划时间进度（0~1，**未舍入**）：已过自然日数 ÷ 计划总自然日数，**含首尾**。
- *
- * ⚠️ 这个比值**只用于展示与口径声明**（`basis.planTimeProgress`），**不得**用它的
- *    浮点差去和阈值比较 —— 分级请调 `healthOf`。
- */
-export function planTimeProgressOf(asOf: string, start: string, end: string): number {
-  const { elapsedDays, totalDays } = planTimeDaysOf(asOf, start, end)
-  return elapsedDays / totalDays
-}
-
-export type HealthInput = {
-  /** 统计基数内的任务总数（分母） */
-  totalTasks: number
-  /** 已关闭的任务数（分子） */
-  closedTasks: number
-  /** 计划窗口天数（`planTimeDaysOf` 的结果）；无计划窗口时为 `null` */
-  planDays: PlanTimeWindow | null
-}
-
-/**
- * 健康度判定（纯函数）。
- *
- * **偏差 = 计划时间进度 − 实际进度**（正数表示"落后于计划"），单位百分点。
- *
- * ★ 分级用**整数交叉相乘**，不用浮点偏差比较（2026-10-19 独立评审 H2）：
- *
- * ```
- *   rawPp ≤ pp  ⟺  100·(E·T − C·D) ≤ pp·D·T
- *   （E=已过天数，D=计划总天数，C=已关闭数，T=任务总数）
- * ```
- *
- * 旧实现写的是 `(E/D − C/T) × 100 ≤ pp`，而 IEEE754 下 `(0.4 − 0.3) × 100`
- * `= 10.000000000000004 > 10`、`(7/12 − 1/3) × 100 = 25.000000000000007 > 25`：
- * **正好落在阈值上**（计划 2/5 天、进度 3/10；计划 7/12 天、进度 1/3）的两种情形
- * 分别被错分成「预警」「风险」。旧边界用例恰好用了二进制友好的 0.5 / 0.4 / 0.25，
- * 因此掩盖了该缺陷；现补两条用例钉住（`analytics.test.ts`）。
- *
- * 展示用的 `deviationPp` 仍按浮点算（只影响显示，保留 1 位小数，±1e-14 的误差
- * 舍入后不可见），分级不受它影响。
- */
-export function healthOf(input: HealthInput): {
-  state: HealthState
-  deviationPp: number | null
-  note?: string
-} {
-  const { totalTasks, closedTasks, planDays } = input
-
-  if (totalTasks === 0) {
-    return {
-      state: 'UNAVAILABLE',
-      deviationPp: null,
-      note: '暂无计划数据：项目下还没有任务，不做健康度分级。',
-    }
-  }
-  if (planDays === null) {
-    return {
-      state: 'UNAVAILABLE',
-      deviationPp: null,
-      note: '缺少计算健康度所需的数据（进度或计划窗口不可用）。',
-    }
-  }
-
-  const { elapsedDays, totalDays } = planDays
-  // 未舍入偏差 ×(D·T)：全为正整数的交叉相乘，无浮点误差
-  const scaledDeviation = 100 * (elapsedDays * totalTasks - closedTasks * totalDays)
-  const limit = totalDays * totalTasks
-
-  const state: HealthState =
-    scaledDeviation <= HEALTHY_THRESHOLD_PP * limit
-      ? 'HEALTHY'
-      : scaledDeviation <= WARNING_THRESHOLD_PP * limit
-        ? 'WARNING'
-        : 'AT_RISK'
-
-  const rawPp = 100 * (elapsedDays / totalDays - closedTasks / totalTasks)
-  return { state, deviationPp: round1(rawPp) }
 }
 
 export type BuildDashboardOptions = {
