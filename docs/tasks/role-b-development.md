@@ -63,13 +63,12 @@ Done when: 每项写明问题、确认人、确认/待确认状态、所影响�
 Dependencies: #01 [FS]
 
 ## #03 获批并发出首批契约与旧业务文件授权申请
-Status: in progress
+Status: done
 Outcome: 经用户认可的 B 域最小确认及申请记录；提前登记甘特字段、类型、事件与挂载需求（公共层由 B 单写），并提交负载挂载与看板旧业务模块的**具体文件 / 范围**授权需求。
-Evidence: docs/role-b-publication-package.md 已产出本地文本包并经两轮独立复核。2026-10-18 获用户授权后：① 推送文档分支/PR #42（仅文档：DECISIONS.md、C 确认稿、#01/#02/#04/#09/#16 文档、#43/#46 DRAFT、计划与任务；未合并）；② 发布自包含三条——#26 https://github.com/githubleelee/AIManagement/issues/26#issuecomment-6245104366、#27 https://github.com/githubleelee/AIManagement/issues/27#issuecomment-6245104653、#25 https://github.com/githubleelee/AIManagement/issues/25#issuecomment-6245104919；三票仍 open + needs-confirmation，标签未改。T1/T2/T6/T7 仍未发布。
+Evidence: docs/role-b-publication-package.md 已产出并经两轮独立复核。2026-10-18 获用户授权后全部发出：① 文档 PR #42（仅文档，未合并）https://github.com/githubleelee/AIManagement/pull/42，使 DECISIONS.md 与 #43/#46 草稿可引用；② 评论 T1 #24 https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6245135447、T2 #32 https://github.com/githubleelee/AIManagement/issues/32#issuecomment-6245135807、T3 #26 #issuecomment-6245104366、T4 #27 #issuecomment-6245104653、T5 #25 #issuecomment-6245104919、T6 #21 #issuecomment-6245136058、T7 #30 #issuecomment-6245136311。发布后核验：相关票仍 open、标签 handoff/needs-confirmation/role:* 未变、PR 未合并。待回复项：#25/#26 具体旧文件授权与写窗口、C 对 #43/#46 的书面核对、A 对范围与 C3 的回复。
 Done when: 用户批准具体对外文本与操作；发布后记录链接、接收负责人和待回复项；未获决定的问题保持待确认，不要求所有议题定稿，不代删执行票标签。
 Dependencies: #02 [FS]
-Blocker: 第一批已按授权发布（见证据）。剩余 T1/T2/T6/T7、本地文档补丁（§5）及 T7 落点仍待用户逐条核准；#25/#26 的具体旧文件授权尚未取得回复。
-
+已解除：T1–T7 已于 2026-10-18 全部发布；本地文档补丁归 #42，不在本任务范围。
 ## #04 完成成员负载单票方案与接口设计
 Status: done
 Outcome: GitHub #27 的字段、端点设计、成员与任务关联、权限边界、页面方案及文件清单。
@@ -343,10 +342,10 @@ Dependencies: #26 [FS], #38 [FS], #39 [FS], #40 [FS]
 ## #42 同步 C #32 新确认到文档与工单说明（本地草稿阶段，未授权发布）
 Status: in progress
 Outcome: 把本地 C 确认稿与 `DECISIONS.md` 追加条目同步到 `docs/team-handoff.md`、#24、#32 及相关工单索引说明的更新草案与发布记录；覆盖全项目 C2/C3/C6、#32 PM-only 权限例外、`task/` 限范围授权，并保留历史与变更来源。
-Evidence: docs/role-b-publication-package.md §4 T1（#24 集中同步文本、未发布）与 §5 本地补丁计划已细化到具体文件与锚点；2026-10-18 经用户授权把 DECISIONS.md 新条目与 #43/#46 DRAFT 等内容推送到文档分支并开 PR #42（未合并），使引用可访问。team-handoff/handoff-issues/sprint1/frontend-routes 的补丁仍未应用，#24 同步评论未发布。
+Evidence: docs/role-b-publication-package.md §4.0 已记录发布明细。2026-10-18 已发布 #24 集中同步 https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6245135447 与 #32 核对请求 #issuecomment-6245135807；DECISIONS.md 新条目与 #43/#46 DRAFT 经 PR #42（未合并）可访问。team-handoff/handoff-issues/sprint1/frontend-routes 的本地补丁仍未应用。
 Done when: 明确标注「本地已存在 / 远端未发布」；更新草案区分全项目口径与 #32 限定口径，登记权限排除旧条目与 `supersedes` 关系；发布后记录链接；不把远端 PR #39 或 #32 正文描述为已同步；不批量改标签、不合并 PR、不替其他角色确认；对外发布需另行授权。
 Dependencies: none
-Blocker: DECISIONS.md 与草稿已推送（PR #42，未合并）；尚未授权修改并提交公共交接正文（team-handoff/handoff-issues/sprint1/frontend-routes）、发布 #24 同步评论或合并 PR。本地已确认业务口径不以发布作为生效前置。
+Blocker: #24/#32 同步评论已发布；尚缺授权修改并提交公共交接正文（team-handoff/handoff-issues/sprint1/frontend-routes）、确定目标树/PR #39 处置与合并 PR。本地已确认业务口径不以发布作为生效前置。
 
 ## #43 拟定并冻结 C #32 所需的最小只读数据契约
 Status: in progress

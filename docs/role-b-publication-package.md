@@ -53,12 +53,22 @@
 | #26（T3） | 评论（已发） | https://github.com/githubleelee/AIManagement/issues/26#issuecomment-6245104366 | 发送时附了 PR #42 与设计文档 / `DECISIONS.md` 直链；未改标签，AC 未勾 |
 | #27（T4） | 评论（已发） | https://github.com/githubleelee/AIManagement/issues/27#issuecomment-6245104653 | 同上 |
 | #25（T5） | 评论（已发） | https://github.com/githubleelee/AIManagement/issues/25#issuecomment-6245104919 | 同上；三票仍 `open` + `needs-confirmation`，未改标签 |
+| #24（T1） | 评论（已发，第二批） | https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6245135447 | 集中同步 C2/C3/C6、#32 权限例外与 `supersedes`、`task/` 窗口、A 申请登记；附 PR #42 直链 |
+| #32（T2） | 评论（已发，第二批） | https://github.com/githubleelee/AIManagement/issues/32#issuecomment-6245135807 | 向 C 请求字段/受众/跨子集与事务/签名/幂等的书面核对；附 #43/#46 与 `DECISIONS.md` 直链（交付条款已按文件可达改写） |
+| #21（T6） | 评论（已发，第二批） | https://github.com/githubleelee/AIManagement/issues/21#issuecomment-6245136058 | 本地草稿与状态短指针 + PR #42 链接 |
+| #30（T7） | 评论（已发，第二批） | https://github.com/githubleelee/AIManagement/issues/30#issuecomment-6245136311 | **落点选 #30**（A 在此提出开工确认与 UTC 待澄清，通知更直接）；内容与 T7 一致 |
 
-评论区均注明：“本轮只发本票等三条自包含同步；#24 集中同步与 #32 书面核对请求待另行授权后发布。”实际发出文本 = 下方 T3/T4/T5 + 该前置说明与直链行。
+评论区均注明首批三票“本轮只发本票等三条自包含同步”；第二批已全部发出。**实际发出文本以评论链接为准**（相对下方草稿增补了 PR #42 直链，T2 第 5 条改写为“文件已可达”，T6 补上了评论链接与 PR）。发布后核对：相关票仍 `open`、标签与 PR 状态均未变。
+
+### 发布后状态
+
+- 对外文本 T1–T7 已全部发出（2026-10-18），无遗留待发评论；`T8` 仍默认不发。
+- 收到回复前，待回复项：#25 requirement 具体文件/范围授权与写窗口；#26 真实开工入口守卫授权/写窗口；#32 C 对 #43/#46 的书面核对；#24 A 对其申请范围的进一步确认。
+- 尚未执行：`team-handoff.md` / `handoff-issues.json` / `sprint1` / `frontend-routes.md` 的本地补丁与目标树方案（见 §5、§7）。
 
 ### 4.1 待发布文本（可直接粘贴；仍待核准）
 
-### T1 → #24（集中同步 + 新增申请登记）
+### T1 → #24（集中同步 + 新增申请登记）—— ✅ 已发布（2026-10-18，见 §4.0）
 
 ```text
 <!-- role-b-c32-confirmation-sync -->
@@ -74,7 +84,7 @@ ROLE-B / 项目负责人 githubleelee 口径同步（**本地已确认，尚未�
 8. 本条为口径同步，不合并 PR、不关闭 Issue、不批量移除 `needs-confirmation`；四类证据（桩 / 模块测试 / 真实 API / 真实生产方联调）继续分别留证。
 ```
 
-### T2 → #32（C 书面核对请求）
+### T2 → #32（C 书面核对请求）—— ✅ 已发布（2026-10-18，第 5 条已改写为文件可达）
 
 ```text
 ROLE-B → ROLE-C / xichoutrees：请对两份 DRAFT 做书面核对，不要求先有运行时实现：
@@ -121,13 +131,13 @@ ROLE-B 申请（GitHub #25，仅本票范围，未获授权前不改）：
 说明：项目负责人对 #32 的 `task/` 限范围授权**不覆盖** requirement，仍需原 owner 对上述具体文件/范围授权及实际写窗口确认；C11（MEMBER 能否改故事状态）仍未确认，VIEWER 维持只读。
 ```
 
-### T6 → #21（短指针）
+### T6 → #21（短指针）—— ✅ 已发布（2026-10-18）
 
 ```text
 ROLE-B 状态：基线复核（#01）、最小契约台账（#02）与三票设计（#04/#09/#16）已完成并各自通过独立复核；#43 数据契约、#46 事务/鉴权协议为 DRAFT，待 C 书面核对，未冻结。本地文件：`docs/role-b-baseline-review.md`、`docs/role-b-contract-register.md`、`docs/role-b-{workload,gantt,board}-design.md`、`docs/role-b-scheduling-{data-contract,transaction-proposal}.md`。未编码、未跑应用测试、未发布远端；C #32 新确认的对外同步由本地 #42 承担，尚未发布。
 ```
 
-### T7 → 面向 ROLE-A 的协调（建议发在 #24，或按用户选择发在 #30）
+### T7 → 面向 ROLE-A 的协调 —— ✅ 已发布在 #30（2026-10-18）
 
 ```text
 ROLE-B → ROLE-A / lyh：收到你 #30 的开工确认与 #24 的冻结区申请，先登记四点，均待项目负责人 / 权限负责人裁决，B 不代批：
@@ -174,13 +184,14 @@ D 的 `#31/#37` 第 0 步说明已同步，C4/C7/C8 口径未变，本轮**不�
 
 ## 7. 待用户裁决
 
-1. T1 / T2 / T6 / T7 是否按现文案发布（可逐条改），以及 T7 发在 #24 还是 #30。（T3/T4/T5 已于 2026-10-18 发布，见 §4.0。）
-2. ROLE-A 的申请：是否升级给权限负责人或项目负责人裁决，或先由 B 只回“登记待裁”。需逐项处理的是——(a) 新增 `Action` `risk.write` / `project.close` 与对应 `permissions.ts` 判定；(b) `Risk` 模型、`Project.status`、迁移批次与 `min(planStart)~max(planEnd)` 基准（影响 `schema.prisma`）；(c) `Project.status` 不进共享 `ProjectView` 的规避是否接受（`src/shared/types.ts`）；(d) `/projects/:projectId/close` 路径命名空间与挂载行（`src/routes.ts`、前端骨架）；(e) C9/C13 关闭语义：阻断用 `409 CONFLICT`、是否允许强制关闭——原文属“待定”，B 不代批。
-3. C3 冲突：是否由 B 出面协调（T7），还是由用户直接指示 A。
-4. §5 本地文档补丁是否现在落地（仍不提交、不推送），或等发布授权一并执行；以及 §5 的目标树选择（rebase 进 PR #39 / 新文档 PR / 在 main 重建）。
-5. 是否把 `DECISIONS.md`（本地新增 10 条，含 2 条同 key `supersedes`）纳入可发布文档，使 T1/T7 引用的 key 与 `supersedes` 链在远端可查。
-6. #43/#46 两份 DRAFT 如何交付 C：推送文档分支、随文档 PR，还是把问题内联到 #32 评论。
-7. #33（以及 #31/#32）票面旧 C4 句是否本轮一并更正，还是仅发评论并在后续单票处理。
-8. #32 的 `needs-confirmation` 在 C 书面核对后由 C 自摘，还是由 B 按 C 的核对申请代操作。
-9. C 的 `/scheduling` 路由与导航挂载（确认稿 §11）是否写入 T2/T6 的对外文本。
-10. 是否拒绝 T8（默认不催办 D）。
+已完成（2026-10-18，无需再裁决）：T1–T7 全部发布；`DECISIONS.md` 与 `#43/#46` 草稿经 PR #42 可访问。
+
+仍待裁决：
+
+1. ROLE-A 的申请：是否升级给权限负责人或项目负责人裁决，或先由 B 只回“登记待裁”。需逐项处理的是——(a) 新增 `Action` `risk.write` / `project.close` 与对应 `permissions.ts` 判定；(b) `Risk` 模型、`Project.status`、迁移批次与 `min(planStart)~max(planEnd)` 基准（影响 `schema.prisma`）；(c) `Project.status` 不进共享 `ProjectView` 的规避是否接受（`src/shared/types.ts`）；(d) `/projects/:projectId/close` 路径命名空间与挂载行（`src/routes.ts`、前端骨架）；(e) C9/C13 关闭语义：阻断用 `409 CONFLICT`、是否允许强制关闭——原文属“待定”，B 不代批。
+2. C3 冲突（已在 #30 T7 提出，等待 A 回复）；如需用户直接指示 A，另行告知。
+3. §5 本地文档补丁是否现在落地（仍不提交、不推送），或等发布授权一并执行；以及 §5 的目标树选择（rebase 进 PR #39 / 沿用新 PR #42 分支 / 在 main 重建）。注意 PR #39 已落后 main，与 PR #42 重叠，建议后续只保留其一。
+4. #33（以及 #31/#32）票面旧 C4 句是否本轮一并更正，还是仅发评论并在后续单票处理。
+5. #32 的 `needs-confirmation` 在 C 书面核对后由 C 自摘，还是由 B 按 C 的核对申请代操作。
+6. C 的 `/scheduling` 路由与导航挂载（确认稿 §11）是否补发一条独立说明（本轮 T2/T6 未展开该点）。
+7. 是否拒绝 T8（默认不催办 D）。
