@@ -34,11 +34,16 @@ import { assertMayAccept, listAcceptanceQueue, listTaskAcceptances, submitAccept
  *
  * `conclusion` 用本模块的线上常量数组（契约 I-1：线上常量与中文标签分离）——
  * 传中文"通过"会被判 422 `conclusion: INVALID_VALUE`。
+ *
+ * `reason` **先 trim 再判长度**：长度上限的业务口径是"去掉首尾空白后的 200 字"
+ * （见 `service.ts` 的同款判断）。若这里对**原始串**判长度，则"200 字 + 尾随空格"
+ * 会被 Zod 误判 `TOO_LONG` —— 两处口径必须一致（独立审查 S7）。
+ *
  * `reason` 的"驳回必填"属跨字段规则，不在这里判（服务层强制，产出 `reason: REQUIRED`）。
  */
 const submitAcceptanceSchema = z.object({
   conclusion: z.enum(ACCEPTANCE_CONCLUSIONS),
-  reason: z.string().max(ACCEPTANCE_REASON_MAX_LENGTH).nullable().optional(),
+  reason: z.string().trim().max(ACCEPTANCE_REASON_MAX_LENGTH).nullable().optional(),
 })
 
 /** 统一的 422 抛出（与其它模块逐字一致）。 */

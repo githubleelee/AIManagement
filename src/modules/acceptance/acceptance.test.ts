@@ -166,7 +166,11 @@ describe('AC3 通过验收', () => {
 
       const res = await postAcceptance(taskId, { conclusion: 'PASS' }, acceptor.id)
       expect(res.status, `status=${status} 应被拒绝`).toBe(409)
-      expect((res.body as ErrorBody).error.code).toBe('CONFLICT')
+      const error = (res.body as ErrorBody).error
+      expect(error.code).toBe('CONFLICT')
+      // 钉住**前置状态检查**这条防线的文案（独立审查 S1）：删掉它、只留 CAS 时
+      // 文案会变成"任务状态已变化，请刷新后重试"（cf6 实测 36/36 全绿），本断言即失败。
+      expect(error.message).toContain('只有「待验收」')
 
       // 状态未变（查库）+ 没有多出记录（查库）
       const row = await ctx.db.task.findUnique({ where: { id: taskId }, select: { status: true } })
@@ -344,6 +348,28 @@ describe('AC1 授权：只有验收人（与 PM）能验收', () => {
     }
     expect(await ctx.db.acceptanceRecord.count({ where: { taskId } })).toBe(0)
   })
+
+  it('PM 即使不是该任务的验收人也能验收（can() 第 3 条「PM 保留全部权限」）', async () => {
+    // 口径依据：#24 的 ROLE-A 结论「PM 保留全部权限」+ `permissions.ts:133`（PM 直接放行）。
+    // ⚠️ 与工单 AC1 字面「仅任务验收人可执行验收；他人 403」存在张力 —— 严格说 PM 也是"他人"。
+    //    本用例把**现有行为**钉住并留痕（登记见 docs/us-09-acceptance-api.md §9），
+    //    若团队裁定 PM 不属例外，应改 can()，属跨票事项，**不在本票内自造规则**。
+    const taskId = await seedTask() // 验收人是 acceptor，不是 pm
+
+    const res = await postAcceptance(taskId, { conclusion: 'PASS' }, pm.id)
+    expect(res.status).toBe(200)
+    const result = res.body as AcceptanceSubmitResult
+    expect(result.record.actorUserId).toBe(pm.id)
+    expect(result.task.status).toBe('CLOSED')
+  })
+
+  it('PM 的待验收清单只含「PM 自己是验收人」的任务（不是全项目清单）', async () => {
+    await seedTask({ title: '别人的待验收' }) // 验收人 = acceptor
+    await seedTask({ acceptorUserId: pm.id, title: 'PM 自己的' })
+
+    const items = ((await getQueue(pm.id)).body as { items: TaskView[] }).items
+    expect(items.map((task) => task.title)).toEqual(['PM 自己的'])
+  })
 })
 
 /* ===========================================================================
@@ -412,7 +438,10 @@ describe('验收端点不存在"捎带改字段"的通道', () => {
 describe('AC7 敏感任务的验收', () => {
   it('非白名单成员：读历史 404、验收 404（与"任务不存在"一致）', async () => {
     const taskId = await seedTask({ isSensitive: true })
-    // 白名单只给负责人（验收人是 acceptor，故意不在名单里）
+    // ★ 本用例的白名单是**空**的：只把 isSensitive 置真，**没有**写 ObjectVisibility 行。
+    //   所以它验证的是"白名单为空 ⇒ 除 PM 外无人可见"。
+    //   （独立审查 S2：上一版注释写成"白名单只给负责人"，与代码相反，已改。）
+    //   "名单里有别的成员、而验收人不在其中"这一更强的情形由下一条用例覆盖。
 
     const history = await getHistory(taskId, acceptor.id)
     expect(history.status).toBe(404)
@@ -421,6 +450,19 @@ describe('AC7 敏感任务的验收', () => {
     expect(attempt.body).toEqual(
       (await postAcceptance('00000000-0000-0000-0000-000000000000', { conclusion: 'PASS' }, acceptor.id)).body,
     )
+  })
+
+  it('白名单里有**别的成员**但不含验收人：验收人仍然看不到、也不能验收', async () => {
+    const taskId = await seedTask({ isSensitive: true })
+    await ctx.db.objectVisibility.create({
+      data: { projectId, objectType: 'task', objectId: taskId, userId: bystander.id },
+    })
+
+    // 与上一条的区别：上一条是空名单，这一条证明"名单与**我**无关"同样不可见
+    expect((await getHistory(taskId, acceptor.id)).status).toBe(404)
+    expect((await postAcceptance(taskId, { conclusion: 'PASS' }, acceptor.id)).status).toBe(404)
+    // 而名单内的人可见（对照，证明隐藏的不是"整个端点坏了"）
+    expect((await getHistory(taskId, bystander.id)).status).toBe(200)
   })
 
   it('白名单内的验收人可以正常验收', async () => {
@@ -496,22 +538,56 @@ describe('待我验收清单（端点 C）', () => {
 })
 
 /* ===========================================================================
- * 并发 —— 比较并交换（CAS）
+ * 并发 —— 两道防线分开钉（独立审查 B1 的修复）
+ *
+ * ★ 上一版把"并发"写成**串行**（先 await 第一次、再 await 第二次），并在注释里写
+ *   "走的是同一个 CAS 分支" —— 那是**错的**，而且错得有害：串行时第二次请求会被
+ *   `service.ts` 的 `statusBefore !== 'DONE'` **前置检查**拦下，**根本进不到 CAS**。
+ *   后果是：把 CAS 改成无条件 `update` 之后，那条用例**依然全绿**（独立审查用 cf1
+ *   反事实实测：并发变体 200,200 / 2 条记录，而串行那条仍 PASS）—— 即它对 CAS 没有
+ *   任何保护力，属"空转用例"。
+ *
+ * 现在**两条防线各有一条用例**，各自删掉都会真红：
+ *   - 「同时发出两个请求」→ 只能由 CAS 兜住（前置检查拦不住，因为两者都先读到 DONE）；
+ *   - 「已验收后再验收」  → 由前置状态检查兜住（串行路径，钉住它的文案）。
  * =========================================================================== */
 
 describe('并发重复验收', () => {
-  it('同一任务被连续验收两次：第二次 409，且只落一条记录', async () => {
+  it('两个验收请求**同时**发出：恰好一个 200、一个 409，且只落一条记录（CAS 的护栏）', async () => {
+    const taskId = await seedTask()
+
+    // 必须 Promise.all：两个请求都要在对方写库之前读到 DONE，才可能同时越过前置检查。
+    const [first, second] = await Promise.all([
+      postAcceptance(taskId, { conclusion: 'PASS' }, acceptor.id),
+      postAcceptance(taskId, { conclusion: 'REJECT', reason: '并发竞态' }, acceptor.id),
+    ])
+
+    // 恰好一次成功：排序后必须是 [200, 409]。
+    //   若 CAS 失效 → 两个都成功，得到 [200, 200]（且记录 2 条）；
+    //   若两道防线都误伤 → [409, 409]。两种都会在此红。
+    expect([first.status, second.status].sort((a, b) => a - b)).toEqual([200, 409])
+
+    const records = await ctx.db.acceptanceRecord.findMany({ where: { taskId } })
+    expect(records).toHaveLength(1)
+
+    // 赢家的结论必须与最终状态一致（PASS→CLOSED / REJECT→DOING）
+    const row = await ctx.db.task.findUnique({ where: { id: taskId }, select: { status: true } })
+    expect(row?.status).toBe(records[0]?.conclusion === 'PASS' ? 'CLOSED' : 'DOING')
+  })
+
+  it('已验收过的任务再验收：409（由前置状态检查拦下）且不新增记录', async () => {
     const taskId = await seedTask()
 
     const first = await postAcceptance(taskId, { conclusion: 'PASS' }, acceptor.id)
     expect(first.status).toBe(200)
 
-    // 第二次请求是在任务已经是 CLOSED 之后发出的 —— 走的是同一个 CAS 分支
     const second = await postAcceptance(taskId, { conclusion: 'REJECT', reason: '想改成驳回' }, acceptor.id)
     expect(second.status).toBe(409)
+    // 钉住**前置状态检查**这条防线本身：删掉它、只留 CAS 时，文案会变成
+    // "任务状态已变化，请刷新后重试"（独立审查 cf6 实测 36/36 全绿），本断言即失败。
+    // 顺带防止"对未提交验收的任务回一句'状态已变化'"这种误导性文案。
+    expect((second.body as ErrorBody).error.message).toContain('只有「待验收」')
 
     expect(await ctx.db.acceptanceRecord.count({ where: { taskId } })).toBe(1)
-    const row = await ctx.db.task.findUnique({ where: { id: taskId }, select: { status: true } })
-    expect(row?.status).toBe('CLOSED')
   })
 })

@@ -104,8 +104,14 @@ TODO ⇄ DOING ──→ BLOCKED（必填原因）──→ DOING（清空原因
 
 ## 5. 敏感与可见性（契约决策 I-6）
 
-- 读路径（2.2 / 2.3）一律 `can()` + `visibilityScope()`，作用域条件与该端点自己的条件
-  拼进**同一个 where**；**不存在**"先查全量再在内存剔除"的路径。
+- **2.2 读历史**：只走 `can(actor, 'project.read', { kind: 'task' })` —— 对**单个对象**的读，
+  `can()` 第 4 条会直接按该对象的敏感白名单判定，比 `visibilityScope()` 更严格；
+  因此这里**不调** `visibilityScope()`（独立审查 S4：本节上一版写成"2.2 / 2.3 都调"，
+  与代码不符，已改）。列表用的 where 只有 `{ taskId }`，**不是**内存过滤 ——
+  可见性在查询层由 `can()` 查 `ObjectVisibility` 完成。
+- **2.3 读队列**：`can('project.read')` + `visibilityScope(actor, projectId, 'task')`，
+  作用域条件与该端点自己的条件（`acceptorUserId` / `status`）拼进**同一个 where**；
+  **不存在**"先查全量再在内存剔除"的路径（生产代码里 `.filter(` 零命中）。
 - 写路径（2.1）先过 `can('task.accept')`：`can()` 第 4 条会按敏感白名单先拦，
   非白名单成员得到 **404**（与"任务不存在"逐字一致，不泄漏存在性）。
 - 端点 2.3 的筛选条件不含敏感字段，但敏感任务会因作用域不含该 id 而**自然不出现**在
@@ -168,12 +174,25 @@ TODO ⇄ DOING ──→ BLOCKED（必填原因）──→ DOING（清空原因
    没写回程。属**契约空白**，本票不涉及、不改。
 5. 「`DONE` 是否只由负责人置」：现状 PM 也能置（`permissions.ts:133` + 端点 28 无前置状态
    检查）。属 #28 已交付范围，本票只登记。
+6. **★ AC1 字面与 `can()` 既有行为的张力（独立审查 S3 提出）**：工单 AC1 写「仅任务验收人
+   可执行验收；**他人 403**」，而 `can()` 第 3 条让 **PM 对任何任务都能 `task.accept`**
+   （`permissions.ts:133`），即 **PM 不是该任务的验收人也能验收**。#24 的 ROLE-A 结论写的是
+   「验收人可 CLOSED 或驳回；**PM 保留全部权限**」，两者可以并存，但"他人"是否包含 PM
+   需要一次书面裁定。本票**把现有行为钉进用例并留在此登记**（`acceptance.test.ts` 的
+   「PM 即使不是该任务的验收人也能验收」），**不自行改 `can()`**（改它属跨票、且 `permissions.ts`
+   是冻结区）。⇒ 开发侧对 AC1 的勾选状态：验收人路径已勾；**PM 例外这一条待裁定**。
 
 **已登记的跨模块发现（不动手，交归属人裁决）**：
 
-6. **端点 28 对 PM 可在任意状态直接把任务置 `CLOSED`** ⇒ 存在"跳过验收直接关闭"的路径。
+7. **端点 28 对 PM 可在任意状态直接把任务置 `CLOSED`** ⇒ 存在"跳过验收直接关闭"的路径。
    本票**只堵自己端点内的通道**（要求 `status = DONE`），旧模块那条路径登记在此。
-7. `rules.ts` 不限制验收人角色（见 §4 已知取舍）。
+8. `rules.ts` 不限制验收人角色（见 §4 已知取舍）。
+9. **前端骨架依赖**：`web/src/pages/acceptance/shared-types.typecheck.ts` 以 `import type`
+   从 `src/modules/acceptance/types.ts` 引类型（仅类型、构建时擦除、不进产物），是本票唯一
+   一处 web 侧直接依赖后端模块文件的地方（独立审查 S8）。若该模块将来被移动/删除，
+   `web` 的 typecheck 会红。**建议**（非阻塞）按 §11 把 `AcceptanceConclusion` /
+   `AcceptanceRecordView` 上提到 `src/shared/types.ts`，护栏改为对齐共享类型；这属冻结区改动，
+   本票不擅自做。
 
 ---
 
@@ -191,16 +210,25 @@ TODO ⇄ DOING ──→ BLOCKED（必填原因）──→ DOING（清空原因
 
 ## 11. 冻结区与旧模块改动清单
 
+> **授权状态口径（独立审查 S5 的修正）**：下表 6 项**均已按申请口径写进代码**，但
+> **尚无原 owner 的书面授权**。事实上已有的只有：① #24 comment 6235528115 的申请
+> （下同 6235532250 为 #29 开工留言）；② 人类（ROLE-A 负责人）口头同意继续。
+> 而 B 在自己的 CONTRACT 补充确认（#24 comment 6232875888 第 1 条）里被指定为
+> **公共范围唯一修改/集成人**，其原话是"D 按能力提供补丁，**不并发写公共文件**"、
+> "权限模块、未确认状态转换、C11/C12 及其他域规则**不自动获批**"。
+> ⇒ 正确表述是「**已落地，待原 owner/B 书面确认后由单人合入**」，**不是**"已授权"。
+> 上一版本节写"申请中"、而 `ProjectLayout.tsx` 的注释写"已获口头同意"，两处不一致，已统一为本口径。
+
 | 对象 | 改动 | 归属 | 状态 |
 |---|---|---|---|
-| `src/routes.ts` | +1 行 `registerAcceptanceRoutes(app, context)` | 技术负责人 | 申请中 |
-| `src/db/schema.prisma` | +1 model `AcceptanceRecord`（并在 `Task`/`User` 各加 1 行反向关系） | 技术负责人 | 申请中 |
-| `src/db/migrations/<ts>_add_acceptance_record/` | +1 迁移（纯 `CREATE TABLE` + 索引） | 技术负责人 | 申请中 |
-| `web/src/routes.tsx` | +1 行挂载 `/projects/:projectId/acceptance` | 前端骨架唯一修改人 | 申请中 |
-| `web/src/layouts/ProjectLayout.tsx` | 左导航 +1 项「验收」 | 前端骨架唯一修改人 | 申请中 |
-| `docs/frontend-routes.md` | 路由表 +1 行 | 前端骨架唯一修改人 | 申请中 |
+| `src/routes.ts` | +1 行 `registerAcceptanceRoutes(app, context)` | 技术负责人 | 已落地，**待书面授权 + 单人合入** |
+| `src/db/schema.prisma` | +1 model `AcceptanceRecord`（并在 `Task`/`User`/`Project` 各加 1 行反向关系） | 技术负责人 | 已落地，**待书面授权 + 单人合入** |
+| `src/db/migrations/20261017230000_add_acceptance_record/` | +1 迁移（纯 `CREATE TABLE` + 索引） | 技术负责人 | 已落地，**待书面授权 + 单人合入** |
+| `web/src/routes.tsx` | +1 行挂载 `/projects/:projectId/acceptance` | 前端骨架唯一修改人 | 已落地，**待书面授权 + 单人合入** |
+| `web/src/layouts/ProjectLayout.tsx` | 左导航 +1 项「验收」 | 前端骨架唯一修改人 | 已落地，**待书面授权 + 单人合入** |
+| `docs/frontend-routes.md` | 路由表 +1 行 | 前端骨架唯一修改人 | 已落地，**待书面授权 + 单人合入** |
 | `src/modules/task/`、`src/modules/authz/permissions.ts` | **零改动** | — | 不需要 |
-| `src/shared/types.ts` | **零改动**；建议技术负责人将 `AcceptanceConclusion` / `AcceptanceRecordView` **上提**到共享契约（与 `TaskView` 同级），本票暂放模块内并在编译期护栏钉住 | 技术负责人 | 建议，非阻塞 |
+| `src/shared/types.ts` | **零改动**；建议技术负责人将 `AcceptanceConclusion` / `AcceptanceRecordView` **上提**到共享契约（与 `TaskView` 同级），本票暂放模块内并在编译期护栏钉住 | 技术负责人 | 建议，非阻塞（独立审查 S8） |
 
 **表关系设计（关键）**：`AcceptanceRecord.task` 用 `onDelete: Cascade`。
 理由：端点 29 删除任务时验收记录随库级联清理，因此**不需要**改

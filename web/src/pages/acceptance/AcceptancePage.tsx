@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
 import type { ProjectView, TaskView } from '../../../../src/shared/types'
 import { ApiError } from '../../api'
@@ -81,19 +81,33 @@ export default function AcceptancePage() {
 
   const isViewer = project.myRole === 'VIEWER'
 
+  /**
+   * 在途请求序号（独立审查 S6 的修复）。
+   *
+   * 没有它就会出**陈旧响应错位**：先点 A 行「验收历史」、再快速点 B 行，若 A 的响应后到，
+   * 会把 A 的时间线渲染在 `historyFor === B` 的那一行下面 —— 把 A 的审计记录显示成 B 的。
+   * 做法：每次发起自增，响应回来时序号对不上就丢弃。
+   */
+  const historySeq = useRef(0)
+
   async function toggleHistory(taskId: string): Promise<void> {
     if (historyFor === taskId) {
+      historySeq.current += 1 // 收起时让在途响应作废
       setHistoryFor(null)
       setHistory(null)
       setHistoryError(null)
       return
     }
+    const seq = ++historySeq.current
     setHistoryFor(taskId)
     setHistory(null)
     setHistoryError(null)
     try {
-      setHistory(await listAcceptanceHistory(taskId))
+      const items = await listAcceptanceHistory(taskId)
+      if (seq !== historySeq.current) return // 陈旧响应：丢弃
+      setHistory(items)
     } catch (caught) {
+      if (seq !== historySeq.current) return
       setHistoryError(caught instanceof ApiError ? caught.message : '加载验收历史失败')
     }
   }
