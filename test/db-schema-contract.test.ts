@@ -56,10 +56,14 @@ const EXPECTED_COLUMNS: Record<string, ColumnSpec[]> = {
     { name: 'name', type: 'TEXT', notNull: true, def: null, pk: 0 },
     { name: 'description', type: 'TEXT', notNull: false, def: null, pk: 0 },
     { name: 'ownerUserId', type: 'TEXT', notNull: true, def: null, pk: 0 },
+    { name: 'createdAt', type: 'DATETIME', notNull: true, def: 'CURRENT_TIMESTAMP', pk: 0 },
     // 【有意扩展】US-10（工单 #30）经项目负责人 2026-10-18 授权新增：项目生命周期列。
     // 关闭阻断的最终判定在 #30 自己的模块；此处只断言列形状（默认 'ACTIVE'）。
+    //
+    // ⚠️ 顺序按**实际库**（迁移）而非 `schema.prisma` 的字段书写顺序：本列由
+    //    `ALTER TABLE "Project" ADD COLUMN` 追加，物理上位于 `createdAt` 之后。
+    //    （`npm test` 首跑即在此暴露过一次顺序不符，见 PR #46。）
     { name: 'status', type: 'TEXT', notNull: true, def: "'ACTIVE'", pk: 0 },
-    { name: 'createdAt', type: 'DATETIME', notNull: true, def: 'CURRENT_TIMESTAMP', pk: 0 },
   ],
   ProjectMember: [
     { name: 'projectId', type: 'TEXT', notNull: true, def: null, pk: 1 },

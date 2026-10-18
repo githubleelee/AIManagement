@@ -1,0 +1,9 @@
+命令：npm run typecheck
+工作目录：/home/lee/aim-wt/b-verify-main
+基线：origin/main 13057c5（含 #42/#43/#44/#45）
+---
+
+> ai-management@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit
+
+exit=0
