@@ -283,7 +283,14 @@ describe('授权：风险写权限 = PM + MEMBER；VIEWER 只读', () => {
     // 公共层未就绪时本票按批复 §1 做过临时 fail-closed（成员一律 403）；
     // `risk.flow` 落地后本用例改为断言**最终口径**。
     const ownRisk = await makeRisk(member1.id, { title: '成员自己的风险' })
-    const othersRisk = await makeRisk(member2.id, { title: '别人负责的风险' })
+    // ★ 注意：`makeRisk` 的 `ownerUserId` **默认是 member1**，与"由谁调用"无关。
+    //   第一版这里写成 `makeRisk(member2.id, { title: '别人负责的风险' })` ——
+    //   调用者换成了 member2，但负责人仍是 member1，于是"流转别人的风险"实际成了
+    //   "流转自己的风险"（200 正确），用例假红。必须显式指定 ownerUserId。
+    const othersRisk = await makeRisk(pm.id, {
+      title: '别人负责的风险',
+      ownerUserId: member2.id,
+    })
 
     // 自己的 → 可以流转
     const ownFlow = await patchRisk(member1.id, ownRisk.id, { status: 'IN_PROGRESS' })
