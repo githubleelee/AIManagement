@@ -77,10 +77,13 @@ describe('表结构与迁移', () => {
    * （工单 #29）经 #24 冻结区申请后新增第 10 张表 `AcceptanceRecord`（验收记录 ——
    * AC5「全过程可追溯」的唯一落点，见 `docs/us-09-acceptance-api.md`）。
    *
+   * US-10（工单 #30）经项目负责人 2026-10-18 授权再新增第 11 张表 `Risk`（风险台账 ——
+   * AC3 三级/四态与 AC7 敏感计数的唯一落点，见 `DECISIONS.md` `permissions.risk-and-project-close`）。
+   *
    * 断言形式**未变**：仍是"不多不少"的等值比较 ⇒ 任何**未经授权**的新表依然会让本用例
    * 失败，原保护意图（防止有人顺手往库里加表）完整保留。
    */
-  it('表集合 = 契约 I-7 的 9 张 + 本阶段经授权新增的 1 张（不多不少）', async () => {
+  it('表集合 = 契约 I-7 的 9 张 + 本阶段经授权新增的 2 张（不多不少）', async () => {
     const rows = await db.prisma.$queryRawUnsafe<Array<{ name: string }>>(
       `SELECT name FROM sqlite_master
        WHERE type = 'table'
@@ -95,6 +98,7 @@ describe('表结构与迁移', () => {
       'ObjectVisibility',
       'Project',
       'ProjectMember',
+      'Risk', // ← 本阶段经项目负责人 2026-10-18 授权新增（US-10 / #30），不属于契约 I-7
       'Task',
       'User',
       'UserActivity',

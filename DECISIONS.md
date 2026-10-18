@@ -100,5 +100,5 @@
 ## `permissions.risk-and-project-close`
 
 - **value:** 风险台账写操作 `risk.write` 对项目 PM 与 MEMBER 开放、VIEWER 一律 403（只读）；`project.close` 仅 PM（对 MEMBER / VIEWER 403）。ROLE-B 作为公共文件单写人落地共享 `Action`、`can()` 判定、`Risk` 模型与 `Project.status` 列及其迁移；风险三级 / 四态取值、敏感继承关联任务、关闭阻断清单与 409 语义属 ROLE-A 的 `risk` / `analytics` 模块业务；路由挂载（`src/routes.ts`）与前端挂载待 A 的模块与组件就绪后由 B 补挂，不在本批凭空引用不存在的模块。
-- **timestamp:** 2026-10-18T11:50:00+08:00
+- **timestamp:** 2026-10-18T11:30:00+08:00
 - **rationale:** 项目负责人 2026-10-18 就 #30 的公共文件 / 权限申请给出授权范围（risk.write = PM + 成员，project.close = 仅 PM），使 A 在不越权改公共文件的前提下继续开发。

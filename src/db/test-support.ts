@@ -24,7 +24,7 @@ const PRISMA_CLI = join(REPO_ROOT, 'node_modules', 'prisma', 'build', 'index.js'
  * 对外键逆序清空全表。
  *
  * 顺序原则：先删「引用方」（子表），再删「被引用方」（父表）。
- *   Risk / AuditLog / ObjectVisibility → Task → UserStory → UserActivity → BusinessGoal
+ *   AuditLog / ObjectVisibility / Risk → Task → UserStory → UserActivity → BusinessGoal
  *   → ProjectMember → Project → User
  *
  * 注意：`ObjectVisibility.objectId` 是多态列、没有真实外键，无法依赖数据库级联；

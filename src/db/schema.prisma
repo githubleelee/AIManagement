@@ -207,7 +207,9 @@ model ObjectVisibility {
 //   - 三级：高 / 中 / 低；四态：未处理 / 处理中 / 已解决 / 已关闭；
 //     线上取值与 Zod 枚举由 `src/modules/risk/` 定义（本文件的 String 列不约束枚举，
 //     与仓库既有惯例一致：枚举合法性由 `src/shared/validation.ts` / 本域校验保证）。
-//   - PM 可任意流转（含重开）；member 只读（`risk.write` 仅 PM + MEMBER，见 permissions.ts）。
+//   - 权限：`risk.write` = PM + MEMBER（VIEWER 一律 403 只读，见 permissions.ts 第 5.5 条）；
+//     「风险状态四态流转是否限 PM、MEMBER 能否改 status / 重开」由 ROLE-A 在业务层按 #30 口径定，
+//     本文件与 permissions.ts 只保证「MEMBER 可写、VIEWER 不可写」这一层。
 //   - 敏感风险继承所关联任务的敏感可见性，**不扩展** `VisibilityObjectType`。
 //
 // 删除语义：project → Restrict（与 Task / UserStory 等业务对象一致，项目不应被删掉而留下孤儿风险）；
