@@ -32,6 +32,7 @@
 | `/projects/:projectId/tasks` | `ProjectTasksPage` | 项目任务总表（端点 26 + `ownerUserId` 过滤，**已实现，随收尾分支合入**） | M5 / US-05（T5.x） |
 | `/projects/:projectId/workload` | `WorkloadPage` | 成员任务图与负载：成员非 CLOSED 负载数 + 可见范围标签 + 单成员未关闭任务明细（`GET /projects/:projectId/workload`、`.../workload/:userId`，**本阶段新增，不在 Sprint 1 的 30 个端点内**） | B / US-07（#27） |
 | `/projects/:projectId/gantt` | `GanttPage` | 甘特图：需求 / 任务 / 里程碑与 FS 依赖统一时间轴，故事可展开任务；故事日期为**候选汇总口径**、进度待 C10 确认（`GET /projects/:projectId/gantt`，**本阶段新增，不在 Sprint 1 的 30 个端点内**） | B / US-06（#26） |
+| `/projects/:projectId/board` | `BoardPage` | 故事看板：按正式故事状态（`DRAFT` / `PLANNING` / `DONE`）三列展示，卡片含目标/活动路径与优先级；**本批只读**，状态写入仍走端点 21（`GET /projects/:projectId/board`，**本阶段新增，不在 Sprint 1 的 30 个端点内**） | B / US-04（#25） |
 | `*` | `NotFoundPage` | 全局 404 | M2 |
 
 ## 页面职责与数据来源
