@@ -1,0 +1,7 @@
+命令：wc -l docs/role-b-scheduling-data-contract.md docs/role-b-scheduling-transaction-proposal.md
+工作目录：/mnt/d/workspace/AIManagement
+结果：exit=0
+  413 docs/role-b-scheduling-data-contract.md
+  452 docs/role-b-scheduling-transaction-proposal.md
+  865 total
+

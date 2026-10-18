@@ -1,0 +1,6 @@
+命令：git rev-parse HEAD; git rev-parse origin/docs/role-b-c32-contract-drafts; git status --short | head -20
+工作目录：/tmp/role-b-docs-wt-1
+结果：exit=0
+83314cab3086431e3abd314a11e4d7c5060c96c0
+83314cab3086431e3abd314a11e4d7c5060c96c0
+

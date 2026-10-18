@@ -1,0 +1,5 @@
+命令：wc -l docs/role-b-board-design.md
+工作目录：/mnt/d/workspace/AIManagement
+结果：exit=0
+167 docs/role-b-board-design.md
+

@@ -6,8 +6,12 @@
 
 ## 冻结约定
 
-- 前端骨架（`web/src/App.tsx`、`web/src/routes.tsx`、`web/src/layouts/`、`web/src/components/`）为**共享文件**，由 M2（US-01）负责人独占维护。
-- 其他模块**只往 `web/src/pages/` 下新增自己的页面**，并在 `routes.tsx` 的既有路由节点下挂载；需要改动骨架时先通知 M2。
+> **口径变更（2026-10-17，项目负责人授权）**：前端公共骨架（`web/src/App.tsx`、`web/src/routes.tsx`、`web/src/layouts/`、`web/src/components/`）与本文档的唯一修改人，由「M2（US-01）负责人」变更为 **ROLE-B = `githubleelee`（项目负责人授权）**；组件**按就绪挂载**，不整模块等待。历史归属（M2 / 前端骨架原修改人）按本节保留，不追溯撤销既有记录。来源见 `docs/role-d-start-confirmation.md` §2、`docs/team-handoff.md` §4.1。
+
+- 前端骨架（`web/src/App.tsx`、`web/src/routes.tsx`、`web/src/layouts/`、`web/src/components/`）为**共享文件**，现由 **ROLE-B（`githubleelee`）** 单写维护。
+- 其他模块**只往 `web/src/pages/` 下新增自己的页面或独立组件**，提供接入补丁，由 B 在 `routes.tsx` 或已授权接入点最小挂载；公共文件由 B 单写，组件按就绪挂载。
+- 本轮三个接入点：`RequirementDetailPage.tsx` 的 AI、`pages/task/TaskSection.tsx` 的附件、`layouts/AppLayout.tsx` 的通知。仅嵌入组件不意味着新增 URL；不另造任务详情页，不接管 D 业务。
+- **#32（2026-10-18，待挂载）**：C 新建 `web/src/pages/scheduling`，路由 / 导航入口与本文档更新由 B 统一挂载；**URL 与组件 Props 尚未确认，本文档不将其登记为已注册路由**。D 的三个入口文件不是 C 的修改许可。
 - 路由库：`react-router-dom` v7（浏览器 History 路由，Vite 默认 SPA fallback，支持刷新与直达）。
 
 ## 路由表
@@ -26,7 +30,6 @@
 | `/projects/:projectId/requirements/activities/:activityId` | `RequirementHierarchyDetailPage` | 用户活动详情与管理操作 | M4 / US-03 |
 | `/projects/:projectId/requirements/:storyId` | `RequirementDetailPage` | 需求详情：编辑 / 敏感 / 故事内任务（端点 20/21/23；任务区端点 24/25/27/28/29/30 **已实现，随收尾分支合入**） | M4 / US-03、M5 / US-05 |
 | `/projects/:projectId/tasks` | `ProjectTasksPage` | 项目任务总表（端点 26 + `ownerUserId` 过滤，**已实现，随收尾分支合入**） | M5 / US-05（T5.x） |
-| `/projects/:projectId/acceptance` | `AcceptancePage` | 任务验收工作台：待我验收清单 + 通过/驳回 + 验收历史（US-09 新增端点，见 `docs/us-09-acceptance-api.md`） | A / US-09（#29） |
 | `*` | `NotFoundPage` | 全局 404 | M2 |
 
 ## 页面职责与数据来源
