@@ -7,7 +7,8 @@
 
 - 代码基线：`398aa76d02f66ce9d62e4e1c340de408f15a1f0f`，详见 [基线复核](role-b-baseline-review.md)。不以较老工作区 HEAD 冒充当前 main。
 - 本地授权与规则：`DECISIONS.md`、`docs/role-c-issue-32-confirmation.md`、`docs/role-d-start-confirmation.md`。
-- 历史公开记录：[文档 PR #39](https://github.com/githubleelee/AIManagement/pull/39) 与 [#24 上轮补充确认](https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6232875888)。最近核对时 PR 待合并，补充确认仍含后来已被本地新决定取代的 C3/权限排除文字；本轮不改远端，待本地 #42 获单独发布授权后同步。
+- 历史公开记录：[文档 PR #39](https://github.com/githubleelee/AIManagement/pull/39)（已关闭，内容并入 #42）与 [#24 上轮补充确认](https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6232875888)。本轮已发布 [#24 集中同步](https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6245135447) 与 [#32 核对请求](https://github.com/githubleelee/AIManagement/issues/32#issuecomment-6245135807)。
+- ROLE-A 批复与落地：`docs/role-a-issue-30-confirmation.md`、`docs/role-a-issue-30-public-support-notice.md`、`docs/role-a-issue-33-group-reply.md`、`docs/role-b-issue-33-impact-notice.md`（均在 main）。
 - 本轮设计：[C 最小数据契约](role-b-scheduling-data-contract.md)、[C 事务协议](role-b-scheduling-transaction-proposal.md)，两者均 DRAFT、未冻结。
 - 本文编号 C1–C13 是 GitHub #24 的议题编号；本地任务编号见 `docs/tasks/role-b-development.md`，两套编号不可混用。
 
@@ -18,7 +19,7 @@
 | 项 | 已确认或现状 | 尚缺事项 / 确认人 | 影响与可先做部分 | 证据 |
 |---|---|---|---|---|
 | 公共文件归属 | B 单写 shared、schema/迁移、routes、app、前端骨架、路由文档、uploads 忽略规则 | 每批补丁范围和单写排期由 B 登记；不假称原 owner 已同意 | 可接收独立提案；不一次改完所有公共文件 | `ownership.public-files-single-writer` 最新条目 |
-| C1 健康阈值 | 未确认 | 项目负责人 + A | 不擅设预警/风险阈值；不阻塞基础成员负载设计 | #24 C1；本地 C6 不含健康阈值 |
+| C1 健康阈值 | **A 域已确认并入库**（2026-10-18）：偏差 = 计划时间进度 − 实际进度；≤10pp 健康、10–25pp 预警、>25pp 风险（未舍入值比较）；计划时间进度 = 已过自然日数 ÷ 计划总自然日数（`min(planStart)~max(planEnd)`、含首尾、Asia/Shanghai）；无任务显示「暂无计划数据」不分级。见 `DECISIONS.md` `analytics.health-thresholds-and-planned-progress` | B 负载侧仍不设「超过 N 即过载」阈值；跨域复用时不得与 B 的负载口径混用 | #30 批复；`DECISIONS.md`；基线 |
 | C2 FS | 已定前置 CLOSED，DONE 不放行；自然日含起止，后继建议不早于前置计划结束次日 | 依赖模型与真实开工入口实现；B 甘特旧入口的具体授权/现写者交接 | 可设计数据与时间轴，不再重复询问 DONE/CLOSED 二选一；真实守卫未实现不得勾 AC | `scheduling.fs-release-closed-natural-days`；基线 §4 |
 | C3 时区 | 已定全项目 Asia/Shanghai，planEnd 次日 00:00 仍非 CLOSED 逾期 | A 工作台仍用 UTC，需由 A/对应写者收敛实现；B 登记协调 | 不再把 A 域时区标待拍。基础非 CLOSED 计数不依赖日期；日期相关跨视图验收待一致后实测 | `timezone.project-wide-asia-shanghai`；`workbench/service.ts:41/153-158 @398aa76` |
 | C4 AI | 演示先本地桩、后可接外部 API；敏感默认排除，秘密/真实个人信息/未授权资料禁外发；不宣称原 AC13 | D 的具体端口/工厂提案；供应商、模型、地址在真实接入前确定 | AI 与事件两类提案独立接收；不等供应商或四模块全齐，不绑定 SDK | `role-d.ai.demo-external-api-scope`；D 确认稿 |
@@ -30,7 +31,7 @@
 | C10 进度 | 原交接给出 closed/total 口径，但书面确认及甘特故事汇总边界仍需收口 | 项目负责人 + A；B 提故事汇总/空值候选 | 不把 Task.progress 的存在当成故事汇总公式已批准；DONE 不冒充 CLOSED | #24 C10；甘特 AC3 |
 | C11 权限 | #32 全部 PM-only 已局部确认；main 已有 task.progress/task.accept 成员关联动作；普通故事/任务写仍限 PM | 看板成员状态操作等其他矩阵仍待权限负责人/项目负责人 | 记录现有行为，不回滚 A 已合动作、不扩大其他票权限；看板可先做只读和写路径方案 | `scheduling.permission-pm-only`；`authz/permissions.ts:146-164 @398aa76` |
 | C12 协作人 | 未确认；当前 Task 无协作人字段 | 技术负责人 + 项目负责人 + A | 基础负载先以负责人定义；不擅称协作人报告范围已实现或永久排除 | #24 C12；C 确认稿未一并批准 |
-| C13 旧业务授权 | 公共层已授权 B；C #32 可按登记范围及实际交接窗口改 task/routes.ts、rules.ts、必要测试，无需原 owner 重复同意 | #25 requirement 后端、#26 真实开工守卫仍需各自具体授权；#32 写窗口实际状态待核对 | C 例外不覆盖 B 甘特开工入口，也不覆盖其他业务文件；不假定写锁空闲 | `arch.legacy-task-controlled-extension` 最新条目 |
+| C13 旧业务授权 | 公共层已授权 B；C #32 可按登记范围及实际交接窗口改 task/routes.ts、rules.ts、必要测试；**A #30 可在向 B 登记窗口后自改 `src/routes.ts` 注册行与前端骨架挂载行**（2026-10-18 批复） | #25 requirement 后端、#26 真实开工守卫仍需各自具体授权；#32 写窗口实际状态待核对 | C/A 例外均不覆盖 B 甘特开工入口，也不覆盖其他业务文件；不假定写锁空闲 | `arch.legacy-task-controlled-extension`、`ownership.public-files-single-writer`（2026-10-18）；#30 票面挂载授权块 |
 | 六状态 | main 已有六态/Zod/读映射、progress/blockedReason 与验收记录 | 完整转换规则及普通 PATCH 与验收入口的适用差异仍需对应负责人统一 | 不再以 CLOSED 不存在阻塞，但不把枚举支持当完整状态机已验收 | 基线 §2/§2.2 |
 | #32 公共读/写协议 | 已定同事务最终鉴权/复核、仅 TODO 日期、整份原子、唯一处置、重试先鉴权、模型调用在写事务外 | C 核对请求身份/snapshot/事务端口；D 对对应 AI/事件签名补提案 | #43 与 #46 并行；C 模型/后端未实现不阻塞设计冻结；不以 D 两提案全齐为前提 | C 确认稿 §7–10；事务提案 §5–§13 |
 
@@ -126,3 +127,42 @@ B 不代写 A 业务；负载基础计数可先按非 CLOSED 做，日期相关�
 - 未决 C11/C12/转换/汇总细节保留；三票文件边界、敏感权限与后续验证有明确记录。
 - #25/#26 的具体旧文件申请与 #32 例外分开，草稿未发布，无代码或标签改动。
 - 本文供本轮设计任务引用；后续接口冻结、授权窗口与真正实现分别留证，不因 #02 台账完成自动授权编码。
+
+---
+
+## 7. 2026-10-18 追加登记（A #30 / #33 批复与落地、验证、发布）
+
+> 本节为 #21（持续跟踪）的追加登记，保留前文历史不改写；与上文冲突时以本节为准。
+
+### 7.1 已落地并验证的公共支持
+
+| 项 | 内容 | 证据 |
+|---|---|---|
+| A #30 公共层 | `Action` 新增 `risk.write` / `project.close`；`permissions.ts` 第 5.5 条（VIEWER 403、MEMBER 放行）与 `project.close` 入 `WRITE_ACTIONS`；`Risk` 模型 + `Project.status` + 迁移 `20261018033000_add_risk_and_project_status`；`test-support` 清理顺序；两个 db-schema 快照 + `t0-gap-fix` 权限断言 | PR #43 → main；`DECISIONS.md` `permissions.risk-and-project-close` |
+| 验证 | `npm run typecheck` exit 0；`npm test` 49 文件 / 1182 测试全绿（首跑暴露 `Project` 列序断言，已修） | PR #46；`docs/ai-records/B/issue-30/evidence/B-I30-20261018-bmaster-06-{typecheck,vitest}.txt` |
+| A 的挂载窗口 | A 在向 B 登记后自改 `src/routes.ts` 注册行与前端骨架页面路由 / 左导航挂载行；其余公共文件仍 B 单写；`docs/frontend-routes.md` 仍 B 维护 | `ownership.public-files-single-writer`（2026-10-18 11:45:50）；`team-handoff.md` §4.1；#30 票面 |
+| A #33 追加批复 | 处置 AI 建议**仅 PM**、与 #32 共用**同一个** Action；不批 A 独立建表，改为共享「建议 + 处置」存储（D 的 #31 提字段、B 落公共层、A/C 复用） | `DECISIONS.md` `ai.suggestion-store-shared`、`permissions.ai-suggestion-disposal`（12:03:04） |
+| A 的进度 / 健康度 | 实际进度 = 已关闭 ÷ 总数；计划时间进度与三档阈值已冻结；关闭阻断 409 + 清单；`Project.status` 不进共享 `ProjectView` | `analytics.health-thresholds-and-planned-progress`；`role-a-issue-30-confirmation.md` |
+
+### 7.2 发布与文档状态
+
+- 已合并：PR #42（文档同步 + AI 记录）、#43（#30 公共支持）、#44（转发通知）、#45（批复归档 + DECISIONS 恢复）、#46（列序修复 + 验证证据）、#47（A 自挂载 / #33 对齐）；PR #39 已关闭（内容并入 #42）。
+- 已发布评论：#24 集中同步、#32 核对请求、#26/#27/#25 三条、#21 指针、#30 协调与两次通知。
+- `DECISIONS.md` 在 main 共 20 条；`permissions.risk-and-project-close` 曾被误删并已恢复（append-only）。
+
+### 7.3 仍未解除的阻塞（确认人 / 影响 / 移交）
+
+| 未决项 | 确认人 | 影响 | 状态 |
+|---|---|---|---|
+| #43 数据契约 §5 与 #46 事务协议 §12 的书面核对（含生成 / 读 / 审计是否与处置动作分离） | ROLE-C | 两文件冻结与 #44/#45/#47 的实现 | 已发布请求，**未见回复** |
+| D 的最小 AI / 事件端口提案（#31 / #37） | ROLE-D | 共享建议存储字段、事件提交语义、#24/#25/#26/#28/#29 | #31/#37 均 0 评论；已登记「未见公开提案 ≠ 无实现」 |
+| A 的 US-10 分支与挂载登记清单 | ROLE-A | #30 实现与挂载、`needs-confirmation` 摘除 | 远端无 US-10 分支 |
+| #25 requirement 具体文件授权、#26 真实开工守卫授权 | 原 owner / 任务流写者 | #17/#18/#13 | 申请已发布，未见回复 |
+| C11（成员能否改故事状态等）、C12（协作人） | 权限负责人 / 项目负责人 | 看板写路径、负载模型 | 仍未确认 |
+| C10 故事级进度汇总、C5 UML | 项目负责人 + A / B+C | 甘特 AC3、C #35 | 未确认 |
+| D 的附件 / 通知 / 组件补丁 | ROLE-D | 本地 #32/#36/#40 等 | 未提交 |
+
+### 7.4 结论
+
+- B 域已用规则与授权均可追溯到 `DECISIONS.md` 条目、批复稿、PR 或评论链接；未决项均写明确认人与影响。
+- 本票（#21）为持续台账：本节随新增确认追加，不改写历史；当前快照满足其 Done when。
