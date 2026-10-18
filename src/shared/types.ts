@@ -223,6 +223,7 @@ export type Action =
   | 'task.write' // 任务的增删改
   | 'sensitivity.manage' // 设置敏感标记与可见成员
   | 'risk.write' // 风险台账的增删改（项目成员可写，VIEWER 只读；见权限注释第 5.5 条）
+  | 'risk.flow' // 风险状态流转（含重开）：PM 全部；MEMBER 仅自己负责的风险；VIEWER 403（见权限注释第 4.6 条）
   | 'project.close' // 关闭 / 重开项目（仅 PM；关闭前的阻断校验由风险 / 仪表盘模块实现）
 
 /**
@@ -236,6 +237,9 @@ export type ObjectRef =
   | { kind: 'activity'; projectId: string; objectId: string }
   | { kind: 'story'; projectId: string; objectId: string }
   | { kind: 'task'; projectId: string; objectId: string }
+  // #30 风险台账（2026-10-18 项目负责人确认）：状态流转需按**风险归属**判定，
+  // 故引用用 `riskId`（与其它分支的 `objectId` 同义，但字段名与业务语义一致）。
+  | { kind: 'risk'; projectId: string; riskId: string }
 
 /**
  * `can()` 的判定结果（决策 I-5）。
