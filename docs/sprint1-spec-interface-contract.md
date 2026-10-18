@@ -10,6 +10,13 @@
 | 修订说明 | 2026-09-26 **按「爱管理_Sprint1_需求规格说明书_接口契约(1).md」基线回归**：`AppError` 恢复为 `403/404/409/422`；移除 `BAD_REQUEST`(400)，非法 JSON 收敛为 `422 VALIDATION_FAILED`；移除契约外的 `GET .../sensitivity` 只读端点；认证令牌改为不透明随机串 + 存库校验（不再使用签名密钥）。`INTERNAL_ERROR`(500) 保留（I-2b 要求未知异常转 500，且 I-4 表未单列该码）。 |
 | 配套文档 | 《爱管理_Sprint1基线_US-01_02_03_05.md》（验收标准 / 实现决策 / 任务拆解 / 领取约定） |
 
+> **变更说明（2026-10-17，项目负责人授权）**：本文档为 Sprint 1 契约基线，除下述归属与范围更新外**不追溯修改**。
+> 1. **公共文件归属**：`src/shared/*`、`src/db/schema.prisma` 及迁移、`src/routes.ts`、`src/app.ts`、前端公共骨架、`docs/frontend-routes.md`、`var/uploads` 的 `.gitignore` 的唯一修改人，由「技术负责人 / 前端骨架原修改人」变更为 **ROLE-B = `githubleelee`（项目负责人授权）**；`src/modules/authz/permissions.ts` 的权限 / 签名**不在其内**，仍归权限模块负责人（适用契约另行确认）。
+> 2. **公共 AI / 事件端口**：类型 / 端口放 `src/shared/`，运行时由 `src/app.ts` 组装注入；保持决策 I-9「禁止业务模块互相调用 service」不变。
+> 3. **AI 演示范围变更**：可接外部公有云大模型 API（普通虚构演示数据）；**原 AC-13 不声称满足**。
+> 4. **#32 PM-only 权限最小例外（2026-10-18，仍限于 #32）**：为落实 #32 生成 / 查看 / 采纳 / 拒绝 / 审计的 PM-only，项目负责人额外授权 B 最小修改 `src/modules/authz/permissions.ts` 及必要共享 `Action` / 对象 scope；其余权限、签名冻结与 C11 / C12 均不变（`DECISIONS.md` `ownership.public-files-single-writer` 最新条目 + `scheduling.permission-pm-only`；本文档其余正文不追溯修改）。
+> 来源：`docs/role-d-start-confirmation.md`、`DECISIONS.md`、`docs/team-handoff.md` §4.1 / §8。
+
 **本文档的目的**：4 名成员并行开发时，各自实现的模块必须能拼装成可运行的增量。拼装失败的唯一原因通常是接口不一致。本文档把**所有跨模块接口冻结成契约**，任何人不得单方面修改。
 
 **阅读约定**：`?` 表示可选字段，`|` 表示联合类型，所有 id 为 `string`，所有时间戳为 ISO 8601 UTC 字符串。
@@ -154,6 +161,8 @@ test/factories.ts ← T0.5 提供，全员只读
 ```
 
 **文件所有权的唯一规则**：**每人只在自己的模块目录内新增文件。** `shared/`、`db/`、`routes.ts` 三处只读，需要改动时通知技术负责人单人修改。
+
+> **2026-10-17 适用注记**：上方工程结构与「通知技术负责人」为 Sprint 1 历史规则。当前已授权公共范围改由 ROLE-B `githubleelee` 单写（见文首及 I-9 归属更新），依据为项目负责人明确授权，不要求再以旧归属阻塞；权限模块与旧业务文件仍须各自适用授权。本段不代表原 owner 已另行同意。
 
 这条规则把 merge 冲突从「可能发生」变成「结构上不可能」—— 两人永远不会碰同一个文件。
 
@@ -1022,6 +1031,8 @@ M2 / M4 / M5 ──→ 通过 can() / visibilityScope() 使用 M3，不复制其
 | 路由注册表 | 决策 I-8 的 30 个端点 | 技术负责人 |
 | `can()` / `visibilityScope()` 签名 | 决策 I-5、I-6 | 权限模块负责人 |
 | 共享类型与枚举 | 决策 I-1、I-2 | 技术负责人 |
+
+> **2026-10-17 归属更新**：上表「数据模型定义」「路由注册表」「共享类型与枚举」的唯一修改人现为 **ROLE-B = `githubleelee`（项目负责人授权）**；`can()` / `visibilityScope()` 签名仍归权限模块负责人（本次授权明确排除）。同时新增 `src/app.ts` 组装注入、前端骨架、`docs/frontend-routes.md`、`var/uploads` 的 `.gitignore` 为 B 单写范围。保持本决策「禁止业务模块 service 互调」不变。
 
 ### 决策 I-10：语义约束（不体现在签名中的约定）
 
