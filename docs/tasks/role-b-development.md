@@ -186,7 +186,8 @@ Done when: 本模块测试与 `npm run typecheck` 通过；浏览器验证看板
 Dependencies: #19 [FS]
 
 ## #21 持续跟踪 B 域契约、授权与跨域交接
-Status: not started
+Status: done
+Evidence: docs/role-b-contract-register.md §7 已追加 2026-10-18 登记：A #30/#33 批复与落地、验证证据（typecheck exit 0 / vitest 49 文件 1182 测试全绿）、发布与文档状态（PR #42–#47、#39 已关闭）、未决项确认人/影响/移交（C 对 #43/#46 的核对、D 的 #31/#37 提案、A 的 US-10 分支与挂载登记、#25/#26 授权、C11/C12、C10/C5）。前文历史保留不改写。
 Outcome: 持续更新的 B 域契约 / 公共文件授权台账，以及最终的已确认、待确认、后续处理清单。
 Done when: B 域所用规则与授权均可追溯（已交付部分逐项登记，未交付部分明确标待后续）；未决项明确确认人、影响和移交对象；C2/C3/C6 全项目口径与 #32 限定口径分别登记；C5 等跨域事项有状态但不代确认；其他角色未完成确认时不宣称 GitHub #24 整票完成。
 Dependencies: #03 [SS]
@@ -339,13 +340,14 @@ Dependencies: #26 [FS], #38 [FS], #39 [FS], #40 [FS]
 
 本地 `#42–#50` 不是 GitHub 工单编号。这些是 B 侧为 C `#32` 提供的公共集成任务：C 负责业务 / 整份原子写 / 快照 / 幂等，B 只落公共声明 / 模型 / 权限 / 组装 / 挂载。**依赖只按真实接口 / 验收关系登记，不用优先级造边。** 历史修订时本节仅保存计划；随后本轮获准执行 `#43/#46` 的本地提案，其余按各项 Status / Evidence 为准。追加授权仅允许准备 `#03/#42` 本地待发布文本，不发布、不编码；当前进度见各项证据。
 
-## #42 同步 C #32 新确认到文档与工单说明（本地草稿阶段，未授权发布）
-Status: in progress
+## #42 同步 C #32 新确认到文档与工单说明
+Status: done
+Evidence: 已完成并合入 main：docs/team-handoff.md、docs/handoff-issues.json、docs/sprint1-spec-interface-contract.md、docs/frontend-routes.md 的 C2/C3/C6 + 权限例外 + task 窗口 + #30 挂载例外补丁（PR #42/#47）；#24 集中同步评论 issuecomment-6245135447 与 #32 核对请求 issuecomment-6245135807 已发布；DECISIONS.md 20 条入库（含被误删后恢复的 permissions.risk-and-project-close）。
 Outcome: 把本地 C 确认稿与 `DECISIONS.md` 追加条目同步到 `docs/team-handoff.md`、#24、#32 及相关工单索引说明的更新草案与发布记录；覆盖全项目 C2/C3/C6、#32 PM-only 权限例外、`task/` 限范围授权，并保留历史与变更来源。
 Evidence: docs/role-b-publication-package.md §4.0/§5 已记录发布与补丁明细。2026-10-18：① 发布 #24 集中同步 https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6245135447 与 #32 核对请求 #issuecomment-6245135807；② 经 PR #42（未合并）使 DECISIONS.md 与 #43/#46 DRAFT 可访问；③ 用户授权“在分支中落地”后，team-handoff.md、handoff-issues.json、sprint1-spec-interface-contract.md、frontend-routes.md 的同步补丁已按“保留原文+追加变更说明”提交到该分支（含并入 PR #39 文档更新，提交 ea81b3e）；④ #31/#32/#33 票面 C4 旧句已追加更正块（保留原文），三票仍 open、标签未变。
 Done when: 明确标注「本地已存在 / 远端未发布」；更新草案区分全项目口径与 #32 限定口径，登记权限排除旧条目与 `supersedes` 关系；发布后记录链接；不把远端 PR #39 或 #32 正文描述为已同步；不批量改标签、不合并 PR、不替其他角色确认；对外发布需另行授权。
 Dependencies: none
-Blocker: 本轮授权范围内的工作已完成（#24/#32 同步、本地交接正文补丁、#31/#32/#33 票面更正）；仍待用户决定 PR #42 是否合并、PR #39 是否关闭，以及是否继续后续实现。本地已确认业务口径不以发布作为生效前置。
+已解除：交接正文补丁已合入 main（PR #42/#45/#47），#24/#32 同步评论已发布，PR #39 已关闭。
 
 ## #43 拟定并冻结 C #32 所需的最小只读数据契约
 Status: in progress
