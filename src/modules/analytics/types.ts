@@ -70,11 +70,12 @@ export type ProjectProgress = {
 export type ProjectHealth = {
   state: HealthState
   /**
-   * 偏差 = 实际进度 − 计划时间进度，保留 4 位小数。
+   * **偏差 = 计划时间进度 − 实际进度**，单位**百分点（pp）**，正数表示"落后于计划"；
+   * 展示保留 1 位小数（判定用的是未舍入值）。
    * `state === 'UNAVAILABLE'` 时为 `null`（算不出来就不编一个数）。
    */
-  deviation: number | null
-  /** 面向界面直接显示的说明（例如"项目下还没有任务，无法计算健康度"） */
+  deviationPp: number | null
+  /** 面向界面直接显示的说明（例如「暂无计划数据：项目下还没有任务，不做健康度分级」） */
   note?: string
 }
 
@@ -83,23 +84,26 @@ export type ProjectHealth = {
  * 随响应返回，避免界面、审查、测试对"进度""健康""计划时间进度"各说各话。
  */
 export type DashboardBasis = {
-  /** 计算时使用的"今天"（UTC 日期 `YYYY-MM-DD`） */
+  /** 计算时使用的"今天"（口径时区 Asia/Shanghai 的 `YYYY-MM-DD`） */
   asOf: string
   /** 本次统计的基数口径（C6） */
   scope: AggregationScope
   /** 计划窗口：统计基数内任务的 `min(planStart)` ~ `max(planEnd)`；无任务时为 `null` */
   planWindow: { start: string; end: string } | null
-  /** 计划时间进度（0~1）：`(asOf - start) / (end - start)`，截断到 [0,1]；无窗口时为 `null` */
+  /**
+   * 计划时间进度（0~1，**未舍入**）= 已过自然日数 ÷ 计划总自然日数（**含首尾**）；
+   * 无窗口时为 `null`。
+   */
   planTimeProgress: number | null
   /**
-   * C1 阈值（本票自定默认值，已随响应返回以便核对）。
-   * 判定：`deviation >= healthy` → 健康；`deviation >= warning` → 预警；否则风险。
+   * 分级阈值（**百分点**）。判定：偏差 ≤ `healthyPp` → 健康；≤ `warningPp` → 预警；否则风险。
+   * 冻结口径：10 / 25。
    */
-  thresholds: { healthy: number; warning: number }
+  thresholds: { healthyPp: number; warningPp: number }
   progressMeans: string
   planTimeProgressMeans: string
   healthMeans: string
-  /** 时区口径说明（C3 待定案） */
+  /** 时区口径说明（批复冻结：Asia/Shanghai 自然日、含首尾） */
   timezone: string
 }
 

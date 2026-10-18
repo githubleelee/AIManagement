@@ -1,18 +1,15 @@
 /**
  * US-10 项目仪表盘（工单 #30）测试 —— 端点 `GET /projects/:projectId/dashboard`。
  *
- * 覆盖：
- *   AC1 进度 = 已关闭 ÷ 总数；**`DONE` 不计入分子**；无任务时 `ratio` 为 **null 而不是 0**
- *   AC2 健康度三态 + 边界（正好等于阈值）、计划窗口由任务推导、算不出来时 UNAVAILABLE
- *   AC6 基数口径：PM = global；其余角色 = visible，**且分子分母同源**
- *   AC7 敏感任务对非白名单成员**不计入分母、不计入分子、不计入状态分布**
- *   越权：非成员 404（与"项目不存在"逐字一致）、未登录 401
+ * 口径按**项目负责人 2026-10-18 批复第 3 节（冻结）**：
+ *   计划时间进度 = 已过自然日数 ÷ 计划总自然日数（**含首尾**），时区 Asia/Shanghai；
+ *   偏差 = 计划时间进度 − 实际进度，单位**百分点**；比较用未舍入值、展示保留 1 位小数；
+ *   分级 ≤10pp 健康 / ≤25pp 预警 / >25pp 风险；无任务不做分级（「暂无计划数据」）。
  *
- * ⚠️ 前置：本端点需在冻结文件 `src/routes.ts` 注册 1 行才能真跑（授权后才有）；
- *    注册前本文件全部用例会是 404 —— 那是**未接线**，不是功能缺陷。
+ * 覆盖：AC1 进度（`DONE` 不计入 / 无任务 null）、AC2 三档与**正好落在阈值上**的边界、
+ *       AC6 基数口径、AC7 敏感不计入、越权。
  *
- * 口径来源（人工 2026-10-18 拍板）：计划时间进度 = (今天 − min(planStart)) ÷ (max(planEnd) − min(planStart))；
- * C1 阈值 −10% / −25%；C6 PM 全局、其余可见且分子分母同源；时区 UTC。
+ * ⚠️ 前置：本端点需在 `src/routes.ts` 注册 1 行才能真跑；注册前会 404（未接线）。
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createTestContext, type HttpTestContext } from '../../../test/helpers.js'
@@ -68,11 +65,17 @@ beforeEach(async () => {
 })
 
 /* ===========================================================================
- * 工具：按"相对今天"构造计划区间，从而钉住健康度的边界（不引入测试专用查询参数）
+ * 工具：按"相对今天"构造计划区间，钉住"含首尾"的口径边界
  * =========================================================================== */
 
+/** 按口径时区（Asia/Shanghai）取今天 —— 与服务端同一套取法，避免跨时区抖动。 */
 function isoToday(): string {
-  return new Date().toISOString().slice(0, 10)
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
 }
 
 function shiftDays(iso: string, days: number): string {
@@ -81,10 +84,18 @@ function shiftDays(iso: string, days: number): string {
   return date.toISOString().slice(0, 10)
 }
 
-/** 窗口中点正好是今天的计划区间（今天在窗口正中间 ⇒ 计划时间进度 = 0.5）。 */
-function middleWindow(daysEachSide = 10): { planStart: string; planEnd: string } {
+/** 计划区间 = 今天+offsetStart ~ 今天+offsetEnd（含首尾算天数）。 */
+function windowOf(offsetStart: number, offsetEnd: number): { planStart: string; planEnd: string } {
   const today = isoToday()
-  return { planStart: shiftDays(today, -daysEachSide), planEnd: shiftDays(today, daysEachSide) }
+  return { planStart: shiftDays(today, offsetStart), planEnd: shiftDays(today, offsetEnd) }
+}
+
+/**
+ * 计划时间进度 = 0.5 的窗口：今天−1 ~ 今天+2 ⇒ 共 4 天、已过 2 天。
+ * 健康度偏差（pp）= (0.5 − 实际进度) × 100，便于构造阈值边界。
+ */
+function halfWindow(): { planStart: string; planEnd: string } {
+  return windowOf(-1, 2)
 }
 
 type SeedOptions = {
@@ -98,7 +109,7 @@ type SeedOptions = {
 }
 
 async function seedTask(options: SeedOptions = {}): Promise<string> {
-  const win = middleWindow()
+  const win = halfWindow()
   const task = await ctx.db.task.create({
     data: {
       projectId,
@@ -117,10 +128,19 @@ async function seedTask(options: SeedOptions = {}): Promise<string> {
   return task.id
 }
 
-/** 批量造同窗口的任务：前 `closed` 个为 CLOSED，其余为 TODO。 */
-async function seedMany(count: number, closed: number, statusRest = 'TODO'): Promise<void> {
+/** 批量造同窗口任务：前 `closed` 个 CLOSED，其余 TODO。 */
+async function seedMany(
+  count: number,
+  closed: number,
+  win: { planStart: string; planEnd: string } = halfWindow(),
+): Promise<void> {
   for (let i = 0; i < count; i += 1) {
-    await seedTask({ status: i < closed ? 'CLOSED' : statusRest, title: `任务${i}` })
+    await seedTask({
+      status: i < closed ? 'CLOSED' : 'TODO',
+      title: `任务${i}`,
+      planStart: win.planStart,
+      planEnd: win.planEnd,
+    })
   }
 }
 
@@ -142,10 +162,7 @@ describe('AC1 进度 = 已关闭 ÷ 总数', () => {
       await seedTask({ status, title: status })
     }
 
-    const res = await getDashboard(pm.id)
-    expect(res.status).toBe(200)
-    const view = body<ProjectDashboardView>(res.body)
-
+    const view = body<ProjectDashboardView>((await getDashboard(pm.id)).body)
     expect(view.progress.total).toBe(6)
     expect(view.progress.closed).toBe(1)
     expect(view.progress.ratio).toBe(0.1667)
@@ -169,17 +186,17 @@ describe('AC1 进度 = 已关闭 ÷ 总数', () => {
     expect(view.progress.ratio).toBe(1)
   })
 
-  it('★ 没有任务时 ratio 为 **null**（不是 0），且健康度是 UNAVAILABLE（不是"健康"）', async () => {
+  it('★ 没有任务时 ratio 为 **null**、健康度 UNAVAILABLE 且提示「暂无计划数据」', async () => {
     const view = body<ProjectDashboardView>((await getDashboard(pm.id)).body)
 
     expect(view.progress.total).toBe(0)
     expect(view.progress.ratio).toBeNull()
     expect(view.health.state).toBe('UNAVAILABLE')
-    expect(view.health.deviation).toBeNull()
-    expect(view.health.note).toBeTruthy()
+    expect(view.health.deviationPp).toBeNull()
+    expect(view.health.note).toContain('暂无计划数据')
   })
 
-  it('byStatus 六态齐全，且各项之和等于 total（防止状态漏算）', async () => {
+  it('byStatus 六态齐全，且各项之和等于 total', async () => {
     await seedTask({ status: 'TODO' })
     await seedTask({ status: 'BLOCKED' })
     await seedTask({ status: 'CLOSED' })
@@ -188,100 +205,89 @@ describe('AC1 进度 = 已关闭 ÷ 总数', () => {
     expect(Object.keys(view.byStatus).sort()).toEqual(
       ['BLOCKED', 'CLOSED', 'DOING', 'DONE', 'SUSPENDED', 'TODO'].sort(),
     )
-    const sum = Object.values(view.byStatus).reduce((a, b) => a + b, 0)
-    expect(sum).toBe(view.progress.total)
+    expect(Object.values(view.byStatus).reduce((a, b) => a + b, 0)).toBe(view.progress.total)
     expect(view.byStatus.CLOSED).toBe(1)
   })
 })
 
 /* ===========================================================================
- * AC2 —— 健康度
+ * AC2 —— 健康度（口径：计划 − 实际，单位 pp，含首尾）
  * =========================================================================== */
 
-describe('AC2 健康度三态与边界', () => {
+describe('AC2 健康度三档与阈值边界', () => {
   it('计划窗口由任务推导：min(planStart) ~ max(planEnd)', async () => {
-    const today = isoToday()
-    await seedTask({ planStart: shiftDays(today, -30), planEnd: shiftDays(today, -20) })
-    await seedTask({ planStart: shiftDays(today, -10), planEnd: shiftDays(today, 10) })
+    const w1 = windowOf(-30, -20)
+    const w2 = windowOf(-10, 10)
+    await seedTask(w1)
+    await seedTask(w2)
 
     const view = body<ProjectDashboardView>((await getDashboard(pm.id)).body)
-    expect(view.basis.planWindow?.start).toBe(shiftDays(today, -30))
-    expect(view.basis.planWindow?.end).toBe(shiftDays(today, 10))
+    expect(view.basis.planWindow?.start).toBe(w1.planStart)
+    expect(view.basis.planWindow?.end).toBe(w2.planEnd)
   })
 
-  it('全部关闭 + 计划时间过半 ⇒ 健康（偏差 = 1 − 0.5 = 0.5）', async () => {
-    await seedTask({ status: 'CLOSED' })
-    await seedTask({ status: 'CLOSED' })
-
-    const view = body<ProjectDashboardView>((await getDashboard(pm.id)).body)
-    expect(view.basis.planTimeProgress).toBe(0.5)
-    expect(view.health.deviation).toBe(0.5)
-    expect(view.health.state).toBe('HEALTHY')
-  })
-
-  it('★ 边界：偏差正好 −0.10 ⇒ 判「健康」（阈值是 ≥）', async () => {
-    // 20 个任务、8 个已关闭 ⇒ 比例 0.4；计划时间 0.5 ⇒ 偏差 −0.1
-    await seedMany(20, 8)
+  it('计划时间进度**含首尾**：今天−1 ~ 今天+2 ⇒ 4 天中已过 2 天 = 0.5', async () => {
+    await seedTask()
 
     const view = body<ProjectDashboardView>((await getDashboard(pm.id)).body)
     expect(view.basis.planTimeProgress).toBe(0.5)
-    expect(view.health.deviation).toBe(-0.1)
+  })
+
+  it('实际进度与计划持平 ⇒ 偏差 0pp ⇒ 健康', async () => {
+    await seedMany(10, 5) // 实际 0.5，计划 0.5
+    const view = body<ProjectDashboardView>((await getDashboard(pm.id)).body)
+    expect(view.health.deviationPp).toBe(0)
     expect(view.health.state).toBe('HEALTHY')
   })
 
-  it('偏差 −0.15（−0.10 ~ −0.25 之间）⇒ 预警', async () => {
-    // 20 个任务、7 个已关闭 ⇒ 0.35；计划时间 0.5 ⇒ 偏差 −0.15
-    await seedMany(20, 7)
-
+  it('★ 边界：偏差**正好 10pp** ⇒ 仍判「健康」（阈值是 ≤）', async () => {
+    await seedMany(10, 4) // 实际 0.4 ⇒ 偏差 10pp
     const view = body<ProjectDashboardView>((await getDashboard(pm.id)).body)
-    expect(view.health.deviation).toBe(-0.15)
-    expect(view.health.state).toBe('WARNING')
-  })
-
-  it('★ 边界：偏差正好 −0.25 ⇒ 判「预警」（阈值是 ≥）', async () => {
-    // 20 个任务、5 个已关闭 ⇒ 0.25；计划时间 0.5 ⇒ 偏差 −0.25
-    await seedMany(20, 5)
-
-    const view = body<ProjectDashboardView>((await getDashboard(pm.id)).body)
-    expect(view.health.deviation).toBe(-0.25)
-    expect(view.health.state).toBe('WARNING')
-  })
-
-  it('偏差 −0.40 ⇒ 风险', async () => {
-    // 20 个任务、2 个已关闭 ⇒ 0.1；计划时间 0.5 ⇒ 偏差 −0.4
-    await seedMany(20, 2)
-
-    const view = body<ProjectDashboardView>((await getDashboard(pm.id)).body)
-    expect(view.health.deviation).toBe(-0.4)
-    expect(view.health.state).toBe('AT_RISK')
-  })
-
-  it('今天早于计划开始 ⇒ 计划时间进度为 0（不出现负进度）', async () => {
-    const today = isoToday()
-    await seedTask({ planStart: shiftDays(today, 5), planEnd: shiftDays(today, 15), status: 'TODO' })
-
-    const view = body<ProjectDashboardView>((await getDashboard(pm.id)).body)
-    expect(view.basis.planTimeProgress).toBe(0)
-    expect(view.health.deviation).toBe(0)
+    expect(view.health.deviationPp).toBe(10)
     expect(view.health.state).toBe('HEALTHY')
   })
 
-  it('今天晚于计划结束 ⇒ 计划时间进度截断为 1（未完成任务 ⇒ 风险）', async () => {
-    const today = isoToday()
-    await seedTask({ planStart: shiftDays(today, -20), planEnd: shiftDays(today, -10), status: 'TODO' })
+  it('偏差 15pp（10~25 之间）⇒ 预警', async () => {
+    await seedMany(20, 7) // 实际 0.35 ⇒ 偏差 15pp
+    const view = body<ProjectDashboardView>((await getDashboard(pm.id)).body)
+    expect(view.health.deviationPp).toBe(15)
+    expect(view.health.state).toBe('WARNING')
+  })
+
+  it('★ 边界：偏差**正好 25pp** ⇒ 仍判「预警」（阈值是 ≤）', async () => {
+    await seedMany(20, 5) // 实际 0.25 ⇒ 偏差 25pp
+    const view = body<ProjectDashboardView>((await getDashboard(pm.id)).body)
+    expect(view.health.deviationPp).toBe(25)
+    expect(view.health.state).toBe('WARNING')
+  })
+
+  it('偏差 100pp（计划时间已用完、一个都没关）⇒ 风险', async () => {
+    const done = windowOf(-3, 0) // 共 4 天、全部已过 ⇒ 计划时间进度 1
+    await seedMany(10, 0, done)
 
     const view = body<ProjectDashboardView>((await getDashboard(pm.id)).body)
     expect(view.basis.planTimeProgress).toBe(1)
-    expect(view.health.deviation).toBe(-1)
+    expect(view.health.deviationPp).toBe(100)
     expect(view.health.state).toBe('AT_RISK')
   })
 
-  it('阈值随响应返回（C1 定案后只改常量，界面/审查不必猜）', async () => {
+  it('今天早于计划开始 ⇒ 计划时间进度为 0（不出现负数）', async () => {
+    const future = windowOf(1, 5)
+    await seedTask({ ...future, status: 'TODO' })
+
+    const view = body<ProjectDashboardView>((await getDashboard(pm.id)).body)
+    expect(view.basis.planTimeProgress).toBe(0)
+    expect(view.health.deviationPp).toBe(0)
+    expect(view.health.state).toBe('HEALTHY')
+  })
+
+  it('阈值与时区随响应返回（冻结口径：10 / 25pp，Asia/Shanghai）', async () => {
     await seedTask()
     const view = body<ProjectDashboardView>((await getDashboard(pm.id)).body)
-    expect(view.basis.thresholds).toEqual({ healthy: -0.1, warning: -0.25 })
+    expect(view.basis.thresholds).toEqual({ healthyPp: 10, warningPp: 25 })
+    expect(view.basis.timezone).toContain('Asia/Shanghai')
+    expect(view.basis.planTimeProgressMeans).toContain('含首尾')
     expect(view.basis.progressMeans).toContain('CLOSED')
-    expect(view.basis.timezone).toContain('UTC')
   })
 })
 
@@ -290,21 +296,16 @@ describe('AC2 健康度三态与边界', () => {
  * =========================================================================== */
 
 describe('AC6 基数口径（C6）', () => {
-  it('PM 是 global 基数；普通成员是 visible 基数', async () => {
+  it('PM 是 global 基数；普通成员与阅览者都是 visible 基数', async () => {
     await seedTask()
 
-    const pmView = body<ProjectDashboardView>((await getDashboard(pm.id)).body)
-    const memberView = body<ProjectDashboardView>((await getDashboard(member1.id)).body)
-
-    expect(pmView.basis.scope).toBe('global')
-    expect(memberView.basis.scope).toBe('visible')
-  })
-
-  it('VIEWER 也是 visible 基数，能读到数字（只读）', async () => {
-    await seedTask()
-    const res = await getDashboard(viewer.id)
-    expect(res.status).toBe(200)
-    expect(body<ProjectDashboardView>(res.body).basis.scope).toBe('visible')
+    expect(body<ProjectDashboardView>((await getDashboard(pm.id)).body).basis.scope).toBe('global')
+    expect(body<ProjectDashboardView>((await getDashboard(member1.id)).body).basis.scope).toBe(
+      'visible',
+    )
+    const viewerRes = await getDashboard(viewer.id)
+    expect(viewerRes.status).toBe(200)
+    expect(body<ProjectDashboardView>(viewerRes.body).basis.scope).toBe('visible')
   })
 })
 
@@ -313,8 +314,7 @@ describe('AC6 基数口径（C6）', () => {
  * =========================================================================== */
 
 describe('AC7 敏感任务：分子、分母、状态分布都不含', () => {
-  it('★ 非白名单成员：分母不含敏感任务，且与 PM 的 total 不同（能看出基数差异）', async () => {
-    // 3 个普通任务（1 个已关闭）+ 1 个敏感任务（已关闭，白名单里没有 member1）
+  it('★ 非白名单成员：分母不含敏感任务，且与 PM 的 total 不同', async () => {
     await seedTask({ status: 'CLOSED', title: '普通已关闭' })
     await seedTask({ status: 'TODO', title: '普通待办1' })
     await seedTask({ status: 'TODO', title: '普通待办2' })
@@ -323,18 +323,15 @@ describe('AC7 敏感任务：分子、分母、状态分布都不含', () => {
     const pmView = body<ProjectDashboardView>((await getDashboard(pm.id)).body)
     const memberView = body<ProjectDashboardView>((await getDashboard(member1.id)).body)
 
-    // PM 看全部
     expect(pmView.progress.total).toBe(4)
     expect(pmView.progress.closed).toBe(2)
 
-    // 非白名单成员：分子分母**都**排除了敏感任务
     expect(memberView.progress.total).toBe(3)
     expect(memberView.progress.closed).toBe(1)
     expect(memberView.progress.ratio).toBe(0.3333)
-
-    // 状态分布同样不含（之和仍等于自己的 total）
-    const sum = Object.values(memberView.byStatus).reduce((a, b) => a + b, 0)
-    expect(sum).toBe(memberView.progress.total)
+    expect(Object.values(memberView.byStatus).reduce((a, b) => a + b, 0)).toBe(
+      memberView.progress.total,
+    )
   })
 
   it('白名单内的成员能看到敏感任务计入后的数字', async () => {
@@ -352,7 +349,7 @@ describe('AC7 敏感任务：分子、分母、状态分布都不含', () => {
 })
 
 /* ===========================================================================
- * 越权与身份
+ * 越权
  * =========================================================================== */
 
 describe('越权与身份', () => {

@@ -45,7 +45,13 @@ function denied(decision: { status: 403 | 404; code: 'FORBIDDEN' | 'NOT_FOUND' }
 }
 
 function isoToday(): string {
-  return new Date().toISOString().slice(0, 10)
+  // 与 analytics 同一口径：Asia/Shanghai 自然日（批复冻结）
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
 }
 
 const TASK_INCLUDE = {

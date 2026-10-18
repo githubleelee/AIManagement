@@ -7,8 +7,10 @@ import type { FastifyInstance } from 'fastify'
 import type { PrismaClient } from '@prisma/client'
 import { registerAuthRoutes } from './auth/plugin.js'
 import { registerAcceptanceRoutes } from './modules/acceptance/plugin.js'
+import { registerAnalyticsRoutes } from './modules/analytics/plugin.js'
 import { registerSensitivityRoutes } from './modules/authz/plugin.js'
 import { registerProjectRoutes } from './modules/project/plugin.js'
+import { registerRiskRoutes } from './modules/risk/plugin.js'
 import { registerTaskRoutes } from './modules/task/routes.js'
 import { registerWorkloadRoutes } from './modules/workload/plugin.js'
 import { registerWorkbenchRoutes } from './modules/workbench/plugin.js'
@@ -57,4 +59,11 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
   // 同样不在 Sprint 1 契约的 30 个端点内，属本阶段新增（见 docs/role-b-workload-design.md）。
   // 只读聚合：复用既有 project.read 权限，不新增 Action。
   registerWorkloadRoutes(app, context)
+
+  // A / US-10 进度·健康度·风险与关闭阻断（工单 #30）：GET /projects/:projectId/dashboard、
+  // GET /projects/:projectId/closure-check（后续再加风险台账与关闭动作）。
+  // 不在 Sprint 1 契约的 30 个端点内，属本阶段新增（见 docs/us-10-progress-risk-api.md）。
+  // 挂载授权：项目负责人 2026-10-18 批复第 3、4 项「改由 A 在 B 的登记范围内自行挂载」。
+  registerAnalyticsRoutes(app, context)
+  registerRiskRoutes(app, context)
 }
