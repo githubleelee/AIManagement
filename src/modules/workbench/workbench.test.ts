@@ -28,9 +28,20 @@ import {
 import type { TaskStatus } from '../../shared/types.js'
 import type { WorkbenchView } from './types.js'
 
-/** 与端点内部一致的"今天"（UTC 日期）。 */
+/**
+ * 与端点内部一致的"今天"（**Asia/Shanghai 自然日**）。
+ *
+ * C3 于 2026-10-18 批复定案后，服务端从 UTC 改为 Asia/Shanghai；
+ * 测试这侧必须同步，否则"今天到期"这类用例会在 UTC 与上海日期不同天时错位
+ * （每天 08:00 之前，上海比 UTC 早一天）。
+ */
 function isoToday(): string {
-  return new Date().toISOString().slice(0, 10)
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
 }
 
 /** 在 ISO 日期上加减天数。 */
