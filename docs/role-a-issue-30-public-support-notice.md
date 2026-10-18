@@ -2,7 +2,8 @@
 
 > **可转发**。来源：项目负责人 2026-10-18 授权 + 已合并的 PR #42（文档）/ PR #43（代码）。
 > 本文只说明**公共层已落地什么、你要接手什么、还有哪些待你确认**；**不代表 #30 的任何 AC 已通过**，也不改你票内的业务设计。
-> 基线：main `648a65755c8adf04855a4528f5db3228905513e3`（2026-10-18 合并 #42、#43 之后）。
+> 基线：main（2026-10-18 已合并 #42 / #43 / #44；本通知随合并后的 main 更新）。
+> **更新记录（2026-10-18）**：第 4 节「挂载归属」已按项目负责人批复更正 —— **第 3、4 项改由 A 在 B 登记的窗口内自行挂载**（见 `DECISIONS.md` `ownership.public-files-single-writer` 2026-10-18 追加授权），不再由 B 代挂。
 
 ---
 
@@ -69,7 +70,10 @@ DB 层**不校验**枚举合法性与「`taskId` 与 `projectId` 同项目」—
 - `src/modules/risk/`（风险 CRUD、四态流转、关闭阻断清单、审计）与 `src/modules/analytics/`（进度 / 健康度）业务代码与 Zod 校验；
 - 关闭阻断的 HTTP 语义（你拟 `409 CONFLICT`、不允许强制关闭——需项目负责人确认）；
 - 敏感风险不计入无权者总数 / 清单（`can()` / `visibilityScope()` 目前没有 risk 对象类型，需在你的查询层按你的方案过滤）；
-- **路由与前端挂载由 B 补挂**：你的 `registerRiskRoutes` / `registerAnalyticsRoutes` 与页面组件就绪后，请把入口与 Props 发我，B 在 `src/routes.ts`、`web/src/routes.tsx`、`web/src/layouts/ProjectLayout.tsx`、`docs/frontend-routes.md` 补挂（这些是 B 单写文件，不要自行修改）。
+- **路由与前端挂载（2026-10-18 批复更正）：由你在 B 登记的窗口内自行挂载** —— 项目负责人已授权 A 直接修改 `src/routes.ts` 的路由注册行与前端骨架的页面路由 / 左导航挂载行（`web/src/routes.tsx`、`web/src/layouts/` 等），用于挂载 US-10 自己的端点与页面。
+  - 要求：改动前把**文件清单 + 用途 + 预计行数**发给 B 登记；**同一时刻同一文件只允许一个写者**（B 若在改同一文件，等其回合或请 B 代改）；不得借窗口改动骨架其他结构。
+  - 仍不得修改：`src/shared/*`、`src/db/schema.prisma` 及迁移、`src/modules/authz/permissions.ts`、`src/app.ts`；`docs/frontend-routes.md` 仍由 B 维护（你的页面路由行由 B 补录）。
+  - 开发基线：**基于最新 `main`**（已含 #42/#43 的公共支持；此前建议的 `feat/risk-actions-schema@9952740` 已 rebase 为 `47eee93` 并合入，不要再基于旧分支）。
 
 ## 5. 验证状态（如实说明）
 

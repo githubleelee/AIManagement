@@ -97,8 +97,22 @@
 - **timestamp:** 2026-10-17T18:51:32+08:00
 - **rationale:** 补全排期确认的可追溯字段并区分生成与应用，确保 PM 审核内容和实际应用内容一致。
 
+
 ## `permissions.risk-and-project-close`
 
-- **value:** 风险台账写操作 `risk.write` 对项目 PM 与 MEMBER 开放、VIEWER 一律 403（只读）；`project.close` 仅 PM（对 MEMBER / VIEWER 403）。ROLE-B 作为公共文件单写人落地共享 `Action`、`can()` 判定、`Risk` 模型与 `Project.status` 列及其迁移；风险三级 / 四态取值、敏感继承关联任务、关闭阻断清单与 409 语义属 ROLE-A 的 `risk` / `analytics` 模块业务；路由挂载（`src/routes.ts`）与前端挂载待 A 的模块与组件就绪后由 B 补挂，不在本批凭空引用不存在的模块。
+- **value:** 风险台账写操作 `risk.write` 对项目 PM 与 MEMBER 开放、VIEWER 一律 403（只读）；`project.close` 仅 PM（对 MEMBER / VIEWER 403）。ROLE-B 作为公共文件单写人落地共享 `Action`、`can()` 判定、`Risk` 模型与 `Project.status` 列及其迁移；风险三级 / 四态取值、敏感继承关联任务、关闭阻断清单与 409 语义属 ROLE-A 的 `risk` / `analytics` 模块业务；路由挂载（`src/routes.ts`）与前端挂载的归属见最新 `ownership.public-files-single-writer` 条目（2026-10-18 追加授权 A 在登记窗口内自挂）。
 - **timestamp:** 2026-10-18T11:30:00+08:00
 - **rationale:** 项目负责人 2026-10-18 就 #30 的公共文件 / 权限申请给出授权范围（risk.write = PM + 成员，project.close = 仅 PM），使 A 在不越权改公共文件的前提下继续开发。
+
+## `analytics.health-thresholds-and-planned-progress`
+
+- **value:** 项目实际进度 = 已关闭任务数 ÷ 项目任务总数；计划时间进度 = 已过自然日数 ÷ 计划总自然日数，其中计划区间取该项目全部任务的 `min(planStart)` ~ `max(planEnd)`、按自然日含首尾、时区 `Asia/Shanghai`，已过自然日数 = 今天 − `min(planStart)` + 1 并截断到 `[0, 区间天数]`，项目无任务时显示「暂无计划数据」且不做分级。偏差 = 计划时间进度 − 实际进度，单位为百分点，比较用未舍入值、展示可保留 1 位小数；分级阈值：偏差 ≤ 10pp 健康、> 10pp 且 ≤ 25pp 预警、> 25pp 风险。覆盖范围与负载口径一致：PM 用全项目基数，MEMBER / VIEWER 用各自可见范围并标注「可见范围」，不得以可见子集冒称全项目。
+- **timestamp:** 2026-10-18T11:45:50+08:00
+- **rationale:** 冻结 US-10 健康度算法与三档阈值，使项目模块无需新增起止日期列即可判定健康 / 预警 / 风险，并与既有负载可见性口径保持一致。
+
+## `ownership.public-files-single-writer`
+
+- **value:** 公共文件统一由 ROLE-B = `githubleelee` 修改/合入，D 提交接口/字段/迁移/补丁申请、不并发直接写；范围含 `src/shared/*`、`src/db/schema.prisma` 及迁移、`src/routes.ts`、`src/app.ts`、前端公共骨架、`docs/frontend-routes.md`、`var/uploads` 的 `.gitignore`；**2026-10-17 追加授权**：为落实 #32 US-12 的 PM-only 权限，B 可最小修改 `src/modules/authz/permissions.ts` 及必要共享 `Action`/对象范围，不代表 C11/C12 完成，不改其他任务的编辑/验收/协作人权限；**2026-10-18 追加授权（#30）**：项目负责人授权 ROLE-A 在 B 登记的范围内直接修改 `src/routes.ts` 的路由注册行与前端骨架的页面路由 / 左导航挂载行，用于挂载 US-10 自己的端点与页面，同一时刻同一文件只允许一个写者、A 与 B 不得并发修改，A 仍不得修改 `src/shared/*`、`src/db/schema.prisma` 及迁移、`src/modules/authz/permissions.ts`、`src/app.ts`，超出登记范围的改动须另行申请；其他业务域修改权限不自动扩大。
+- **supersedes:** ownership.public-files-single-writer@2026-10-17T18:41:26+08:00
+- **timestamp:** 2026-10-18T11:45:50+08:00
+- **rationale:** 记录 #30 的限范围挂载授权（A 只挂自己模块的路由与导航行、公共层保持单写者），避免 A 因等待挂载而停工或重复实现公共代码。
