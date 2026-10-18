@@ -1,0 +1,13 @@
+命令：python3 -c "
+import importlib.util
+spec = importlib.util.spec_from_file_location('ghapi','/tmp/role-b-github-api.py'); m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+R='/repos/githubleelee/AIManagement'
+pr=m.api('GET', R+'/pulls/43')
+print('PR43', pr['state'], 'merged', pr['merged'], 'head', pr['head']['sha'], 'files', pr['changed_files'], 'commits', pr['commits'])
+print([ (f['filename'], f['additions'], f['deletions']) for f in m.api('GET', R+'/pulls/43/files?per_page=100') ])
+"
+工作目录：/tmp
+结果：exit=0
+PR43 open merged False head 99527406d8d03daad3cfbc24fdfc9eae89b06554 files 9 commits 2
+[('DECISIONS.md', 104, 0), ('src/db/migrations/20261018033000_add_risk_and_project_status/migration.sql', 51, 0), ('src/db/schema.prisma', 49, 0), ('src/db/test-support.ts', 6, 1), ('src/modules/authz/permissions.ts', 7, 0), ('src/shared/types.ts', 2, 0), ('test/db-schema-contract.test.ts', 7, 2), ('test/db-schema.test.ts', 5, 1), ('test/t0-gap-fix.test.ts', 39, 0)]
+

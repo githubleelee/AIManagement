@@ -1,0 +1,32 @@
+命令：git show --stat 6db5429
+工作目录：/home/lee/aim-wt/b-risk-public
+结果：exit=0
+commit 6db54295921309a9de38f8b2e5f1b4f82a3a385b
+Author: githubleelee <githubleelee@users.noreply.github.com>
+Date:   Sun Oct 18 11:36:45 2026 +0800
+
+    feat: 落地 #30 公共支持（risk.write / project.close 权限、Risk 模型与 Project.status）
+    
+    项目负责人 2026-10-18 授权范围（见 DECISIONS.md permissions.risk-and-project-close）：
+    - risk.write = PM + MEMBER；VIEWER 一律 403 只读
+    - project.close = 仅 PM（进 WRITE_ACTIONS）
+    
+    改动：
+    - src/shared/types.ts：Action 增加 risk.write / project.close
+    - src/modules/authz/permissions.ts：project.close 入 WRITE_ACTIONS；新增第 5.5 条 VIEWER 拒绝 risk.write
+    - src/db/schema.prisma：新增 Risk 模型、Project.status 列、Task/User/Project 反向关系
+    - src/db/migrations/20261018040000_add_risk_and_project_status/migration.sql：纯新增表 + 加列
+    - src/db/test-support.ts：resetDatabase 先清 Risk（project 外键为 Restrict）
+    - DECISIONS.md：记录本次授权与边界（含 A 域业务归属）
+    
+    不含 A 的业务模块 / 路由挂载 / 前端挂载（待 A 的 risk/analytics 模块就绪后由 B 补挂）。
+    未运行 typecheck / 测试：本机无 node_modules。
+
+ DECISIONS.md                                       | 104 +++++++++++++++++++++
+ .../migration.sql                                  |  51 ++++++++++
+ src/db/schema.prisma                               |  47 ++++++++++
+ src/db/test-support.ts                             |   7 +-
+ src/modules/authz/permissions.ts                   |   7 ++
+ src/shared/types.ts                                |   2 +
+ 6 files changed, 217 insertions(+), 1 deletion(-)
+
