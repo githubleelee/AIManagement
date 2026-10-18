@@ -57,6 +57,8 @@
 | #32（T2） | 评论（已发，第二批） | https://github.com/githubleelee/AIManagement/issues/32#issuecomment-6245135807 | 向 C 请求字段/受众/跨子集与事务/签名/幂等的书面核对；附 #43/#46 与 `DECISIONS.md` 直链（交付条款已按文件可达改写） |
 | #21（T6） | 评论（已发，第二批） | https://github.com/githubleelee/AIManagement/issues/21#issuecomment-6245136058 | 本地草稿与状态短指针 + PR #42 链接 |
 | #30（T7） | 评论（已发，第二批） | https://github.com/githubleelee/AIManagement/issues/30#issuecomment-6245136311 | **落点选 #30**（A 在此提出开工确认与 UTC 待澄清，通知更直接）；内容与 T7 一致 |
+| AI 交互记录 | 归档并推送（2026-10-18） | https://github.com/githubleelee/AIManagement/pull/42/files | `docs/ai-records/B/issue-{24,25,26,27,30,32}/`（主控 6 + 子 agent 11，共 29 文件）；按 `docs/ai-interaction-recording-guide.md`，全部「待确认」，缺口与未运行项已登记；未改旧表 5、未建共享索引 |
+| #30 公共支持（A 的票） | 代码 PR #43（未合并） | https://github.com/githubleelee/AIManagement/pull/43 | 项目负责人授权范围：`risk.write` = PM + MEMBER、`project.close` = 仅 PM；B 落 `Action`/`permissions.ts`/`Risk` 模型/`Project.status`/迁移/快照测试；A 的业务模块与挂载待其就绪 |
 
 评论区均注明首批三票“本轮只发本票等三条自包含同步”；第二批已全部发出。**实际发出文本以评论链接为准**（相对下方草稿增补了 PR #42 直链，T2 第 5 条改写为“文件已可达”，T6 补上了评论链接与 PR）。发布后核对：相关票仍 `open`、标签与 PR 状态均未变。
 
@@ -193,6 +195,7 @@ D 的 `#31/#37` 第 0 步说明已同步，C4/C7/C8 口径未变，本轮**不�
 
 1. ROLE-A 的申请：是否升级给权限负责人或项目负责人裁决，或先由 B 只回“登记待裁”。需逐项处理的是——(a) 新增 `Action` `risk.write` / `project.close` 与对应 `permissions.ts` 判定；(b) `Risk` 模型、`Project.status`、迁移批次与 `min(planStart)~max(planEnd)` 基准（影响 `schema.prisma`）；(c) `Project.status` 不进共享 `ProjectView` 的规避是否接受（`src/shared/types.ts`）；(d) `/projects/:projectId/close` 路径命名空间与挂载行（`src/routes.ts`、前端骨架）；(e) C9/C13 关闭语义：阻断用 `409 CONFLICT`、是否允许强制关闭——原文属“待定”，B 不代批。
 2. C3 冲突（已在 #30 T7 提出，等待 A 回复）；如需用户直接指示 A，另行告知。
+2b. A 的申请已按授权落地并开 PR #43；**待决定**：PR #43 的合入时机、是否需在 #30/#24 通知 A 使用新 `Action`（`risk.write` / `project.close`）与 `Risk` 表、以及 A 侧「member 只读」旧表述（#30 正文）是否需要 A 自行更正。
 3. §5 本地文档补丁是否现在落地（仍不提交、不推送），或等发布授权一并执行；以及 §5 的目标树选择（rebase 进 PR #39 / 沿用新 PR #42 分支 / 在 main 重建）。注意 PR #39 已落后 main，与 PR #42 重叠，建议后续只保留其一。
 4. #33（以及 #31/#32）票面旧 C4 句是否本轮一并更正，还是仅发评论并在后续单票处理。
 5. #32 的 `needs-confirmation` 在 C 书面核对后由 C 自摘，还是由 B 按 C 的核对申请代操作。
