@@ -53,7 +53,7 @@
 | 类型 | B 的处理方式 |
 |---|---|
 | 新业务模块及页面 | 在 `workload/`、`gantt/`、`board/` 独立目录实现 |
-| `src/shared/*`、`src/db/schema.prisma` 及迁移、`src/routes.ts`、`src/app.ts`、前端公共骨架、`docs/frontend-routes.md`、`var/uploads` 的 `.gitignore` | 项目负责人已授权 ROLE-B = `githubleelee` **统一单写 / 合入**；不再“提申请等原 owner” |
+| `src/shared/*`、`src/db/schema.prisma` 及迁移、`src/routes.ts`、`src/app.ts`、前端公共骨架、`docs/frontend-routes.md`、`var/uploads` 的 `.gitignore` | 项目负责人已授权 ROLE-B = `githubleelee` **统一单写 / 合入**；不再“提申请等原 owner”。**#30 限范围例外（2026-10-18）**：A 在向 B 登记后，可自行改 `src/routes.ts` 的注册行与前端骨架的页面路由 / 左导航挂载行，仅挂载 US-10 自己的端点与页面；其余公共文件仍 B 单写 |
 | `src/modules/authz/permissions.ts`（权限 / 签名） | 原公共归属**排除**权限改动；**仅就 #32 PM-only** 由项目负责人额外授权 B 最小修改，见 §三。不代表 C11 / C12 或其他权限改动获批 |
 | 既有 requirement / task / project / authz 等业务文件 | 一般仍须原 owner 对**具体文件 / 范围**书面授权；**#32 例外**：C 在 B 登记具体范围并完成现写者交接后的独占窗口内，可最小改 `task/routes.ts`、`rules.ts` 及本域测试，见 §三 |
 | `test/factories.ts` | 只读，不修改 |

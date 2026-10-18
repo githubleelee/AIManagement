@@ -10,8 +10,8 @@
 
 - 前端骨架（`web/src/App.tsx`、`web/src/routes.tsx`、`web/src/layouts/`、`web/src/components/`）为**共享文件**，现由 **ROLE-B（`githubleelee`）** 单写维护。
 - 其他模块**只往 `web/src/pages/` 下新增自己的页面或独立组件**，提供接入补丁，由 B 在 `routes.tsx` 或已授权接入点最小挂载；公共文件由 B 单写，组件按就绪挂载。
+- **#30 限范围例外（2026-10-18 批复）**：ROLE-A 可在向 B 登记后自行修改 `web/src/routes.tsx` 等骨架的**页面路由 / 左导航挂载行**（仅挂载 US-10 自己的页面，同一时刻一个文件只允许一个写者）；本文件（`docs/frontend-routes.md`）仍由 B 维护，A 的页面路由行由 B 补录。
 - 本轮三个接入点：`RequirementDetailPage.tsx` 的 AI、`pages/task/TaskSection.tsx` 的附件、`layouts/AppLayout.tsx` 的通知。仅嵌入组件不意味着新增 URL；不另造任务详情页，不接管 D 业务。
-- **#32（2026-10-18，待挂载）**：C 新建 `web/src/pages/scheduling`，路由 / 导航入口与本文档更新由 B 统一挂载；**URL 与组件 Props 尚未确认，本文档不将其登记为已注册路由**。D 的三个入口文件不是 C 的修改许可。
 - 路由库：`react-router-dom` v7（浏览器 History 路由，Vite 默认 SPA fallback，支持刷新与直达）。
 
 ## 路由表

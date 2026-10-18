@@ -372,7 +372,7 @@ type Db = PrismaClient | Prisma.TransactionClient
 
 ### 12.1 C 最小确认点（🟡，逐项需 C 书面回复）
 
-- **C1 动作 / 对象 scope**：新增哪些 PM-only `Action`（读 / 审计与写 / 处置是否分离）；`ObjectRef` 复用 `{ kind:'project' }` 还是新增排期 `kind`；B 在 `permissions.ts` 的最小改动清单（#44）。
+- **C1 动作 / 对象 scope**：处置动作**已定**（2026-10-18）：#32 与 #33 共用同一个处置动作、仅 PM，由 B 在共享建议存储落地时一并加入 `can()`（`DECISIONS.md` `permissions.ai-suggestion-disposal`）。仍需 C 核对：**生成 / 读取 / 审计动作是否与处置动作分离**；`ObjectRef` 复用 `{ kind:'project' }` 还是新增排期 `kind`；B 在 `permissions.ts` 的最小改动清单（#44）。
 - **C2 签名放宽方案**：选结构化 `Pick` 还是 `union`；是否允许对冻结的 `permissions.ts` / `rules.ts` 做此项最小放宽；`Authorization` 类型是否调整（§5.3）。
 - **C3 写端口落点与统一写能力**：受控应用端点置于 C 域 `ai-scheduling` 还是 `task/routes.ts`；**统一计划写能力的提炼 / 复用方式与签名**；`rules.ts` 复用方式（§5.2/§5.3）。
 - **C4 唯一处置保护**：DB 唯一约束 vs CAS `updateMany`；由哪一层保证（§7.1）。
