@@ -71,7 +71,8 @@ export type ProjectHealth = {
   state: HealthState
   /**
    * **偏差 = 计划时间进度 − 实际进度**，单位**百分点（pp）**，正数表示"落后于计划"；
-   * 展示保留 1 位小数（判定用的是未舍入值）。
+   * 展示保留 1 位小数；**分级不比较这个浮点值**，而是用整数交叉相乘精确比较
+   * （2026-10-19 评审 H2，实现见 `service.ts` 的 `healthOf`）。
    * `state === 'UNAVAILABLE'` 时为 `null`（算不出来就不编一个数）。
    */
   deviationPp: number | null
@@ -93,6 +94,9 @@ export type DashboardBasis = {
   /**
    * 计划时间进度（0~1，**未舍入**）= 已过自然日数 ÷ 计划总自然日数（**含首尾**）；
    * 无窗口时为 `null`。
+   *
+   * ⚠️ 这个比值只供**展示与口径声明**：健康度分级不比较它（浮点误差会把正好落在
+   *    阈值上的情形错分，见 `service.ts` 的 `healthOf`）。
    */
   planTimeProgress: number | null
   /**

@@ -264,6 +264,70 @@ describe('AC3 四态流转', () => {
     expect(statusLog?.before).toContain('OPEN')
     expect(statusLog?.after).toContain('IN_PROGRESS')
   })
+
+  /* ---------------------------------------------------------------------------
+   * 审计字段完整性（2026-10-19 独立评审 ③）
+   *
+   * 原实现 before / after 只记 title / level / status（+resolution）：
+   * 改绑负责人、改关联任务、改描述在审计里 before === after —— 等于没留痕，
+   * 而且恰好把 H1 的越权痕迹一起掩盖了。
+   * ------------------------------------------------------------------------- */
+
+  it('★ 审计覆盖**全部可写字段**：改绑负责人 / 改关联任务 / 改描述都看得见', async () => {
+    const taskId = await seedTask()
+    const risk = await makeRisk(pm.id, { title: '原题', description: '原描述', level: 'LOW' })
+
+    // 只改台账字段、不动状态 ⇒ `risk.update`
+    const res = await patchRisk(pm.id, risk.id, {
+      description: '新描述',
+      ownerUserId: member2.id,
+      taskId,
+    })
+    expect(res.status).toBe(200)
+
+    const log = await ctx.db.auditLog.findFirst({
+      where: { objectType: 'risk', objectId: risk.id, action: 'risk.update' },
+      orderBy: { createdAt: 'desc' },
+    })
+    const before = JSON.parse(log?.before as string)
+    const after = JSON.parse(log?.after as string)
+
+    expect(before.ownerUserId).toBe(member1.id)
+    expect(after.ownerUserId).toBe(member2.id)
+    expect(before.taskId).toBeNull()
+    expect(after.taskId).toBe(taskId)
+    expect(before.description).toBe('原描述')
+    expect(after.description).toBe('新描述')
+  })
+
+  it('★ 审计覆盖 create 的全部可写字段（原实现漏 description 与 resolution）', async () => {
+    const risk = await makeRisk(pm.id, { description: '建档描述' })
+
+    const log = await ctx.db.auditLog.findFirst({
+      where: { objectType: 'risk', objectId: risk.id, action: 'risk.create' },
+    })
+    expect(log?.before).toBeNull()
+
+    const after = JSON.parse(log?.after as string)
+    expect(after.description).toBe('建档描述')
+    expect(after.ownerUserId).toBe(member1.id)
+    expect(after.taskId).toBeNull()
+    expect(after).toHaveProperty('resolution', null)
+  })
+
+  it('★ 状态回退清空解决说明，在审计里也看得见（resolution 前后值）', async () => {
+    const risk = await makeRisk(pm.id)
+    await patchRisk(pm.id, risk.id, { status: 'RESOLVED', resolution: '临时规避' })
+    await patchRisk(pm.id, risk.id, { status: 'OPEN' })
+
+    const logs = await ctx.db.auditLog.findMany({
+      where: { objectId: risk.id, action: 'risk.status' },
+      orderBy: { createdAt: 'asc' },
+    })
+    const lastLog = logs[logs.length - 1]
+    expect(JSON.parse(lastLog?.before as string).resolution).toBe('临时规避')
+    expect(JSON.parse(lastLog?.after as string).resolution).toBeNull()
+  })
 })
 
 /* ===========================================================================
@@ -308,6 +372,60 @@ describe('授权：风险写权限 = PM + MEMBER；VIEWER 只读', () => {
 
     // VIEWER 一律 403
     expect((await patchRisk(viewer.id, ownRisk.id, { status: 'OPEN' })).status).toBe(403)
+  })
+
+  /* ---------------------------------------------------------------------------
+   * H1 回归（2026-10-19 独立评审，裁定方案 (b)：归属变更视同流转）
+   *
+   * 原实现只在 `statusChanged` 时调 `risk.flow`，而 `ownerUserId` 的写入只受
+   * `risk.write`（PM + MEMBER）约束 ⇒ 成员可以「先把自己改绑成负责人、再流转」，
+   * 两步拿到对他人风险的流转权（B 的实跑复现）。
+   * ------------------------------------------------------------------------- */
+
+  it('★ H1：成员不能"先改绑、再流转"绕过 risk.flow（评审实跑的三步复现）', async () => {
+    const othersRisk = await makeRisk(pm.id, { title: '别人负责的风险', ownerUserId: member2.id })
+
+    // ① 直接流转 → 403（原有行为，正确）
+    expect((await patchRisk(member1.id, othersRisk.id, { status: 'IN_PROGRESS' })).status).toBe(403)
+
+    // ② 把负责人改绑给自己 → 修复后同样 403（原实现是 200，这就是被绕过的那一步）
+    const rebind = await patchRisk(member1.id, othersRisk.id, { ownerUserId: member1.id })
+    expect(rebind.status).toBe(403)
+
+    // 查库确认负责人与状态真的没被改动（不能只看状态码就说"拦住了"）
+    const row = await ctx.db.risk.findUnique({
+      where: { id: othersRisk.id },
+      select: { ownerUserId: true, status: true },
+    })
+    expect(row?.ownerUserId).toBe(member2.id)
+    expect(row?.status).toBe('OPEN')
+
+    // ③ 再流转 → 仍然 403（负责人仍是 member2，组合漏洞已关闭）
+    expect((await patchRisk(member1.id, othersRisk.id, { status: 'IN_PROGRESS' })).status).toBe(403)
+  })
+
+  it('★ H1：「关联任务」变更与负责人改绑同一口径，也走 risk.flow', async () => {
+    const taskId = await seedTask()
+    const othersRisk = await makeRisk(pm.id, { title: '他人风险', ownerUserId: member2.id })
+
+    // 成员改他人风险的关联任务 → 403（该任务本身对他可见，所以不是可见性拦下的）
+    expect((await patchRisk(member1.id, othersRisk.id, { taskId })).status).toBe(403)
+
+    // PM 改绑任何人的归属都允许（can() 第 3 条）
+    const byPm = await patchRisk(pm.id, othersRisk.id, { taskId })
+    expect(byPm.status).toBe(200)
+    expect((byPm.body as RiskView).taskId).toBe(taskId)
+  })
+
+  it('H1 的边界（如实登记，不代表已定案）：成员改**自己负责**风险的归属仍允许', async () => {
+    // 裁定 (b) 的字面结果：收窄的是"别人的风险"，不是把 risk.write 整体削弱。
+    // ⚠️ 「成员能否把自己负责的风险改派给他人」是 B 列出的待裁定项之一
+    //    （risk.write 的范围），本条只钉住当前实现；若日后裁定"改派仅 PM"，
+    //    本条应当随之改写 —— 这正是留一条用例的目的。
+    const ownRisk = await makeRisk(member1.id, { title: '自己的风险' })
+    const res = await patchRisk(member1.id, ownRisk.id, { ownerUserId: member2.id })
+    expect(res.status).toBe(200)
+    expect((res.body as RiskView).ownerUserId).toBe(member2.id)
   })
 
   it('VIEWER 可以读清单，但不能写 → 403', async () => {
@@ -488,5 +606,70 @@ describe('AC4/AC5 项目关闭与重开', () => {
 
     const memberView = (await closureOf(member1.id)).body as ClosureCheckView
     expect(memberView.blockingRisks.total).toBe(0)
+  })
+})
+
+/* ===========================================================================
+ * 排序（2026-10-19 独立评审 ④）
+ *
+ * 原实现把排序交给数据库的 `orderBy: [{ status: 'asc' }, { level: 'asc' }]`，
+ * 而注释声称「未处理排前、高危优先」—— 实际拿到的是字典序：
+ *   status: CLOSED → IN_PROGRESS → OPEN → RESOLVED
+ *   level : HIGH → LOW → MEDIUM
+ * 两处都用到了它，且 `closure-check` 还带 `take: 50`：先按错序截断会把**中危**
+ * 挤出阻断清单（B 的实跑结论）。现改为按 `ordering.ts` 的显式 rank 排序。
+ * =========================================================================== */
+
+describe('排序：未处理排前、高危优先', () => {
+  it('★ 清单按「状态 → 等级 → 创建时间」排序，而不是字典序', async () => {
+    // 刻意造出"字典序与意图相反"的组合：
+    //   字典序会给 IN_PROGRESS 在 OPEN 之前、LOW 在 MEDIUM 之前。
+    const inProgressMedium = await makeRisk(pm.id, { title: 'A-处理中-中', level: 'MEDIUM' })
+    await patchRisk(pm.id, inProgressMedium.id, { status: 'IN_PROGRESS' })
+
+    await makeRisk(pm.id, { title: 'B-未处理-低', level: 'LOW' })
+    await makeRisk(pm.id, { title: 'C-未处理-高', level: 'HIGH' })
+
+    const resolvedMedium = await makeRisk(pm.id, { title: 'D-已解决-中', level: 'MEDIUM' })
+    await patchRisk(pm.id, resolvedMedium.id, { status: 'RESOLVED', resolution: '已规避' })
+
+    const items = ((await listRisks(pm.id)).body as { items: RiskView[] }).items
+
+    // 字典序会得到 [A-处理中-中, B-未处理-低, C-未处理-高, D-已解决-中]；
+    // 按意图应当是：未处理在前、同级高危在前。
+    expect(items.map((item) => item.title)).toEqual([
+      'C-未处理-高',
+      'B-未处理-低',
+      'A-处理中-中',
+      'D-已解决-中',
+    ])
+  })
+
+  it('★ closure-check：排序发生在 50 条截断**之前**，中危不会被低危挤出清单', async () => {
+    await seedTask({ status: 'CLOSED' }) // 任务侧不阻断，让风险侧单独说话
+
+    // 50 条低危（先建）+ 1 条高危 + 1 条中危（后建，基准序靠后）。
+    // 旧实现 `orderBy: [{ level: 'asc' }] + take: 50` 的字典序是 HIGH → LOW → MEDIUM，
+    // 于是 50 条低危正好占满上限，**中危被截掉**。
+    await ctx.db.risk.createMany({
+      data: Array.from({ length: 50 }, (_, i) => ({
+        projectId,
+        title: `低危-${i}`,
+        description: null,
+        level: 'LOW',
+        status: 'OPEN',
+        ownerUserId: member1.id,
+        taskId: null,
+        resolution: null,
+      })),
+    })
+    await makeRisk(pm.id, { title: '高危', level: 'HIGH' })
+    await makeRisk(pm.id, { title: '中危', level: 'MEDIUM' })
+
+    const view = (await closureOf(pm.id)).body as ClosureCheckView
+    expect(view.blockingRisks.total).toBe(52) // total 始终精确，不受行数上限影响
+    expect(view.blockingRisks.rows).toHaveLength(50)
+    expect(view.blockingRisks.rows[0]!.title).toBe('高危')
+    expect(view.blockingRisks.rows[1]!.title).toBe('中危')
   })
 })

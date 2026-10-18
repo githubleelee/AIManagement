@@ -32,6 +32,7 @@ import {
   toRiskView,
   type RiskRow,
 } from './closure.js'
+import { sortRisksByPriority } from './ordering.js'
 import type { RiskLevel, RiskStatus, RiskView } from './types.js'
 
 export const RISK_TITLE_MAX_LENGTH = 200
@@ -152,6 +153,36 @@ function auditData(
   }
 }
 
+/**
+ * 审计快照：**覆盖全部可写字段**（2026-10-19 独立评审 ③）。
+ *
+ * 原实现只记 `title / level / status`（+`resolution`），于是「改绑负责人」「改关联任务」
+ * 「改描述」在审计里 `before === after` —— 等于**没留痕**；而 `create` 又只记归属、
+ * 不记描述，两侧口径还不一致。现收敛成这一个函数，create 与 patch 共用。
+ *
+ * `resolution` 必须记：状态回退到「未处理 / 处理中」会把它清空（审查 S7），
+ * 那正是最需要可追溯的一类变化。
+ */
+function riskAuditFields(risk: {
+  title: string
+  description: string | null
+  level: string
+  status: string
+  ownerUserId: string
+  taskId: string | null
+  resolution: string | null
+}) {
+  return {
+    title: risk.title,
+    description: risk.description,
+    level: risk.level,
+    status: risk.status,
+    ownerUserId: risk.ownerUserId,
+    taskId: risk.taskId,
+    resolution: risk.resolution,
+  }
+}
+
 /* ===========================================================================
  * 读
  * =========================================================================== */
@@ -162,7 +193,9 @@ export type RiskListFilter = { status?: RiskStatus; level?: RiskLevel; ownerUser
  * 项目风险清单。
  *
  * 权限：`can('project.read')`；可见性走 `riskVisibilityWhere(scope)`（**查询层**过滤，
- * 决策 I-6），计数与清单同源。按「未处理的排前、高危优先、越早发现越前」排序。
+ * 决策 I-6），计数与清单同源。按「未处理的排前、高危优先、越早发现越前」排序 ——
+ * 顺序由 `ordering.ts` 的显式 rank 决定（2026-10-19 评审 ④：原 `orderBy` 是字典序，
+ * 与这句话相反）。
  */
 export async function listRisks(
   prisma: PrismaClient,
@@ -184,10 +217,14 @@ export async function listRisks(
       ...(filter.ownerUserId ? { ownerUserId: filter.ownerUserId } : {}),
       ...riskVisibilityWhere(scope),
     },
-    orderBy: [{ status: 'asc' }, { level: 'asc' }, { createdAt: 'asc' }],
+    // 若在这里写 `orderBy: [{status},{level}]`，数据库只能给字典序
+    // （CLOSED→IN_PROGRESS→OPEN→RESOLVED / HIGH→LOW→MEDIUM）；真正的优先级在取回后
+    // 按 rank 排。这里只保留一个 `createdAt` 基准序，使同优先级的两条也稳定可复现。
+    // 清单无分页（决策 I-10），故不存在"先截断再排序"的问题。
+    orderBy: [{ createdAt: 'asc' }],
     include: RISK_INCLUDE,
   })
-  return rows.map((row) => toRiskView(row as RiskRow))
+  return sortRisksByPriority(rows as RiskRow[]).map(toRiskView)
 }
 
 /** 单条风险（供界面编辑前取值）。不可见 → 404。 */
@@ -246,13 +283,7 @@ export async function createRisk(
       include: RISK_INCLUDE,
     })
     await tx.auditLog.create({
-      data: auditData(projectId, actorUserId, 'risk.create', 'risk', risk.id, null, {
-        title: risk.title,
-        level: risk.level,
-        status: risk.status,
-        ownerUserId: risk.ownerUserId,
-        taskId: risk.taskId,
-      }),
+      data: auditData(projectId, actorUserId, 'risk.create', 'risk', risk.id, null, riskAuditFields(risk)),
     })
     return risk
   })
@@ -297,25 +328,35 @@ export async function patchRisk(
   assertResolution(nextStatus, nextResolution)
 
   const statusChanged = nextStatus !== existing.status
+  /**
+   * 归属变更（负责人 / 关联任务）**视同流转**（2026-10-19 独立评审 H1，方案 (b)）。
+   */
+  const ownershipChanged =
+    nextOwner !== existing.ownerUserId || nextTaskId !== existing.taskId
 
   // ---------------------------------------------------------------------------
-  // 状态流转判定：公共层 `risk.flow` 的对象关系判定（2026-10-18 已落地）
+  // 流转判定：公共层 `risk.flow` 的对象关系判定（2026-10-18 落地）
   // ---------------------------------------------------------------------------
   // 权限注释第 4.6 条（与第 4.5 条 `task.progress` 同型）：PM 全部；MEMBER 仅
   //   `ownerUserId` = 本人的风险；VIEWER / 他人风险 403；风险不存在 404。
   //   ⇒ 业务层只调 `can()`，不私写任何角色判断（批复硬要求）。
   //
-  // 变更史（留痕）：公共层就绪前，本票按批复 §1 用 `can('project.close')` 探针做过临时
-  //   fail-closed（成员一律 403）。`risk.flow` 落地后**该探针已删除**，恢复批复最终口径：
-  //   成员可流转自己负责的风险，不能流转他人的。
-  if (statusChanged) {
+  // ★ H1（2026-10-19 独立评审）：**归属变更也要过这道判定**。原实现只在 `statusChanged`
+  //   时判，而 `ownerUserId` 的写入只受 `risk.write`（PM + MEMBER）约束，于是"两步绕过"
+  //   成立（实跑复现）：
+  //     ① PATCH {status: IN_PROGRESS} as 成员，目标是他人的风险 → 403（正确）
+  //     ② PATCH {ownerUserId: 自己}    as 同一成员            → 200（当时无对象/角色限制）
+  //     ③ PATCH {status: IN_PROGRESS}                          → 200（越权达成）
+  //   现在 ② 也走 `risk.flow` ⇒ 成员改不动他人负责的风险，组合漏洞关闭。
+  //
+  // 残留（如实登记，不在本批次自行加规则）：本次裁定为 (b) 的字面结果 —— 成员可以把
+  //   **自己负责的**风险改派给他人。若要禁止改派，需另立裁定（如"改派仅 PM"）。
+  if (statusChanged || ownershipChanged) {
     const flow = await can(actorUserId, 'risk.flow', {
       kind: 'risk',
       projectId: existing.projectId,
       riskId,
     })
-    // 提示文案刻意写清"为什么"和"什么时候会开放"：
-    // 这是临时闸门，不能让成员只看到一句"没有权限"而不知所以。
     if (!flow.allow) throw denied(flow)
   }
 
@@ -339,11 +380,13 @@ export async function patchRisk(
       data: auditData(
         existing.projectId,
         actorUserId,
+        // 动作名沿用既有两个取值（不新增审计动作）：归属变更走 `risk.update`，
+        // 其痕迹体现在 before / after 的 `ownerUserId` / `taskId` 前后值上（评审 ③）。
         statusChanged ? 'risk.status' : 'risk.update',
         'risk',
         risk.id,
-        { title: existing.title, level: existing.level, status: existing.status },
-        { title: risk.title, level: risk.level, status: risk.status, resolution: risk.resolution },
+        riskAuditFields(existing),
+        riskAuditFields(risk),
       ),
     })
     return risk

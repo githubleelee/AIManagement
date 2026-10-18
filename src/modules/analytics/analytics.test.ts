@@ -261,6 +261,36 @@ describe('AC2 健康度三档与阈值边界', () => {
     expect(view.health.state).toBe('WARNING')
   })
 
+  /* ---------------------------------------------------------------------------
+   * H2 回归（2026-10-19 独立评审）：**正好落在阈值上**时的浮点错分
+   *
+   * 旧实现比较 `(E/D − C/T) × 100 ≤ pp`，而 IEEE754 下
+   *   (0.4 − 0.3) × 100 = 10.000000000000004 > 10
+   *   (7/12 − 1/3) × 100 = 25.000000000000007 > 25
+   * ⇒ 下面两条在旧实现下分别错成 WARNING / AT_RISK（已实测复现：先加用例得红、
+   *   再把比较改回浮点仍得红，最后用整数交叉相乘转绿）。
+   * 上面那组旧边界用例恰好用了 0.5 / 0.4 / 0.25 这些"浮点友好"的数，掩盖了该缺陷。
+   * ------------------------------------------------------------------------- */
+
+  it('★ H2：计划 2/5 天、进度 3/10 ⇒ 偏差正好 10pp ⇒ **健康**（旧实现错判预警）', async () => {
+    const win = windowOf(-1, 3) // 含首尾 5 天、已过 2 天 ⇒ 计划时间进度 0.4
+    await seedMany(10, 3, win) // 实际 0.3 ⇒ 偏差正好 10pp
+
+    const view = body<ProjectDashboardView>((await getDashboard(pm.id)).body)
+    expect(view.basis.planTimeProgress).toBe(0.4)
+    expect(view.health.deviationPp).toBe(10)
+    expect(view.health.state).toBe('HEALTHY')
+  })
+
+  it('★ H2：计划 7/12 天、进度 1/3 ⇒ 偏差正好 25pp ⇒ **预警**（旧实现错判风险）', async () => {
+    const win = windowOf(-6, 5) // 含首尾 12 天、已过 7 天 ⇒ 计划时间进度 7/12
+    await seedMany(3, 1, win) // 实际 1/3 ⇒ 偏差正好 25pp
+
+    const view = body<ProjectDashboardView>((await getDashboard(pm.id)).body)
+    expect(view.health.deviationPp).toBe(25)
+    expect(view.health.state).toBe('WARNING')
+  })
+
   it('偏差 100pp（计划时间已用完、一个都没关）⇒ 风险', async () => {
     const done = windowOf(-3, 0) // 共 4 天、全部已过 ⇒ 计划时间进度 1
     await seedMany(10, 0, done)

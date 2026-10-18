@@ -25,6 +25,7 @@ import type { Prisma, PrismaClient } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
 import type { Scope, TaskStatus, TaskView, UserBrief } from '../../shared/types.js'
 import { createAuthorization } from '../authz/permissions.js'
+import { sortRisksByPriority } from './ordering.js'
 import type {
   BlockingSide,
   ClosureCheckView,
@@ -230,11 +231,15 @@ export async function checkClosure(
       include: TASK_INCLUDE,
     }),
     prisma.risk.count({ where: riskWhere }),
+    // ⚠️ 这里**不能**用 `take` 去配合一个错序的 orderBy（2026-10-19 评审 ④）：
+    //   原实现 `orderBy: [{ level: 'asc' }]` 是字典序（HIGH→LOW→MEDIUM），
+    //   先截 50 条会把**高危风险挤出阻断清单**（先返回 LOW、再 MEDIUM）。
+    //   故改为：取回 → 按显式 rank 排（`ordering.ts`）→ 再截 `BLOCKING_ROWS_LIMIT`。
+    //   `total` 仍由上面的 `count` 精确给出，不受此上限影响（与任务侧同一纪律）。
     prisma.risk.findMany({
       where: riskWhere,
-      // 高危优先，其次越早发现的越先处理
-      orderBy: [{ level: 'asc' }, { createdAt: 'asc' }],
-      take: BLOCKING_ROWS_LIMIT,
+      // 基准序：同优先级时按"越早发现越先处理"；真实优先级见下面的 rank 排序
+      orderBy: [{ createdAt: 'asc' }],
       include: RISK_INCLUDE,
     }),
   ])
@@ -247,7 +252,10 @@ export async function checkClosure(
   const blockingRisks: BlockingSide<RiskView> = {
     state: 'ok',
     total: riskTotal,
-    rows: risks.map((risk) => toRiskView(risk as RiskRow)),
+    // 高危优先（显式 rank），排序**后**才截到上限 —— 见上面的取数注释
+    rows: sortRisksByPriority(risks as RiskRow[])
+      .slice(0, BLOCKING_ROWS_LIMIT)
+      .map(toRiskView),
   }
 
   // ★ 「我看不到阻断项」不等于「项目能关」（独立审查 S4 的重点项）：

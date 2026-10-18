@@ -24,7 +24,12 @@
  * 2. **分子与分母同源**（同一个 where，且该 where 已含 `visibilityScope` 的作用域）；
  * 3. **算不出来就不编数字**：无任务时 `ratio` 与 `deviationPp` 均为 `null`、健康度
  *    `UNAVAILABLE` —— 不用 0 或「健康」冒充；
- * 4. **口径随响应返回**（`basis`）：阈值、公式、时区、基数口径全部显式声明。
+ * 4. **口径随响应返回**（`basis`）：阈值、公式、时区、基数口径全部显式声明；
+ * 5. **阈值比较用整数交叉相乘**（2026-10-19 独立评审 H2 修复）：`rawPp ≤ 10` 一律用
+ *    `100·(已过天数·任务总数 − 已关闭数·总天数) ≤ 10·总天数·任务总数` 判定，
+ *    **不比较浮点偏差**。理由见 `healthOf` 的注释：IEEE754 下 `(0.4 − 0.3) × 100`
+ *    `= 10.000000000000004 > 10`，会把**正好落在阈值上**的情形错分到下一档
+ *    （旧实现即如此，已修，并补了 `2/5 vs 3/10`、`7/12 vs 1/3` 两条边界用例）。
  */
 import type { Prisma, PrismaClient } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
@@ -93,51 +98,110 @@ function round1(value: number): number {
 }
 
 /**
- * 计划时间进度（0~1，**未舍入**）：已过自然日数 ÷ 计划总自然日数，**含首尾**。
+ * 计划窗口的**天数分解**（整数）：已过自然日数 / 计划总自然日数，**含首尾**。
+ *
+ * ★ 为什么把「天数」单独暴露出来：健康度分级必须用**整数**比较（见 `healthOf`），
+ *   而两个比值一旦相减就会引入浮点误差。算天数只做整数加减，因此这里是口径的
+ *   唯一来源，`planTimeProgressOf` 只是它的一层比值封装。
+ */
+export type PlanTimeWindow = {
+  /** 已过自然日数，截断到 `[0, totalDays]` */
+  elapsedDays: number
+  /** 计划总自然日数（含首尾）= `end − start + 1` */
+  totalDays: number
+}
+
+/**
+ * 计划窗口天数（整数）。
  *
  * - 区间天数 = `end − start + 1`；
  * - 已过 = `今天 − start + 1`，截断到 `[0, 区间天数]`；
- *   ⇒ 今天等于开始日时算 1 天已过（含首尾的必然结果），不是 0。
+ *   ⇒ 今天等于开始日时算 1 天已过（含首尾的必然结果），不是 0；
+ * - 数据异常（`end < start`）时按「计划时间已用完」处理（`1/1`），不抛错。
+ */
+export function planTimeDaysOf(asOf: string, start: string, end: string): PlanTimeWindow {
+  const totalDays = dayIndex(end) - dayIndex(start) + 1
+  if (totalDays <= 0) return { elapsedDays: 1, totalDays: 1 }
+  const elapsedDays = Math.min(Math.max(dayIndex(asOf) - dayIndex(start) + 1, 0), totalDays)
+  return { elapsedDays, totalDays }
+}
+
+/**
+ * 计划时间进度（0~1，**未舍入**）：已过自然日数 ÷ 计划总自然日数，**含首尾**。
+ *
+ * ⚠️ 这个比值**只用于展示与口径声明**（`basis.planTimeProgress`），**不得**用它的
+ *    浮点差去和阈值比较 —— 分级请调 `healthOf`。
  */
 export function planTimeProgressOf(asOf: string, start: string, end: string): number {
-  const totalDays = dayIndex(end) - dayIndex(start) + 1
-  if (totalDays <= 0) return 1 // 数据异常（end < start）时按"计划时间已用完"处理，不抛错
-  const elapsed = Math.min(Math.max(dayIndex(asOf) - dayIndex(start) + 1, 0), totalDays)
-  return elapsed / totalDays
+  const { elapsedDays, totalDays } = planTimeDaysOf(asOf, start, end)
+  return elapsedDays / totalDays
+}
+
+export type HealthInput = {
+  /** 统计基数内的任务总数（分母） */
+  totalTasks: number
+  /** 已关闭的任务数（分子） */
+  closedTasks: number
+  /** 计划窗口天数（`planTimeDaysOf` 的结果）；无计划窗口时为 `null` */
+  planDays: PlanTimeWindow | null
 }
 
 /**
  * 健康度判定（纯函数）。
  *
  * **偏差 = 计划时间进度 − 实际进度**（正数表示"落后于计划"），单位百分点。
- * 三档判定用**未舍入**的偏差；返回给界面的 `deviationPp` 保留 1 位小数。
+ *
+ * ★ 分级用**整数交叉相乘**，不用浮点偏差比较（2026-10-19 独立评审 H2）：
+ *
+ * ```
+ *   rawPp ≤ pp  ⟺  100·(E·T − C·D) ≤ pp·D·T
+ *   （E=已过天数，D=计划总天数，C=已关闭数，T=任务总数）
+ * ```
+ *
+ * 旧实现写的是 `(E/D − C/T) × 100 ≤ pp`，而 IEEE754 下 `(0.4 − 0.3) × 100`
+ * `= 10.000000000000004 > 10`、`(7/12 − 1/3) × 100 = 25.000000000000007 > 25`：
+ * **正好落在阈值上**（计划 2/5 天、进度 3/10；计划 7/12 天、进度 1/3）的两种情形
+ * 分别被错分成「预警」「风险」。旧边界用例恰好用了二进制友好的 0.5 / 0.4 / 0.25，
+ * 因此掩盖了该缺陷；现补两条用例钉住（`analytics.test.ts`）。
+ *
+ * 展示用的 `deviationPp` 仍按浮点算（只影响显示，保留 1 位小数，±1e-14 的误差
+ * 舍入后不可见），分级不受它影响。
  */
-export function healthOf(
-  ratio: number | null,
-  planTimeProgress: number | null,
-  total: number,
-): { state: HealthState; deviationPp: number | null; note?: string } {
-  if (total === 0) {
+export function healthOf(input: HealthInput): {
+  state: HealthState
+  deviationPp: number | null
+  note?: string
+} {
+  const { totalTasks, closedTasks, planDays } = input
+
+  if (totalTasks === 0) {
     return {
       state: 'UNAVAILABLE',
       deviationPp: null,
       note: '暂无计划数据：项目下还没有任务，不做健康度分级。',
     }
   }
-  if (ratio === null || planTimeProgress === null) {
+  if (planDays === null) {
     return {
       state: 'UNAVAILABLE',
       deviationPp: null,
       note: '缺少计算健康度所需的数据（进度或计划窗口不可用）。',
     }
   }
-  const rawPp = (planTimeProgress - ratio) * 100
+
+  const { elapsedDays, totalDays } = planDays
+  // 未舍入偏差 ×(D·T)：全为正整数的交叉相乘，无浮点误差
+  const scaledDeviation = 100 * (elapsedDays * totalTasks - closedTasks * totalDays)
+  const limit = totalDays * totalTasks
+
   const state: HealthState =
-    rawPp <= HEALTHY_THRESHOLD_PP
+    scaledDeviation <= HEALTHY_THRESHOLD_PP * limit
       ? 'HEALTHY'
-      : rawPp <= WARNING_THRESHOLD_PP
+      : scaledDeviation <= WARNING_THRESHOLD_PP * limit
         ? 'WARNING'
         : 'AT_RISK'
+
+  const rawPp = 100 * (elapsedDays / totalDays - closedTasks / totalTasks)
   return { state, deviationPp: round1(rawPp) }
 }
 
@@ -196,10 +260,12 @@ export async function buildDashboard(
   const start = window._min.planStart
   const end = window._max.planEnd
   const asOf = options.today ?? isoToday()
-  const planTimeProgress = start && end ? planTimeProgressOf(asOf, start, end) : null
+  // 天数用整数算、比值只供展示：分级交给 healthOf 的整数交叉相乘（H2）
+  const planDays = start && end ? planTimeDaysOf(asOf, start, end) : null
+  const planTimeProgress =
+    planDays === null ? null : planDays.elapsedDays / planDays.totalDays
 
-  // 健康度用**未舍入**的 ratio 判定（批复：比较用未舍入值）
-  const health = healthOf(rawRatio, planTimeProgress, total)
+  const health = healthOf({ totalTasks: total, closedTasks: closed, planDays })
 
   const aggregationScope: AggregationScope = scope.mode === 'all' ? 'global' : 'visible'
 
@@ -214,7 +280,7 @@ export async function buildDashboard(
     planTimeProgressMeans:
       '计划时间进度 = 已过自然日数 ÷ 计划总自然日数（含首尾）；计划区间取统计基数内任务的 min(planStart) ~ max(planEnd)，已过天数截断到 [0, 区间天数]',
     healthMeans:
-      '偏差 = 计划时间进度 − 实际进度（单位：百分点 pp）；偏差 ≤ 10pp 为健康，> 10pp 且 ≤ 25pp 为预警，> 25pp 为风险；比较用未舍入值、展示保留 1 位小数；项目无任务时不做分级',
+      '偏差 = 计划时间进度 − 实际进度（单位：百分点 pp）；偏差 ≤ 10pp 为健康，> 10pp 且 ≤ 25pp 为预警，> 25pp 为风险；分级用未舍入偏差的**整数交叉相乘**精确比较（100·(已过·总数 − 已关闭·总天数) ≤ 阈值·总天数·总数），不比较浮点比值，避免正好落在阈值上的情形被浮点误差错分；展示保留 1 位小数；项目无任务时不做分级',
     timezone: `${CALC_TIMEZONE} 自然日（含首尾）`,
   }
 
