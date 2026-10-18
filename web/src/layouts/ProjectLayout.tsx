@@ -115,6 +115,11 @@ export default function ProjectLayout() {
           <NavLink to="members" className={navClass}>
             <span aria-hidden="true">♙</span>成员
           </NavLink>
+          {/* US-07 成员任务图与负载（工单 #27）：只读负载总览入口。
+              行属冻结区（前端骨架），由公共单写人 B 按已授权范围落地（#27 公共挂载批次）。 */}
+          <NavLink to="workload" className={navClass}>
+            <span aria-hidden="true">◍</span>成员负载
+          </NavLink>
         </nav>
         <Link className="project-switcher" to="/projects">
           <span>当前项目 · {ROLE_LABELS[project.myRole]}</span>

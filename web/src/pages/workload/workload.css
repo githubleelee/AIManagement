@@ -1,0 +1,294 @@
+/* ===========================================================================
+ * 成员任务图与负载（US-07 / GitHub #27）—— 本票自有样式
+ *
+ * 不写进 web/src/index.css（前端骨架归 M2 独占维护）；各票在自己的
+ * pages/<票>/ 下自建 css 并在页内 import，是本仓库既有做法
+ * （pages/workbench/workbench.css、pages/task/task.css）。
+ *
+ * 视觉沿用既有变量（--panel / --border / --accent / --muted / --text）与
+ * 任务表（.task-table）的观感，只是本页独立一套 `wl-` 前缀。
+ * =========================================================================== */
+
+.wl-page {
+  min-width: 0;
+}
+
+/* 顶部的范围标签：全项目 / 可见范围 */
+.wl-scope {
+  display: inline-block;
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.wl-scope-note {
+  margin: -8px 0 20px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ---------- 成员列表 ---------- */
+.wl-panel {
+  min-width: 0;
+  padding: 8px 20px 20px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel);
+}
+
+.wl-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--text);
+}
+
+.wl-table th {
+  padding: 15px 16px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.wl-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+.wl-row:last-child td {
+  border-bottom: none;
+}
+
+.wl-col-role {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.wl-col-count {
+  width: 140px;
+  text-align: right;
+}
+
+/* 成员名做成整块按钮：可键盘聚焦，点一下切到明细 */
+.wl-member {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wl-member-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.wl-member-account {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.wl-member:hover .wl-member-name {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.wl-member:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.wl-count {
+  display: inline-block;
+  min-width: 2.6rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* ---------- 单成员明细 ---------- */
+.wl-detail {
+  min-width: 0;
+  padding: 18px 20px 24px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel);
+}
+
+.wl-back {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.wl-detail-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 14px 0 18px;
+}
+
+.wl-detail-name {
+  margin: 0;
+  font-size: 20px;
+  color: var(--text);
+}
+
+.wl-detail-sub {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.wl-detail-total {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.wl-total-num {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.wl-total-unit {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.wl-truncated {
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--panel-soft, var(--bg));
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.wl-empty {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.wl-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wl-task {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-soft, var(--bg));
+}
+
+.wl-task-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wl-task-title {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.wl-task-plan {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 状态标签（与 .task-status 观感一致，页内独立） ---------- */
+.wl-status {
+  display: inline-block;
+  flex: 0 0 auto;
+  min-width: 84px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.wl-status--todo {
+  background: #f2f5f8;
+  color: #52647a;
+}
+
+.wl-status--doing {
+  background: #edf3fc;
+  color: #2457a8;
+}
+
+.wl-status--blocked {
+  background: #fdecea;
+  color: #b3261e;
+}
+
+.wl-status--suspended {
+  background: #fdf3e7;
+  color: #9a5b09;
+}
+
+/* DONE：已提交待验收 —— 与 CLOSED 明确区分（不得显示成"已完成/关闭"） */
+.wl-status--done {
+  background: #fff4d6;
+  color: #8a6100;
+}
+
+/* CLOSED：已验收，弱化显示 */
+.wl-status--closed {
+  background: #e8f5ec;
+  color: #1e7a3f;
+}
+
+@media (max-width: 700px) {
+  .wl-table td,
+  .wl-table th {
+    padding: 12px 10px;
+  }
+
+  .wl-col-count {
+    width: auto;
+  }
+}

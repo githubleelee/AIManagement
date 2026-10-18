@@ -30,6 +30,7 @@
 | `/projects/:projectId/requirements/activities/:activityId` | `RequirementHierarchyDetailPage` | 用户活动详情与管理操作 | M4 / US-03 |
 | `/projects/:projectId/requirements/:storyId` | `RequirementDetailPage` | 需求详情：编辑 / 敏感 / 故事内任务（端点 20/21/23；任务区端点 24/25/27/28/29/30 **已实现，随收尾分支合入**） | M4 / US-03、M5 / US-05 |
 | `/projects/:projectId/tasks` | `ProjectTasksPage` | 项目任务总表（端点 26 + `ownerUserId` 过滤，**已实现，随收尾分支合入**） | M5 / US-05（T5.x） |
+| `/projects/:projectId/workload` | `WorkloadPage` | 成员任务图与负载：成员非 CLOSED 负载数 + 可见范围标签 + 单成员未关闭任务明细（`GET /projects/:projectId/workload`、`.../workload/:userId`，**本阶段新增，不在 Sprint 1 的 30 个端点内**） | B / US-07（#27） |
 | `*` | `NotFoundPage` | 全局 404 | M2 |
 
 ## 页面职责与数据来源
