@@ -6,7 +6,7 @@
  * （User 会话令牌两列见 `20260926000000_add_session_token/migration.sql`）。
  *
  * 与既有 `db-schema.test.ts` 的区别：
- *   - 既有测试只断言「9 张表名存在」、少量列类型、1 处 RESTRICT + 1 处 CASCADE。
+ *   - 既有测试只断言「表名集合存在」、少量列类型、1 处 RESTRICT + 1 处 CASCADE。
  *   - 本文件逐表逐列比对 **字段名 / 类型 / 可空性 / 默认值 / 主键位置**，
  *     并逐条比对 **全部 14 处外键的删除规则**、复合主键与索引落点。
  *
@@ -47,7 +47,7 @@ const EXPECTED_COLUMNS: Record<string, ColumnSpec[]> = {
     { name: 'passwordHash', type: 'TEXT', notNull: true, def: null, pk: 0 },
     { name: 'createdAt', type: 'DATETIME', notNull: true, def: 'CURRENT_TIMESTAMP', pk: 0 },
     // 【有意扩展】契约 I-8 认证约定要求令牌「存库校验」，而 I-7 的 User 模型未给出
-    // 存放位置。为满足认证条款，新增两个可空列（不新增表，仍为 9 张表）。
+    // 存放位置。为满足认证条款，新增两个可空列（不新增表）。
     { name: 'sessionTokenHash', type: 'TEXT', notNull: false, def: null, pk: 0 },
     { name: 'sessionTokenExpiresAt', type: 'TEXT', notNull: false, def: null, pk: 0 },
   ],
@@ -253,8 +253,21 @@ function makeProject(ownerUserId: string) {
 // ---------------------------------------------------------------------------
 
 describe('决策 I-7 表集合与字段逐列比对', () => {
-  it('恰好存在契约规定的 9 张表', async () => {
+  /**
+   * 【前提已变，不是放宽断言】
+   *
+   * 原断言是「恰好存在契约规定的 9 张表」。本阶段 US-09（工单 #29）经 #24 冻结区申请后
+   * 新增第 10 张表 `AcceptanceRecord`（验收记录，AC5 的唯一落点）。
+   *
+   * 断言形式**未变**：仍是"不多不少"的等值比较 ⇒ 任何**未经授权**的新表依然失败。
+   *
+   * 本文件其余部分（逐列比对 / 外键规则）**仍只覆盖契约 I-7 的 9 张表** —— 那是本文件
+   * 的既定职责（"断言直接对齐契约原文"）。新表的列集合由 US-09 自己的模块测试与
+   * `_脚本\_us09_migration_check.mjs` 的 PRAGMA 逐列核对覆盖，未混进契约清单里。
+   */
+  it('表集合 = 契约规定的 9 张 + 本阶段经 #24 授权新增的 1 张（不多不少）', async () => {
     expect(await getTableNames()).toEqual([
+      'AcceptanceRecord', // ← 本阶段经 #24 授权新增（US-09 / #29），不属于契约 I-7
       'AuditLog',
       'BusinessGoal',
       'ObjectVisibility',
@@ -285,7 +298,7 @@ describe('决策 I-7 外键与删除规则逐条比对', () => {
     })
   }
 
-  it('全部外键合计为 9 处 RESTRICT + 5 处 CASCADE（契约冻结 schema 的完整清单）', async () => {
+  it('契约 9 张表的外键合计为 9 处 RESTRICT + 5 处 CASCADE（契约冻结 schema 的完整清单）', async () => {
     const all: FkSpec[] = []
     for (const table of Object.keys(EXPECTED_COLUMNS)) {
       all.push(...(await getFks(table)))

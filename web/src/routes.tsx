@@ -15,6 +15,7 @@ import RequirementHierarchyDetailPage from './pages/RequirementHierarchyDetailPa
 import NewRequirementPage from './pages/NewRequirementPage'
 import WorkbenchPage from './pages/workbench/WorkbenchPage'
 import WorkbenchListPage from './pages/workbench/WorkbenchListPage'
+import AcceptancePage from './pages/acceptance/AcceptancePage'
 
 /**
  * 路由表（见 docs/frontend-routes.md，冻结）。
@@ -44,6 +45,8 @@ export default function AppRoutes() {
             <Route path="requirements/activities/:activityId" element={<RequirementHierarchyDetailPage kind="activity" />} />
             <Route path="requirements/:storyId" element={<RequirementDetailPage />} />
             <Route path="tasks" element={<ProjectTasksPage />} />
+            {/* US-09 任务验收（工单 #29）：项目内的验收工作台，入口在左导航 */}
+            <Route path="acceptance" element={<AcceptancePage />} />
             <Route path="members" element={<ProjectMembersPage />} />
           </Route>
         </Route>

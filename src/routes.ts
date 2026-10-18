@@ -6,6 +6,7 @@
 import type { FastifyInstance } from 'fastify'
 import type { PrismaClient } from '@prisma/client'
 import { registerAuthRoutes } from './auth/plugin.js'
+import { registerAcceptanceRoutes } from './modules/acceptance/plugin.js'
 import { registerSensitivityRoutes } from './modules/authz/plugin.js'
 import { registerProjectRoutes } from './modules/project/plugin.js'
 import { registerTaskRoutes } from './modules/task/routes.js'
@@ -41,4 +42,12 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
   // A / US-08 个人工作台（工单 #28）：GET /me/workbench。
   // 该端点不在 Sprint 1 契约的 30 个端点内，属本阶段新增（见 docs/us-08-workbench-api.md）。
   registerWorkbenchRoutes(app, context)
+
+  // A / US-09 任务验收（工单 #29）：POST /tasks/:taskId/acceptance、
+  // GET /tasks/:taskId/acceptances、GET /projects/:projectId/acceptance-queue。
+  // 同样不在 Sprint 1 契约的 30 个端点内，属本阶段新增（见 docs/us-09-acceptance-api.md）。
+  // 注意：这两个路径与 M3 已注册的 PUT /tasks/:taskId/sensitivity 后缀不同，
+  // 不与 M2 的 /projects/... 前缀冲突（Fastify 同 method+path 重复注册会抛
+  // FST_ERR_DUPLICATED_ROUTE 使整个应用无法构建）。
+  registerAcceptanceRoutes(app, context)
 }

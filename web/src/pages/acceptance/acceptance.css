@@ -1,0 +1,310 @@
+/* ===========================================================================
+ * US-09 任务验收页（工单 #29）—— 本页面自有样式
+ *
+ * 只定义本页面用到的类（acc- 前缀），不改骨架样式、不依赖其它页面是否加载过它们的
+ * CSS：页面可能被直接深链打开（/projects/:id/acceptance），届时别的模块的样式表
+ * 未必被加载过。骨架级类（.page / .form / .error / .muted / .table-scroll / button）
+ * 来自 web/src/index.css，随入口无条件加载。
+ * =========================================================================== */
+
+/* ---------------------------------------------------------------------------
+ * 顶部计数与提示条
+ * ------------------------------------------------------------------------- */
+
+.acc-count {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.acc-count-unit {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+.acc-notice {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-left-width: 4px;
+}
+
+.acc-notice--pass {
+  border-left-color: var(--success);
+}
+
+.acc-notice--reject {
+  border-left-color: var(--danger);
+}
+
+.acc-notice-meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.acc-notice-reason {
+  flex-basis: 100%;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.acc-notice-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+}
+
+.acc-viewer-note {
+  margin: 0 0 18px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px dashed var(--border);
+  background: var(--panel-soft);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------------------
+ * 待验收清单
+ * ------------------------------------------------------------------------- */
+
+.acc-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  font-size: 14px;
+}
+
+.acc-table th,
+.acc-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.acc-table th {
+  background: var(--panel-soft);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.acc-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.acc-nowrap {
+  white-space: nowrap;
+}
+
+.acc-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
+.acc-row-title {
+  font-weight: 600;
+}
+
+.acc-sensitive {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+.acc-button,
+.acc-button-plain {
+  font-size: 13px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  margin-right: 6px;
+}
+
+.acc-button {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.acc-button-plain:hover,
+.acc-button:hover {
+  background: var(--panel-soft);
+}
+
+.acc-button-plain:disabled,
+.acc-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* ---------------------------------------------------------------------------
+ * 验收历史（展开行内的时间线）
+ * ------------------------------------------------------------------------- */
+
+.acc-history-row td {
+  background: var(--panel-soft);
+}
+
+.acc-timeline {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.acc-timeline-item {
+  margin: 4px 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.acc-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.acc-tag--pass {
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+
+.acc-tag--reject {
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+.acc-timeline-when,
+.acc-timeline-who,
+.acc-timeline-flow {
+  color: var(--muted);
+}
+
+.acc-timeline-reason {
+  flex-basis: 100%;
+  color: var(--text);
+}
+
+/* ---------------------------------------------------------------------------
+ * 验收表单
+ * ------------------------------------------------------------------------- */
+
+.acc-form {
+  margin-top: 22px;
+  max-width: 620px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 22px;
+}
+
+.acc-hint {
+  margin: 6px 0 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.acc-fieldset {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.acc-fieldset legend {
+  padding: 0 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.acc-radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/*
+ * ★ 必须显式覆盖全局 input 规则。
+ *
+ * `web/src/index.css:200` 是 `input, select { width: 100%; padding: .5rem .65rem;
+ * border: 1px solid …; background: #fff }` —— 对**单选按钮**同样生效。
+ * 不覆盖的后果（2026-10-18 走查第 5 步实测到）：radio 被撑成一整行白框，
+ * 后面的中文标签被挤到**下一行**，看起来就是"单选与文本不在一个水平线上"。
+ *
+ * 这里只重置布局相关属性，**不动 `appearance`**，保留浏览器原生单选外观。
+ */
+.acc-radio input[type='radio'] {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  accent-color: var(--accent);
+}
+
+/* ---------------------------------------------------------------------------
+ * 两块清单的小标题与提示
+ * ------------------------------------------------------------------------- */
+
+.acc-section-title {
+  margin: 30px 0 6px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.acc-section-hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* 第一块里"上一轮被驳回"的上下文提示 */
+.acc-retry-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--danger);
+  background: #fdeced;
+  cursor: help;
+}
+
+/* 第二块的驳回原因：允许换行，长原因不要把表格撑破 */
+.acc-reason-cell {
+  max-width: 340px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+}

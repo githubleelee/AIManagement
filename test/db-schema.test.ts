@@ -2,7 +2,8 @@
  * 数据表结构与删除保护测试（T0-02）
  *
  * 覆盖验收标准：
- *   1. 迁移可重复执行；9 张表与契约决策 I-7 一致
+ *   1. 迁移可重复执行；表集合与契约决策 I-7 一致（I-7 的 9 张 + 本阶段经 #24 授权
+ *      新增的 1 张 `AcceptanceRecord` —— 见下方那条用例的「前提已变」说明）
  *   2. 枚举列为 String（迁移 SQL 中为 TEXT），planStart/planEnd 为 String，
  *      createdAt 为 DateTime（迁移 SQL 中为 DATETIME）
  *   3. 外键 RESTRICT 真实生效：目标下有用户活动时删除目标被拒绝
@@ -69,7 +70,17 @@ function makeActivity(projectId: string, goalId: string, name = unique('activity
 // ---------------------------------------------------------------------------
 
 describe('表结构与迁移', () => {
-  it('迁移创建了契约决策 I-7 规定的 9 张表', async () => {
+  /**
+   * 【前提已变，不是放宽断言】
+   *
+   * 原断言是「恰好 9 张表」，那是 **Sprint 1 契约决策 I-7 的表集合**。本阶段 US-09
+   * （工单 #29）经 #24 冻结区申请后新增第 10 张表 `AcceptanceRecord`（验收记录 ——
+   * AC5「全过程可追溯」的唯一落点，见 `docs/us-09-acceptance-api.md`）。
+   *
+   * 断言形式**未变**：仍是"不多不少"的等值比较 ⇒ 任何**未经授权**的新表依然会让本用例
+   * 失败，原保护意图（防止有人顺手往库里加表）完整保留。
+   */
+  it('表集合 = 契约 I-7 的 9 张 + 本阶段经授权新增的 1 张（不多不少）', async () => {
     const rows = await db.prisma.$queryRawUnsafe<Array<{ name: string }>>(
       `SELECT name FROM sqlite_master
        WHERE type = 'table'
@@ -78,6 +89,7 @@ describe('表结构与迁移', () => {
        ORDER BY name`,
     )
     expect(rows.map((row) => row.name)).toEqual([
+      'AcceptanceRecord', // ← 本阶段经 #24 授权新增（US-09 / #29），不属于契约 I-7
       'AuditLog',
       'BusinessGoal',
       'ObjectVisibility',
@@ -202,8 +214,10 @@ describe('级联删除（CASCADE）', () => {
 // ---------------------------------------------------------------------------
 
 describe('清理助手 resetDatabase', () => {
-  it('清空全部 9 张表，且清空后能重新建数据（可重复使用）', async () => {
-    // 造满 9 张表各至少一行
+  it('清空全部业务表，且清空后能重新建数据（可重复使用）', async () => {
+    // 造满契约 I-7 的 9 张表各至少一行。
+    // 注：US-09 新增的 AcceptanceRecord 不在此列 —— 它是 Task 的级联子表，
+    // 清空 Task 时由外键级联带走（本票的自检脚本已实测该级联），无需手写清理。
     const owner = await makeUser()
     const acceptor = await makeUser()
     const project = await makeProject(owner.id)

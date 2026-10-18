@@ -106,6 +106,12 @@ export default function ProjectLayout() {
           <NavLink to="tasks" className={navClass}>
             <span aria-hidden="true">☑</span>任务
           </NavLink>
+          {/* US-09 任务验收（工单 #29）：验收工作台入口。
+              这行属冻结区（前端骨架），已按 #24 comment 6235528115 的申请口径落地；
+              **尚无原 owner 的书面授权**，需单人复核合入（口径见 docs/us-09-acceptance-api.md §11）。 */}
+          <NavLink to="acceptance" className={navClass}>
+            <span aria-hidden="true">✓</span>验收
+          </NavLink>
           <NavLink to="members" className={navClass}>
             <span aria-hidden="true">♙</span>成员
           </NavLink>
