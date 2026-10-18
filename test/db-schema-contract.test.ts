@@ -265,7 +265,9 @@ describe('决策 I-7 表集合与字段逐列比对', () => {
    *
    * 原断言是「恰好存在契约规定的 9 张表」。本阶段 US-09（工单 #29）经 #24 冻结区申请后
    * 新增第 10 张表 `AcceptanceRecord`（验收记录，AC5 的唯一落点）；US-10（工单 #30）经
-   * 项目负责人 2026-10-18 授权再新增第 11 张表 `Risk`（风险台账）。
+   * 项目负责人 2026-10-18 授权再新增第 11 张表 `Risk`（风险台账）；US-06（工单 #26）经
+   * 项目负责人 2026-10-18 授权再新增 `Milestone` / `TaskDependency` / `TaskMilestone`
+   * （甘特图里程碑 / FS 依赖边 / 任务—里程碑关联，见 `docs/role-b-gantt-design.md` §3）。
    *
    * 断言形式**未变**：仍是"不多不少"的等值比较 ⇒ 任何**未经授权**的新表依然失败。
    *
@@ -273,16 +275,19 @@ describe('决策 I-7 表集合与字段逐列比对', () => {
    * 的既定职责（"断言直接对齐契约原文"）。新表的列集合由 US-09 自己的模块测试与
    * `_脚本\_us09_migration_check.mjs` 的 PRAGMA 逐列核对覆盖，未混进契约清单里。
    */
-  it('表集合 = 契约规定的 9 张 + 本阶段经授权新增的 2 张（不多不少）', async () => {
+  it('表集合 = 契约规定的 9 张 + 本阶段经授权新增的 5 张（不多不少）', async () => {
     expect(await getTableNames()).toEqual([
       'AcceptanceRecord', // ← 本阶段经 #24 授权新增（US-09 / #29），不属于契约 I-7
       'AuditLog',
       'BusinessGoal',
+      'Milestone', // ← 本阶段经项目负责人 2026-10-18 授权新增（US-06 / #26），不属于契约 I-7
       'ObjectVisibility',
       'Project',
       'ProjectMember',
       'Risk', // ← 本阶段经项目负责人 2026-10-18 授权新增（US-10 / #30），不属于契约 I-7
       'Task',
+      'TaskDependency', // ← US-06 / #26
+      'TaskMilestone', // ← US-06 / #26
       'User',
       'UserActivity',
       'UserStory',

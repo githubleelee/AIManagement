@@ -39,6 +39,8 @@ model User {
   acceptances   AcceptanceRecord[] @relation("AcceptanceActor")
   // US-10（工单 #30）：这个人负责的风险（反向关系，见文件末尾 Risk）
   ownedRisks    Risk[]             @relation("RiskOwner")
+  // US-06（工单 #26）：这个人负责的里程碑（反向关系，见文件末尾 Milestone）
+  ownedMilestones Milestone[]      @relation("MilestoneOwner")
 }
 
 model Project {
@@ -62,6 +64,10 @@ model Project {
   acceptances AcceptanceRecord[]
   // US-10（工单 #30）：本项目的风险台账（反向关系，见文件末尾 Risk）
   risks       Risk[]
+  // US-06（工单 #26）：本项目的里程碑 / 依赖边（反向关系，见文件末尾 Milestone / TaskDependency）
+  // 注：`TaskMilestone` 只有 (taskId, milestoneId) 两列，无 projectId，故 Project 侧无对应反向关系。
+  milestones       Milestone[]
+  taskDependencies TaskDependency[]
 }
 
 model ProjectMember {
@@ -147,6 +153,10 @@ model Task {
   // US-10（工单 #30）：关联到本任务的风险（用于敏感可见性继承）。
   // 任务删除时置空（SetNull）而非级联删除：风险是独立台账，不应随任务消失。
   risks       Risk[]
+  // US-06（工单 #26）：本任务关联的里程碑（多对多关联表）与 FS 依赖边（反向关系）
+  milestoneLinks          TaskMilestone[]
+  predecessorDependencies TaskDependency[] @relation("TaskPredecessor")
+  successorDependencies   TaskDependency[] @relation("TaskSuccessor")
 }
 
 // US-09 任务验收（工单 #29）—— 验收记录。
@@ -249,4 +259,65 @@ model AuditLog {
   createdAt   DateTime @default(now())
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// US-06 甘特图（工单 #26）—— 里程碑、任务—里程碑关联、FS 依赖边。
+//
+// 为什么需要这三张表：AC1 要求同一视图展示需求 / 任务 / 里程碑，AC4 要求任务可关联里程碑
+// 并汇总，AC5/AC6 要求仅 FS 依赖、拒绝自环 / 越项目边。既有 9 张表没有任何字段能承载
+// 里程碑、任务—里程碑多对多或任务间依赖，故本票新增。
+//
+// 枚举列全部为 String（SQLite 无原生 enum，与文件头第 1 条一致）：
+//   TaskDependency.type 本期仅接受 'FS'，其余值由写入层拒绝（见设计 §4.2）。
+//
+// 删除语义理由：
+//   Milestone.projectId → Restrict：与 Task / UserStory 等业务对象一致，项目不应被删掉而留下孤儿里程碑。
+//   Milestone.ownerUserId → Restrict：人不该被删掉而留下无主里程碑。
+//   TaskMilestone 两端 → Cascade：关联行只是任务与里程碑之间的连接，任一端消失即失去意义。
+//   TaskDependency.projectId → Restrict：本项目不再存在时，边不应留下孤儿。
+//   TaskDependency 两端 → Restrict：删除任务不静默丢边（会影响旧 DELETE /tasks/:taskId，见设计 §3.2）。
+model Milestone {
+  id          String   @id @default(uuid())
+  projectId   String
+  name        String
+  dueDate     String // 'YYYY-MM-DD'（自然日，Asia/Shanghai）
+  ownerUserId String? // 可选负责人；里程碑可无单独负责人（通知口径）
+  createdAt   DateTime @default(now())
+
+  project Project          @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  owner   User?            @relation("MilestoneOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  tasks   TaskMilestone[]
+
+  @@index([projectId])
+  @@index([ownerUserId])
+}
+
+// 任务—里程碑多对多关联（设计 §3.1 候选 A）：不侵入 Task 表，天然支持一个任务关联多个里程碑。
+model TaskMilestone {
+  taskId      String
+  milestoneId String
+
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  milestone Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, milestoneId])
+  @@index([milestoneId])
+}
+
+model TaskDependency {
+  id                String   @id @default(uuid())
+  projectId         String // 冗余项目边界，便于同项目校验与过滤
+  predecessorTaskId String
+  successorTaskId   String
+  type              String   @default("FS") // 本期仅接受 'FS'，写入层拒绝其他值
+  createdAt         DateTime @default(now())
+
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  predecessor Task    @relation("TaskPredecessor", fields: [predecessorTaskId], references: [id], onDelete: Restrict)
+  successor   Task    @relation("TaskSuccessor", fields: [successorTaskId], references: [id], onDelete: Restrict)
+
+  @@unique([predecessorTaskId, successorTaskId, type])
+  @@index([projectId])
+  @@index([predecessorTaskId])
+  @@index([successorTaskId])
 }
