@@ -17,6 +17,7 @@ import WorkbenchPage from './pages/workbench/WorkbenchPage'
 import WorkbenchListPage from './pages/workbench/WorkbenchListPage'
 import AcceptancePage from './pages/acceptance/AcceptancePage'
 import WorkloadPage from './pages/workload/WorkloadPage'
+import GanttPage from './pages/gantt/GanttPage'
 
 /**
  * 路由表（见 docs/frontend-routes.md，冻结）。
@@ -50,6 +51,8 @@ export default function AppRoutes() {
             <Route path="acceptance" element={<AcceptancePage />} />
             {/* US-07 成员任务图与负载（工单 #27）：项目内的只读负载总览，入口在左导航 */}
             <Route path="workload" element={<WorkloadPage />} />
+            {/* US-06 甘特图（工单 #26）：需求 / 任务 / 里程碑与 FS 依赖统一时间轴，入口在左导航 */}
+            <Route path="gantt" element={<GanttPage />} />
             <Route path="members" element={<ProjectMembersPage />} />
           </Route>
         </Route>

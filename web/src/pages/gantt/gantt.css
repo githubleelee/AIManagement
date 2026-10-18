@@ -1,0 +1,479 @@
+/* ===========================================================================
+ * US-06 甘特图（GitHub #26）—— 本票自有样式
+ *
+ * 不写进 web/src/index.css（前端骨架归 M2 独占维护）；各票在自己的
+ * pages/<票>/ 下自建 css 并在页内 import，是本仓库既有做法
+ * （pages/workbench/workbench.css、pages/workload/workload.css）。
+ *
+ * 纯 CSS 时间条，**不引入任何图表库**：整体 min~max 归一到百分比，
+ * 每行的计划区间用绝对定位的 `.gantt-bar` 表示。
+ * 视觉沿用既有变量（--panel / --border / --accent / --muted / --text / --bg）。
+ * =========================================================================== */
+
+.gantt-page {
+  min-width: 0;
+}
+
+/* ---------- 顶部：范围标签 + 计数摘要 ---------- */
+.gantt-scope {
+  display: inline-block;
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.gantt-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 4px 0 8px;
+}
+
+.gantt-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.gantt-chip-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.gantt-chip-label {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.gantt-scope-note {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.gantt-truncated {
+  margin: 0 0 18px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--panel-soft, var(--bg));
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ---------- 区块 ---------- */
+.gantt-section {
+  min-width: 0;
+  margin-bottom: 26px;
+  padding: 8px 20px 20px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel);
+}
+
+.gantt-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 0 14px;
+}
+
+.gantt-section-title {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text);
+}
+
+.gantt-section-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ---------- 统一时间轴 ---------- */
+.gantt-timeline {
+  min-width: 0;
+}
+
+.gantt-axis,
+.gantt-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 340px) 1fr;
+  gap: 16px;
+  align-items: center;
+}
+
+.gantt-axis {
+  padding: 8px 0 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.gantt-axis-label {
+  font-weight: 600;
+}
+
+.gantt-axis-range {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.gantt-axis-date {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.gantt-axis-hint {
+  white-space: nowrap;
+}
+
+.gantt-story-block:last-child .gantt-row--story {
+  border-bottom: none;
+}
+
+.gantt-row {
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--border);
+}
+
+.gantt-row--story {
+  border-bottom-style: solid;
+}
+
+.gantt-row--task {
+  padding-left: 28px;
+  border-bottom-style: dotted;
+}
+
+.gantt-row--empty {
+  color: var(--muted);
+}
+
+.gantt-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.gantt-cell--task {
+  padding-left: 0;
+}
+
+.gantt-cell-main {
+  min-width: 0;
+}
+
+/* 展开 / 收起按钮：仅切本地展开态，不是写操作 */
+.gantt-toggle {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gantt-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.gantt-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.gantt-title-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.gantt-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.gantt-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.gantt-note {
+  color: var(--muted);
+}
+
+.gantt-warn {
+  color: #b3261e;
+  font-weight: 600;
+}
+
+.gantt-empty {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ---------- 时间条 ---------- */
+.gantt-track {
+  position: relative;
+  height: 24px;
+  min-width: 0;
+}
+
+.gantt-track::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--border);
+}
+
+.gantt-bar {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 8px;
+  height: 9px;
+  border-radius: 999px;
+  background: #7aa2d6;
+}
+
+.gantt-bar--story {
+  height: 12px;
+  background: var(--accent);
+  opacity: 0.85;
+}
+
+.gantt-unscheduled {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ---------- 状态标签 ---------- */
+.gantt-badge {
+  display: inline-block;
+  flex: 0 0 auto;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* 故事状态：沿用需求模块既有语义（DRAFT/PLANNING/DONE） */
+.gantt-story-status {
+  background: #eff6ff;
+  color: #2457a8;
+}
+
+.gantt-story-status--draft {
+  background: #f2f5f8;
+  color: #52647a;
+}
+
+.gantt-story-status--planning {
+  background: #edf3fc;
+  color: #2457a8;
+}
+
+.gantt-story-status--done {
+  background: #e8f5ec;
+  color: #1e7a3f;
+}
+
+/* 任务状态：DONE = 待验收、CLOSED = 已验收，两者明确区分 */
+.gantt-task-status--todo {
+  background: #f2f5f8;
+  color: #52647a;
+}
+
+.gantt-task-status--doing {
+  background: #edf3fc;
+  color: #2457a8;
+}
+
+.gantt-task-status--blocked {
+  background: #fdecea;
+  color: #b3261e;
+}
+
+.gantt-task-status--suspended {
+  background: #fdf3e7;
+  color: #9a5b09;
+}
+
+.gantt-task-status--done {
+  background: #fff4d6;
+  color: #8a6100;
+}
+
+.gantt-task-status--closed {
+  background: #e8f5ec;
+  color: #1e7a3f;
+}
+
+.gantt-task-status--unknown {
+  background: var(--bg);
+  color: var(--muted);
+}
+
+/* ---------- 里程碑 ---------- */
+.gantt-milestones {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gantt-milestone {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  background: var(--panel-soft, var(--bg));
+}
+
+.gantt-milestone-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.gantt-milestone-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.gantt-milestone-date {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.gantt-milestone-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.gantt-muted {
+  color: var(--muted);
+}
+
+/* ---------- 依赖 ---------- */
+.gantt-deps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gantt-dep {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-soft, var(--bg));
+  font-size: 13px;
+  color: var(--text);
+}
+
+.gantt-dep-task {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.gantt-dep-arrow {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.gantt-dep-type {
+  color: var(--muted);
+}
+
+/* 依赖不可用：明确提示，绝不显示成「没有依赖」 */
+.gantt-unavailable {
+  padding: 14px 16px;
+  border: 1px solid #f0d8a8;
+  border-left: 3px solid #d99b1e;
+  border-radius: 10px;
+  background: #fffaf0;
+}
+
+.gantt-unavailable-title {
+  margin: 0;
+  color: #8a6100;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.gantt-unavailable-note {
+  margin: 6px 0 0;
+  color: #6f5520;
+  font-size: 13px;
+}
+
+.gantt-unavailable-hint {
+  margin: 6px 0 0;
+  color: #8a7a58;
+  font-size: 12px;
+}
+
+@media (max-width: 700px) {
+  .gantt-axis,
+  .gantt-row {
+    grid-template-columns: minmax(150px, 200px) 1fr;
+    gap: 10px;
+  }
+
+  .gantt-row--task {
+    padding-left: 14px;
+  }
+}

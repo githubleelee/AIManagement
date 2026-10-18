@@ -120,6 +120,11 @@ export default function ProjectLayout() {
           <NavLink to="workload" className={navClass}>
             <span aria-hidden="true">◍</span>成员负载
           </NavLink>
+          {/* US-06 甘特图（工单 #26）：统一时间轴（需求/任务/里程碑/FS 依赖）入口。
+              行属冻结区（前端骨架），由公共单写人 B 按已授权范围落地（#26 公共挂载批次）。 */}
+          <NavLink to="gantt" className={navClass}>
+            <span aria-hidden="true">▤</span>甘特图
+          </NavLink>
         </nav>
         <Link className="project-switcher" to="/projects">
           <span>当前项目 · {ROLE_LABELS[project.myRole]}</span>

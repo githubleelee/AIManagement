@@ -11,6 +11,7 @@ import { registerSensitivityRoutes } from './modules/authz/plugin.js'
 import { registerProjectRoutes } from './modules/project/plugin.js'
 import { registerTaskRoutes } from './modules/task/routes.js'
 import { registerWorkloadRoutes } from './modules/workload/plugin.js'
+import { registerGanttRoutes } from './modules/gantt/plugin.js'
 import { registerWorkbenchRoutes } from './modules/workbench/plugin.js'
 import { registerRequirementRoutes } from './modules/requirement/plugin.js'
 
@@ -57,4 +58,9 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
   // 同样不在 Sprint 1 契约的 30 个端点内，属本阶段新增（见 docs/role-b-workload-design.md）。
   // 只读聚合：复用既有 project.read 权限，不新增 Action。
   registerWorkloadRoutes(app, context)
+
+  // B / US-06 甘特图（工单 #26）：GET /projects/:projectId/gantt。
+  // 不在 Sprint 1 契约的 30 个端点内，属本阶段新增（见 docs/role-b-gantt-design.md）。
+  // 只读聚合：复用既有 project.read，不新增 Action；里程碑 / 依赖写入属后续批次（#12，待公共事件端口）。
+  registerGanttRoutes(app, context)
 }
