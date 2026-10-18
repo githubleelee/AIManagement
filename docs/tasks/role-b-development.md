@@ -342,10 +342,10 @@ Dependencies: #26 [FS], #38 [FS], #39 [FS], #40 [FS]
 ## #42 同步 C #32 新确认到文档与工单说明（本地草稿阶段，未授权发布）
 Status: in progress
 Outcome: 把本地 C 确认稿与 `DECISIONS.md` 追加条目同步到 `docs/team-handoff.md`、#24、#32 及相关工单索引说明的更新草案与发布记录；覆盖全项目 C2/C3/C6、#32 PM-only 权限例外、`task/` 限范围授权，并保留历史与变更来源。
-Evidence: docs/role-b-publication-package.md §4.0 已记录发布明细。2026-10-18 已发布 #24 集中同步 https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6245135447 与 #32 核对请求 #issuecomment-6245135807；DECISIONS.md 新条目与 #43/#46 DRAFT 经 PR #42（未合并）可访问。team-handoff/handoff-issues/sprint1/frontend-routes 的本地补丁仍未应用。
+Evidence: docs/role-b-publication-package.md §4.0/§5 已记录发布与补丁明细。2026-10-18：① 发布 #24 集中同步 https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6245135447 与 #32 核对请求 #issuecomment-6245135807；② 经 PR #42（未合并）使 DECISIONS.md 与 #43/#46 DRAFT 可访问；③ 用户授权“在分支中落地”后，team-handoff.md、handoff-issues.json、sprint1-spec-interface-contract.md、frontend-routes.md 的同步补丁已按“保留原文+追加变更说明”提交到该分支（含并入 PR #39 文档更新，提交 ea81b3e）；④ #31/#32/#33 票面 C4 旧句已追加更正块（保留原文），三票仍 open、标签未变。
 Done when: 明确标注「本地已存在 / 远端未发布」；更新草案区分全项目口径与 #32 限定口径，登记权限排除旧条目与 `supersedes` 关系；发布后记录链接；不把远端 PR #39 或 #32 正文描述为已同步；不批量改标签、不合并 PR、不替其他角色确认；对外发布需另行授权。
 Dependencies: none
-Blocker: #24/#32 同步评论已发布；尚缺授权修改并提交公共交接正文（team-handoff/handoff-issues/sprint1/frontend-routes）、确定目标树/PR #39 处置与合并 PR。本地已确认业务口径不以发布作为生效前置。
+Blocker: 本轮授权范围内的工作已完成（#24/#32 同步、本地交接正文补丁、#31/#32/#33 票面更正）；仍待用户决定 PR #42 是否合并、PR #39 是否关闭，以及是否继续后续实现。本地已确认业务口径不以发布作为生效前置。
 
 ## #43 拟定并冻结 C #32 所需的最小只读数据契约
 Status: in progress
