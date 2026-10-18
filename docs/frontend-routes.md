@@ -26,6 +26,7 @@
 | `/projects/:projectId/requirements/activities/:activityId` | `RequirementHierarchyDetailPage` | 用户活动详情与管理操作 | M4 / US-03 |
 | `/projects/:projectId/requirements/:storyId` | `RequirementDetailPage` | 需求详情：编辑 / 敏感 / 故事内任务（端点 20/21/23；任务区端点 24/25/27/28/29/30 **已实现，随收尾分支合入**） | M4 / US-03、M5 / US-05 |
 | `/projects/:projectId/tasks` | `ProjectTasksPage` | 项目任务总表（端点 26 + `ownerUserId` 过滤，**已实现，随收尾分支合入**） | M5 / US-05（T5.x） |
+| `/projects/:projectId/acceptance` | `AcceptancePage` | 任务验收工作台：待我验收清单 + 通过/驳回 + 验收历史（US-09 新增端点，见 `docs/us-09-acceptance-api.md`） | A / US-09（#29） |
 | `*` | `NotFoundPage` | 全局 404 | M2 |
 
 ## 页面职责与数据来源

@@ -106,6 +106,10 @@ export default function ProjectLayout() {
           <NavLink to="tasks" className={navClass}>
             <span aria-hidden="true">☑</span>任务
           </NavLink>
+          {/* US-09 任务验收（工单 #29）：验收工作台入口（挂载行为冻结区申请，已获口头同意） */}
+          <NavLink to="acceptance" className={navClass}>
+            <span aria-hidden="true">✓</span>验收
+          </NavLink>
           <NavLink to="members" className={navClass}>
             <span aria-hidden="true">♙</span>成员
           </NavLink>
