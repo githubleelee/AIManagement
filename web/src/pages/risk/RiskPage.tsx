@@ -43,6 +43,15 @@ export default function RiskPage() {
   const project = useOutletContext<ProjectView>()
   const canWrite = EDITOR_ROLES.includes(project.myRole)
   const isPm = project.myRole === 'PM'
+  /**
+   * 能否改风险**状态**（与能否写台账分开）。
+   *
+   * 项目负责人 2026-10-18 批复 §1：成员的状态流转**先 fail-closed**，
+   * 等公共层 `risk.flow` 落地后才放开"自己负责的风险"（服务端当前对非 PM 一律 403）。
+   * 所以这里先按"仅 PM"渲染 —— 不给成员一个点下去必然失败的按钮。
+   * ★ 公共层落地后，这里改为"PM 或该风险的负责人"（需与服务的 `risk.flow` 同步）。
+   */
+  const canFlowStatus = isPm
 
   const [risks, setRisks] = useState<RiskView[] | null>(null)
   const [closure, setClosure] = useState<ClosureCheckView | null>(null)
@@ -387,7 +396,7 @@ export default function RiskPage() {
                     <td>{risk.owner?.displayName ?? risk.ownerUserId}</td>
                     <td className="risk-nowrap risk-mono">{formatTime(risk.updatedAt)}</td>
                     <td className="risk-nowrap">
-                      {canWrite ? (
+                      {canFlowStatus ? (
                         editing ? (
                           <div className="risk-edit">
                             <select
@@ -449,6 +458,12 @@ export default function RiskPage() {
                             改状态
                           </button>
                         )
+                      ) : canWrite ? (
+                        // 成员能写台账，但状态流转按批复暂未开放 —— 给出原因，
+                        // 而不是渲染一个点下去必然 403 的按钮（服务端已同样 fail-closed）
+                        <span className="risk-muted" title="待公共层 risk.flow 落地后，成员可流转自己负责的风险">
+                          状态流转待开放
+                        </span>
                       ) : (
                         <span className="risk-muted">只读</span>
                       )}
