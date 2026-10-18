@@ -6,8 +6,6 @@
 > 本文档不自动覆盖既有业务规则；**本轮项目负责人已明确授权的公共文件归属变更以 §4.1 为准**，不再以旧「B 不直接修改」条款阻塞。其他冲突仍遵循既有契约与具体授权流程，变更在 `CONTRACT` 留痕，不虚构原 owner 同意。
 >
 > **本轮口径同步（2026-10-17，项目负责人授权）**：项目负责人 `githubleelee`（ROLE-B）已明确授权 B 统一修改 / 合入一组公共文件（见 §4.1），并确认 AI 演示外部范围、通知时区等口径；变更来源见 `docs/role-d-start-confirmation.md` 与 `DECISIONS.md`。旧历史按「适用范围 + 变更说明」保留，不全局替换。本轮授权已确认；文档通过 [PR #39](https://github.com/githubleelee/AIManagement/pull/39) 交付，**截至本次同步为待合并**，后续以 GitHub 状态为准。[#24 补充确认](https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6232875888) 已发布，#21/#31/#34/#36/#37 已同步说明；不把授权确认、文档合并与功能实现混为一谈。
->
-> **本轮口径同步（2026-10-18，ROLE-C #32 确认）**：项目负责人已就 #32 逐项确认 C2 / C3 / C6 全项目口径、PM-only 权限最小例外与 `task/` 限范围写窗口，逐项原文见 `docs/role-c-issue-32-confirmation.md`，长期条目见 `DECISIONS.md`（含同 key `supersedes` 链）。该同步已以 [#24 集中同步评论](https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6245135447) 与 [#32 核对请求](https://github.com/githubleelee/AIManagement/issues/32#issuecomment-6245135807) 发布；本文与 `docs/handoff-issues.json` 的对应更新经 [PR #42](https://github.com/githubleelee/AIManagement/pull/42) 交付（**待合并**）。旧文按「追加变更说明 + 保留原文」处理，不追溯改写；C11 / C12、C1 阈值、C10 故事级汇总等仍未一并确认。
 
 链路：`clone → env → install → migrate → seed → dev`，对应 README「首次运行（新 clone 必做）」。**跳过 env / migrate / seed 会表现为服务能起、`/health` 正常，但任何走数据库的接口 500。**
 
@@ -134,11 +132,12 @@ npm run dev
 | `web/src/routes.tsx`、`App.tsx`、`layouts/`、`components/` | **B（授权）** | 页面**挂载行**按就绪添加 |
 | `docs/frontend-routes.md` | **B（授权）** | 路由文档随骨架更新 |
 | `var/uploads` 的 `.gitignore` 规则 | **B（授权）** | 由 B 统一落实 |
-| `src/modules/authz/permissions.ts`（`can()` / `visibilityScope()` 签名） | 权限模块负责人 | **明确排除**在本次授权外：签名冻结；改内部实现也需原负责人 / 适用契约确认。**2026-10-18 追加（仍限于 #32）**：为落实 #32 PM-only，项目负责人额外授权 B 最小修改本文件及必要共享 `Action` / 对象 scope，不代表 C11 / C12 或其他票权限（`DECISIONS.md` `ownership.public-files-single-writer` 最新条目 + `scheduling.permission-pm-only`；旧条目保留） |
+| `src/modules/authz/permissions.ts`（`can()` / `visibilityScope()` 签名） | 权限模块负责人 | **明确排除**在本次授权外：签名冻结；改内部实现也需原负责人 / 适用契约确认 |
 | `src/modules/*/` 各业务模块（requirement / task / project / authz 等） | 对应模块当前写者 | **旧业务文件**：须原 owner 对**具体文件 / 范围**书面授权后由本票角色改；不得新建镜像写路径 |
 | `test/factories.ts` | T0.5 提供 | 全员只读 |
 
 - **历史归属变更说明（保留旧历史）**：本轮之前，`src/shared/*`、`schema.prisma`、`routes.ts` 归「技术负责人」，前端骨架与 `docs/frontend-routes.md` 归「前端骨架原唯一修改人」。项目负责人本轮**明确授权** B 统一单写上表已列范围（来源 `docs/role-d-start-confirmation.md` §2、`DECISIONS.md` `ownership.public-files-single-writer`）；**该授权来自项目负责人，不代表原技术负责人 / 前端骨架原修改人已单独表态**。`permissions.ts` 不在本次公共单写授权内（#32 PM-only 的最小例外见 §4.1 表中该行）。
+- **#30 限范围例外（2026-10-18 批复）**：项目负责人授权 **ROLE-A** 在 B 登记的窗口内，直接修改 `src/routes.ts` 的**路由注册行**与前端骨架的**页面路由 / 左导航挂载行**（`web/src/routes.tsx`、`web/src/layouts/` 等），仅用于挂载 US-10 自己的端点与页面；改动前须向 B 登记文件清单 / 用途 / 预计行数，**同一时刻同一文件只允许一个写者**；`src/shared/*`、`src/db/schema.prisma` 及迁移、`src/modules/authz/permissions.ts`、`src/app.ts`、`docs/frontend-routes.md` 仍由 B 单写，超出登记范围的改动另行申请（`DECISIONS.md` `ownership.public-files-single-writer` 2026-10-18 条目）。
 - **B 不再「只统筹」**上述已授权公共文件，而是作为**单写人**直接落地；未授权范围与旧业务文件仍按申请 / 授权流程。
 - **切换任一唯一修改人**必须在 [#24](https://github.com/githubleelee/AIManagement/issues/24) 记录明确、可追溯的交接；本轮公共文件归属切换由**项目负责人授权**（来源同上），未经授权不得改旧归属或扩大其他业务域权限。
 - **旧模块扩展授权**：实现必需的旧模块扩展**不必禁止，也不由其他角色代写**。由原 owner 书面授权本票负责人改**具体文件 / 范围**（或书面转交）后，业务改动仍由**本票角色**完成；**不得旁路旧规则新建镜像写路径**。见 [#24](https://github.com/githubleelee/AIManagement/issues/24) C13。
@@ -231,7 +230,6 @@ D 提供独立组件、Props 与补丁，由 B 在 `web/src/pages/RequirementDet
 
 - 决策 I-9 **禁止跨业务模块互相调用 service**。因此 **A（[#33](https://github.com/githubleelee/AIManagement/issues/33)）/ C（[#32](https://github.com/githubleelee/AIManagement/issues/32)）不得直接调用 D 的业务模块 service**。
 - **放置与注入已确认**：公共 AI / 事件**类型与端口放 `src/shared/`**，运行时由 **`src/app.ts` 应用组装注入**（来源 `docs/role-d-start-confirmation.md` §1、`DECISIONS.md` `arch.shared-ports-and-assembly`）。D 写 AI / 事件独立实现，**B 落公共接入**，A / C **复用端口**、不调用 D 业务 service。
-- **#32 只读消费边界（2026-10-18 确认）**：C 生成阶段只读消费 #26 / #27 的最小契约（待 B 发布、待 C 书面核对），**不直接写** B 的派生聚合 / 依赖 / 里程碑结构；人工确认后仅经统一受控路径写 `TODO` 任务的 `planStart` / `planEnd`，B 的甘特 / 负载视图随原任务数据自然更新。
 - **AI 演示外部范围**：先本地桩开发，后续接外部公有云大模型 API；普通虚构教学 / 演示数据可入外部模型；**仍禁止**外发真实密码 / token / 密钥 / 真实个人信息 / 未授权真实资料；敏感对象默认不入上下文；**不得声称满足原 AC13**；供应商 / 模型未定期间允许先做本地桩与可替换接口，端口不绑定 SDK（来源 `DECISIONS.md` `role-d.ai.demo-external-api-scope`）。
 - [#37](https://github.com/githubleelee/AIManagement/issues/37) 只做**传输 / 存储 / 订阅 / 幂等基础**；**发出方各自实现自己的领域事件**，D 不替业务域写逻辑，也不把所有修改丢给 D。
 
@@ -244,7 +242,7 @@ D 提供独立组件、Props 与补丁，由 B 在 `web/src/pages/RequirementDet
 | 敏感 | 列表 / 计数 / AI 上下文 / 通知 / 附件 / 事件载荷均**不得泄漏**；复用 `can()` / `visibilityScope()`，查询层过滤，禁止内存过滤后计数 |
 | 每票用例 | 至少覆盖 **PM / member / viewer / outsider + 敏感对象** 四类角色 |
 | 附件 | 服务端单文件 **≤10,000,000 B**，扩展名与 MIME 联合校验；D 域清单已确认，见确认稿 §4 / C7 |
-| 依赖 | 本期仅 **FS**（完成—开始）。**C2 已确认**（2026-10-18，全项目）：真实放行前置必须 `CLOSED`，`DONE` 不算验收通过；计划按自然日（含周末）、起止日均计入；FS 后继建议开始不得早于前置计划结束的次日；实际开工另检查前置 `CLOSED`（`DECISIONS.md` `scheduling.fs-release-closed-natural-days`）。原「待 #24 C2」表述保留为历史 |
+| 依赖 | 本期仅 **FS**（完成—开始）；放行条件待 [#24](https://github.com/githubleelee/AIManagement/issues/24) C2 |
 | 甘特 | 需求 / 任务 / 里程碑统一展示，含**任务里程碑 + 汇总** |
 | 工作台 | 固定 **5 块**：待办 / 逾期 / 待验收 / 被提及 / 近期计划 |
 | 通知 | **6 类**：分配 / @提及 / 逾期 / 验收 / 风险 / 关键节点；目标事件后 **1 分钟内**；时区 **Asia/Shanghai**（D 域已确认，来源 `DECISIONS.md` `notifications.events-timing-timezone`） |
@@ -253,7 +251,7 @@ D 提供独立组件、Props 与补丁，由 B 在 `web/src/pages/RequirementDet
 | AI | 关键建议**人工确认**后才应用；全过程**审计**；演示范围见下条 |
 | AI 数据边界 | **默认不纳入敏感对象**；普通虚构教学 / 演示数据可入外部公有云大模型 API（项目负责人本轮变更，来源 `DECISIONS.md` `role-d.ai.demo-external-api-scope`）；**仍禁止**外发真实密码 / token / 密钥 / 真实个人信息 / 未授权真实资料；**不得声称满足原 AC13**；供应商 / 模型未定期间允许先做本地桩与可替换接口 |
 | 六状态 | 本阶段必交 `TODO / DOING / BLOCKED / SUSPENDED / DONE / CLOSED`；未落地前 [#28](https://github.com/githubleelee/AIManagement/issues/28) / [#29](https://github.com/githubleelee/AIManagement/issues/29) / [#30](https://github.com/githubleelee/AIManagement/issues/30) 最终 AC 不勾 |
-| 多视图一致性 | 按**同一账号、同一授权视角**比较（地图 / 看板 / 甘特 / 工作台 / 仪表盘口径一致）；保留 C6 的**全局基数 / 可见基数**语义。**C6 基础口径已确认**（2026-10-18）：负载 = 负责人名下非 `CLOSED` 任务数（含 `DONE`），不做评分；PM 看全项目汇总，MEMBER / VIEWER 只看各自授权可见任务汇总并标「可见范围」；AI 排敏后以子集重算，不得冒充全局基数（`DECISIONS.md` `scheduling.load-aggregation-baseline`）；健康度阈值等未确认 |
+| 多视图一致性 | 按**同一账号、同一授权视角**比较（地图 / 看板 / 甘特 / 工作台 / 仪表盘口径一致）；保留 C6 的**全局基数 / 可见基数**语义 |
 | UML | 平台内**在线**创建 / 编辑用例图与时序图，**关联**项目 / 目标 / 活动 / 故事 / 任务；上传图片**不替代**在线绘图 |
 
 **不擅自规定**：高级拖拽、高级调度、额外外部服务。后置范围见报告 §2.3，不扩项。
@@ -275,18 +273,18 @@ D 提供独立组件、Props 与补丁，由 B 在 `web/src/pages/RequirementDet
 | 编号 | 话题 |
 |---|---|
 | C1 | 项目健康度阈值（健康 / 预警 / 风险的偏差口径） |
-| C2 | FS 放行条件 —— **已确认**（2026-10-18，全项目）：前置必须 `CLOSED`，`DONE` 不算验收通过；自然日含起止；后继建议开始不早于前置结束次日（`DECISIONS.md` `scheduling.fs-release-closed-natural-days`）。原问句保留为历史 |
-| C3 | 逾期判定时区边界 —— **已确认**（2026-10-18，全项目含 A/B/C/D）：统一 `Asia/Shanghai`，日期语义 `YYYY-MM-DD`；`planEnd` 当日结束后、次日 00:00 仍未 `CLOSED` 即逾期（`DECISIONS.md` `timezone.project-wide-asia-shanghai`）。原「D 已确认 + A 待统一」为历史；A 工作台 `isoToday()` 仍用 UTC 属**实现差异**，由对应写者收敛，不作为口径待定 |
+| C2 | FS 放行条件：前置「完成」还是「验收关闭」 |
+| C3 | 逾期判定时区边界 —— **部分确认**：D 通知已确认 Asia/Shanghai（`DECISIONS.md`）；A 域逾期判定（本项）**仍待 A / 技术负责人统一**，不得形成「D 已确认 + A 未确认」的双最终口径 |
 | C4 | AI 服务与资源 —— **本轮变更**：演示范围可接外部公有云大模型 API、普通虚构演示数据可入（`DECISIONS.md` `role-d.ai.demo-external-api-scope`）；具体供应商 / 模型 / 地址未定，允许先做本地桩与可替换接口；端口不绑定 SDK |
 | C5 | UML 交互方案（在线编辑方式，不引入外部服务） |
-| C6 | 汇总权限口径 —— **基础口径已确认**（2026-10-18）：负载 = 负责人名下非 `CLOSED` 任务数（含 `DONE`）、不做评分；PM 全项目汇总，MEMBER / VIEWER 可见范围汇总并标注；AI 排敏后以子集重算、不得冒充全局基数（`DECISIONS.md` `scheduling.load-aggregation-baseline`）。健康度阈值（C1）等其他规则仍未确认 |
+| C6 | 汇总权限口径（进度 / 健康度 / 负载对 PM / member / viewer） |
 | C7 | 附件受限类型清单与存储位置 —— **D 域已确认**：png/jpg/jpeg/webp/pdf/docx/xlsx/zip，服务端 ≤10MB（SI 10,000,000 B）、扩展名与 MIME 联合校验，元数据入库、实体文件 `var/uploads/` 并 `.gitignore`（`DECISIONS.md` `attachments.policy`；`.gitignore` 由 B 落实） |
 | C8 | 通知 6 类判定与「1 分钟」口径 —— **D 域已确认**：仅站内、Asia/Shanghai、逾期次日 00:00、去重规则与接收者映射见 `DECISIONS.md` `notifications.events-timing-timezone` |
 | C9 | 项目关闭阻断的执行入口与清单口径 |
 | C10 | 进度口径确认（= closed/total，DONE 不计入） |
 | C11 | 操作授权 `Action` / 角色映射（US04 成员能否改故事；US08 负责人更新 / PM 管理边界；US09 指定验收人可验、VIEWER 是否允许、验收人可选范围；现无 `task.accept`；不得绕 `can()` / `visibilityScope()`）—— **未自动确认**，仍待权限负责人 + 项目负责人拍板 |
 | C12 | 协作人模型 / 任务成员权限（当前 `Task` 无协作人，不得擅自缩减报告范围）—— **未自动确认**，仍待技术负责人 + 项目负责人 + A |
-| C13 | 旧模块修改归属与项目关闭入口 —— **部分更新**：公共文件已授权 B 单写（见 §4.1）；旧业务文件仍须原 owner 对具体文件 / 范围授权；项目关闭入口当前无 close endpoint，归属待确认。**#32 限范围例外（2026-10-18）**：C 在 B 登记具体文件 / 范围并完成现写者交接后的独占窗口内，最小改 `src/modules/task/routes.ts`、`rules.ts` 及本域测试，不另建旁路、不调 task service；**不覆盖** B 甘特旧入口、也不覆盖 requirement 等其他旧模块（`DECISIONS.md` `arch.legacy-task-controlled-extension` 最新条目）；不假定写锁空闲 |
+| C13 | 旧模块修改归属与项目关闭入口 —— **部分更新**：公共文件已授权 B 单写（见 §4.1）；旧业务文件仍须原 owner 对具体文件 / 范围授权；项目关闭入口当前无 close endpoint，归属待确认 |
 
 > **六状态不属于「待确认」范畴**：它是**本阶段必交**，见 [#24](https://github.com/githubleelee/AIManagement/issues/24) 第 2 点（枚举映射 / 转换 / 授权 / 迁移 / 单写人）；US08/09/10 的最终 AC 依赖其落地。C1–C13 的状态以各行结论为准，未决部分只做设计；D 域确认不代替 A / C 域确认。
 

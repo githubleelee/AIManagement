@@ -79,8 +79,10 @@
 
 | 条目 | 时间戳 | 措辞 |
 |---|---|---|
-| `permissions.risk-and-project-close` | 2026-10-18T11:30 | 路由 / 前端挂载「待 A 就绪后由 B 补挂」 |
-| `ownership.public-files-single-writer`（新） | 2026-10-18T11:45:50 | #30 授权 A 在 B 登记范围内自行挂载 |
+| `permissions.risk-and-project-close` | 2026-10-18T11:30 | 权限与数据由 B 落地；挂载归属以较新的 `ownership` 条目为准（A 在登记窗口内自挂） |
+| `ownership.public-files-single-writer`（新） | 2026-10-18T11:45:50 | #30 授权 A 在 B 登记范围内自行挂载 `src/routes.ts` 注册行与前端骨架挂载行 |
+
+**已完成（2026-10-18，供核对）**：`DECISIONS.md` 已合并到 main（含 18 条：`permissions.risk-and-project-close` 已恢复、`analytics.health-thresholds-and-planned-progress` 与新 `ownership` 已入库）；公共支持 PR #43 已合入 main；`typecheck` + `vitest`（49 文件 / 1182 测试）已全绿（PR #46）。
 
 合并时**保留两条并按时间戳排序，以较新的 `ownership` 条目为准**，避免 A 与 B 都以为对方在挂载。
 

@@ -61,7 +61,7 @@ A 不需要再等公共文件授权：第 1、2 项公共支持已在 `feat/risk
 - 前端骨架的**页面路由 / 左导航挂载行**（`web/src/routes.tsx`、`web/src/layouts/AppLayout.tsx` 等）。
 - 要求：改动前把**文件清单 + 用途 + 预计行数**发给 B 登记；**同一时刻一个文件只允许一个写者**，若 B 正在改同一文件则等其回合或请 B 代改；不得借此改动骨架的其他结构。
 
-**开发基线**：业务分支**基于 `feat/risk-actions-schema`（`9952740`）**，或在公共支持合入 main 后 rebase；**不得在分支内重复实现 `Risk` 模型或权限动作**。
+**开发基线**：业务分支**直接基于最新 `main`**（已含 #42/#43/#44/#45/#46 的公共支持与验证；此前建议的 `feat/risk-actions-schema@9952740` 已 rebase 为 `47eee93` 并合入，**不要再基于旧分支**）；**不得在分支内重复实现 `Risk` 模型或权限动作**。
 
 **不做 / 不越界**：不改 D、C 的模块；不动项目模块既有写路径；不改共享 `Project` / `Action` 类型；不新建敏感对象类型。
 
@@ -71,13 +71,13 @@ A 不需要再等公共文件授权：第 1、2 项公共支持已在 `feat/risk
 
 ## 6. 需要同步 / 待办（不阻塞 A 开发）
 
-| 事项 | 负责人 |
-|---|---|
-| 为 `feat/risk-actions-schema` 开 PR，跑 `typecheck` + `vitest` 后合入 main | B |
-| 合并 `DECISIONS.md` 时保留 `permissions.risk-and-project-close`（2026-10-18T11:30）并按时间戳排序，不丢条目 | B |
-| 在 #24 / #30 引用本确认，并在 #30 记录第 3、4 项的挂载范围 | A |
-| A 的 GitHub 账号；以及「只读部分已提交」的分支地址（本次核对**未在远端查见** US-10 业务分支） | A |
-| A 有标签权限则自行移除 #30 的 `needs-confirmation`；无权限由 B 代操作（不批量处理其他票） | A / B |
+| 事项 | 负责人 | 状态 |
+|---|---|---|
+| 为 `feat/risk-actions-schema` 开 PR，跑 `typecheck` + `vitest` 后合入 main | B | ✅ 已完成（PR #43 已合入；`typecheck` exit 0；`vitest` 49 文件 / 1182 测试全绿，PR #46） |
+| 合并 `DECISIONS.md` 时保留 `permissions.risk-and-project-close`（2026-10-18T11:30）并按时间戳排序，不丢条目 | B | ✅ 已完成（main 现 18 条，含 `analytics.health-thresholds-and-planned-progress` 与新的 `ownership` 条目） |
+| 在 #24 / #30 引用本确认，并在 #30 记录第 3、4 项的挂载范围 | A | 待办 |
+| A 的 GitHub 账号；以及「只读部分已提交」的分支地址（本次核对**未在远端查见** US-10 业务分支） | A | 待办 |
+| A 有标签权限则自行移除 #30 的 `needs-confirmation`；无权限由 B 代操作（不批量处理其他票） | A / B | 待办 |
 
 ## 7. 声明
 

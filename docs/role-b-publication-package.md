@@ -27,6 +27,8 @@
 | PR #39 / #24 正文 | 仍保留旧口径：C3 “A 域待统一”、`permissions.ts` 明确排除、C2/C6 待确认 | 按 §5 原则以“保留原文 + 追加变更说明”方式更新，不追溯改写历史 |
 | #31 / #32 / #33 远端正文 | 第 0 步是**追加**式同步，旧 C4 句仍在线：#31 保留“真实数据不得外发公有云”与“真实项目数据不出私有环境”，#32 保留旧 C4 句与“待确认：AI 服务与资源”；#33 根本未在本次同步列表内 | 登记为待处理冲突（票面 ≠ 最新口径），不默认票面已同步；是否修票面正文单列裁决（§7），不在正文以外的地方冒充已更新 |
 | A 在 #24 末条评论中需 B 回答的项 | `/projects/:projectId/close` 的**路径命名空间归属**（`src/routes.ts` 属 B 单写，A 明确请 B 指定）；`Project.status` 是否**不进**共享 `ProjectView`（涉及 `src/shared/types.ts`）；`schema.prisma` +1 迁移；健康度基准“任务 min(planStart)~max(planEnd)、不给 Project 加日期字段”；C9/C13 的 409 与“不允许强制关闭”待定口径 | 补入登记并列入 §7；B 只回答属于单写范围的问题，不代批 A 的业务与阈值口径 |
+| **A 的申请结果（2026-10-18 批复，已落地）** | ① 公共层（`Risk` / `Project.status` / 迁移 / `risk.write` / `project.close`）由 B 落地并合入 main（PR #43）；② **第 3、4 项挂载改由 A 在 B 登记窗口内自挂**（`src/routes.ts` 注册行 + 前端骨架挂载行）；③ 健康度阈值 / 计划时间进度已定并入库（`analytics.health-thresholds-and-planned-progress`）；④ 关闭阻断 409 + 清单、`Project.status` 不进 `ProjectView` 一并确认 | 批复稿：`docs/role-a-issue-30-confirmation.md`；转发通知：`docs/role-a-issue-30-public-support-notice.md`；#30 票面已追加挂载授权块 |
+| **#33 追加申请结果（2026-10-18 批复）** | 第 6 项同意（处置 AI 建议仅 PM，与 #32 共用**同一个** Action）；第 5 项不批独立建表，改为共享「建议 + 处置」存储（D 的 #31 提字段、B 落公共层，A/C 复用） | 依据 `DECISIONS.md` `ai.suggestion-store-shared`、`permissions.ai-suggestion-disposal`（**待入库**）；影响本地 #45 范围与 #44 的动作集合 |
 
 **冲突提示**：A 方案称 C3 沿用 UTC，与本轮已确认的全项目 `Asia/Shanghai` 不一致；B 不修改 A 的代码，也不接受“两套最终口径”并存，需在 T7 中提出协调。
 
@@ -195,7 +197,7 @@ D 的 `#31/#37` 第 0 步说明已同步，C4/C7/C8 口径未变，本轮**不�
 
 仍待裁决：
 
-1. ROLE-A 的申请：是否升级给权限负责人或项目负责人裁决，或先由 B 只回“登记待裁”。需逐项处理的是——(a) 新增 `Action` `risk.write` / `project.close` 与对应 `permissions.ts` 判定；(b) `Risk` 模型、`Project.status`、迁移批次与 `min(planStart)~max(planEnd)` 基准（影响 `schema.prisma`）；(c) `Project.status` 不进共享 `ProjectView` 的规避是否接受（`src/shared/types.ts`）；(d) `/projects/:projectId/close` 路径命名空间与挂载行（`src/routes.ts`、前端骨架）；(e) C9/C13 关闭语义：阻断用 `409 CONFLICT`、是否允许强制关闭——原文属“待定”，B 不代批。
+1. ~~ROLE-A 的申请~~ → 已完成（2026-10-18 批复 + 落地，见 §2 表末两行）。原逐项清单保留作历史：需逐项处理的是——(a) 新增 `Action` `risk.write` / `project.close` 与对应 `permissions.ts` 判定；(b) `Risk` 模型、`Project.status`、迁移批次与 `min(planStart)~max(planEnd)` 基准（影响 `schema.prisma`）；(c) `Project.status` 不进共享 `ProjectView` 的规避是否接受（`src/shared/types.ts`）；(d) `/projects/:projectId/close` 路径命名空间与挂载行（`src/routes.ts`、前端骨架）；(e) C9/C13 关闭语义：阻断用 `409 CONFLICT`、是否允许强制关闭——原文属“待定”，B 不代批。
 2. C3 冲突（已在 #30 T7 提出，等待 A 回复）；如需用户直接指示 A，另行告知。
 2b. A 的申请已按授权落地并开 PR #43；**待决定**：PR #43 的合入时机、是否需在 #30/#24 通知 A 使用新 `Action`（`risk.write` / `project.close`）与 `Risk` 表、以及 A 侧「member 只读」旧表述（#30 正文）是否需要 A 自行更正。
 3. §5 本地文档补丁是否现在落地（仍不提交、不推送），或等发布授权一并执行；以及 §5 的目标树选择（rebase 进 PR #39 / 沿用新 PR #42 分支 / 在 main 重建）。注意 PR #39 已落后 main，与 PR #42 重叠，建议后续只保留其一。

@@ -362,12 +362,12 @@ Done when: 仅覆盖 #32 生成 / 查看 / 采纳 / 修改后采纳 / 拒绝 / �
 Dependencies: none
 Blocker: 本批编码授权与 `Action`/scope 命名方案确认；#32 权限范围已由项目负责人确认，但不代表 C11/C12。
 
-## #45 落地 C 域 AI 建议 / 确认 / 审计记录 schema 与迁移
+## #45 落地共享 AI 建议 / 处置记录 schema 与迁移（#32 + #33 复用）
 Status: not started
-Outcome: B 单写的建议、确认 / 处置、审计记录最小模型、索引与顺序迁移。
-Done when: 覆盖建议输入范围 / snapshot / fingerprint、生成时间、模型标识与实际可得版本、人工修改与理由、审核人、最终处置与应用结果；快照有效权限与唯一处置 / 冲突所需字段以 #46 提案为准；不替 C 实现业务、不擅自扩张写权限；核对历史数据与迁移验证。
+Outcome: B 单写的**共享**「建议 + 处置」存储最小模型、索引与顺序迁移（ROLE-C #32 与 ROLE-A #33 复用同一套，不各建表）。
+Done when: 字段以 D 的 #31 字段提案为源、并与 #43 数据契约及 A 的 #33 字段需求合并成一份后再落表（`DECISIONS.md` `ai.suggestion-store-shared`）；覆盖场景 / 分析类型、输入范围与 snapshot / fingerprint、生成时间、模型或桩标识与实际可得版本、建议内容、处置结论（采纳 / 修改后采纳 / 拒绝）、处置人、理由、最终应用结果；快照有效权限与唯一处置 / 冲突所需字段以 #46 提案为准；不用 `AuditLog` 承载建议；处置动作按 `permissions.ai-suggestion-disposal` 与 #32 共用**同一个** Action（#44 一并加入 `can()`）；不替 A / C 实现业务、不擅自扩张写权限；核对历史数据与迁移验证。
 Dependencies: #46 [FS]
-Blocker: 待 #46 事务 / 幂等 / 快照字段接口明确与本批编码授权。
+Blocker: 待 D 的 #31 字段 / 端口提案 + A 的 #33 字段需求汇总，以及 #46 事务 / 幂等 / 快照字段接口明确与本批编码授权。
 
 ## #46 确认公共读 / 写端口与事务 / 鉴权协议
 Status: in progress
