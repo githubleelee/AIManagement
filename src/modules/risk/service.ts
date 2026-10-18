@@ -369,7 +369,15 @@ export async function closeProject(
   await prisma.$transaction([
     prisma.project.update({ where: { id: projectId }, data: { status: 'CLOSED' } }),
     prisma.auditLog.create({
-      data: auditData(projectId, actorUserId, 'project.close', 'project', projectId, 'ACTIVE', 'CLOSED'),
+      data: auditData(
+        projectId,
+        actorUserId,
+        'project.close',
+        'project',
+        projectId,
+        { status: 'ACTIVE' },
+        { status: 'CLOSED' },
+      ),
     }),
   ])
 
@@ -402,7 +410,15 @@ export async function reopenProject(
   await prisma.$transaction([
     prisma.project.update({ where: { id: projectId }, data: { status: 'ACTIVE' } }),
     prisma.auditLog.create({
-      data: auditData(projectId, actorUserId, 'project.reopen', 'project', projectId, 'CLOSED', 'ACTIVE'),
+      data: auditData(
+        projectId,
+        actorUserId,
+        'project.reopen',
+        'project',
+        projectId,
+        { status: 'CLOSED' },
+        { status: 'ACTIVE' },
+      ),
     }),
   ])
 

@@ -383,7 +383,12 @@ describe('AC4/AC5 项目关闭与重开', () => {
 
     const logs = await ctx.db.auditLog.findMany({ where: { action: 'project.close' } })
     expect(logs).toHaveLength(1)
-    expect(logs[0]?.after).toBe('CLOSED')
+    // 审计的 before / after 是 **JSON 字符串**（与敏感设置端点同一做法）：
+    // 这里解析后比对字段，比比对裸字符串更严，同时验证它确实可解析。
+    // 原实现存的是裸字符串 'CLOSED'（JSON 编码后变成 '"CLOSED"'、没有字段名），
+    // 已改为存 `{ status }` 对象。
+    expect(JSON.parse(logs[0]!.after as string)).toEqual({ status: 'CLOSED' })
+    expect(JSON.parse(logs[0]!.before as string)).toEqual({ status: 'ACTIVE' })
   })
 
   it('MEMBER 不能关闭项目（project.close 仅 PM）→ 403', async () => {
@@ -421,6 +426,9 @@ describe('AC4/AC5 项目关闭与重开', () => {
 
     const logs = await ctx.db.auditLog.findMany({ where: { action: 'project.reopen' } })
     expect(logs).toHaveLength(1)
+    // 重开的审计同样存对象：{ status: 'CLOSED' } → { status: 'ACTIVE' }
+    expect(JSON.parse(logs[0]!.before as string)).toEqual({ status: 'CLOSED' })
+    expect(JSON.parse(logs[0]!.after as string)).toEqual({ status: 'ACTIVE' })
   })
 
   it('★ 敏感风险不可见时不计入该成员的阻断清单（不泄漏存在性）', async () => {
