@@ -278,24 +278,29 @@ describe('授权：风险写权限 = PM + MEMBER；VIEWER 只读', () => {
     expect((patched.body as RiskView).level).toBe('LOW')
   })
 
-  it('★【fail-closed，临时】MEMBER 改风险状态 → 403（含自己负责的风险）', async () => {
-    // 项目负责人 2026-10-18 批复 §1：已批准口径是「MEMBER 只能流转**自己负责**的风险」，
-    // 该判定的正确落点是公共层新增 `risk.flow` 的对象关系判定（由 B 落地）。
-    // 公共层就绪前，批复要求先 fail-closed：**成员一律不得流转任何风险状态（403）**。
-    //
-    // ★ 本条**不得用于勾最终 AC**（批复明确要求）：公共层落地后应改写为
-    //   「成员可流转自己的风险 200 / 他人风险 403」。
+  it('★ 成员只能流转**自己负责**的风险（公共层 risk.flow 对象关系判定，2026-10-18 落地）', async () => {
+    // 批复最终口径：PM 全部；MEMBER 仅 `ownerUserId` = 本人的风险；VIEWER / 他人 403。
+    // 公共层未就绪时本票按批复 §1 做过临时 fail-closed（成员一律 403）；
+    // `risk.flow` 落地后本用例改为断言**最终口径**。
     const ownRisk = await makeRisk(member1.id, { title: '成员自己的风险' })
-    expect((await patchRisk(member1.id, ownRisk.id, { status: 'IN_PROGRESS' })).status).toBe(403)
+    const othersRisk = await makeRisk(member2.id, { title: '别人负责的风险' })
 
-    // 但**写台账本身**（改级别等非状态字段）仍允许 —— 批复第 4 节的票面更正口径
-    const stillAllowed = await patchRisk(member1.id, ownRisk.id, { level: 'LOW' })
-    expect(stillAllowed.status).toBe(200)
+    // 自己的 → 可以流转
+    const ownFlow = await patchRisk(member1.id, ownRisk.id, { status: 'IN_PROGRESS' })
+    expect(ownFlow.status).toBe(200)
+    expect((ownFlow.body as RiskView).status).toBe('IN_PROGRESS')
 
-    // PM 不受影响
-    const byPm = await patchRisk(pm.id, ownRisk.id, { status: 'IN_PROGRESS' })
-    expect(byPm.status).toBe(200)
-    expect((byPm.body as RiskView).status).toBe('IN_PROGRESS')
+    // 别人的 → 403（服务端强制，与前端是否渲染按钮无关）
+    expect((await patchRisk(member1.id, othersRisk.id, { status: 'IN_PROGRESS' })).status).toBe(403)
+
+    // 改非状态字段（台账写入）不受影响
+    expect((await patchRisk(member1.id, ownRisk.id, { level: 'LOW' })).status).toBe(200)
+
+    // PM 可以流转任何人的
+    expect((await patchRisk(pm.id, othersRisk.id, { status: 'IN_PROGRESS' })).status).toBe(200)
+
+    // VIEWER 一律 403
+    expect((await patchRisk(viewer.id, ownRisk.id, { status: 'OPEN' })).status).toBe(403)
   })
 
   it('VIEWER 可以读清单，但不能写 → 403', async () => {

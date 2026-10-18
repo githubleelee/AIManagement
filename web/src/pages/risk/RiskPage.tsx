@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import type { ProjectView, ProjectRole } from '../../../../src/shared/types'
-import { ApiError, listMembers } from '../../api'
+import { ApiError, fetchMe, listMembers } from '../../api'
 import PageHeader from '../../components/PageHeader'
 import EmptyState from '../../components/EmptyState'
 import { TaskStatusBadge } from '../task/TaskStatusBadge'
@@ -44,14 +44,14 @@ export default function RiskPage() {
   const canWrite = EDITOR_ROLES.includes(project.myRole)
   const isPm = project.myRole === 'PM'
   /**
-   * 能否改风险**状态**（与能否写台账分开）。
+   * 能否改某条风险的**状态**（与能否写台账分开渲染）。
    *
-   * 项目负责人 2026-10-18 批复 §1：成员的状态流转**先 fail-closed**，
-   * 等公共层 `risk.flow` 落地后才放开"自己负责的风险"（服务端当前对非 PM 一律 403）。
-   * 所以这里先按"仅 PM"渲染 —— 不给成员一个点下去必然失败的按钮。
-   * ★ 公共层落地后，这里改为"PM 或该风险的负责人"（需与服务的 `risk.flow` 同步）。
+   * 批复最终口径（公共层 `risk.flow` 对象关系判定，2026-10-18 已落地）：
+   * **PM 可流转全部；MEMBER 仅自己负责的；VIEWER 一律不可。**
+   * 前端据此决定是否渲染按钮，但**服务端才是权威** —— 前端隐藏只是体验层。
+   * （此前公共层未就绪时按批复先 fail-closed：成员一律不渲染按钮。）
    */
-  const canFlowStatus = isPm
+  const [myUserId, setMyUserId] = useState('')
 
   const [risks, setRisks] = useState<RiskView[] | null>(null)
   const [closure, setClosure] = useState<ClosureCheckView | null>(null)
@@ -113,6 +113,25 @@ export default function RiskPage() {
       cancelled = true
     }
   }, [project.id])
+
+  /**
+   * 取"我是谁" —— 用来判断某条风险是不是**我负责的**（能否流转其状态）。
+   * 取不到时不阻塞主流程：`myUserId` 保持空串，则只有 PM 能改状态，
+   * **服务端仍按 `risk.flow` 判定**，前端只是渲染层。
+   */
+  useEffect(() => {
+    let cancelled = false
+    fetchMe()
+      .then((me) => {
+        if (!cancelled) setMyUserId(me.id)
+      })
+      .catch(() => {
+        if (!cancelled) setMyUserId('')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   /** 切项目时清空表单与提示，避免残留（本仓库出现过"组件复用残留旧值"的坑） */
   useEffect(() => {
@@ -396,7 +415,7 @@ export default function RiskPage() {
                     <td>{risk.owner?.displayName ?? risk.ownerUserId}</td>
                     <td className="risk-nowrap risk-mono">{formatTime(risk.updatedAt)}</td>
                     <td className="risk-nowrap">
-                      {canFlowStatus ? (
+                      {isPm || risk.ownerUserId === myUserId ? (
                         editing ? (
                           <div className="risk-edit">
                             <select
@@ -459,10 +478,13 @@ export default function RiskPage() {
                           </button>
                         )
                       ) : canWrite ? (
-                        // 成员能写台账，但状态流转按批复暂未开放 —— 给出原因，
-                        // 而不是渲染一个点下去必然 403 的按钮（服务端已同样 fail-closed）
-                        <span className="risk-muted" title="待公共层 risk.flow 落地后，成员可流转自己负责的风险">
-                          状态流转待开放
+                        // 能写台账、但这条不是自己负责的 —— 只有负责人或项目经理能流转状态
+                        // （服务端 `risk.flow` 权威判定，这里只是不渲染一个点了必然 403 的按钮）
+                        <span
+                          className="risk-muted"
+                          title="只有该风险的负责人或项目经理可以流转状态"
+                        >
+                          仅负责人可流转
                         </span>
                       ) : (
                         <span className="risk-muted">只读</span>
