@@ -34,7 +34,7 @@ export type WorkbenchBlock = {
  * "未关闭""逾期""近期"各说各话。
  */
 export type WorkbenchBasis = {
-  /** 计算时使用的"今天"（按 UTC 日期） */
+  /** 计算时使用的"今天"（按口径时区 **Asia/Shanghai** 的 `YYYY-MM-DD`） */
   asOf: string
   /** 「我的待办」的含义 */
   todoMeans: string

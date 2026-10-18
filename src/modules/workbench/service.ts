@@ -143,7 +143,7 @@ async function collect(
 }
 
 export type BuildWorkbenchOptions = {
-  /** 覆盖"今天"（测试用来钉住边界；默认按 UTC 今天） */
+  /** 覆盖"今天"（测试用来钉住边界；默认按口径时区 **Asia/Shanghai** 取今天） */
   today?: string
 }
 
@@ -166,7 +166,10 @@ export async function buildWorkbench(
   const basis: WorkbenchView['basis'] = {
     asOf: today,
     todoMeans: '我是负责人、且还没验收关闭的任务（status 不是 CLOSED）',
-    overdueMeans: `计划结束日期早于 ${today}（按 UTC 日期比较）`,
+    // ★ 2026-10-19 评审整改：此处原写「按 UTC 日期比较」，而 `isoToday()` 早已收敛为
+    //   Asia/Shanghai —— 口径声明与实现自相矛盾，会让照文案写客户端的人算错一天
+    //   （每天 08:00 之前上海比 UTC 早一天）。
+    overdueMeans: `计划结束日期早于 ${today}（按 Asia/Shanghai 自然日比较）`,
     upcomingWindowDays: UPCOMING_WINDOW_DAYS,
     sixStatesNote:
       '六状态已落地（TODO/DOING/BLOCKED/SUSPENDED/DONE/CLOSED）。' +
