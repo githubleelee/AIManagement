@@ -109,9 +109,14 @@ PROPOSED ──采纳──→ ACCEPTED
 
 ### 4.4 采纳质量统计（AC3 的后半句）
 
-`采纳率 = ACCEPTED ÷ (ACCEPTED + MODIFIED + REJECTED)`，
+`采纳率 = (ACCEPTED + MODIFIED) ÷ (ACCEPTED + MODIFIED + REJECTED)`，
 另给 `修改率`、`拒绝率`；按类别（四类）与时间窗口分组。
+分母为 0 时返回 `null`（**不是 0**：没有处置记录 ≠ 采纳率为零）。
 这组数字本身就是"这个 AI 建议有没有用"的证据 —— **统计口径随响应返回**。
+
+> ★ 2026-10-18 修正：本条原写 `ACCEPTED ÷ (ACCEPTED + MODIFIED + REJECTED)`，**漏计了
+> 「修改后采纳」**——那条也是被采纳的（只是人工改了内容），漏计会系统性低估采纳率。
+> 现按 ROLE-D 的共享协议（`role-d.ai-events.v0.2-draft` §2.7）对齐为上式。
 
 ---
 
@@ -223,3 +228,53 @@ type InsightOutput = { suggestions: Array<Omit<AiSuggestion, 'id' | 'projectId' 
    → 用 `scope` 字段 + 查询层基数解决（§5.1 第 3 条）。
 3. **建议变成结论**：措辞约束必须由测试钉住，不能只靠自觉。
 4. **效率类的成员维度**：需要匿名键（`memberKey` 而非姓名），否则分析结果本身成为人事数据。
+
+---
+
+## 12. 与 ROLE-D 协议的对齐（2026-10-18，`role-d.ai-events.v0.2-draft`）
+
+ROLE-D 的《共享 AI 建议/处置（#31）与领域事件（#37）接口协议》已出提案。逐条核对本设计：
+
+### 12.1 完全一致、无需改动
+
+| D 的协议 | 本设计 |
+|---|---|
+| §2.3 `populationBasis: OBJECT / GLOBAL / VISIBLE`，**#33 非 PM 必须是 `VISIBLE`** | §5.1 第 3 条「按 C6 基数取数，PM = global、其余 = visible」 |
+| §2.3 快照「**#33 只保存聚合数值，不保存标题/描述/人名**」 | §5.1 第 2 条「只传聚合数字，不传原文」 |
+| §2.2 端口不绑定供应商 SDK、不因 API 失败静默切 Stub | §6「桩实现的诚实要求」 |
+| §4 处置动作统一为 `ai.suggestion.dispose`、**仅 PM** | §4.2 + B 的 #33 批复第 6 项 |
+| §2.1 要求细分场景可索引、不得用一个 `INSIGHTS` 把类别藏进任意 JSON | §3 四类建议是独立 `kind` |
+| §1.2/§1.3 不各建建议表、`AuditLog` 不充当建议表、生成在事务外 | §7「不建表」、§4.1「采纳不改业务表」 |
+
+### 12.2 需要按 D 的协议修正 / 采纳的点
+
+1. **场景值改用 D 的线上常量**（不再自造 `InsightKind` 字面量）：
+   `INSIGHT_QUALITY` / `INSIGHT_PROGRESS` / `INSIGHT_RISK` / `INSIGHT_EFFICIENCY`。
+2. **端口形状以 D 的 `AiModelPort` 为准**（`descriptor{provider,model,version,mode,execution}` +
+   `generate(request)`），§6 里本票提的 `InsightInput/InsightOutput` 作废 —— 只保留其中
+   「`metrics` 只含聚合数值」这一条作为**给 D 的字段需求**。
+3. **模型标识的取值**：`mode: 'STUB' | 'API'`、`execution: 'LOCAL' | 'EXTERNAL'`，
+   未知版本固定写「未提供」（本设计原写的 `mode: 'stub' | 'external'` 作废）。
+4. **建议记录不自建**：改为消费 D 的共享记录字段（§2.3 那张表），本票的 `AiSuggestion`
+   类型只作为**界面侧视图**，字段以共享记录为准。
+5. **采纳率公式已修正**（见 §4.4）。
+6. **`dataClassification`**：`SYNTHETIC_DEMO` 才允许外发；`PROJECT_DATA` 本实现拒绝外发。
+   本票的演示数据属虚构教学数据，可标 `SYNTHETIC_DEMO`；**真实项目数据一律不外发**。
+7. **`containsSensitiveData` 只允许 `false`** —— 与 §5.1「敏感对象不进入任何聚合」一致。
+
+### 12.3 #37 事件：本票当前不生产，但登记为后续可选项
+
+D 的协议 §3.1 已给出事件信封（`namespace.name`、幂等键 `(projectId, eventName, idempotencyKey)`）。
+本票的 US-10（#30）与 US-13（#33）**当前都不生产领域事件**：
+
+- #30 已交付的是风险变更与项目关闭的 `AuditLog`（B 批复 §4 明确要求的是 `AuditLog`）；
+- #33 的「建议生成 → 人工处置」目前也不需要事件。
+
+⇒ **不新增事件生产代码**。若将来需要（例如「风险转为正式风险记录」后通知他人），
+按 D 的信封生产即可，属**独立批次**，不并入本票。已在 §11 已知风险中登记。
+
+### 12.4 仍未就绪（如实登记，避免把设计当实现）
+
+D 的协议 §7 自述：公共 `shared` 提取、共享建议表 / 迁移、`can()` 真实接入、
+`app.ts`/`routes.ts` 注册**均未完成**。⇒ 本票的 #33 **仍无法端到端运行**；
+本设计是"接口已谈拢、实现未开始"的状态，**不得据此勾任何 AC**。
