@@ -16,7 +16,14 @@ import './workbench.css'
  *     把"还没接上"显示成"没有"是本仓库已登记过的问题。
  */
 const CARD_ROWS = 3
-const CARD_ROWS_TALL = 4
+/**
+ * 「我的待办」这块跨左列两行、空间最大。US-10 走查（2026-10-18）反馈：
+ * 从顶栏「我的工作台」进来后**没有回到「我的项目」的入口**——顶栏那个「工作台」
+ * 面包屑跳的是项目列表、旁边「我的工作台」跳的是这里，用户会以为是同一个东西。
+ * 因此在本卡片底部加一个「我的项目」入口，空间**从待办列表里挖**（4 行 → 3 行），
+ * 不增加整页高度。
+ */
+const CARD_ROWS_TALL = 3
 
 type LoadState =
   | { status: 'loading' }
@@ -126,6 +133,14 @@ export default function WorkbenchPage() {
               </ul>
 
               <p className="wb-card-hint">{unavailable ? (data?.note ?? block.hint) : block.hint}</p>
+
+              {/* 「我的待办」卡片底部：回到我的项目列表的入口（US-10 走查补充） */}
+              {block.key === 'todo' ? (
+                <Link className="wb-projects-entry" to="/projects">
+                  <span className="wb-projects-entry-label">我的项目</span>
+                  <span className="wb-projects-entry-hint">去项目列表 · 选一个项目继续 →</span>
+                </Link>
+              ) : null}
             </section>
           )
         })}

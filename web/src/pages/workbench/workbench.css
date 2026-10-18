@@ -258,3 +258,37 @@
     grid-row: auto;
   }
 }
+
+/* ===========================================================================
+ * 「我的待办」卡片底部的「我的项目」入口（US-10 走查补充，2026-10-18）
+ *
+ * 反馈：从顶栏「我的工作台」进来后没有回到项目列表的入口，而顶栏那个「工作台」
+ * 面包屑其实跳的就是项目列表 —— 两个"工作台"并存导致用户找不到路。
+ * 这里在空间最大的「我的待办」卡片里挖出一格放这个入口，不增加整页高度。
+ * =========================================================================== */
+.wb-projects-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 0.35rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  border: 1px dashed rgba(var(--wb-rgb, 56, 189, 248), 0.55);
+  background: rgba(var(--wb-rgb, 56, 189, 248), 0.08);
+  text-decoration: none;
+  color: inherit;
+}
+
+.wb-projects-entry:hover {
+  background: rgba(var(--wb-rgb, 56, 189, 248), 0.16);
+}
+
+.wb-projects-entry-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.wb-projects-entry-hint {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}

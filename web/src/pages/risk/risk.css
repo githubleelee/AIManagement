@@ -1,0 +1,339 @@
+/* ===========================================================================
+ * US-10 风险台账与项目关闭（工单 #30）—— 本页自有样式
+ *
+ * 只用本页自己的类（risk- 前缀）+ 骨架级类（.page / .table-scroll / .error / .empty）。
+ * ★ 全部 input/select 显式重置：web/src/index.css:200 的全局规则给所有 input 设了
+ *   `width:100%`，若不覆盖会把行内编辑框撑爆（US-09 走查时踩过同一个坑）。
+ * =========================================================================== */
+
+.risk-nowrap {
+  white-space: nowrap;
+}
+
+.risk-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.risk-muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.risk-link {
+  margin-left: 10px;
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.risk-notice {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--success);
+  background: var(--panel);
+  font-size: 13px;
+}
+
+.risk-section-title {
+  margin: 26px 0 10px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* ---------------- 关闭区 ---------------- */
+
+.risk-closure {
+  margin-top: 4px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  background: var(--panel);
+}
+
+.risk-closure--clear {
+  border-left-color: var(--success);
+}
+
+.risk-closure--blocked {
+  border-left-color: var(--danger);
+}
+
+/* 「判不了」刻意用灰色虚边：它不是"能关"，也不是"不能关" */
+.risk-closure--unavailable {
+  border-left-color: var(--muted);
+  border-style: dashed dashed dashed solid;
+}
+
+.risk-closure-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.risk-closure-count {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.risk-closure-note {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.risk-closure-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+}
+
+.risk-blockers {
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.risk-blockers summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.risk-blockers-title {
+  margin: 10px 0 6px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.risk-blockers-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.risk-blockers-list > li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.risk-blocker-name {
+  font-weight: 600;
+}
+
+/* ---------------- 新建表单 ---------------- */
+
+.risk-form {
+  margin-top: 8px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.risk-form-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.risk-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 120px;
+}
+
+.risk-field--grow {
+  flex: 1 1 220px;
+}
+
+/* 显式覆盖全局 input/select 规则，避免宽度把行撑开 */
+.risk-field input,
+.risk-field select,
+.risk-edit select,
+.risk-edit input {
+  width: auto;
+  min-width: 100px;
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.risk-field--grow input {
+  width: 100%;
+}
+
+/* ---------------- 按钮 ---------------- */
+
+.risk-button,
+.risk-button-plain {
+  padding: 0.42rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.risk-button {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.risk-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.risk-button-plain:hover,
+.risk-button:not(:disabled):hover {
+  background: var(--panel-soft);
+}
+
+/* ---------------- 清单表 ---------------- */
+
+.risk-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.risk-table th,
+.risk-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.risk-table th {
+  background: var(--panel-soft);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.risk-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.risk-title {
+  font-weight: 600;
+}
+
+.risk-resolution {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.risk-edit {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.risk-edit-reason {
+  min-width: 160px;
+}
+
+/*
+ * 行内 / 表单内的校验错误：**贴在出错的控件旁边**。
+ * 2026-10-18 走查反馈：红字原来渲染在页面顶部，而按钮在表格里，中间隔了一整屏，
+ * 用户看不到提示。字段级错误就该出现在字段旁边。
+ */
+.risk-edit-error {
+  flex-basis: 100%;
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--danger);
+}
+
+/* ---------------- 标签 ---------------- */
+
+.risk-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.risk-tag--high {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.risk-tag--medium {
+  color: #b7791f;
+  border-color: #d9a13b;
+}
+
+.risk-tag--low {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.risk-tag--level {
+  color: var(--text);
+}
+
+.risk-tag--blocking {
+  color: var(--danger);
+  border-style: dashed;
+}
+
+/* ---------------- 口径说明 ---------------- */
+
+.risk-basis {
+  margin-top: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  padding: 10px 16px;
+  font-size: 13px;
+}
+
+.risk-basis summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.risk-basis-list {
+  margin: 10px 0 0;
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 6px 12px;
+}
+
+.risk-basis-list dt {
+  color: var(--muted);
+}
+
+.risk-basis-list dd {
+  margin: 0;
+  line-height: 1.6;
+}

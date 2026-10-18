@@ -100,6 +100,12 @@ export default function ProjectLayout() {
           <NavLink to="overview" className={navClass}>
             <span aria-hidden="true">◫</span>概览
           </NavLink>
+          {/* US-10 项目仪表盘（工单 #30）：进度 / 健康度。
+              属冻结区（前端骨架），由 ROLE-A 按项目负责人 2026-10-18 批复第 3、4 项
+              「在 B 的登记范围内自行挂载」落地（登记已发 B）。 */}
+          <NavLink to="dashboard" className={navClass}>
+            <span aria-hidden="true">◔</span>仪表盘
+          </NavLink>
           <NavLink to="requirements" className={navClass}>
             <span aria-hidden="true">◇</span>需求
           </NavLink>
@@ -111,6 +117,11 @@ export default function ProjectLayout() {
               **尚无原 owner 的书面授权**，需单人复核合入（口径见 docs/us-09-acceptance-api.md §11）。 */}
           <NavLink to="acceptance" className={navClass}>
             <span aria-hidden="true">✓</span>验收
+          </NavLink>
+          {/* US-10 风险台账与项目关闭（工单 #30）：
+              属冻结区（前端骨架），同上按批复第 3、4 项在登记范围内自行挂载。 */}
+          <NavLink to="risks" className={navClass}>
+            <span aria-hidden="true">⚠</span>风险
           </NavLink>
           <NavLink to="members" className={navClass}>
             <span aria-hidden="true">♙</span>成员

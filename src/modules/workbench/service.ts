@@ -21,7 +21,7 @@
  * 两处口径是**断言不是定论**（等 #24 结论）
  * ===========================================================================
  *
- *   - 「今天」按 **UTC 日期**（`逾期判定时区` 属待确认项 C3，定案后只改 `isoToday()`）；
+ *   - 「今天」按 **Asia/Shanghai 自然日**（C3 已于 2026-10-18 批复定案，见 `isoToday()`）；
  *   - 「未关闭」= `status != 'CLOSED'`（六状态已于 2026-10-17 落地）：
  *     DONE 只代表执行人已提交验收、不等于关闭，因此仍算「未关闭」。
  *     该口径随响应返回（见 `basis`），便于审查核对。
@@ -37,9 +37,20 @@ export const UPCOMING_WINDOW_DAYS = 7
 /** 每块最多返回多少条明细。`total` 始终是精确值，不受此上限影响。 */
 export const ROWS_PER_BLOCK = 50
 
-/** 按 UTC 日期取"今天"（口径待 C3 定案；改这里一处即可）。 */
+/**
+ * 按**口径时区**取"今天"（Asia/Shanghai 自然日）。
+ *
+ * C3 已由项目负责人 2026-10-18 批复定案：全项目统一 `Asia/Shanghai`，
+ * 原实现用 UTC 日期，在中国时区下每天 08:00 之前会把"今天"算成前一天，
+ * 逾期/近期计划因此偏移一天。用 `Intl` 而不是本地时钟：服务器时区不可控。
+ */
 function isoToday(): string {
-  return new Date().toISOString().slice(0, 10)
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
 }
 
 /** 在 ISO 日期字符串上加减天数（避免引入依赖）。 */
