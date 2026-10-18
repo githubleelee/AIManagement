@@ -166,3 +166,22 @@ B 不代写 A 业务；负载基础计数可先按非 CLOSED 做，日期相关�
 
 - B 域已用规则与授权均可追溯到 `DECISIONS.md` 条目、批复稿、PR 或评论链接；未决项均写明确认人与影响。
 - 本票（#21）为持续台账：本节随新增确认追加，不改写历史；当前快照满足其 Done when。
+
+---
+
+## 8. 2026-10-18 追加登记：authz 单批改动（`risk.flow` + C 的窄 Pick 签名）
+
+> 依据：`DECISIONS.md` `permissions.risk-flow-guard`（2026-10-18T19:09:17+08:00，随 PR #56）、
+> [#21 分派](https://github.com/githubleelee/AIManagement/issues/21#issuecomment-6249175879)、
+> C 在 #24 的请求（[comment](https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6247293283) 第 2 节）。
+> 登记评论：[#24](https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6249399218)。
+
+| 文件 | 改动 | 归属 |
+|---|---|---|
+| `src/shared/types.ts` | `Action` 增 `'risk.flow'`；`ObjectRef` 增 `{ kind: 'risk'; projectId; riskId }` | B 单写 |
+| `src/modules/authz/permissions.ts` | 新增导出 `AuthzDb`（实际 delegates 的窄 `Pick`；`PrismaClient` 与 `Prisma.TransactionClient` 均满足）；`createAuthorization` / `loadTarget` / `roleIn` 参数改用 `AuthzDb`（调用语义不变）；`loadTarget` 增 `case 'risk'`；新增第 4.6 条 `risk.flow` 对象关系判定（VIEWER 403 / owner 放行 / 否则 403 / 不存在 404） | B 单写 |
+| `test/authz-risk-flow.test.ts`（新增） | 8 例：PM、MEMBER 本人、MEMBER 他人、VIEWER（即使被指为负责人）、非成员/outsider、不存在 riskId、跨项目按真实归属 404、事务客户端内 `can()` 可用 | B |
+
+**未做 / 不做**：错误信封保持契约 I-3 形状（`contract.close-blocking-response`：409 + 计数摘要 + `GET /projects/:projectId/closure-check` 清单）；不改 A/C/D 业务模块；`task/rules.ts` 的签名放宽由 C 在其登记窗口内自行完成。
+
+**验证**：`npm run typecheck` exit 0；`npx vitest run test/authz-risk-flow.test.ts` 8/8；`npm test` 全量 53 文件 / 1224 用例通过（基线 52/1216）。落地后已通知 A 放开「成员流转自己负责的风险」（#30）。

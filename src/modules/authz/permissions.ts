@@ -43,13 +43,38 @@ function deny(status: 403 | 404, code: 'FORBIDDEN' | 'NOT_FOUND'): Decision {
 }
 
 /**
+ * 本入口实际用到的 Prisma delegates 的**窄 `Pick`**（C 在 #24 的请求，2026-10-18）。
+ *
+ * 为什么不用 `PrismaClient`：`can()` / `visibilityScope()` 需要在**同一事务内**被复用
+ * （#32 受控应用路径），而 `Prisma.TransactionClient` 不满足 `PrismaClient` 的完整形状。
+ * 改成只要求用到的 delegates 后：
+ *   - `PrismaClient`（根客户端）与 `Prisma.TransactionClient` **结构上都满足**；
+ *   - `can()` / `visibilityScope()` 的**调用语义与返回不变**，既有调用方零改动；
+ *   - 本入口仍然**只读数据库、不调其他模块 service**（契约 I-9）。
+ *
+ * 注意：`task/rules.ts` 的 `assertTaskAssignment` 签名放宽由 ROLE-C 在其登记窗口内自行
+ * 完成（B 不改 `task/` 业务文件）。
+ */
+export type AuthzDb = Pick<
+  PrismaClient,
+  | 'project'
+  | 'businessGoal'
+  | 'userActivity'
+  | 'userStory'
+  | 'task'
+  | 'risk'
+  | 'projectMember'
+  | 'objectVisibility'
+>
+
+/**
  * 按 `ObjectRef` **现查**目标对象，取得其真实的 `projectId` 与敏感状态。
  *
  * 契约决策 I-5 约束 1：`can()` 必须自己按 id 加载目标对象，调用方无法通过传入
  * `isSensitive` / `visibleMemberIds` 等字段影响判定结果。这里必须保留该性质。
  */
 async function loadTarget(
-  prisma: PrismaClient,
+  prisma: AuthzDb,
   ref: ObjectRef,
 ): Promise<{ projectId: string; isSensitive: boolean } | null> {
   switch (ref.kind) {
@@ -89,6 +114,17 @@ async function loadTarget(
       })
       return t ? { projectId: t.projectId, isSensitive: t.isSensitive } : null
     }
+    case 'risk': {
+      // #30 风险台账：按 riskId 现查**真实** projectId（不信任调用方传入的 projectId）。
+      // 敏感：风险继承所关联任务的可见性（业务口径见 `permissions.risk-status-flow`）；
+      // 这里只把真实值带出来供后续判定参考，**不**把 `risk` 加入第 4 条的
+      // ObjectVisibility 对象类型（第 4 条仅覆盖 story / task，不扩展）。
+      const r = await prisma.risk.findUnique({
+        where: { id: ref.riskId },
+        select: { projectId: true, task: { select: { isSensitive: true } } },
+      })
+      return r ? { projectId: r.projectId, isSensitive: r.task?.isSensitive ?? false } : null
+    }
     default:
       return null
   }
@@ -96,7 +132,7 @@ async function loadTarget(
 
 /** 读取调用者在该项目中的角色；非成员返回 null。 */
 async function roleIn(
-  prisma: PrismaClient,
+  prisma: AuthzDb,
   actorUserId: string,
   projectId: string,
 ): Promise<ProjectRole | null> {
@@ -115,13 +151,15 @@ async function roleIn(
  *   2. actor 不是该项目的成员                → 404（一切动作；不泄漏项目是否存在）
  *   3. actor.role === PM                    → 允许（含敏感对象）
  *   4. 目标敏感且 actor 不在白名单 → 404（含 read）
+ *   4.5 条件性动作 `task.progress` / `task.accept`：VIEWER → 403；按对象关系（负责人 / 验收人）放行，否则 403
+ *   4.6 条件性动作 `risk.flow`：VIEWER → 403；`ownerUserId` = 调用者放行，否则 403
  *   5. 写类动作且 actor.role ∈ {MEMBER, VIEWER} → 403（对象可见，403 不泄漏任何东西）
  *   5.5 `risk.write` 且 actor.role === VIEWER → 403（风险台账对项目成员开放，VIEWER 只读）
  *   6. 其余                                 → 允许
  *
  * 契约决策 I-9：本函数**只读数据库，不调用其他模块的 service**。
  */
-export function createAuthorization(prisma: PrismaClient) {
+export function createAuthorization(prisma: AuthzDb) {
   async function can(actorUserId: string, action: Action, ref: ObjectRef): Promise<Decision> {
     // 第 1 条：目标对象不存在 → 404
     const target = await loadTarget(prisma, ref)
@@ -161,6 +199,22 @@ export function createAuthorization(prisma: PrismaClient) {
       if (action === 'task.accept' && relation.acceptorUserId === actorUserId) return { allow: true }
       return deny(403, 'FORBIDDEN')
     }
+
+    // 第 4.6 条（#30 风险状态流转，2026-10-18 项目负责人确认 `permissions.risk-flow-guard`）：
+    //   与第 4.5 条同型的**对象关系判定** —— 成员只能流转 `ownerUserId` = 本人的风险。
+    //   PM 已在第 3 条放行；VIEWER 全项目只读，显式 403；其他人一律 403。
+    //   业务层不得再私写角色判断（公共层就绪前 A 侧 fail-closed 403，就此放开）。
+    if (ref.kind === 'risk' && action === 'risk.flow') {
+      if (role === 'VIEWER') return deny(403, 'FORBIDDEN')
+      const relation = await prisma.risk.findUnique({
+        where: { id: ref.riskId },
+        select: { ownerUserId: true },
+      })
+      if (!relation) return deny(404, 'NOT_FOUND')
+      if (relation.ownerUserId === actorUserId) return { allow: true }
+      return deny(403, 'FORBIDDEN')
+    }
+
     // 第 5 条：写类动作对 MEMBER / VIEWER → 403
     if (WRITE_ACTIONS.has(action)) return deny(403, 'FORBIDDEN')
 
