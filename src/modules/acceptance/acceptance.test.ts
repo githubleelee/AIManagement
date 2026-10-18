@@ -594,27 +594,45 @@ describe('验收清单 scope=owner：我负责的、被驳回的任务', () => {
     expect(items).toEqual([])
   })
 
-  it('敏感任务：不在我白名单里时，即使我是负责人也不出现在我的清单（查询层过滤）', async () => {
-    const taskId = await seedTask({ isSensitive: true, ownerUserId: owner.id })
-    // 直接写一条驳回记录来构造状态（经接口做不到：验收人不在白名单时验收会 404）
-    await ctx.db.acceptanceRecord.create({
-      data: {
-        projectId,
-        taskId,
-        actorUserId: acceptor.id,
-        conclusion: 'REJECT',
-        reason: '敏感的驳回原因',
-        statusBefore: 'DONE',
-        statusAfter: 'DOING',
-      },
+  it('敏感任务：白名单不含我时，即使我是负责人也不出现；含我时出现（**对照**）', async () => {
+    // ★ 首版这条用例的对照写错了：它建的是 ownerUserId=owner 的任务，却断言"PM 能看到" ——
+    //   而 owner 视角的筛选是 `ownerUserId = 我`，PM 不是负责人，清单当然是 0 条。
+    //   那是**用例自己的错误**（产品行为正确），已改成下面这组真正的对照：
+    //     A 敏感 + 我负责 + 白名单**不含**我 → 不出现
+    //     B 敏感 + 我负责 + 白名单**含**我   → 出现  ← 证明隐藏 A 的是白名单，而不是"清单坏了"
+    const hidden = await seedTask({
+      isSensitive: true,
+      status: 'DOING',
+      ownerUserId: owner.id,
+      title: '敏感·不在我白名单',
+    })
+    const visible = await seedTask({
+      isSensitive: true,
+      status: 'DOING',
+      ownerUserId: owner.id,
+      title: '敏感·在我白名单',
+    })
+    await ctx.db.objectVisibility.create({
+      data: { projectId, objectType: 'task', objectId: visible, userId: owner.id },
     })
 
-    const items = ((await getQueue(owner.id, 'owner')).body as { items: AcceptanceQueueItem[] }).items
-    expect(items).toEqual([])
+    // 直接写驳回记录来构造状态（经接口做不到：验收人不在白名单时验收会 404）
+    for (const taskId of [hidden, visible]) {
+      await ctx.db.acceptanceRecord.create({
+        data: {
+          projectId,
+          taskId,
+          actorUserId: acceptor.id,
+          conclusion: 'REJECT',
+          reason: '敏感的驳回原因',
+          statusBefore: 'DONE',
+          statusAfter: 'DOING',
+        },
+      })
+    }
 
-    // 对照：PM 不受白名单限制，能看到（证明隐藏它的是敏感过滤，而不是清单坏了）
-    const pmItems = ((await getQueue(pm.id, 'owner')).body as { items: AcceptanceQueueItem[] }).items
-    expect(pmItems).toHaveLength(1)
+    const items = ((await getQueue(owner.id, 'owner')).body as { items: AcceptanceQueueItem[] }).items
+    expect(items.map((task) => task.title)).toEqual(['敏感·在我白名单'])
   })
 
   it('不传 scope 时默认 acceptor（原行为不变；被驳回的任务**不**出现在默认清单）', async () => {

@@ -54,10 +54,16 @@ function validationFailed(error: z.ZodError): AppError {
 /**
  * 端点 C 的 `?scope=` 取值校验。
  *
+ * ⚠️ 必须包成 `z.object({ scope: … })`，**不能**直接对那个字符串跑 `z.enum(...)`：
+ * 后者的 issue `path` 是**空数组**，`toFieldErrors` 会产出 `field: ''`，定位不到查询参数。
+ * 包成对象后 path 为 `['scope']` ⇒ `field: 'scope'`（首轮实测把这个错误报了出来）。
+ *
  * 取值非法 → `scope: INVALID_VALUE`（复用既有字段码，未新增）。**不传时默认 `acceptor`**，
- * 因此端点 C 的原行为完全不变（向后兼容，US-09 之前的调用方无需改动）。
+ * 因此端点 C 的原行为完全不变（向后兼容）。
  */
-const queueScopeSchema = z.enum(ACCEPTANCE_QUEUE_SCOPES).optional()
+const queueQuerySchema = z.object({
+  scope: z.enum(ACCEPTANCE_QUEUE_SCOPES).optional(),
+})
 export function registerAcceptanceRoutes(app: FastifyInstance, context: RouteContext): void {
   const prisma = context.prisma
 
@@ -113,14 +119,14 @@ export function registerAcceptanceRoutes(app: FastifyInstance, context: RouteCon
           { field: 'scope', code: 'INVALID_VALUE' },
         ])
       }
-      const parsedScope = queueScopeSchema.safeParse(rawScope)
-      if (!parsedScope.success) throw validationFailed(parsedScope.error)
+      const parsedQuery = queueQuerySchema.safeParse(request.query)
+      if (!parsedQuery.success) throw validationFailed(parsedQuery.error)
 
       const items = await listAcceptanceQueue(
         prisma,
         actorUserId,
         projectId,
-        parsedScope.data ?? 'acceptor',
+        parsedQuery.data.scope ?? 'acceptor',
       )
       return reply.status(200).send({ items })
     },
