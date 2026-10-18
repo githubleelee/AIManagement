@@ -24,16 +24,21 @@ const PRISMA_CLI = join(REPO_ROOT, 'node_modules', 'prisma', 'build', 'index.js'
  * 对外键逆序清空全表。
  *
  * 顺序原则：先删「引用方」（子表），再删「被引用方」（父表）。
- *   AuditLog / ObjectVisibility → Task → UserStory → UserActivity → BusinessGoal
+ *   Risk / AuditLog / ObjectVisibility → Task → UserStory → UserActivity → BusinessGoal
  *   → ProjectMember → Project → User
  *
  * 注意：`ObjectVisibility.objectId` 是多态列、没有真实外键，无法依赖数据库级联；
  * 这里只能按表整体清空，与业务代码「删除故事/任务时手动清理可见性记录」是两回事。
+ *
+ * US-10（工单 #30）：`Risk` 必须先于 `Task` / `Project` 删除 ——
+ * `Risk.projectId` 是 `Restrict`，若留到最后会让 `project.deleteMany()` 失败。
  */
 export async function resetDatabase(prisma: PrismaClient): Promise<void> {
   // 多态表 / 审计表：引用 Project 与 User，最先删除
   await prisma.auditLog.deleteMany()
   await prisma.objectVisibility.deleteMany()
+  // 风险台账：引用 Project / User / Task（project 为 Restrict，必须先删）
+  await prisma.risk.deleteMany()
   // 任务：引用 Project / UserStory / User
   await prisma.task.deleteMany()
   // 用户故事：引用 Project / UserActivity

@@ -222,6 +222,8 @@ export type Action =
   | 'requirement.write' // 业务目标 / 用户活动 / 用户故事的增删改
   | 'task.write' // 任务的增删改
   | 'sensitivity.manage' // 设置敏感标记与可见成员
+  | 'risk.write' // 风险台账的增删改（项目成员可写，VIEWER 只读；见权限注释第 5.5 条）
+  | 'project.close' // 关闭 / 重开项目（仅 PM；关闭前的阻断校验由风险 / 仪表盘模块实现）
 
 /**
  * `can()` 的目标引用（决策 I-5）。
