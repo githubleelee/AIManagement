@@ -8,7 +8,7 @@
  * 这里只回答一个问题：**给定这些计数，四类数字算得对不对**。
  */
 import { describe, expect, it } from 'vitest'
-import { HEALTHY_THRESHOLD_PP, WARNING_THRESHOLD_PP } from '../analytics/service.js'
+import { HEALTHY_THRESHOLD_PP, WARNING_THRESHOLD_PP } from '../analytics/caliber.js'
 import type { TaskStatus } from '../../shared/types.js'
 import {
   aggregateInsightMetrics,

@@ -474,6 +474,41 @@ describe('数据边界（设计 §5.1 第 2 条）与只读', () => {
     // 成员维度只给匿名键
     expect(json).not.toContain(member1.id)
     expect(json).toContain('mk-')
+
+    // ★ 更严的一层（2026-10-19 评审 S4）：**递归遍历结果里的每一个字符串**，逐个走白名单。
+    //   上面那几个字面串只能抓住"我想到的"泄漏；这一层能抓住"将来新增字段带出原文"。
+    //   口径文案（basis.* / unavailable[] / healthNote）按路径豁免 —— 它们是静态字面量，
+    //   我在 audit 里逐句核过（无插值）。
+    const exemptPath = [/^projectId$/, /^basis\./, /^unavailable\[\d+\]\.(metric|needs|reason)$/, /^metrics\.progress\.healthNote$/]
+    const allowedValue = [
+      /^mk-[0-9a-f]{12}$/, // 匿名成员键
+      /^INSIGHT_(QUALITY|PROGRESS|RISK|EFFICIENCY)$/, // 场景常量
+      /^(GLOBAL|VISIBLE|全项目|可见范围)$/,
+      /^\d{4}-\d{2}-\d{2}$/, // asOf / 计划窗口日期
+      /^(HEALTHY|WARNING|AT_RISK|UNAVAILABLE)$/,
+      /^(Task|AcceptanceRecord|Risk|ProjectMember)$/,
+      /^US-10 \(#30\)$/,
+    ]
+    const offenders: Array<{ path: string; value: string }> = []
+    const walk = (value: unknown, path: string): void => {
+      if (typeof value === 'string') {
+        if (exemptPath.some((re) => re.test(path))) return
+        if (allowedValue.some((re) => re.test(value))) return
+        offenders.push({ path, value })
+        return
+      }
+      if (Array.isArray(value)) {
+        value.forEach((item, index) => walk(item, `${path}[${index}]`))
+        return
+      }
+      if (value !== null && typeof value === 'object') {
+        for (const [key, child] of Object.entries(value)) {
+          walk(child, path === '' ? key : `${path}.${key}`)
+        }
+      }
+    }
+    walk(view, '')
+    expect(offenders).toEqual([])
   })
 
   it('memberKey 不是 userId，也不含 userId 片段', async () => {
@@ -518,16 +553,26 @@ describe('数据边界（设计 §5.1 第 2 条）与只读', () => {
 
     expect(view.basis.scopeLabel).toBe('可见范围')
     expect(view.basis.timezone).toContain('Asia/Shanghai')
-    expect(view.basis.formulas.progress).toContain('CLOSED')
-    expect(view.basis.formulas.riskByLevel).toContain('未处理')
-    expect(view.basis.formulas.memberLoad).toContain('CLOSED')
-    expect(view.basis.anonymization).toContain('memberKey')
-    expect(view.basis.dataBoundary).toContain('不含')
-    expect(view.basis.sourceTables).toEqual([
-      'Task',
+    expect(view.basis.thresholds).toEqual({ healthyPp: 10, warningPp: 25 })
+    // ★ 2026-10-19 评审 S3：文案**不逐字断言**（改措辞不该假红），只钉"四段都在且非空"；
+    //   口径本身由数值用例钉住（progress 的边界用例、quality 的分母 0 等）。
+    expect(Object.keys(view.basis.formulas).sort()).toEqual([
+      'memberLoad',
+      'progress',
+      'quality',
+      'riskByLevel',
+    ])
+    for (const text of Object.values(view.basis.formulas)) {
+      expect(text.length).toBeGreaterThan(20)
+    }
+    expect(view.basis.anonymization.length).toBeGreaterThan(20)
+    expect(view.basis.dataBoundary.length).toBeGreaterThan(20)
+    // 取数来源：内容钉住、顺序不钉（改顺序不该假红）
+    expect([...view.basis.sourceTables].sort()).toEqual([
       'AcceptanceRecord',
-      'Risk',
       'ProjectMember',
+      'Risk',
+      'Task',
     ])
   })
 })
@@ -555,6 +600,17 @@ describe('AC6 与 #30 的口径一致性（交叉校验）', () => {
     expect(view.metrics.progress.healthState).toBe(dashboard.health.state)
     expect(view.metrics.progress.planWindow).toEqual(dashboard.basis.planWindow)
     expect(view.basis.thresholds).toEqual(dashboard.basis.thresholds)
+
+    // ★ 绝对值锚点（2026-10-19 评审 P2 的整改）：上面几条"两边相等"对**口径**是**恒真**的
+    //   —— 两边调的是同一个 `healthOf`（那正是复用的目的），所以它们证明的是**取数层等价**
+    //   （分子 / 分母 / 计划窗口由两边各自独立查询），不是"口径没漂移"。口径本身由这里的
+    //   绝对期望 + `aggregate.test.ts` 的边界用例兜住。
+    //   本组数据：6 个任务里 3 个 CLOSED ⇒ 0.5；计划窗口 4 天、已过 2 天 ⇒ 0.5 ⇒ 偏差 0pp。
+    expect(view.metrics.progress.closed).toBe(3)
+    expect(view.metrics.progress.total).toBe(6)
+    expect(view.metrics.progress.deviationPp).toBe(0)
+    expect(view.metrics.progress.healthState).toBe('HEALTHY')
+    expect(dashboard.health.state).toBe('HEALTHY')
   })
 
   it('★ 非 PM（可见窗口）：同样逐字段相等（敏感任务两侧都不计入）', async () => {
@@ -574,6 +630,15 @@ describe('AC6 与 #30 的口径一致性（交叉校验）', () => {
     expect(view.metrics.progress.deviationPp).toBe(dashboard.health.deviationPp)
     expect(view.metrics.progress.healthState).toBe(dashboard.health.state)
     expect(view.metrics.progress.planWindow).toEqual(dashboard.basis.planWindow)
+
+    // 绝对值锚点：5 个可见任务里 2 个 CLOSED ⇒ 0.4；计划窗口 4 天、已过 2 天 ⇒ 0.5
+    // ⇒ 偏差**正好** 10pp ⇒ 健康（浮点实现会算成 10.000000000000002 > 10 而错判「预警」，
+    //   所以这一条同时是 H2 边界穿透到聚合层的回归）
+    expect(view.metrics.progress.closed).toBe(2)
+    expect(view.metrics.progress.total).toBe(5)
+    expect(view.metrics.progress.deviationPp).toBe(10)
+    expect(view.metrics.progress.healthState).toBe('HEALTHY')
+    expect(dashboard.health.state).toBe('HEALTHY')
 
     // 反证：非 PM 的数字确实比 PM 小（不是"两边都恰好一样"而看不出可见性生效）
     const pmView = await buildInsightMetrics(ctx.db, pm.id, projectId)

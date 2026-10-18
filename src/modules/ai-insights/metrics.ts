@@ -34,11 +34,14 @@
 import type { Prisma, PrismaClient } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
 import type { TaskStatus } from '../../shared/types.js'
+// ★ 冻结口径的纯函数 / 常量 / 口径时区取「今天」，统一来自 `analytics/caliber.ts`
+//   （2026-10-19 #33 评审 P1：不再 import `analytics/service.js`，也不在本模块复制一份）。
 import {
   CALC_TIMEZONE,
   HEALTHY_THRESHOLD_PP,
   WARNING_THRESHOLD_PP,
-} from '../analytics/service.js'
+  isoToday,
+} from '../analytics/caliber.js'
 import { createAuthorization } from '../authz/permissions.js'
 import { aggregateInsightMetrics } from './aggregate.js'
 import {
@@ -74,19 +77,19 @@ function denied(decision: { status: 403 | 404; code: 'FORBIDDEN' | 'NOT_FOUND' }
 }
 
 /**
- * 按口径时区取「今天」（`YYYY-MM-DD`）。
+ * 取 `groupBy` 结果里的 `_count._all`。
  *
- * 用 `Intl` 而不是本地时钟：服务器时区不可控，而项目级口径写死 `Asia/Shanghai`
- * （DECISIONS `timezone.project-wide-asia-shanghai`）。`en-CA` 的日期格式恰好是
- * `YYYY-MM-DD`。
+ * 为什么需要这个函数：查询被放进 `prisma.$transaction([...])` 之后，Prisma 对 `_count` 的
+ * **类型推断**会退化成 `true | { _all?: number }`（运行时形状恒为 `{ _all: number }`，
+ * 只是类型信息丢了）。与其写一个裸 `as`，这里带一道运行时校验：形状不符就抛错，
+ * 而不是让 `undefined` 悄悄参与算术、变成 `NaN` 混进指标里。
  */
-export function isoToday(): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: CALC_TIMEZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date())
+function groupCount(row: { _count?: unknown }): number {
+  const count = (row._count ?? {}) as { _all?: unknown }
+  if (typeof count._all !== 'number') {
+    throw new Error('groupBy 未返回 _count._all（查询形状与预期不符）')
+  }
+  return count._all
 }
 
 /**
@@ -149,11 +152,17 @@ export async function buildInsightMetrics(
     ...riskVisibilityWhere(visibleIds),
   }
 
-  const [taskGroups, window, acceptanceGroups, riskGroups, memberRows] = await Promise.all([
+  // ★ 一个读取窗口（2026-10-19 #33 评审 P3）：5 条查询放进**同一个事务**，避免并发写入时
+  //   拿到互相矛盾的一组数（例如 total = 0 却 planWindow ≠ null、验收轮次与任务状态对不上）。
+  //   仍是只读：事务里没有任何写操作。
+  const [taskGroups, window, acceptanceGroups, riskGroups, memberRows] = await prisma.$transaction([
     // 只取计数：不把任务行取进内存（纪律 3）
     prisma.task.groupBy({
       by: ['status', 'ownerUserId'],
       where: taskWhere,
+      // `$transaction([...])` 走的是 groupBy 的严格重载（orderBy 必填，即使只为让类型成立）；
+      // 这里按状态排，对下面的计数聚合没有任何语义影响。
+      orderBy: { status: 'asc' },
       _count: { _all: true },
     }),
     prisma.task.aggregate({
@@ -164,11 +173,13 @@ export async function buildInsightMetrics(
     prisma.acceptanceRecord.groupBy({
       by: ['taskId', 'conclusion'],
       where: acceptanceWhere,
+      orderBy: { taskId: 'asc' },
       _count: { _all: true },
     }),
     prisma.risk.groupBy({
       by: ['status', 'level'],
       where: riskWhere,
+      orderBy: { status: 'asc' },
       _count: { _all: true },
     }),
     prisma.projectMember.findMany({
@@ -185,7 +196,7 @@ export async function buildInsightMetrics(
       (group): TaskCountFact => ({
         status: group.status as TaskStatus,
         ownerUserId: group.ownerUserId,
-        count: group._count._all,
+        count: groupCount(group),
       }),
     ),
     // 计划区间只由**同一窗口内**的任务推导（可见窗口口径）；无任务 → null（不做分级）
@@ -194,12 +205,12 @@ export async function buildInsightMetrics(
   const acceptances: AcceptanceCountFact[] = acceptanceGroups.map((group) => ({
     taskId: group.taskId,
     conclusion: group.conclusion as AcceptanceConclusion,
-    count: group._count._all,
+    count: groupCount(group),
   }))
   const risks: RiskCountFact[] = riskGroups.map((group) => ({
     status: group.status as RiskStatus,
     level: group.level as RiskLevel,
-    count: group._count._all,
+    count: groupCount(group),
   }))
   const members: MemberFact[] = memberRows.map((row) => ({ userId: row.userId }))
 
@@ -235,7 +246,7 @@ export async function buildInsightMetrics(
     },
     timezone: `${CALC_TIMEZONE} 自然日（含首尾）`,
     anonymization:
-      '成员维度只给 memberKey = sha256("ai-insights:member:" + projectId + ":" + userId) 的前 12 位十六进制：不是姓名、不是 account、不是 userId；同一项目同一成员稳定，跨项目不同（防止跨项目串联成员）',
+      '成员维度只给 memberKey = sha256("ai-insights:member:" + projectId + ":" + userId) 的前 12 位十六进制：不是姓名、不是 account、不是 userId；同一项目同一成员稳定，跨项目不同（防止跨项目串联成员）。⚠️ 盐就是 projectId，对**同时持有项目成员名单**的调用者可逐个枚举匹配（端点 7 会给出 userId）—— 它是"对外部与端口不透明"，不是"任何前提下都不可逆"；要真正不可枚举需每项目随机盐（需建表，未申请）',
     dataBoundary:
       '本结果只含计数 / 比率 / 天数，不含任务标题、描述、驳回原因原文、成员姓名或账号 —— 可直接作为 #31 端口的输入（#33 设计 §5.1 第 2 条）',
     sourceTables: ['Task', 'AcceptanceRecord', 'Risk', 'ProjectMember'],

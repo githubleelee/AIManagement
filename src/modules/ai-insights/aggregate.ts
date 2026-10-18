@@ -25,10 +25,11 @@
  *     与 #27 及 DECISIONS `scheduling.load-aggregation-baseline` 一致。
  */
 import { createHash } from 'node:crypto'
-import {
-  healthOf,
-  planTimeDaysOf,
-} from '../analytics/service.js'
+// ★ 冻结口径的**纯函数**（`analytics/caliber.ts`，零 I/O、零判权）。
+//   2026-10-19 #33 评审 P1：原先从这里 import 的是 `analytics/service.js` —— 实质不越界
+//   （无环、只取纯函数），但字面违反契约 I-9「模块之间不导出可被调用的 service 函数」。
+//   口径已上提为纯口径文件，因此既不必复制公式（会把 H2 缺陷一起搬走），也不违纪。
+import { healthOf, planTimeDaysOf } from '../analytics/caliber.js'
 import type {
   AcceptanceCountFact,
   EfficiencyMetrics,
@@ -57,11 +58,17 @@ function round4(value: number): number {
  * 效率类的成员维度若带姓名 / 账号 / userId，分析结果本身就变成了人事数据（设计 §11
  * 已知风险第 4 条），而喂给 #31 端口的又必须是这份数字。
  *
- * 取法的三条性质：
- *   - **不可逆推**：`sha256` 摘要前 12 位十六进制，userId 是 UUID、不可枚举；
+ * 取法的三条性质（★ 2026-10-19 评审 P4 更正：原写"不可逆推"，说过头了）：
+ *   - **对端口 / 外部是不透明键**：`sha256` 摘要前 12 位十六进制，不是姓名 / 账号 / userId；
  *   - **同项目同一成员稳定**：生成层、界面、统计三处算出来的键一致；
  *   - **跨项目不同**：把 projectId 拌进摘要，避免有人拿两个项目的成员表做串联
  *     （同一个 userId 在两个项目里得到不同的键）。
+ *
+ * ⚠️ 但**盐就是 projectId**，而 `GET /projects/:id/members`（端点 7）会把每个成员的 `userId`
+ *    给到项目成员 —— 因此**同时持有项目成员名单的调用者可以逐个枚举、一一匹配**，等价于实名。
+ *    这不是本模块引入的泄漏（能看到名单的人本来就能看到姓名），但**不得**把 memberKey
+ *    说成"任何前提下都不可逆"。要真正做到不可枚举，需要**每项目随机盐**（要建一张表；
+ *    本批"不建表"，已登记为后续申请项）。
  */
 export function memberKeyOf(projectId: string, userId: string): string {
   const digest = createHash('sha256')
