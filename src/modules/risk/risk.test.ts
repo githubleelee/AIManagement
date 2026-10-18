@@ -235,6 +235,35 @@ describe('创建风险：状态只能是「未处理」', () => {
     expect(await ctx.db.auditLog.count({ where: { action: 'risk.create' } })).toBe(0)
   })
 
+  it('★ 收窄不改变鉴权顺序：MEMBER 422 / VIEWER 403 / outsider 404 / 未登录 401', async () => {
+    // 评审 P4：本次修复的安全价值建立在"检查写在 can() 之后"。若后人为了"早失败"把这段
+    // 判断挪进 Zod schema 或挪到 createRisk 开头，outsider 就会从 404 变成 422 ——
+    // 这条用例就是为了让那次改动变红。
+    const body = { title: '越权试探', level: 'HIGH', ownerUserId: member1.id, status: 'CLOSED' }
+
+    // PM 与 MEMBER 都过得了鉴权 ⇒ 落到业务规则 ⇒ 422
+    for (const actor of [pm.id, member1.id]) {
+      const res = await postRisk(actor, body)
+      expect(res.status).toBe(422)
+      expect((res.body as ErrorBody).error.code).toBe('VALIDATION_FAILED')
+    }
+
+    // VIEWER 对象可见但无写权 ⇒ 403（不是 422：不能靠请求体形状判断"我能不能写"）
+    expect((await postRisk(viewer.id, body)).status).toBe(403)
+
+    // 非成员 ⇒ 404，且与"项目不存在"逐字一致（不泄漏项目存在性）
+    const outsiderRes = await postRisk(outsider.id, body)
+    expect(outsiderRes.status).toBe(404)
+    const missingProject = await ctx
+      .asUser(ctx.loginAs(outsider.id))
+      .post('/projects/00000000-0000-0000-0000-000000000000/risks')
+      .send(body)
+    expect(outsiderRes.body).toEqual(missingProject.body)
+
+    // 未登录 ⇒ 401
+    expect((await ctx.asUser(null).post(`/projects/${projectId}/risks`).send(body)).status).toBe(401)
+  })
+
   it('显式传 OPEN 或缺省 → 都建成「未处理」（不能把合法的也拦了）', async () => {
     const explicit = await postRisk(pm.id, {
       title: '显式 OPEN',

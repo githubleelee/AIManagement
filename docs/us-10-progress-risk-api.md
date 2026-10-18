@@ -17,6 +17,21 @@
 | 5 | 风险写权限 = `risk.write`（**PM + MEMBER**，VIEWER 403）；四态流转细节由本票在业务层定义并写测试（公共层已落地） |
 | 6 | 敏感风险**继承所关联任务的敏感可见性**，不扩展 `VisibilityObjectType` |
 
+### 1.1 风险台账：创建即「未处理」（2026-10-19 起，**破坏性收窄**）
+
+依据 DECISIONS `permissions.risk-ownership-change`：
+
+> **创建风险时状态只能为 `OPEN`，其余三态必须经流转产生。**
+
+- `POST /projects/:projectId/risks` 的请求体里若 `status` 给了且不是 `OPEN`
+  → **422 `VALIDATION_FAILED`**，`details: [{ field: 'status', code: 'INVALID_VALUE' }]`；
+  文案：「新建风险时状态只能是「未处理」；「处理中 / 已解决 / 已关闭」必须经状态流转产生」。
+  （**2026-10-19 之前**该请求会得 201 并直接建出「已关闭」的风险 —— 照旧文档写的客户端需要改。）
+- 「处理中 / 已解决 / 已关闭」只能先创建、再 `PATCH /risks/:riskId` 流转（走 `risk.flow` 归属判定）。
+- 创建时给的 `resolution` **不生效**（状态恒为 `OPEN`，落库为 `null`，与 `PATCH` 对非解决态的
+  清空口径一致）；创建路径上它仍参与形状校验，因此超长值会得到 422 `resolution: TOO_LONG`。
+- 鉴权顺序不变：先 `can('risk.write')` 再校验 ⇒ VIEWER 403、非成员 404（与「项目不存在」逐字一致）。
+
 外加（handoff §9 的必守口径）：**进度 = 已关闭任务数 ÷ 项目任务总数，`DONE` 不计入分子**；
 **阻断条件 = 有未关闭任务，或有「未处理/处理中」的风险**。
 
