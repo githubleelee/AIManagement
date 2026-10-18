@@ -41,14 +41,27 @@ export const RISK_RESOLUTION_MAX_LENGTH = 200
 /** 会要求填写解决说明的状态。 */
 const RESOLVED_STATUSES: readonly RiskStatus[] = ['RESOLVED', 'CLOSED']
 
+/**
+ * 新建风险时**唯一允许**的状态（DECISIONS `permissions.risk-ownership-change`）。
+ *
+ * 其余三态必须经状态流转（`risk.flow`）产生 —— 否则「创建即已关闭 / 创建即已解决」
+ * 就是绕过流转与归属判定的通道：既不过 `risk.flow` 的对象关系判定，也不留流转审计。
+ * 独立评审把这条列为裁定项后，负责人已写进决策文件。
+ */
+const CREATE_STATUS: RiskStatus = 'OPEN'
+
 export type RiskInput = {
   title: string
   description?: string | null
   level: RiskLevel
   ownerUserId: string
   taskId?: string | null
-  /** 创建时允许直接给状态（默认 OPEN）；给 RESOLVED / CLOSED 需同时给 resolution */
+  /**
+   * 创建时**只接受 `OPEN`**（缺省即 `OPEN`）；给其它三态 → 422 `status: INVALID_VALUE`。
+   * 创建后再用 `PATCH` 流转。
+   */
   status?: RiskStatus
+  /** 创建时不生效（状态恒为 `OPEN`，解决说明按 `patch` 的口径归一为 `null`）；保留字段以免旧调用方报 422 */
   resolution?: string | null
 }
 
@@ -265,8 +278,16 @@ export async function createRisk(
 
   await assertOwnerIsMember(prisma, projectId, input.ownerUserId)
   if (input.taskId) await assertTaskInProject(prisma, actorUserId, projectId, input.taskId)
-  const status = input.status ?? 'OPEN'
-  assertResolution(status, input.resolution)
+
+  // ★ 创建时状态只能是 OPEN（DECISIONS `permissions.risk-ownership-change`）：
+  //   其余三态必须经流转产生，否则"创建即已关闭"就绕过了 `risk.flow` 的归属判定与流转审计。
+  if (input.status !== undefined && input.status !== CREATE_STATUS) {
+    throw validationError(
+      '新建风险时状态只能是「未处理」；「处理中 / 已解决 / 已关闭」必须经状态流转产生',
+      'status',
+      'INVALID_VALUE',
+    )
+  }
 
   const created = await prisma.$transaction(async (tx) => {
     const risk = await tx.risk.create({
@@ -275,10 +296,12 @@ export async function createRisk(
         title: input.title,
         description: input.description ?? null,
         level: input.level,
-        status,
+        status: CREATE_STATUS,
         ownerUserId: input.ownerUserId,
         taskId: input.taskId ?? null,
-        resolution: input.resolution ?? null,
+        // 解决说明只属于「已解决 / 已关闭」：创建必然是 OPEN，这里与 `patchRisk` 的
+        // 归一化口径一致地落 null —— 不留「未处理却有解决说明」的脏数据。
+        resolution: null,
       },
       include: RISK_INCLUDE,
     })

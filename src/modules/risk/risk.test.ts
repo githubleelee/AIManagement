@@ -204,6 +204,99 @@ describe('AC3 风险三级四态', () => {
 })
 
 /* ===========================================================================
+ * 创建即「未处理」（DECISIONS `permissions.risk-ownership-change`）
+ *
+ * 裁定原文：**创建风险时状态只能为 `OPEN`，其余三态必须经流转产生。**
+ * 原实现允许 `POST /projects/:id/risks {status:'CLOSED'}` 直接建出已关闭的风险 ——
+ * 那是一条绕过 `risk.flow` 归属判定与流转审计的通道（独立评审列为裁定项，现已封死）。
+ * =========================================================================== */
+
+describe('创建风险：状态只能是「未处理」', () => {
+  it('★ 直接建「处理中 / 已解决 / 已关闭」→ 422 INVALID_VALUE，且不落库、不写审计', async () => {
+    for (const status of ['IN_PROGRESS', 'RESOLVED', 'CLOSED'] as const) {
+      const res = await postRisk(pm.id, {
+        title: `不能直接建成-${status}`,
+        level: 'HIGH',
+        ownerUserId: member1.id,
+        status,
+        // 已解决 / 已关闭在流转路径上必须带解决说明；这里带上，免得被别的校验先拦掉
+        ...(status === 'IN_PROGRESS' ? {} : { resolution: '想直接建已解决' }),
+      })
+
+      expect(res.status).toBe(422)
+      expect((res.body as ErrorBody).error.details).toContainEqual({
+        field: 'status',
+        code: 'INVALID_VALUE',
+      })
+    }
+
+    // 三次都没落库，也没留下一条「创建成功」的审计
+    expect(await ctx.db.risk.count()).toBe(0)
+    expect(await ctx.db.auditLog.count({ where: { action: 'risk.create' } })).toBe(0)
+  })
+
+  it('★ 收窄不改变鉴权顺序：MEMBER 422 / VIEWER 403 / outsider 404 / 未登录 401', async () => {
+    // 评审 P4：本次修复的安全价值建立在"检查写在 can() 之后"。若后人为了"早失败"把这段
+    // 判断挪进 Zod schema 或挪到 createRisk 开头，outsider 就会从 404 变成 422 ——
+    // 这条用例就是为了让那次改动变红。
+    const body = { title: '越权试探', level: 'HIGH', ownerUserId: member1.id, status: 'CLOSED' }
+
+    // PM 与 MEMBER 都过得了鉴权 ⇒ 落到业务规则 ⇒ 422
+    for (const actor of [pm.id, member1.id]) {
+      const res = await postRisk(actor, body)
+      expect(res.status).toBe(422)
+      expect((res.body as ErrorBody).error.code).toBe('VALIDATION_FAILED')
+    }
+
+    // VIEWER 对象可见但无写权 ⇒ 403（不是 422：不能靠请求体形状判断"我能不能写"）
+    expect((await postRisk(viewer.id, body)).status).toBe(403)
+
+    // 非成员 ⇒ 404，且与"项目不存在"逐字一致（不泄漏项目存在性）
+    const outsiderRes = await postRisk(outsider.id, body)
+    expect(outsiderRes.status).toBe(404)
+    const missingProject = await ctx
+      .asUser(ctx.loginAs(outsider.id))
+      .post('/projects/00000000-0000-0000-0000-000000000000/risks')
+      .send(body)
+    expect(outsiderRes.body).toEqual(missingProject.body)
+
+    // 未登录 ⇒ 401
+    expect((await ctx.asUser(null).post(`/projects/${projectId}/risks`).send(body)).status).toBe(401)
+  })
+
+  it('显式传 OPEN 或缺省 → 都建成「未处理」（不能把合法的也拦了）', async () => {
+    const explicit = await postRisk(pm.id, {
+      title: '显式 OPEN',
+      level: 'LOW',
+      ownerUserId: member1.id,
+      status: 'OPEN',
+    })
+    expect(explicit.status).toBe(201)
+    expect((explicit.body as RiskView).status).toBe('OPEN')
+
+    const omitted = await makeRisk(pm.id, { title: '缺省状态' })
+    expect(omitted.status).toBe('OPEN')
+  })
+
+  it('创建时带的解决说明被归一为 null（不留「未处理却有解决说明」的脏数据）', async () => {
+    const risk = await makeRisk(pm.id, { title: '带说明的新建', resolution: '不该生效' })
+    expect(risk.status).toBe('OPEN')
+    expect(risk.resolution).toBeNull()
+  })
+
+  it('封死的是「创建」，不是「流转」：建成后仍能一路走到已关闭', async () => {
+    const risk = await makeRisk(pm.id, { title: '正常流转' })
+    expect((await patchRisk(pm.id, risk.id, { status: 'IN_PROGRESS' })).status).toBe(200)
+    expect(
+      (await patchRisk(pm.id, risk.id, { status: 'RESOLVED', resolution: '已处理' })).status,
+    ).toBe(200)
+    const closed = await patchRisk(pm.id, risk.id, { status: 'CLOSED' })
+    expect(closed.status).toBe(200)
+    expect((closed.body as RiskView).status).toBe('CLOSED')
+  })
+})
+
+/* ===========================================================================
  * AC3 —— 四态流转
  * =========================================================================== */
 
