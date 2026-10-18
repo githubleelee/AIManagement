@@ -278,6 +278,26 @@ describe('授权：风险写权限 = PM + MEMBER；VIEWER 只读', () => {
     expect((patched.body as RiskView).level).toBe('LOW')
   })
 
+  it('★【fail-closed，临时】MEMBER 改风险状态 → 403（含自己负责的风险）', async () => {
+    // 项目负责人 2026-10-18 批复 §1：已批准口径是「MEMBER 只能流转**自己负责**的风险」，
+    // 该判定的正确落点是公共层新增 `risk.flow` 的对象关系判定（由 B 落地）。
+    // 公共层就绪前，批复要求先 fail-closed：**成员一律不得流转任何风险状态（403）**。
+    //
+    // ★ 本条**不得用于勾最终 AC**（批复明确要求）：公共层落地后应改写为
+    //   「成员可流转自己的风险 200 / 他人风险 403」。
+    const ownRisk = await makeRisk(member1.id, { title: '成员自己的风险' })
+    expect((await patchRisk(member1.id, ownRisk.id, { status: 'IN_PROGRESS' })).status).toBe(403)
+
+    // 但**写台账本身**（改级别等非状态字段）仍允许 —— 批复第 4 节的票面更正口径
+    const stillAllowed = await patchRisk(member1.id, ownRisk.id, { level: 'LOW' })
+    expect(stillAllowed.status).toBe(200)
+
+    // PM 不受影响
+    const byPm = await patchRisk(pm.id, ownRisk.id, { status: 'IN_PROGRESS' })
+    expect(byPm.status).toBe(200)
+    expect((byPm.body as RiskView).status).toBe('IN_PROGRESS')
+  })
+
   it('VIEWER 可以读清单，但不能写 → 403', async () => {
     await makeRisk(pm.id)
 

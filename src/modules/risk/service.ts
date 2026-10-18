@@ -298,6 +298,38 @@ export async function patchRisk(
 
   const statusChanged = nextStatus !== existing.status
 
+  // ---------------------------------------------------------------------------
+  // 状态流转的**临时 fail-closed 闸门**（项目负责人 2026-10-18 批复 §1）
+  // ---------------------------------------------------------------------------
+  // 已批准口径是「MEMBER 只能流转**自己负责**的风险」。该判定的正确落点是公共层
+  // 新增 `risk.flow` 的对象关系判定（由 B 落地，与 `task.progress` 同型）。
+  // 在公共层就绪前，批复要求**先 fail-closed：成员一律不得流转任何风险状态（403）**，
+  // 否则会留下"成员可改他人风险状态"的越权窗口。
+  //
+  // ⚠️ 下面是**临时实现**：用 `can('project.close')` 作为"是否项目经理"的探针 ——
+  //    它同样走统一入口 `can()`，业务代码里不出现任何角色字段比较（批复禁止的写法）。
+  //    ★ 公共层落地 `risk.flow` 后必须替换为：
+  //        await can(actorUserId, 'risk.flow', { kind: 'risk', projectId, objectId: riskId })
+  //      并放开"成员可流转自己负责的风险"。替换点已登记在
+  //      docs/us-10-progress-risk-api.md 与实验三\_US-10_交接与下一步.md。
+  //    残留风险：若将来 `project.close` 的权限语义变化，这个探针会跟着变——
+  //    这正是它必须尽早被替换掉的原因。
+  if (statusChanged) {
+    const pmProbe = await can(actorUserId, 'project.close', {
+      kind: 'project',
+      projectId: existing.projectId,
+    })
+    // 提示文案刻意写清"为什么"和"什么时候会开放"：
+    // 这是临时闸门，不能让成员只看到一句"没有权限"而不知所以。
+    if (!pmProbe.allow) {
+      throw new AppError(
+        403,
+        'FORBIDDEN',
+        '风险状态流转暂未对成员开放：待公共层 risk.flow 落地后，成员可流转自己负责的风险。',
+      )
+    }
+  }
+
   const updated = await prisma.$transaction(async (tx) => {
     const risk = await tx.risk.update({
       where: { id: riskId },
