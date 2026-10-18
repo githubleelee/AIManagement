@@ -8,7 +8,7 @@
  *
  * 为什么不放进 `src/shared/types.ts`：冻结文件（技术负责人单写），本模块只新增。
  */
-import type { TaskView } from '../../shared/types.js'
+import type { TaskView, UserBrief } from '../../shared/types.js'
 
 /* ===========================================================================
  * ① 关闭阻断（已实现部分）
@@ -115,9 +115,11 @@ export type RiskView = {
   level: RiskLevel
   status: RiskStatus
   ownerUserId: string
-  /** 可选：关联任务。用于**继承该任务的敏感可见性**（人工 2026-10-18 拍板，不新建 risk 敏感类型） */
+  /** 负责人展示信息（避免界面再查一次用户） */
+  owner: UserBrief
+  /** 可选：关联任务。用于**继承该任务的敏感可见性**（批复第 6 项，不新建 risk 敏感类型） */
   taskId: string | null
-  /** 解决说明；`RESOLVED` / `CLOSED` 时填 */
+  /** 解决说明；状态为 `RESOLVED` / `CLOSED` 时必填 */
   resolution: string | null
   createdAt: string
   updatedAt: string

@@ -113,32 +113,36 @@ describe('AC4 任务侧阻断', () => {
     expect(view.blockingTasks.total).toBe(1)
   })
 
-  it('★ 任务全部 CLOSED 时**不能说能关**：风险侧未接线 ⇒ unavailable / canClose=null', async () => {
+  it('★【前提已变】任务全部 CLOSED 且无未处理风险 ⇒ clear / canClose=true', async () => {
+    // US-10 阶段 B：`Risk` 表与风险台账已落地，风险侧不再 unavailable。
+    // 原断言（"任务清了也只能判 unavailable，绝不能说能关"）的**前提消失**；
+    // 改为断言"两侧都干净才 clear"。这是语义收紧而不是放宽 ——
+    // 只要还有未处理/处理中的风险，下面的用例仍会判 blocked。
     await seedTask({ status: 'CLOSED' })
     await seedTask({ status: 'CLOSED' })
 
     const view = (await getClosure(pm.id)).body as ClosureCheckView
     expect(view.blockingTasks.total).toBe(0)
-    expect(view.verdict.state).toBe('unavailable')
-    expect(view.verdict.canClose).toBeNull()
-    expect(view.verdict.note).toContain('风险')
+    expect(view.blockingRisks.total).toBe(0)
+    expect(view.verdict.state).toBe('clear')
+    expect(view.verdict.canClose).toBe(true)
   })
 
-  it('项目下没有任何任务 ⇒ 同样是 unavailable（不是 clear）', async () => {
+  it('项目下没有任何任务、也没有风险 ⇒ clear', async () => {
     const view = (await getClosure(pm.id)).body as ClosureCheckView
     expect(view.blockingTasks.total).toBe(0)
-    expect(view.verdict.state).toBe('unavailable')
-    expect(view.verdict.canClose).toBeNull()
+    expect(view.blockingRisks.total).toBe(0)
+    expect(view.verdict.state).toBe('clear')
+    expect(view.verdict.canClose).toBe(true)
   })
 
-  it('★ 风险侧如实返回 unavailable 且 total 为 **null**（不是 0，不冒充"没有风险"）', async () => {
+  it('风险侧已接线：没有风险时 state=ok、total=0（不再是 null）', async () => {
     await seedTask()
 
     const view = (await getClosure(pm.id)).body as ClosureCheckView
-    expect(view.blockingRisks.state).toBe('unavailable')
-    expect(view.blockingRisks.total).toBeNull()
+    expect(view.blockingRisks.state).toBe('ok')
+    expect(view.blockingRisks.total).toBe(0)
     expect(view.blockingRisks.rows).toEqual([])
-    expect(view.blockingRisks.note).toBeTruthy()
   })
 
   it('清单按计划结束日升序（最该处理的先看）', async () => {
@@ -173,7 +177,7 @@ describe('基数口径与敏感任务', () => {
     expect(memberView.basis.scope).toBe('visible')
   })
 
-  it('★ 敏感任务：非白名单成员的清单与计数都不含它 —— 且它看到的是 unavailable，**不是 clear**', async () => {
+  it('★ 敏感任务：非白名单成员的清单与计数都不含它（他的判定只是"自己可见范围"的结论）', async () => {
     // 唯一一个未关闭任务，且是敏感的、白名单里只有 PM（成员看不到）
     await seedTask({ status: 'DOING', isSensitive: true, title: '敏感未关闭' })
 
@@ -184,9 +188,11 @@ describe('基数口径与敏感任务', () => {
     const memberView = (await getClosure(member1.id)).body as ClosureCheckView
     expect(memberView.blockingTasks.total).toBe(0)
     expect(memberView.blockingTasks.rows).toEqual([])
-    // 关键："我看不到阻断项" 不等于 "项目能关"
-    expect(memberView.verdict.state).toBe('unavailable')
-    expect(memberView.verdict.canClose).toBeNull()
+    // 成员看不到这一项 ⇒ 他自己的可见范围里是"干净"的；但两点必须同时成立：
+    //   ① 敏感任务的存在性没有泄漏（计数 0，不出现）；
+    //   ② 他不能因此就认为"项目可以关"——关闭动作仅 PM，basis 已写明。
+    expect(memberView.verdict.state).toBe('clear')
+    expect(memberView.basis.closeActionNote).toContain('仅 PM')
   })
 
   it('白名单内的成员能看到该敏感任务计入阻断', async () => {

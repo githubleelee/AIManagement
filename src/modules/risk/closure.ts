@@ -1,60 +1,68 @@
 /**
- * US-10 项目关闭阻断（工单 #30）—— 只读校验服务。
+ * US-10 项目关闭阻断（工单 #30）—— 阻断校验（任务侧 + 风险侧）。
  *
  * ===========================================================================
- * 本文件只做"能不能关、卡在哪"的**校验预览**，不做关闭动作
+ * 阻断条件（handoff §9 + 项目负责人批复第 4 节）
  * ===========================================================================
  *
- * 关闭动作需要：① `Project.status` 字段；② 一个 PM 专属的授权动作。两者都还在
- * 冻结区申请中（#24），所以本票先把**判定与清单**做出来 —— 这部分 AC4 的一半，
- * 且完全只读，不需要任何新表或新动作。
+ * 存在 **未 CLOSED 的任务**，或存在 **未处理 / 处理中（OPEN / IN_PROGRESS）的风险**
+ * ⇒ 拒绝关闭，返回 409 + 阻断清单。
+ *
+ * 两侧判定都用**同一个可见性口径**（`visibilityScope(actor, projectId, 'task')`）：
+ *   - 任务侧：`id IN (可见任务)`
+ *   - 风险侧：`taskId IS NULL`（不关联任务的公开风险）**或** `taskId IN (可见任务)`
+ *     —— 即"敏感风险继承所关联任务的敏感可见性"（批复第 6 项，不扩展对象类型）。
  *
  * ===========================================================================
- * 三态纪律：不敢说"能关"就不要说
+ * 三态纪律
  * ===========================================================================
  *
- * 阻断条件是**或**：有未关闭任务 **或** 有未处理/处理中风险 ⇒ 不能关。
- *
- * 因此：
- *   - 任务侧已阻断 ⇒ **确定不能关**（`blocked`），风险侧未知也不影响这个结论；
- *   - 任务侧没阻断，但 `Risk` 表还没落地 ⇒ **判不了**（`unavailable`，`canClose: null`）。
- *     这里**绝不能**返回 `clear` —— 那等于"在缺一半数据的情况下给项目放行"。
- *
- * 清单与计数都在**查询层**过滤（决策 I-6）：`visibilityScope()` 的作用域条件与
- * "未关闭"条件拼进同一个 where，`total` 与 `rows` 同源，不泄漏敏感任务的存在性。
+ * `blocked`（确定不能关）/ `clear`（确定能关）/ `unavailable`（数据缺失，判不了）。
+ * 两侧现在都有数据源，正常情况下只会出现 `blocked` 与 `clear`；
+ * 保留 `unavailable` 是为了"宁可不说能关"这条纪律在异常数据下依然成立。
  */
 import type { Prisma, PrismaClient } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
-import type { TaskStatus, TaskView, UserBrief } from '../../shared/types.js'
+import type { Scope, TaskStatus, TaskView, UserBrief } from '../../shared/types.js'
 import { createAuthorization } from '../authz/permissions.js'
-import type { BlockingSide, ClosureCheckView, ClosureVerdict, RiskView } from './types.js'
+import type {
+  BlockingSide,
+  ClosureCheckView,
+  ClosureVerdict,
+  RiskLevel,
+  RiskStatus,
+  RiskView,
+} from './types.js'
+import { BLOCKING_RISK_STATUSES } from './types.js'
 
 /** 清单最多返回多少条（`total` 始终是精确值，不受此上限影响）。 */
 export const BLOCKING_ROWS_LIMIT = 50
 
-function notFound(): AppError {
-  return new AppError(404, 'NOT_FOUND', '资源不存在')
-}
+/** 口径时区（批复冻结：Asia/Shanghai），与 analytics 一致。 */
+const CALC_TIMEZONE = 'Asia/Shanghai'
 
-function forbidden(): AppError {
-  return new AppError(403, 'FORBIDDEN', '没有权限执行该操作')
-}
-
-function denied(decision: { status: 403 | 404; code: 'FORBIDDEN' | 'NOT_FOUND' }): AppError {
-  return decision.code === 'NOT_FOUND' ? notFound() : forbidden()
-}
-
-function isoToday(): string {
-  // 与 analytics 同一口径：Asia/Shanghai 自然日（批复冻结）
+export function isoToday(): string {
   return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Shanghai',
+    timeZone: CALC_TIMEZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
   }).format(new Date())
 }
 
-const TASK_INCLUDE = {
+export function notFound(): AppError {
+  return new AppError(404, 'NOT_FOUND', '资源不存在')
+}
+
+export function forbidden(): AppError {
+  return new AppError(403, 'FORBIDDEN', '没有权限执行该操作')
+}
+
+export function denied(decision: { status: 403 | 404; code: 'FORBIDDEN' | 'NOT_FOUND' }): AppError {
+  return decision.code === 'NOT_FOUND' ? notFound() : forbidden()
+}
+
+export const TASK_INCLUDE = {
   owner: { select: { id: true, account: true, displayName: true } },
   acceptor: { select: { id: true, account: true, displayName: true } },
 } as const
@@ -79,7 +87,7 @@ type TaskWithPeople = {
 }
 
 /** 按共享类型 `TaskView` 组装（不 import 任务模块，决策 I-9）。 */
-function toTaskView(row: TaskWithPeople): TaskView {
+export function toTaskView(row: TaskWithPeople): TaskView {
   return {
     id: row.id,
     projectId: row.projectId,
@@ -100,24 +108,75 @@ function toTaskView(row: TaskWithPeople): TaskView {
   }
 }
 
+const RISK_INCLUDE = {
+  owner: { select: { id: true, account: true, displayName: true } },
+} as const
+
+export { RISK_INCLUDE }
+
+export type RiskRow = {
+  id: string
+  projectId: string
+  title: string
+  description: string | null
+  level: string
+  status: string
+  ownerUserId: string
+  taskId: string | null
+  resolution: string | null
+  createdAt: Date
+  updatedAt: Date
+  owner: UserBrief
+}
+
+export function toRiskView(row: RiskRow): RiskView {
+  return {
+    id: row.id,
+    projectId: row.projectId,
+    title: row.title,
+    description: row.description,
+    level: row.level as RiskLevel,
+    status: row.status as RiskStatus,
+    ownerUserId: row.ownerUserId,
+    owner: row.owner,
+    taskId: row.taskId,
+    resolution: row.resolution,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  }
+}
+
 /**
- * 计算关闭判定。
+ * 风险的可见性条件（批复第 6 项：敏感风险继承关联任务的可见性）。
  *
- * 纯函数：只依据"任务侧是否阻断"与"风险侧是否可判"得出结论，便于单测与今后接线。
+ * - PM（scope=all）→ 不加条件；
+ * - 其余角色 → `taskId IS NULL`（不关联任务）**或** `taskId IN (可见任务 id)`。
+ *
+ * ★ 这是**查询层**条件（决策 I-6），与计数、清单同源，不做内存过滤。
  */
-export function verdictOf(taskBlocking: boolean, risksKnown: boolean): ClosureVerdict {
-  if (taskBlocking) {
+export function riskVisibilityWhere(scope: Scope): Prisma.RiskWhereInput {
+  if (scope.mode === 'all') return {}
+  return { OR: [{ taskId: null }, { taskId: { in: scope.ids } }] }
+}
+
+/**
+ * 计算关闭判定（纯函数）。
+ *
+ * 阻断条件是"或"：任一侧成立即 `blocked`；两侧都有数据且都没阻断才 `clear`。
+ */
+export function verdictOf(taskBlocking: boolean, riskBlocking: boolean, dataComplete = true): ClosureVerdict {
+  if (taskBlocking || riskBlocking) {
     return {
       state: 'blocked',
       canClose: false,
-      note: '存在未关闭的任务，项目不能关闭（见下方清单）。',
+      note: '存在未关闭的任务或未处理/处理中的风险，项目不能关闭（见下方清单）。',
     }
   }
-  if (!risksKnown) {
+  if (!dataComplete) {
     return {
       state: 'unavailable',
       canClose: null,
-      note: '任务侧没有未关闭项，但风险台账尚未交付，无法确认是否还有阻断风险 —— 因此不能判定"可以关闭"。',
+      note: '两侧都没有阻断项，但数据不完整，无法确认是否可以关闭。',
     }
   }
   return { state: 'clear', canClose: true, note: '任务与风险两侧均无阻断项，可以关闭。' }
@@ -126,12 +185,10 @@ export function verdictOf(taskBlocking: boolean, risksKnown: boolean): ClosureVe
 /**
  * 关闭阻断校验预览。
  *
- * 权限：`can(actor, 'project.read', { kind: 'project' })` —— 四种角色都能读；
- * 非成员 / 项目不存在 → 404（两者响应逐字一致）。
+ * 权限：`can(actor, 'project.read', { kind: 'project' })`；非成员 / 不存在 → 404（逐字一致）。
  *
- * ⚠️ 非 PM 看到的是**自己可见范围内**的阻断清单（`basis.scope = 'visible'`）。
- * 关闭动作本身只有 PM 能执行（待授权），这一条在 `basis.closeActionNote` 里如实写明，
- * 避免成员看到"没有阻断项"就以为关得掉。
+ * ⚠️ 非 PM 看到的是**自己可见范围内**的阻断清单（`basis.scope = 'visible'`）——
+ * 界面必须标注「可见范围」，不能以可见子集冒称全项目（批复第 3 节的同类要求）。
  */
 export async function checkClosure(
   prisma: PrismaClient,
@@ -151,39 +208,49 @@ export async function checkClosure(
   if (!project) throw notFound()
 
   const scope = await visibilityScope(actorUserId, projectId, 'task')
-  const where: Prisma.TaskWhereInput = {
+
+  const taskWhere: Prisma.TaskWhereInput = {
     projectId,
     status: { not: 'CLOSED' },
     ...(scope.mode === 'subset' ? { id: { in: scope.ids } } : {}),
   }
+  const riskWhere: Prisma.RiskWhereInput = {
+    projectId,
+    status: { in: [...BLOCKING_RISK_STATUSES] },
+    ...riskVisibilityWhere(scope),
+  }
 
-  // 计数与清单**同一个 where**（I-6），total 与 rows 同源。
-  const [total, tasks] = await Promise.all([
-    prisma.task.count({ where }),
+  // 计数与清单各自同一个 where（I-6），total 与 rows 同源。
+  const [taskTotal, tasks, riskTotal, risks] = await Promise.all([
+    prisma.task.count({ where: taskWhere }),
     prisma.task.findMany({
-      where,
-      // 最该处理的排在前面：计划结束早的先看
+      where: taskWhere,
       orderBy: [{ planEnd: 'asc' }, { createdAt: 'asc' }],
       take: BLOCKING_ROWS_LIMIT,
       include: TASK_INCLUDE,
+    }),
+    prisma.risk.count({ where: riskWhere }),
+    prisma.risk.findMany({
+      where: riskWhere,
+      // 高危优先，其次越早发现的越先处理
+      orderBy: [{ level: 'asc' }, { createdAt: 'asc' }],
+      take: BLOCKING_ROWS_LIMIT,
+      include: RISK_INCLUDE,
     }),
   ])
 
   const blockingTasks: BlockingSide<TaskView> = {
     state: 'ok',
-    total,
+    total: taskTotal,
     rows: tasks.map((task) => toTaskView(task as TaskWithPeople)),
   }
-
-  // 风险侧：`Risk` 表尚未落地（申请中）。如实返回 unavailable，**不返回 0**。
   const blockingRisks: BlockingSide<RiskView> = {
-    state: 'unavailable',
-    total: null,
-    rows: [],
-    note: '风险台账（三级四态）尚未交付，这一侧还没有数据源；这不代表"没有风险"。',
+    state: 'ok',
+    total: riskTotal,
+    rows: risks.map((risk) => toRiskView(risk as RiskRow)),
   }
 
-  const verdict = verdictOf(total > 0, blockingRisks.state === 'ok')
+  const verdict = verdictOf(taskTotal > 0, riskTotal > 0)
 
   return {
     project: { id: project.id, name: project.name },
@@ -194,10 +261,11 @@ export async function checkClosure(
       asOf: options.today ?? isoToday(),
       scope: scope.mode === 'all' ? 'global' : 'visible',
       blockingMeans:
-        '阻断条件（handoff §9）：存在 status != CLOSED 的任务，或存在「未处理 / 处理中」的风险。',
-      riskSideNote: '风险侧在 Risk 表落地前恒为 unavailable；判定因此最多只能到达「确定不能关」，不能到达「确定能关」。',
+        '阻断条件：存在 status != CLOSED 的任务，或存在「未处理 / 处理中」的风险（RESOLVED / CLOSED 不阻断）。',
+      riskSideNote:
+        '敏感风险继承所关联任务的敏感可见性：不关联任务的公开风险对项目成员可见，关联敏感任务的风险只对该任务白名单内的成员可见。',
       closeActionNote:
-        '关闭动作本身尚未开放（需 Project.status 字段与 PM 专属授权动作，均在 #24 申请中）。本端点只做校验预览。',
+        '关闭 / 重开动作仅 PM 可执行（project.close）；本端点是只读预览，非 PM 看到的是自己可见范围内的阻断情况。',
     },
   }
 }
