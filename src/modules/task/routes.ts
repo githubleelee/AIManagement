@@ -39,7 +39,7 @@ import type { FastifyInstance } from 'fastify'
 import type { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import { AppError } from '../../shared/errors.js'
-import { dateSchema, taskStatusSchema, toFieldErrors } from '../../shared/validation.js'
+import { dateSchema, taskProgressSchema, taskStatusSchema, toFieldErrors } from '../../shared/validation.js'
 import type {
   TaskStatus,
   TaskView,
@@ -75,7 +75,7 @@ const createTaskSchema = z.object({
  * - **不含 `isSensitive`**：Zod object 默认剥离未知键，因此请求体里带 `isSensitive`
  *   也不会被写入，该字段只能通过端点 30（T5-05）修改（契约决策 I-10 的敏感字段写入路径）。
  * - 单字段形状仍由 Zod 负责（决策 I-2b）；跳字段比较与查库规则交给 `assertTaskAssignment`。
- * - `status` 只接受 TODO / DOING / DONE，其它取值（BLOCKED / SUSPENDED / CLOSED）
+ * - `status` 接受六个取值（TODO / DOING / BLOCKED / SUSPENDED / DONE / CLOSED；US-08 起）；
  *   由 Zod 枚举产出 `INVALID_VALUE`（Sprint 1 只做三态，见工单 §1.3）。
  */
 const updateTaskSchema = z.object({
@@ -87,11 +87,17 @@ const updateTaskSchema = z.object({
   planStart: dateSchema.optional(),
   planEnd: dateSchema.optional(),
   status: taskStatusSchema.optional(),
+  // 进度与卡住原因（US-08）：progress 传 null 表示清空；blockedReason 仅 BLOCKED 时有意义。
+  progress: taskProgressSchema.nullable().optional(),
+  blockedReason: z.string().max(200).nullable().optional(),
 })
 
 type UserRow = { id: string; account: string; displayName: string }
 
 type TaskRow = {
+  /** 部分查询用 select 取列，可能没取这两个新字段；缺省按 null 处理 */
+  progress?: number | null
+  blockedReason?: string | null
   id: string
   projectId: string
   storyId: string
@@ -144,7 +150,8 @@ function denied(decision: { status: 403 | 404; code: 'FORBIDDEN' | 'NOT_FOUND' }
 
 /** DB 的枚举列是 String，读取时收窄为 TaskStatus；未知值兜底 TODO（不会发生）。 */
 function toTaskStatus(value: string): TaskStatus {
-  return value === 'TODO' || value === 'DOING' || value === 'DONE' ? value : 'TODO'
+  const known: readonly string[] = ['TODO', 'DOING', 'BLOCKED', 'SUSPENDED', 'DONE', 'CLOSED']
+  return known.includes(value) ? (value as TaskStatus) : 'TODO'
 }
 
 function toUserBrief(user: UserRow): UserBrief {
@@ -176,6 +183,8 @@ async function loadTaskView(prisma: PrismaClient, task: TaskRow): Promise<TaskVi
     planStart: task.planStart,
     planEnd: task.planEnd,
     status: toTaskStatus(task.status),
+    progress: task.progress ?? null,
+    blockedReason: task.blockedReason ?? null,
     isSensitive: task.isSensitive,
     createdAt: task.createdAt.toISOString(),
     owner: toUserBrief(owner),
@@ -399,7 +408,23 @@ export function registerTaskRoutes(app: FastifyInstance, context: RouteContext):
       throw notFound()
     }
 
-    const decision = await can(actorUserId, 'task.write', {
+    // 需要的动作取决于「这次改的是哪一类字段」（US-08）：
+    //   - 只改状态 / 进度 / 卡住原因 → task.progress（负责人可对自己的任务执行）
+    //   - 改成 CLOSED（验收关闭）      → task.accept（只能由验收人执行）
+    //   - 其余（标题、负责人、验收人、计划）→ task.write（仍限项目经理）
+    const rawBody = (request.body ?? {}) as Record<string, unknown>
+    const progressOnlyKeys = ['status', 'progress', 'blockedReason']
+    const touchedKeys = Object.keys(rawBody)
+    const progressOnly =
+      touchedKeys.length > 0 && touchedKeys.every((key) => progressOnlyKeys.includes(key))
+    // ★ 弱动作必须**同时**满足「只碰状态类字段」。否则验收人可用 {status:'CLOSED', title:...}
+    // 借 task.accept 捎带改标题 / 计划 / 负责人 —— 那些是 task.write 才允许的字段（契约 I-8 端点 28）。
+    const requiredAction = !progressOnly
+      ? 'task.write'
+      : rawBody.status === 'CLOSED'
+        ? 'task.accept'
+        : 'task.progress'
+    const decision = await can(actorUserId, requiredAction, {
       kind: 'task',
       projectId: task.projectId,
       objectId: task.id,
@@ -434,6 +459,10 @@ export function registerTaskRoutes(app: FastifyInstance, context: RouteContext):
       planStart: body.planStart ?? task.planStart,
       planEnd: body.planEnd ?? task.planEnd,
       status: body.status ?? toTaskStatus(task.status),
+      ...(body.progress !== undefined ? { progress: body.progress } : {}),
+      // ★ 部分更新语义（决策 I-10）：请求体没出现就**保持原值**，不能当成'空'。
+      //   否则「任务本已阻塞且有原因，只想改个进度」会被误判成「阻塞但没原因」。
+      blockedReason: body.blockedReason !== undefined ? body.blockedReason : task.blockedReason,
     }
 
     // 第三步：业务规则校验以合并结果为入参。校验顺序仍是
@@ -446,6 +475,16 @@ export function registerTaskRoutes(app: FastifyInstance, context: RouteContext):
       planStart: merged.planStart,
       planEnd: merged.planEnd,
     })
+
+    // 第三步（★ AC8，服务端强制而非只靠界面）：
+    //   1) status = BLOCKED 时原因必填 —— 属跳字段比较，按决策 I-2b 由处理器抛 AppError；
+    //   2) status != BLOCKED 时清空原因 —— 维持「原因只在阻塞态有值」的不变式。
+    if (merged.status === 'BLOCKED' && (merged.blockedReason ?? '').trim() === '') {
+      throw new AppError(422, 'VALIDATION_FAILED', '进入阻塞态必须填写原因', [
+        { field: 'blockedReason', code: 'REQUIRED' },
+      ])
+    }
+    const nextBlockedReason = merged.status === 'BLOCKED' ? merged.blockedReason : null
 
     // 第四步：写回合并结果。projectId / storyId / isSensitive / createdAt 不在 data 中，
     // 因此任务不可跨项目挂载，且敏感标记与创建时间不会被 PATCH 改动（决策 I-10）。
@@ -466,6 +505,8 @@ export function registerTaskRoutes(app: FastifyInstance, context: RouteContext):
           planStart: merged.planStart,
           planEnd: merged.planEnd,
           status: merged.status,
+          progress: merged.progress,
+          blockedReason: nextBlockedReason,
         },
       })
     } catch (error) {

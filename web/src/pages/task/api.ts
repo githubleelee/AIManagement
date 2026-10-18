@@ -86,6 +86,10 @@ export type UpdateTaskInput = {
   planStart?: string
   planEnd?: string
   status?: TaskStatus
+  /** US-08：进度 0-100；传 null 表示清空 */
+  progress?: number | null
+  /** US-08：卡住原因；仅 status=BLOCKED 时有意义，传 null 清空 */
+  blockedReason?: string | null
 }
 
 export function updateTask(taskId: string, patch: UpdateTaskInput): Promise<TaskView> {

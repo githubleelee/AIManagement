@@ -1,0 +1,260 @@
+/* ===========================================================================
+ * 个人工作台（US-08 / 工单 #28）—— 本票自有样式
+ *
+ * 为什么不写进 web/src/index.css：那是前端骨架（M2）独占维护的公共文件。
+ * 各票在自己的 pages/<票>/ 下自建 css 并在页内 import，是本仓库既有做法
+ * （见 pages/requirement/requirement.css、pages/task/task.css）。
+ *
+ * 配色：每块一个色调，由 `--wb-accent`（实色，用于标题与左侧色条）与
+ * `--wb-rgb`（同色的 RGB 分量，用于半透明底色与占位条）两个变量决定。
+ * 想整体调浓淡：只改下面 5 组里的 `--wb-rgb` 透明度用法即可
+ * （卡片底色见 .wb-card 的 gradient，占位条见 .wb-row--ph span）。
+ * =========================================================================== */
+
+.wb-grid {
+  display: grid;
+  /* 2 行 3 列，整体填满页面 */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  min-height: calc(100vh - 13rem);
+  margin-top: 0.5rem;
+}
+
+.wb-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid rgba(var(--wb-rgb, 56, 189, 248), 0.32);
+  border-left: 4px solid var(--wb-accent, #38bdf8);
+  border-radius: 10px;
+  /* 只用本块颜色的淡色调，不掺深色 —— 否则会显成"浓灰"而不是"灰蓝" */
+  background: linear-gradient(
+    180deg,
+    rgba(var(--wb-rgb, 56, 189, 248), 0.2),
+    rgba(var(--wb-rgb, 56, 189, 248), 0.06)
+  );
+  min-height: 0;
+}
+
+/* 「我的待办」占左列上下两格；其余 4 块由自动布局填满另外 4 格 */
+.wb-card--tall {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+
+/* ---------- 每块的色调（改这里就能换配色 / 调浓淡） ---------- */
+.wb-card--todo,
+.wb-panel--todo {
+  --wb-accent: #38bdf8;
+  --wb-rgb: 56, 189, 248;
+}
+.wb-card--overdue,
+.wb-panel--overdue {
+  --wb-accent: #fca5a5;
+  --wb-rgb: 252, 165, 165;
+}
+.wb-card--accept,
+.wb-panel--accept {
+  --wb-accent: #fcd34d;
+  --wb-rgb: 252, 211, 77;
+}
+.wb-card--mention,
+.wb-panel--mention {
+  --wb-accent: #c084fc;
+  --wb-rgb: 192, 132, 252;
+}
+.wb-card--upcoming,
+.wb-panel--upcoming {
+  --wb-accent: #4ade80;
+  --wb-rgb: 74, 222, 128;
+}
+
+/* ---------- 卡片头部：标题（可点） + 查看全部 ---------- */
+.wb-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.wb-card-title {
+  margin: 0;
+  font-size: 0.98rem;
+  letter-spacing: 0.02em;
+}
+
+.wb-card-link {
+  color: var(--wb-accent, #38bdf8);
+  text-decoration: none;
+}
+
+.wb-card-link:hover {
+  text-decoration: underline;
+}
+
+.wb-card-more {
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  color: var(--wb-accent, #38bdf8);
+  opacity: 0.8;
+  text-decoration: none;
+}
+
+.wb-card-more:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.wb-card-count {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  margin: 0.15rem 0 0;
+}
+
+.wb-card-number {
+  font-size: 2.6rem;
+  font-weight: 600;
+  line-height: 1.05;
+}
+
+.wb-card--tall .wb-card-number {
+  font-size: 4rem;
+}
+
+.wb-card-unit {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+/* ---------- 条数下面的小列表（前 2~3 条） ---------- */
+.wb-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wb-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.32rem 0.5rem;
+  border-left: 2px solid var(--wb-accent, #38bdf8);
+  border-radius: 6px;
+  background: rgba(var(--wb-rgb, 56, 189, 248), 0.1);
+  font-size: 0.85rem;
+}
+
+/* 整行可点：跳到该任务所属需求的需求详情页（任务列表与编辑在那里） */
+.wb-row-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.wb-row:hover {
+  background: rgba(var(--wb-rgb, 56, 189, 248), 0.18);
+}
+
+.wb-row:hover .wb-row-title {
+  text-decoration: underline;
+}
+
+/* 空态：这一块确实没有内容（与"数据源未交付"是两回事，后者不显示这一行） */
+.wb-row--empty {
+  border-left-color: transparent;
+  background: transparent;
+  opacity: 0.65;
+}
+
+.wb-placeholder {
+  margin: 0.9rem 0 0;
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.wb-row-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.wb-row-meta {
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+}
+
+.wb-card-hint {
+  margin: auto 0 0; /* 说明文字压到底部，卡片高度变化时对齐好看 */
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+/* ===========================================================================
+ * 「查看全部」列表页
+ * =========================================================================== */
+
+.wb-crumb {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+}
+
+.wb-panel {
+  border: 1px solid rgba(var(--wb-rgb, 56, 189, 248), 0.32);
+  border-left: 4px solid var(--wb-accent, #38bdf8);
+  border-radius: 10px;
+  padding: 1rem 1.15rem 1.15rem;
+  background: linear-gradient(
+    180deg,
+    rgba(var(--wb-rgb, 56, 189, 248), 0.2),
+    rgba(var(--wb-rgb, 56, 189, 248), 0.06)
+  );
+}
+
+.wb-panel-count {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+.wb-list--full {
+  margin-top: 0.9rem;
+  gap: 0.5rem;
+}
+
+.wb-list--full .wb-row {
+  padding: 0.5rem 0.7rem;
+}
+
+.wb-backlist {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+/* 窄屏兜底：3 列挤不下时退回单列，不出现横向滚动条 */
+@media (max-width: 900px) {
+  .wb-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+  }
+  .wb-card--tall {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}

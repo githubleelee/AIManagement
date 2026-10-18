@@ -109,6 +109,8 @@ const EXPECTED_COLUMNS: Record<string, ColumnSpec[]> = {
     { name: 'status', type: 'TEXT', notNull: true, def: "'TODO'", pk: 0 },
     { name: 'isSensitive', type: 'BOOLEAN', notNull: true, def: 'false', pk: 0 },
     { name: 'createdAt', type: 'DATETIME', notNull: true, def: 'CURRENT_TIMESTAMP', pk: 0 },
+    { name: 'progress', type: 'INTEGER', notNull: false, def: null, pk: 0 },
+    { name: 'blockedReason', type: 'TEXT', notNull: false, def: null, pk: 0 },
   ],
   ObjectVisibility: [
     { name: 'projectId', type: 'TEXT', notNull: true, def: null, pk: 0 },

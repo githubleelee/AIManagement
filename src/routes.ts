@@ -9,6 +9,7 @@ import { registerAuthRoutes } from './auth/plugin.js'
 import { registerSensitivityRoutes } from './modules/authz/plugin.js'
 import { registerProjectRoutes } from './modules/project/plugin.js'
 import { registerTaskRoutes } from './modules/task/routes.js'
+import { registerWorkbenchRoutes } from './modules/workbench/plugin.js'
 import { registerRequirementRoutes } from './modules/requirement/plugin.js'
 
 export type RouteContext = {
@@ -36,4 +37,8 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
   // registerSensitivityRoutes 注册；M5 不得再注册，否则 Fastify 抛
   // FST_ERR_DUPLICATED_ROUTE 使整个应用无法构建。
   registerTaskRoutes(app, context)
+
+  // A / US-08 个人工作台（工单 #28）：GET /me/workbench。
+  // 该端点不在 Sprint 1 契约的 30 个端点内，属本阶段新增（见 docs/us-08-workbench-api.md）。
+  registerWorkbenchRoutes(app, context)
 }

@@ -7,11 +7,13 @@
  * 负责人 / 验收人候选、敏感可见成员，都来自 `GET /projects/:id/members`（真实成员，非占位）。
  */
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import type { ProjectMemberView, TaskStatus, TaskView } from '../../../../src/shared/types'
+import type { ProjectMemberView, TaskView } from '../../../../src/shared/types'
 import { ApiError, listMembers } from '../../api'
+import { useAuth } from '../../auth/AuthContext'
+import TaskUpdateForm from './TaskUpdateForm'
 import { SensitivityEditor } from '../SensitivityEditor'
 import ConfirmDialog from '../../components/ConfirmDialog'
-import { TASK_STATUS_LABEL, TaskStatusBadge } from './TaskStatusBadge'
+import { TaskStatusBadge } from './TaskStatusBadge'
 import './task.css'
 import {
   createTask,
@@ -22,7 +24,6 @@ import {
   type UpdateTaskInput,
 } from './api'
 
-const TASK_STATUS_OPTIONS: TaskStatus[] = ['TODO', 'DOING', 'DONE']
 type Props = {
   storyId: string
   projectId: string
@@ -200,7 +201,10 @@ export default function TaskSection({ storyId, projectId, isPm, onCountChange }:
   const [pendingDelete, setPendingDelete] = useState<TaskView | null>(null)
   const [deleting, setDeleting] = useState(false)
   const deletingRef = useRef(false)
-  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null)
+  // US-08：哪一行打开了「更新」表单（状态 / 进度 / 卡住原因）
+  const [updateFormFor, setUpdateFormFor] = useState<string | null>(null)
+  const { user } = useAuth()
+  const myId = user?.id ?? null
 
   const reload = useCallback(async () => {
     setError(null)
@@ -262,18 +266,17 @@ export default function TaskSection({ storyId, projectId, isPm, onCountChange }:
     }
   }
 
-  async function handleStatus(taskId: string, status: TaskStatus) {
-    if (updatingStatusId) return
-    setUpdatingStatusId(taskId)
-    setError(null)
-    try {
-      await updateTask(taskId, { status })
-      await reload()
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : '更新状态失败')
-    } finally {
-      setUpdatingStatusId(null)
-    }
+  /** 当前用户能否更新这一行（体验层；服务端仍按 task.progress / task.accept 判权）。 */
+  function canUpdateRow(task: TaskView): boolean {
+    if (isPm) return true
+    if (myId === null) return false
+    return task.ownerUserId === myId || task.acceptorUserId === myId
+  }
+
+  /** 是否允许把这一行设为「已验收关闭」：验收人或项目经理。 */
+  function canCloseRow(task: TaskView): boolean {
+    if (isPm) return true
+    return myId !== null && task.acceptorUserId === myId
   }
 
   const memberOptions = members.map((m) => ({ id: m.userId, displayName: m.user.displayName }))
@@ -320,7 +323,8 @@ export default function TaskSection({ storyId, projectId, isPm, onCountChange }:
               <th>验收人</th>
               <th className="nowrap">计划</th>
               <th>状态</th>
-              {isPm ? <th /> : null}
+              <th>进度</th>
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -333,49 +337,64 @@ export default function TaskSection({ storyId, projectId, isPm, onCountChange }:
                   {t.planStart} → {t.planEnd}
                 </td>
                 <td>
-                  {isPm ? (
-                    <select
-                      value={t.status}
-                      aria-label={`修改「${t.title}」的状态`}
-                      disabled={updatingStatusId !== null}
-                      onChange={(e) => void handleStatus(t.id, e.target.value as TaskStatus)}
-                    >
-                      {TASK_STATUS_OPTIONS.map((s) => (
-                        <option key={s} value={s}>
-                          {TASK_STATUS_LABEL[s]}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <TaskStatusBadge status={t.status} />
-                  )}
+                  <TaskStatusBadge status={t.status} />
                 </td>
-                {isPm ? (
-                  <td className="nowrap">
+                <td className="req-mono nowrap">{t.progress === null ? '—' : String(t.progress) + '%'}</td>
+                <td className="nowrap">
+                  {canUpdateRow(t) ? (
                     <button
                       type="button"
                       className="req-button-small req-button-plain"
-                      aria-label={`${editingId === t.id ? '收起' : '编辑'}任务「${t.title}」`}
-                      onClick={() => setEditingId(editingId === t.id ? null : t.id)}
+                      onClick={() => setUpdateFormFor(updateFormFor === t.id ? null : t.id)}
                     >
-                      {editingId === t.id ? '收起' : '编辑'}
+                      {updateFormFor === t.id ? '收起更新' : '更新'}
                     </button>
-                    <button
-                      type="button"
-                      className="req-button-small req-button-danger"
-                      aria-label={`删除任务「${t.title}」`}
-                      onClick={() => setPendingDelete(t)}
-                    >
-                      删除
-                    </button>
-                  </td>
-                ) : null}
+                  ) : null}
+                  {isPm ? (
+                    <>
+                      <button
+                        type="button"
+                        className="req-button-small req-button-plain"
+                        onClick={() => setEditingId(editingId === t.id ? null : t.id)}
+                      >
+                        {editingId === t.id ? '收起' : '编辑'}
+                      </button>
+                      <button
+                        type="button"
+                        className="req-button-small req-button-danger"
+                        onClick={() => setPendingDelete(t)}
+                      >
+                        删除
+                      </button>
+                    </>
+                  ) : null}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
         </div>
       )}
+
+      {updateFormFor && (() => {
+        const target = tasks?.find((item) => item.id === updateFormFor)
+        if (!target) return null
+        return (
+          <TaskUpdateForm
+            // ★ 必须带 key：否则从任务 A 切到 B 时组件复用、useState 初值不重跑，
+            //   表单残留 A 的状态/进度/原因，保存会把 A 的值写进 B。
+            key={target.id}
+            task={target}
+            canProgress={isPm || (myId !== null && target.ownerUserId === myId)}
+            canClose={canCloseRow(target)}
+            onSaved={() => {
+              setUpdateFormFor(null)
+              void reload()
+            }}
+            onCancel={() => setUpdateFormFor(null)}
+          />
+        )
+      })()}
 
       {editingId && isPm
         ? (() => {

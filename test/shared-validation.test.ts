@@ -39,7 +39,10 @@ describe('5 个 Zod 枚举', () => {
   it('拒绝中文界面标签与非法取值', () => {
     expect(projectRoleSchema.safeParse('项目经理').success).toBe(false)
     expect(prioritySchema.safeParse('P9').success).toBe(false)
-    expect(taskStatusSchema.safeParse('BLOCKED').success).toBe(false)
+    // 2026-10-17：六状态落地后 BLOCKED 已是合法取值（#24 结论），原断言的前提消失；
+    // 改为断言合法值通过，并用一个真正不存在的取值证明仍在拒绝。
+    expect(taskStatusSchema.safeParse('BLOCKED').success).toBe(true)
+    expect(taskStatusSchema.safeParse('PENDING').success).toBe(false)
     expect(goalStatusSchema.safeParse('进行中').success).toBe(false)
     expect(storyStatusSchema.safeParse('planning').success).toBe(false)
   })

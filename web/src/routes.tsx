@@ -13,6 +13,8 @@ import ProjectTasksPage from './pages/ProjectTasksPage'
 import RequirementDetailPage from './pages/RequirementDetailPage'
 import RequirementHierarchyDetailPage from './pages/RequirementHierarchyDetailPage'
 import NewRequirementPage from './pages/NewRequirementPage'
+import WorkbenchPage from './pages/workbench/WorkbenchPage'
+import WorkbenchListPage from './pages/workbench/WorkbenchListPage'
 
 /**
  * 路由表（见 docs/frontend-routes.md，冻结）。
@@ -27,6 +29,9 @@ export default function AppRoutes() {
         <Route element={<AppLayout />}>
           <Route path="/projects" element={<ProjectListPage />} />
           <Route path="/projects/new" element={<NewProjectPage />} />
+          {/* US-08 个人工作台（工单 #28）：跨项目的个人视角，故挂在顶层而非项目空间内 */}
+          <Route path="/workbench" element={<WorkbenchPage />} />
+          <Route path="/workbench/:blockKey" element={<WorkbenchListPage />} />
 
           <Route path="/projects/:projectId" element={<ProjectLayout />}>
             <Route index element={<Navigate to="overview" replace />} />
