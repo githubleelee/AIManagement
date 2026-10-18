@@ -10,6 +10,7 @@ import { registerAcceptanceRoutes } from './modules/acceptance/plugin.js'
 import { registerSensitivityRoutes } from './modules/authz/plugin.js'
 import { registerProjectRoutes } from './modules/project/plugin.js'
 import { registerTaskRoutes } from './modules/task/routes.js'
+import { registerWorkloadRoutes } from './modules/workload/plugin.js'
 import { registerWorkbenchRoutes } from './modules/workbench/plugin.js'
 import { registerRequirementRoutes } from './modules/requirement/plugin.js'
 
@@ -50,4 +51,10 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
   // 不与 M2 的 /projects/... 前缀冲突（Fastify 同 method+path 重复注册会抛
   // FST_ERR_DUPLICATED_ROUTE 使整个应用无法构建）。
   registerAcceptanceRoutes(app, context)
+
+  // B / US-07 成员任务图与负载（工单 #27）：GET /projects/:projectId/workload、
+  // GET /projects/:projectId/workload/:userId。
+  // 同样不在 Sprint 1 契约的 30 个端点内，属本阶段新增（见 docs/role-b-workload-design.md）。
+  // 只读聚合：复用既有 project.read 权限，不新增 Action。
+  registerWorkloadRoutes(app, context)
 }
