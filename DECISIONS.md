@@ -142,3 +142,16 @@
 - **value:** 项目关闭存在阻断项（任何未 `CLOSED` 的任务，或状态为 `OPEN` / `IN_PROGRESS` 的风险）时，关闭请求一律拒绝并返回 409 CONFLICT + 阻断清单，**不允许强制关闭**；关闭与重开项目均仅 PM（`project.close`），重开同样不绕过既有校验。关闭 / 重开端点路径 `/projects/:projectId/close`，handler 位于 US-10 自己的模块，不改 `src/modules/project/`；`Project.status` 取值 `ACTIVE` / `CLOSED`，**不进共享 `ProjectView`**，由本票端点自行返回。关闭与重开动作写 `AuditLog`。
 - **timestamp:** 2026-10-18T15:35:24+08:00
 - **rationale:** 落实报告第 11 节「必须阻止关闭并显示清单」的要求，并固定端点命名空间、状态列可见性与审计留痕，避免绕过阻断或改动项目模块。
+
+
+## `permissions.risk-flow-guard`
+
+- **value:** 风险状态流转的鉴权在公共层显式化：`ObjectRef` 增加 `risk` 类型（含 riskId 与所属 projectId），`permissions.ts` 增加与 `task.progress` / `task.accept` 同型的对象关系判定 `risk.flow` —— PM 由 `can()` 第 3 条放行，MEMBER 仅当 `ownerUserId` = 调用者时允许、否则 403，VIEWER 一律 403，非成员 / outsider 404；业务代码不得私写角色判断。该公共层改动由 ROLE-B 落地。**在公共层就绪前，风险状态流转先 fail-closed：MEMBER 一律 403（不得流转任何风险状态）**，就绪后再放开「自己负责的风险」；此期间不得以此勾选最终 AC。本条目与此前的 `permissions.risk-status-flow` 配套：后者定义业务口径，本条目定义鉴权落地方式与过渡期行为。
+- **timestamp:** 2026-10-18T19:09:17+08:00
+- **rationale:** 让「成员只能流转自己负责的风险」在统一鉴权入口内表达，避免业务层自行判角色，并在公共层缺位期间以最小越权面收敛。
+
+## `contract.close-blocking-response`
+
+- **value:** 项目关闭被阻断时**不修改**契约 I-3 的错误信封（不给 `details` 增加 `blockers` 字段）：响应为 409 CONFLICT + 计数摘要（未关闭任务数、未处理 / 处理中风险数），并提示调用 `GET /projects/:projectId/closure-check` 获取阻断清单；清单只由该端点返回且必须按调用者权限过滤，无权者不得看到敏感任务 / 风险，也不得通过计数反推。其他客户端无需适配新信封。关闭与重开仍仅 PM、不允许强制关闭（见 `analytics.project-close-blocking`）。
+- **timestamp:** 2026-10-18T19:09:17+08:00
+- **rationale:** 保留已冻结错误信封的形状，同时满足「阻止关闭并显示清单」的验收要求，避免为单一场景改公共契约。
