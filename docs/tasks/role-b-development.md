@@ -77,28 +77,32 @@ Done when: 覆盖成员列表、负载摘要、任务详情、空态和工作台
 Dependencies: #02 [FS]
 
 ## #05 实现成员负载后端只读查询
-Status: not started
+Status: done
+Evidence: src/modules/workload/{types,service,plugin}.ts + workload.test.ts（11 用例）已合入 main（PR #50）。可见性经 visibilityScope() 进查询层、列表与 count 共用同一 where；非 CLOSED 含 DONE；未新增 Action/未跨模块 service；明细不返回 isSensitive。npm run typecheck exit 0；npx vitest run src/modules/workload 11/11；全量 npm test 50 文件 1193 用例通过。
 Outcome: `src/modules/workload/` 中的授权查询与负载数据接口。
 Done when: 直接读库且不跨业务 service；只查本项目成员；复用 `can()`/`visibilityScope()`；敏感过滤进入数据库查询；任务列表与计数同口径，按 C6 基础口径计算未关闭任务（含 `DONE`）；区分 PM 全局与可见范围基数，AI 消费须基于过滤后子集重算，不把含敏感全局负载送出；不改公共文件（由 B 单写）。
 Dependencies: #03 [FS], #04 [FS]
-Blocker: 需用户批准 GitHub #27 编码范围。main 398aa76 已有六态/CLOSED，基础 C6 已确认，不再以状态不存在或过载阈值未定阻塞基础负载；本票查询/权限实现仍待实施与验证。
+已解除：用户 2026-10-18 批准 #27 编码范围。本轮按设计 §4 最小口径实施（basis.scopeLabel + members[].openTaskCount）；候选 population 字段（含退组负责人歧义）本轮不实现。
 
 ## #06 实现成员负载页面与成员详情
-Status: not started
+Status: done
+Evidence: web/src/pages/workload/{WorkloadPage,MemberWorkloadDetail,api,types}.tsx|ts + workload.css 已合入 main（PR #50）。范围标签、计数、状态/计划、加载/空/错误/无权限态；DONE 标「已提交待验收」；复用既有状态与角色标签；typecheck exit 0。浏览器走查（PM/MEMBER/outsider）见 docs/ai-records/B/issue-27/evidence/B-I27-20261018-bmaster-08-acceptance.md。
 Outcome: `web/src/pages/workload/` 的成员负载、成员—任务关联与详情页面。
 Done when: 能展示状态和计划时间；具备加载、空态、错误与无权限反馈；按确认的接口开发；后端未接入时仅标为开发态，不能宣称真实计数已验收；不改前端骨架。
 Dependencies: #03 [FS], #04 [FS]
-Blocker: 需用户批准 GitHub #27 的前端编码范围；未决权限和状态语义不得写死。
+已解除：用户 2026-10-18 批准 #27 前端编码范围。只读展示；C11/C12 未确认部分不写死（不引入协作人、不新增权限动作）。
 
 ## #07 完成成员负载真实接口与挂载联调
-Status: not started
+Status: done
+Evidence: 公共挂载已合入 main（PR #50）：src/routes.ts 注册 registerWorkloadRoutes、web/src/routes.tsx 增 /projects/:projectId/workload、ProjectLayout.tsx 左导航「成员负载」、docs/frontend-routes.md 路由行。真实链路：本地 migrate+seed 后 dev server + 浏览器实测数据来自真实后端（非 mock）。
 Outcome: 可在应用中访问、使用真实后端的成员负载与详情链路。
 Done when: 公共层（B 单写授权）完成必要后端路由、前端页面挂载及按需类型修改；前后端真实数据一致；记录修改与授权证据，无 mock 冒充正式接口。
 Dependencies: #05 [FS], #06 [FS]
-Blocker: 需公共层（B 单写授权）完成挂载及必要公共文件改动。
+已解除：公共挂载已合入 main（PR #50）。
 
 ## #08 验收并交付成员负载
-Status: not started
+Status: done
+Evidence: docs/ai-records/B/issue-27/evidence/B-I27-20261018-bmaster-08-acceptance.md（含 3 张截图）。AC1 成员计数与清单、AC2 详情状态/计划、AC3 与工作台 todo.total 同账号同授权对照一致、AC4 outsider 404 与「项目不存在」逐字一致、AC5 敏感排除（MEMBER 视角 member2 计数 2→1）、AC6 可见范围标签；DONE 计入且显示「已提交待验收」。未验证项：VIEWER 浏览器走查、>200 行截断浏览器验证、移动端、AI 子集（本票无 AI 端点，N/A）——均已登记，未冒充通过。
 Outcome: GitHub #27 AC1–AC6 的证据包及供 GitHub #32/#33 消费的数据契约。
 Done when: 本模块测试与 `npm run typecheck` 通过；浏览器验证负载图到成员详情；覆盖 PM/member/viewer/outsider、敏感计数、跨项目、列表计数一致、PM 全项目基数与可见范围基数区分、AI 子集不冒充全局，以及 `DONE` 不等于 `CLOSED` 且计入非 `CLOSED` 负载；与工作台按同账号同授权视角核对，外部未就绪项不得假称通过；记录全部 AC 结论及 PR 草稿/链接，不自动合并或关闭工单。
 Dependencies: #07 [FS]
@@ -111,18 +115,20 @@ Done when: 覆盖需求/任务/里程碑/FS 数据、Milestone 与 TaskDependenc
 Dependencies: #02 [FS]
 
 ## #10 落实甘特开工授权与最小模型条件
-Status: not started
+Status: done
+Evidence: 三模型（Milestone/TaskMilestone/TaskDependency）+ 迁移 20261018050000_add_gantt_models + test-support 清理顺序 + 快照测试表集合 11→14 + src/modules/gantt/types.ts 已合入 main（PR #51）。主控独立复核：typecheck exit 0、快照 37/37、全量 50 文件 1193 用例通过、/tmp 新鲜库 migrate deploy 成功（14 表）、node:sqlite 实测外键 ON DELETE 与索引名符合设计。
 Outcome: GitHub #26 独立分支/worktree、用户认可的实施范围，以及首批模型/迁移/类型的公共层交付证据（B 单写授权）。
 Done when: 复核最新 main；用户批准甘特单票方案；公共层按 B 单写授权提供首批读接口所需模型与迁移；只确认本阶段最小契约，C2 已确认结论可用于展示工作。`#27` 仅作优先级参考，**不作硬前置**。
 Dependencies: #09 [FS]
-Blocker: 需用户批准 GitHub #26 实施；相关迁移与类型由公共层（B 单写授权）交付。
+已解除：用户 2026-10-18 授权「开启下一步开发任务」（#27 之后按优先级推进 #26）。本轮交付最小模型 + 迁移 + 类型；#12 写入/事件仍待 D 的公共事件端口，#13 真实开工守卫仍待旧入口写窗口。
 
 ## #11 实现甘特聚合读接口
-Status: not started
+Status: done
+Evidence: src/modules/gantt/{service,plugin}.ts + gantt.test.ts（13 用例）已合入 main（PR #52）。GET /projects/:projectId/gantt；可见性全进查询层（隐藏任务不出现、仅关联隐藏任务的里程碑与含隐藏端点的依赖边不返回）；故事日期标 candidate-minmax、progress=null+unconfirmed（C10 未确认不编造）；截断用 LIMIT+1 判定。typecheck exit 0；模块 13/13；全量 51 文件 1206 用例通过。
 Outcome: `src/modules/gantt/` 中需求、任务、里程碑和依赖的聚合数据接口。
 Done when: 支持故事展开任务、任务计划时间、确认后的故事进度日期及里程碑汇总；查询层敏感过滤，依赖与汇总不泄漏无权对象；不跨业务 service；与任务视图按同授权视角一致；区分 PM 全项目汇总与 MEMBER / VIEWER 可见范围汇总。
 Dependencies: #10 [FS]
-Blocker: 聚合与空值口径待定；C6 基础汇总权限已确认，阈值类规则未确认，未决部分仅保留设计。
+已解除：读路径按已确认口径实现（C6 基础汇总 + 可见范围）；故事进度按 C10 未确认处理为 null+unconfirmed，不冒充已批准公式。
 
 ## #12 实现里程碑与 FS 依赖写操作及事件
 Status: not started
@@ -139,7 +145,8 @@ Dependencies: #12 [FS]
 Blocker: main 398aa76 已有六态/CLOSED；仍缺 TaskDependency 与真实开工入口的 FS 守卫，且需该旧入口具体授权/写窗口。C2 结论已确认，C #32 日期应用许可不覆盖此状态守卫。
 
 ## #14 实现甘特时间轴页面
-Status: not started
+Status: done
+Evidence: web/src/pages/gantt/*（7 文件）已合入 main（PR #52）：纯 CSS 统一时间轴、故事展开、里程碑、依赖区（unavailable 显式提示）、候选口径与未确认进度标注、加载/空/错误/无权限态。挂载 src/routes.ts + web/src/routes.tsx + 左导航「甘特图」+ docs/frontend-routes.md。浏览器走查：PM 2/5/3/3 + 故事展开 + 3 条 FS 边；MEMBER 4 任务/2 里程碑/2 边（隐藏对象不出现）。证据 docs/ai-records/B/issue-26/evidence/B-I26-20261018-bmaster-04-read-acceptance.md。
 Outcome: `web/src/pages/gantt/` 中需求/任务/里程碑统一视图。
 Done when: 支持故事展开、计划时间、汇总进度、里程碑和 FS 关系展示，具备空态与错误反馈；不做复杂拖拽、自动调度或其他依赖类型；按已确认 C2 展示，未落地的状态与执行入口不冒充完成。
 Dependencies: #11 [FS]
@@ -149,7 +156,7 @@ Status: not started
 Outcome: GitHub #26 AC1–AC7 证据包及交付 C 域 GitHub #32 的数据契约。
 Done when: 公共层（B 单写授权）完成必要路由与页面挂载；本模块测试与 `npm run typecheck` 通过；浏览器验证展开、汇总、里程碑；覆盖 FS、环、跨项目、敏感过滤及真实任务开工路径；C2 已确认口径留证；事件联调保留真实证据，不能只用模拟替代；未决或外部不可验证项不勾完成，不建立对 GitHub #32 的反向依赖。
 Dependencies: #12 [FS], #13 [FS], #14 [FS]
-Blocker: 需实际路由/页面挂载与真实事件接入条件到位，相关公共层修改留痕。
+Blocker: 部分解除：路由与页面挂载已完成（PR #52）。**仍缺**：#12 写路径（里程碑/依赖写入、FS 环/自依赖/跨项目校验、事件）待 D 的 #37 公共事件端口；#13 真实开工守卫待旧入口写窗口。故本任务不勾 AC、不标完成。
 
 ## #16 提前完成故事看板方案与授权细化
 Status: done
@@ -159,14 +166,16 @@ Done when: 固定 DRAFT/PLANNING/DONE 三列；明确复用现有故事 PATCH，
 Dependencies: #02 [FS]
 
 ## #17 实现故事只读看板
-Status: not started
+Status: done
+Evidence: src/modules/board/{types,service,plugin}.ts + board.test.ts（10 用例）与 web/src/pages/board/*（5 文件）已合入 main（PR #53）。GET /projects/:projectId/board 三列固定顺序；count 与 findMany 共用同一 where（visibilityScope 进查询层）；排序 createdAt asc, id asc；每列 ≤200 行 + truncated；卡片 6 字段不含 isSensitive；空列不合并。挂载 src/routes.ts + web/src/routes.tsx + 左导航「故事看板」+ docs/frontend-routes.md。typecheck exit 0；模块 10/10；全量 52 文件 1216 用例通过。浏览器走查：PM 2/2/1；MEMBER 敏感隐藏 1/2/0 且空列显示空态；被指名成员 2/2/0；outsider 404 与「项目不存在」逐字一致。证据 docs/ai-records/B/issue-25/evidence/B-I25-20261018-bmaster-05-read-acceptance.md。
 Outcome: `src/modules/board/` 按需聚合读与 `web/src/pages/board/` 的状态列、卡片及计数。
 Done when: 用户批准 GitHub #25 方案及只读编码范围；从最新 main 建独立分支；正式故事三状态展示正确；查询层敏感过滤，计数与列表一致；不复制 requirement service，不改骨架。`#26` 仅作优先级参考，**不作硬前置**。
 Dependencies: #16 [FS]
-Blocker: 需用户批准 GitHub #25 的单票方案及只读实现。
+已解除：用户 2026-10-18 批准 #25 只读看板（#17）编码范围。本轮只做只读三列（不含状态写入/审计，写路径属 #18，待 C11/C13）。
 
 ## #18 扩展获授权的故事状态写路径
 Status: not started
+Note: 前置只读看板已完成（#17 done，PR #53）；本任务仍待 C11（成员能否改故事状态）与 C13（requirement 具体文件授权）。
 Outcome: 既有故事 PATCH 的状态操作授权、who/when/before/after 审计与状态变更事件。
 Done when: C11 成员操作及 Action 规则已书面确认；C13 对具体文件范围已授权；复用 `can()`；按确认的一致性策略完成真实写入、审计、事件处理；公共文件由 B 单写、旧业务文件须原 owner 具体授权后改，不绕过 `requirement.write`，不创建替代写入口。
 Dependencies: #17 [FS]
@@ -406,6 +415,17 @@ Outcome: #32 公共权限、模型、端口与挂载的定向集成证据及未�
 Done when: 覆盖 PM-only 生成 / 查看 / 采纳 / 修改后采纳 / 拒绝 / 审计、外项目 404、撤权重试不可读历史、其他既有 `Action` 不变；硬阻断 vs 仅提示；整份事务原子与失败回滚；幂等重放（含成功重放不误判自身日期更新、先鉴权后重放、异 payload / 并发冲突）、事件失败重试不重复改计划；本地桩与真实 API、真实业务联调分栏留证；未就绪项明确未验证，不以 fixture 冒充最终 AC；不宣称原 AC13。
 Dependencies: #44 [FS], #47 [FS], #48 [FS], #49 [FS]
 Blocker: 待 C 本域实现及本批公共接入的前置交付/真实任务数据就绪；外部 AI API 未接不阻塞本地桩与模块验证。真实模型/生产方联调另列未验证，不以 fixture 冒充相关最终 AC；不宣称原 AC13。
+
+---
+
+---
+
+## #51 落地 risk.flow 鉴权与 authz 窄签名（#21 分派批次）
+Status: done
+Outcome: `ObjectRef` 增 `risk` 类型、`permissions.ts` 增 `risk.flow` 对象关系判定、`AuthzDb` 窄 `Pick`（root/tx 兼容，C 的签名请求同批），并保持错误信封 I-3 不变。
+Evidence: PR #57 → main `2782c47`。src/shared/types.ts（Action `risk.flow`、ObjectRef `risk`）；src/modules/authz/permissions.ts（导出 AuthzDb；createAuthorization/loadTarget/roleIn 改用窄类型；loadTarget 增 case 'risk'；第 4.6 条判定）；test/authz-risk-flow.test.ts 8 例（PM / MEMBER 本人 / MEMBER 他人 / VIEWER（被指为负责人）/ outsider / 不存在 riskId / 跨项目真实归属 404 / 事务客户端内 can()）。验证：npm run typecheck exit 0；8/8；全量 npm test 53 文件 / 1224 用例通过（基线 52/1216）。登记：#24 评论 6249399218 + 台账 §8；通知 A：#30 评论 6249510864。未改错误信封（contract.close-blocking-response）、未动 A/C/D 业务模块、task/rules.ts 由 C 自行放宽。
+Done when: 依 `DECISIONS.md` `permissions.risk-flow-guard` 落地并验证；与 C 的 authz 签名请求合并为同一批；不改错误信封；测试覆盖五类角色；完成后通知 A。
+Dependencies: none
 
 ---
 
