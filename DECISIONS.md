@@ -155,3 +155,15 @@
 - **value:** 项目关闭被阻断时**不修改**契约 I-3 的错误信封（不给 `details` 增加 `blockers` 字段）：响应为 409 CONFLICT + 计数摘要（未关闭任务数、未处理 / 处理中风险数），并提示调用 `GET /projects/:projectId/closure-check` 获取阻断清单；清单只由该端点返回且必须按调用者权限过滤，无权者不得看到敏感任务 / 风险，也不得通过计数反推。其他客户端无需适配新信封。关闭与重开仍仅 PM、不允许强制关闭（见 `analytics.project-close-blocking`）。
 - **timestamp:** 2026-10-18T19:09:17+08:00
 - **rationale:** 保留已冻结错误信封的形状，同时满足「阻止关闭并显示清单」的验收要求，避免为单一场景改公共契约。
+
+## `analytics.dashboard-window-basis`
+
+- **value:** 项目仪表盘（`GET /projects/:projectId/dashboard`）的统计基数与计划区间**同源同窗口**：PM 取**全项目**任务；MEMBER / VIEWER 取**各自可见范围**（`visibilityScope` 结果）。分子（已关闭数）、分母（任务总数）与计划区间 `min(planStart) ~ max(planEnd)` 必须来自同一个窗口，不得混用全项目与可见范围。界面必须标注「可见范围」。据此，`analytics.health-thresholds-and-planned-progress` 中「取该项目全部任务」仅适用于 PM，其余角色按可见窗口执行；不泄漏不可见任务的存在性与日期。本条仅澄清原句的内部矛盾，其余口径（含首尾自然日、Asia/Shanghai、偏差 = 计划 − 实际、≤10 / ≤25 / >25 分级、比较用未舍入值、无任务不分级）不变。
+- **timestamp:** 2026-10-18T21:53:24+08:00
+- **rationale:** 原条目同句既写「取该项目全部任务」又写「MEMBER / VIEWER 用各自可见范围」，实现侧（US-10）取可见窗口更保守且与 C6「分子分母同源」自洽；经 ROLE-B 评审与项目负责人 2026-10-18「按 B 的建议」确认，显式化以避免成员与 PM 口径分裂或日期泄漏。
+
+## `permissions.risk-ownership-change`
+
+- **value:** 风险的**归属 / 关联变更视同流转**：`ownerUserId` 或 `taskId` 发生变更时，除 `risk.write` 外还必须通过 `can('risk.flow')` 的对象关系判定（PM 放行；MEMBER 仅当库中 `ownerUserId` = 本人；VIEWER 403；非成员 / outsider 404），与状态流转同口径。**创建风险时状态只能为 `OPEN`**，其余三态必须经流转产生。非状态字段（标题 / 描述 / 等级 / 解决说明）的编辑仍按 `risk.write`（PM + MEMBER）执行，允许成员编辑他人负责风险的非状态字段。风险审计必须记录**全部可写字段**的前后值（含 `ownerUserId` / `taskId` / `description`）。关闭项目后是否冻结项目内任务 / 风险写入仍为待定项，本条目不覆盖。
+- **timestamp:** 2026-10-18T21:53:24+08:00
+- **rationale:** 堵住评审 H1 的两步绕过（成员先把自己的 `ownerUserId` 写进他人风险、再走 `risk.flow` 流转），在「业务层不判角色」的前提下让归属变更与状态流转同权；同时封死「创建即 CLOSED」这类绕过，并让归属变更在审计中可追溯。
