@@ -61,6 +61,13 @@ export default function RiskPage() {
     null,
   )
   const [saving, setSaving] = useState(false)
+  /**
+   * 行内改状态的错误 —— **贴在那一行**，不放页面顶部。
+   * （2026-10-18 走查第 4 项反馈：红字在页面顶部、按钮在下面，中间隔了一整屏。）
+   */
+  const [draftError, setDraftError] = useState<string | null>(null)
+  /** 登记表单的错误 —— 同样贴表单，不放页面顶部 */
+  const [formError, setFormError] = useState<string | null>(null)
 
   const reload = useCallback(async () => {
     setError(null)
@@ -109,22 +116,22 @@ export default function RiskPage() {
 
   async function handleCreate(): Promise<void> {
     if (title.trim() === '') {
-      setError('请填写风险标题。')
+      setFormError('请填写风险标题。')
       return
     }
     if (ownerUserId === '') {
-      setError('请选择风险负责人。')
+      setFormError('请选择风险负责人。')
       return
     }
     setCreating(true)
-    setError(null)
+    setFormError(null)
     try {
       await createRisk(project.id, { title: title.trim(), level, ownerUserId })
       setTitle('')
       setNotice('风险已登记。')
       await reload()
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : '登记风险失败')
+      setFormError(caught instanceof ApiError ? caught.message : '登记风险失败')
     } finally {
       setCreating(false)
     }
@@ -134,21 +141,22 @@ export default function RiskPage() {
     if (!draft) return
     const needs = NEEDS_RESOLUTION.includes(draft.status)
     if (needs && draft.resolution.trim() === '') {
-      setError('状态改为「已解决」或「已关闭」时必须填写解决说明。')
+      setDraftError('状态改为「已解决」或「已关闭」时必须填写解决说明。')
       return
     }
     setSaving(true)
-    setError(null)
+    setDraftError(null)
     try {
       await patchRisk(draft.id, {
         status: draft.status,
         ...(needs ? { resolution: draft.resolution.trim() } : {}),
       })
       setDraft(null)
+      setDraftError(null)
       setNotice('风险状态已更新。')
       await reload()
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : '更新风险失败')
+      setDraftError(caught instanceof ApiError ? caught.message : '更新风险失败')
     } finally {
       setSaving(false)
     }
@@ -296,6 +304,11 @@ export default function RiskPage() {
       {canWrite ? (
         <section className="risk-form">
           <h2 className="risk-section-title">登记新风险</h2>
+          {formError ? (
+            <p className="risk-edit-error" role="alert">
+              {formError}
+            </p>
+          ) : null}
           <div className="risk-form-row">
             <label className="risk-field risk-field--grow">
               标题
@@ -410,18 +423,28 @@ export default function RiskPage() {
                             <button
                               type="button"
                               className="risk-button-plain"
-                              onClick={() => setDraft(null)}
+                              onClick={() => {
+                                setDraft(null)
+                                setDraftError(null)
+                              }}
                             >
                               取消
                             </button>
+                            {/* 错误贴在这一行下面，不放到页面顶部（走查反馈） */}
+                            {draftError ? (
+                              <p className="risk-edit-error" role="alert">
+                                {draftError}
+                              </p>
+                            ) : null}
                           </div>
                         ) : (
                           <button
                             type="button"
                             className="risk-button-plain"
-                            onClick={() =>
+                            onClick={() => {
                               setDraft({ id: risk.id, status: risk.status, resolution: '' })
-                            }
+                              setDraftError(null)
+                            }}
                           >
                             改状态
                           </button>
