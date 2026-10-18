@@ -58,7 +58,9 @@
 | #21（T6） | 评论（已发，第二批） | https://github.com/githubleelee/AIManagement/issues/21#issuecomment-6245136058 | 本地草稿与状态短指针 + PR #42 链接 |
 | #30（T7） | 评论（已发，第二批） | https://github.com/githubleelee/AIManagement/issues/30#issuecomment-6245136311 | **落点选 #30**（A 在此提出开工确认与 UTC 待澄清，通知更直接）；内容与 T7 一致 |
 | AI 交互记录 | 归档并推送（2026-10-18） | https://github.com/githubleelee/AIManagement/pull/42/files | `docs/ai-records/B/issue-{24,25,26,27,30,32}/`（主控 6 + 子 agent 11，共 29 文件）；按 `docs/ai-interaction-recording-guide.md`，全部「待确认」，缺口与未运行项已登记；未改旧表 5、未建共享索引 |
-| #30 公共支持（A 的票） | 代码 PR #43（未合并） | https://github.com/githubleelee/AIManagement/pull/43 | 项目负责人授权范围：`risk.write` = PM + MEMBER、`project.close` = 仅 PM；B 落 `Action`/`permissions.ts`/`Risk` 模型/`Project.status`/迁移/快照测试；A 的业务模块与挂载待其就绪 |
+| #30 公共支持（A 的票） | 代码 PR #43 → **已合入** main `648a6575` | https://github.com/githubleelee/AIManagement/pull/43 | 项目负责人授权范围：`risk.write` = PM + MEMBER、`project.close` = 仅 PM；B 落 `Action`/`permissions.ts`/`Risk` 模型/`Project.status`/迁移/快照测试；A 的业务模块与挂载待其就绪 |
+| A 的转发通知 | 文档（本地已写，随下个文档提交） | `docs/role-a-issue-30-public-support-notice.md` | 由人类负责人发给 A：已合并内容、权限口径、Risk 字段、A 待接手项、未运行项、5 项待回复 |
+| 文档/代码合入 | PR #42 → main `2285849`；PR #43 → main `648a6575` | — | PR #39 内容已并入 #42（#39 待关闭） |
 
 评论区均注明首批三票“本轮只发本票等三条自包含同步”；第二批已全部发出。**实际发出文本以评论链接为准**（相对下方草稿增补了 PR #42 直链，T2 第 5 条改写为“文件已可达”，T6 补上了评论链接与 PR）。发布后核对：相关票仍 `open`、标签与 PR 状态均未变。
 
