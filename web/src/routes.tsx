@@ -17,6 +17,8 @@ import WorkbenchPage from './pages/workbench/WorkbenchPage'
 import WorkbenchListPage from './pages/workbench/WorkbenchListPage'
 import AcceptancePage from './pages/acceptance/AcceptancePage'
 import WorkloadPage from './pages/workload/WorkloadPage'
+import DashboardPage from './pages/analytics/DashboardPage'
+import RiskPage from './pages/risk/RiskPage'
 
 /**
  * 路由表（见 docs/frontend-routes.md，冻结）。
@@ -50,6 +52,9 @@ export default function AppRoutes() {
             <Route path="acceptance" element={<AcceptancePage />} />
             {/* US-07 成员任务图与负载（工单 #27）：项目内的只读负载总览，入口在左导航 */}
             <Route path="workload" element={<WorkloadPage />} />
+            {/* US-10 进度/健康度（工单 #30）：项目仪表盘与风险台账，入口在左导航 */}
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="risks" element={<RiskPage />} />
             <Route path="members" element={<ProjectMembersPage />} />
           </Route>
         </Route>

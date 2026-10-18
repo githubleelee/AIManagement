@@ -31,6 +31,9 @@
 | `/projects/:projectId/requirements/:storyId` | `RequirementDetailPage` | 需求详情：编辑 / 敏感 / 故事内任务（端点 20/21/23；任务区端点 24/25/27/28/29/30 **已实现，随收尾分支合入**） | M4 / US-03、M5 / US-05 |
 | `/projects/:projectId/tasks` | `ProjectTasksPage` | 项目任务总表（端点 26 + `ownerUserId` 过滤，**已实现，随收尾分支合入**） | M5 / US-05（T5.x） |
 | `/projects/:projectId/workload` | `WorkloadPage` | 成员任务图与负载：成员非 CLOSED 负载数 + 可见范围标签 + 单成员未关闭任务明细（`GET /projects/:projectId/workload`、`.../workload/:userId`，**本阶段新增，不在 Sprint 1 的 30 个端点内**） | B / US-07（#27） |
+| `/projects/:projectId/acceptance` | `AcceptancePage` | 任务验收工作台：待我验收清单 + 通过/驳回 + 我负责的、被驳回的任务（含驳回原因）+ 验收历史（本阶段新增端点，见 `docs/us-09-acceptance-api.md`） | A / US-09（#29） |
+| `/projects/:projectId/dashboard` | `DashboardPage` | 项目仪表盘：进度（已关闭 ÷ 总数）、健康度四态（含"无法计算"）、计划时间进度、六态分布；非 PM 标注「可见范围」（`GET /projects/:projectId/dashboard`，本阶段新增，见 `docs/us-10-progress-risk-api.md`） | A / US-10（#30） |
+| `/projects/:projectId/risks` | `RiskPage` | 风险台账与项目关闭：风险三级四态清单 + 登记 + 状态流转；关闭前阻断清单与关闭/重开入口（仅 PM）（本阶段新增，见 `docs/us-10-progress-risk-api.md`） | A / US-10（#30） |
 | `*` | `NotFoundPage` | 全局 404 | M2 |
 
 ## 页面职责与数据来源
