@@ -98,19 +98,30 @@ async function assertOwnerIsMember(
   }
 }
 
-/** 关联任务必须属于本项目（`taskId: CROSS_PROJECT_REF`）。 */
+/**
+ * 关联任务必须属于本项目（`taskId: CROSS_PROJECT_REF`），**且调用者要能看到它**。
+ *
+ * 独立审查 S5：只校验「属于本项目」会形成一个弱存在性预言机 —— 非白名单成员拿一个
+ * 猜到的敏感任务 id 建风险会得 201，而拿不存在的 id 得 422，两者差异等于确认了
+ * "该 id 存在于本项目"。这里对"看不见"与"不存在"返回**同一条错误**，不区分。
+ */
 async function assertTaskInProject(
   prisma: PrismaClient,
+  actorUserId: string,
   projectId: string,
   taskId: string,
 ): Promise<void> {
+  const notYours = validationError('关联任务不属于本项目', 'taskId', 'CROSS_PROJECT_REF')
+
   const task = await prisma.task.findUnique({
     where: { id: taskId },
-    select: { projectId: true, isSensitive: true },
+    select: { projectId: true },
   })
-  if (!task || task.projectId !== projectId) {
-    throw validationError('关联任务不属于本项目', 'taskId', 'CROSS_PROJECT_REF')
-  }
+  if (!task || task.projectId !== projectId) throw notYours
+
+  const { visibilityScope } = createAuthorization(prisma)
+  const scope = await visibilityScope(actorUserId, projectId, 'task')
+  if (scope.mode === 'subset' && !scope.ids.includes(taskId)) throw notYours
 }
 
 /** 进入已解决 / 已关闭必须有解决说明。 */
@@ -216,7 +227,7 @@ export async function createRisk(
   if (!decision.allow) throw denied(decision)
 
   await assertOwnerIsMember(prisma, projectId, input.ownerUserId)
-  if (input.taskId) await assertTaskInProject(prisma, projectId, input.taskId)
+  if (input.taskId) await assertTaskInProject(prisma, actorUserId, projectId, input.taskId)
   const status = input.status ?? 'OPEN'
   assertResolution(status, input.resolution)
 
@@ -282,7 +293,7 @@ export async function patchRisk(
   if (patch.ownerUserId !== undefined) {
     await assertOwnerIsMember(prisma, existing.projectId, patch.ownerUserId)
   }
-  if (patch.taskId) await assertTaskInProject(prisma, existing.projectId, patch.taskId)
+  if (patch.taskId) await assertTaskInProject(prisma, actorUserId, existing.projectId, patch.taskId)
   assertResolution(nextStatus, nextResolution)
 
   const statusChanged = nextStatus !== existing.status
@@ -297,7 +308,9 @@ export async function patchRisk(
         status: nextStatus,
         ownerUserId: nextOwner,
         taskId: nextTaskId,
-        resolution: nextResolution ?? null,
+        // 状态回退到「未处理 / 处理中」时清空解决说明 ——
+        // 否则界面会把上一条旧说明渲染成「解决说明：…」，看起来像已经解决了（审查 S7）。
+        resolution: RESOLVED_STATUSES.includes(nextStatus) ? (nextResolution ?? null) : null,
       },
       include: RISK_INCLUDE,
     })
@@ -366,9 +379,17 @@ export async function closeProject(
     )
   }
 
-  await prisma.$transaction([
-    prisma.project.update({ where: { id: projectId }, data: { status: 'CLOSED' } }),
-    prisma.auditLog.create({
+  // ★ 比较并交换（CAS）：只在项目**仍是 ACTIVE** 时才改并写审计。
+  //   原实现是"读状态→校验→无条件 update"，并发（含前端双击）会两次都成功、
+  //   各写一条 project.close 审计 —— 审计失真，独立审查 B1 已实测复现（200/200、审计 2 条）。
+  //   同一写法见 src/modules/acceptance/service.ts 的 CAS。
+  const changed = await prisma.$transaction(async (tx) => {
+    const updated = await tx.project.updateMany({
+      where: { id: projectId, status: 'ACTIVE' },
+      data: { status: 'CLOSED' },
+    })
+    if (updated.count === 0) return false
+    await tx.auditLog.create({
       data: auditData(
         projectId,
         actorUserId,
@@ -378,8 +399,10 @@ export async function closeProject(
         { status: 'ACTIVE' },
         { status: 'CLOSED' },
       ),
-    }),
-  ])
+    })
+    return true
+  })
+  if (!changed) throw conflict('项目已处于关闭状态')
 
   return { project: { id: project.id, name: project.name, status: 'CLOSED' } }
 }
@@ -407,9 +430,14 @@ export async function reopenProject(
   if (!project) throw notFound()
   if (project.status !== 'CLOSED') throw conflict('项目未处于关闭状态，无法重开')
 
-  await prisma.$transaction([
-    prisma.project.update({ where: { id: projectId }, data: { status: 'ACTIVE' } }),
-    prisma.auditLog.create({
+  // ★ 与关闭同构的 CAS：只在项目**仍是 CLOSED** 时才改并写审计（审查 B1 同源问题）
+  const changed = await prisma.$transaction(async (tx) => {
+    const updated = await tx.project.updateMany({
+      where: { id: projectId, status: 'CLOSED' },
+      data: { status: 'ACTIVE' },
+    })
+    if (updated.count === 0) return false
+    await tx.auditLog.create({
       data: auditData(
         projectId,
         actorUserId,
@@ -419,8 +447,10 @@ export async function reopenProject(
         { status: 'CLOSED' },
         { status: 'ACTIVE' },
       ),
-    }),
-  ])
+    })
+    return true
+  })
+  if (!changed) throw conflict('项目未处于关闭状态，无法重开')
 
   return { project: { id: project.id, name: project.name, status: 'ACTIVE' } }
 }

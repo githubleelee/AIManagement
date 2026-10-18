@@ -85,8 +85,13 @@ export const RISK_LEVEL_LABEL: Record<RiskLevel, string> = {
 /**
  * 风险状态：未处理 / 处理中 / 已解决 / 已关闭（handoff §9）。
  *
- * 流转口径（人工 2026-10-18 拍板）：**PM 可任意流转（含重开），member 只读，
- * 每次变更写 AuditLog**。即不强制"只能前进"，因此不建模成单向状态机。
+ * 流转口径（批复：`risk.write` = **PM + MEMBER**，VIEWER 403；四态细节由本票定义）：
+ * **PM 与 MEMBER 都能改状态（含回退 / 重开），VIEWER 只读，每次变更写 AuditLog**。
+ * 不强制"只能前进"，因此不建模成单向状态机。
+ *
+ * ★ 独立审查 S3：此处原写「PM 可任意流转、**member 只读**」，与本票实现相反
+ *   （实现走 `risk.write`，公共层只拦 VIEWER）。已按批复更正 —— 这类"注释说 A、
+ *   代码做 B"的错误注释会让后来者按错误口径推断权限，属必须修的一类。
  */
 export type RiskStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED'
 export const RISK_STATUSES = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] as const

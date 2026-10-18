@@ -33,8 +33,8 @@
 
 - `progress = { closed, total, ratio }`：`closed` 只计 `status === 'CLOSED'`；
   **`total === 0` 时 `ratio` 为 `null` 而不是 `0`**。
-- `health = { state, deviation, note? }`，`state ∈ HEALTHY / WARNING / AT_RISK / UNAVAILABLE`；
-  `deviation = 实际进度 − 计划时间进度`（保留 4 位小数）。
+- `health = { state, deviationPp, note? }`，`state ∈ HEALTHY / WARNING / AT_RISK / UNAVAILABLE`；
+  `deviationPp = 计划时间进度 − 实际进度`，单位**百分点（pp）**，展示保留 1 位小数（判定用未舍入值）。
 - `byStatus`：六态计数，**之和恒等于 `progress.total`**。
 - `basis`：`asOf / scope / planWindow / planTimeProgress / thresholds / 各口径文案 / timezone`。
 
@@ -51,7 +51,8 @@
   - `clear` → `canClose: true`：两侧都判过且都没阻断（`Risk` 表落地后才可能出现）。
 - `blockingTasks = { state, total, rows }`：`status != 'CLOSED'` 的任务，计数与清单**同一个 where**，
   已按可见性作用域过滤；清单上限 50 条，`total` 始终精确。
-- `blockingRisks = { state: 'unavailable', total: null, rows: [] }`：`Risk` 表未落地前的**如实占位**。
+- `blockingRisks = { state: 'ok', total, rows }`：`status ∈ OPEN / IN_PROGRESS` 的风险，
+  按"继承关联任务可见性"过滤。
 
 ---
 
@@ -61,13 +62,15 @@
 
 > **算不出来 ≠ 一切正常。** 返回 `0` 或 `HEALTHY` 会把"还没接上"说成"没有数据"或"状态良好"。
 
-具体到本票：
+具体到本票（2026-10-18 独立审查 S4 后修订，此为**当前**口径）：
 - 项目下没有任务时，健康度无从谈起 → `UNAVAILABLE`，并给 `note`；
-- 关闭校验收到的风险侧是空的（未接线）→ `blockingRisks.total = null`，且 `verdict` **最多只能到达
-  「确定不能关」，不能到达「确定能关」**。
+- **只有 PM 能拿到 `clear` / `canClose: true`**：PM 拥有全项目基数。
+- **非 PM（`basis.scope = 'visible'`）即使看到"两侧都干净"也只能得到
+  `unavailable` / `canClose: null`** —— 他看到的只是可见范围，无法排除"存在自己看不见的
+  未关闭任务/风险"。这条是本票中途一度写错（改成 `clear`）、由审查 S4 发现并纠正的行为：
+  「我看不到阻断项」不等于「项目能关」。
 
-这条设计直接决定了一件事：**当前不可能出现"半数据放行"** —— 风险台账交付前，任何项目都拿不到
-`canClose: true`。
+> 一句话：**非 PM 永远拿不到 `canClose: true`**，因此不存在"可见子集冒充全项目"的放行。
 
 ---
 

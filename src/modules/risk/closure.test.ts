@@ -177,7 +177,7 @@ describe('基数口径与敏感任务', () => {
     expect(memberView.basis.scope).toBe('visible')
   })
 
-  it('★ 敏感任务：非白名单成员的清单与计数都不含它（他的判定只是"自己可见范围"的结论）', async () => {
+  it('★ 敏感任务：非白名单成员的清单与计数都不含它 —— 且他**判不了**（不是 clear）', async () => {
     // 唯一一个未关闭任务，且是敏感的、白名单里只有 PM（成员看不到）
     await seedTask({ status: 'DOING', isSensitive: true, title: '敏感未关闭' })
 
@@ -188,11 +188,24 @@ describe('基数口径与敏感任务', () => {
     const memberView = (await getClosure(member1.id)).body as ClosureCheckView
     expect(memberView.blockingTasks.total).toBe(0)
     expect(memberView.blockingTasks.rows).toEqual([])
-    // 成员看不到这一项 ⇒ 他自己的可见范围里是"干净"的；但两点必须同时成立：
-    //   ① 敏感任务的存在性没有泄漏（计数 0，不出现）；
-    //   ② 他不能因此就认为"项目可以关"——关闭动作仅 PM，basis 已写明。
-    expect(memberView.verdict.state).toBe('clear')
-    expect(memberView.basis.closeActionNote).toContain('仅 PM')
+    // 关键："我看不到阻断项" 不等于 "项目能关"。
+    // 独立审查 S4 指出：本票中途把这条改成 clear/canClose=true，那是**放宽** ——
+    // 同一项目 PM 得 blocked、member 得 canClose=true，等于以可见子集冒称全项目。
+    // 现恢复为 unavailable / null：非 PM 没有全项目基数，只能判"判不了"。
+    expect(memberView.verdict.state).toBe('unavailable')
+    expect(memberView.verdict.canClose).toBeNull()
+  })
+
+  it('PM 在干净项目上才拿到 clear；普通成员同样是 unavailable（可见范围不等于全项目）', async () => {
+    await seedTask({ status: 'CLOSED' })
+
+    const pmView = (await getClosure(pm.id)).body as ClosureCheckView
+    expect(pmView.verdict.state).toBe('clear')
+    expect(pmView.verdict.canClose).toBe(true)
+
+    const memberView = (await getClosure(member1.id)).body as ClosureCheckView
+    expect(memberView.verdict.state).toBe('unavailable')
+    expect(memberView.verdict.canClose).toBeNull()
   })
 
   it('白名单内的成员能看到该敏感任务计入阻断', async () => {

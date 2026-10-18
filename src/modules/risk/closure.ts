@@ -250,7 +250,12 @@ export async function checkClosure(
     rows: risks.map((risk) => toRiskView(risk as RiskRow)),
   }
 
-  const verdict = verdictOf(taskTotal > 0, riskTotal > 0)
+  // ★ 「我看不到阻断项」不等于「项目能关」（独立审查 S4 的重点项）：
+  //   非 PM 的清单是按**可见范围**算的；他看到的都干净只能说明"判不了"，
+  //   不能报 clear —— 否则同一项目 PM 得 blocked、member 得 canClose=true，
+  //   等于以可见子集冒称全项目（违背批复第 3 节 C6 与三态纪律）。
+  //   只有 PM（scope=all）拥有全项目基数，才允许给出确定结论。
+  const verdict = verdictOf(taskTotal > 0, riskTotal > 0, scope.mode === 'all')
 
   return {
     project: { id: project.id, name: project.name },

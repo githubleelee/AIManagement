@@ -391,6 +391,21 @@ describe('AC4/AC5 项目关闭与重开', () => {
     expect(JSON.parse(logs[0]!.before as string)).toEqual({ status: 'ACTIVE' })
   })
 
+  it('★ 并发双关闭：恰好一个 200、一个 409，且 project.close 审计只有 1 条（审查 B1 回归护栏）', async () => {
+    await seedTask({ status: 'CLOSED' })
+
+    // 原实现是「读状态 → 校验 → 无条件 update」：并发下两次都能过、各写一条审计
+    // （独立审查 B1 实测 200/200、审计 2 条）。现改为 CAS
+    // （updateMany where status='ACTIVE'），第二个请求影响 0 行 → 409。
+    const [first, second] = await Promise.all([closeProject(pm.id), closeProject(pm.id)])
+
+    expect([first.status, second.status].sort((a, b) => a - b)).toEqual([200, 409])
+
+    const row = await ctx.db.project.findUnique({ where: { id: projectId }, select: { status: true } })
+    expect(row?.status).toBe('CLOSED')
+    expect(await ctx.db.auditLog.count({ where: { action: 'project.close' } })).toBe(1)
+  })
+
   it('MEMBER 不能关闭项目（project.close 仅 PM）→ 403', async () => {
     await seedTask({ status: 'CLOSED' })
     const res = await closeProject(member1.id)
