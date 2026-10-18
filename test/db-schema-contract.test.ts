@@ -56,6 +56,9 @@ const EXPECTED_COLUMNS: Record<string, ColumnSpec[]> = {
     { name: 'name', type: 'TEXT', notNull: true, def: null, pk: 0 },
     { name: 'description', type: 'TEXT', notNull: false, def: null, pk: 0 },
     { name: 'ownerUserId', type: 'TEXT', notNull: true, def: null, pk: 0 },
+    // 【有意扩展】US-10（工单 #30）经项目负责人 2026-10-18 授权新增：项目生命周期列。
+    // 关闭阻断的最终判定在 #30 自己的模块；此处只断言列形状（默认 'ACTIVE'）。
+    { name: 'status', type: 'TEXT', notNull: true, def: "'ACTIVE'", pk: 0 },
     { name: 'createdAt', type: 'DATETIME', notNull: true, def: 'CURRENT_TIMESTAMP', pk: 0 },
   ],
   ProjectMember: [
@@ -257,7 +260,8 @@ describe('决策 I-7 表集合与字段逐列比对', () => {
    * 【前提已变，不是放宽断言】
    *
    * 原断言是「恰好存在契约规定的 9 张表」。本阶段 US-09（工单 #29）经 #24 冻结区申请后
-   * 新增第 10 张表 `AcceptanceRecord`（验收记录，AC5 的唯一落点）。
+   * 新增第 10 张表 `AcceptanceRecord`（验收记录，AC5 的唯一落点）；US-10（工单 #30）经
+   * 项目负责人 2026-10-18 授权再新增第 11 张表 `Risk`（风险台账）。
    *
    * 断言形式**未变**：仍是"不多不少"的等值比较 ⇒ 任何**未经授权**的新表依然失败。
    *
@@ -265,7 +269,7 @@ describe('决策 I-7 表集合与字段逐列比对', () => {
    * 的既定职责（"断言直接对齐契约原文"）。新表的列集合由 US-09 自己的模块测试与
    * `_脚本\_us09_migration_check.mjs` 的 PRAGMA 逐列核对覆盖，未混进契约清单里。
    */
-  it('表集合 = 契约规定的 9 张 + 本阶段经 #24 授权新增的 1 张（不多不少）', async () => {
+  it('表集合 = 契约规定的 9 张 + 本阶段经授权新增的 2 张（不多不少）', async () => {
     expect(await getTableNames()).toEqual([
       'AcceptanceRecord', // ← 本阶段经 #24 授权新增（US-09 / #29），不属于契约 I-7
       'AuditLog',
@@ -273,6 +277,7 @@ describe('决策 I-7 表集合与字段逐列比对', () => {
       'ObjectVisibility',
       'Project',
       'ProjectMember',
+      'Risk', // ← 本阶段经项目负责人 2026-10-18 授权新增（US-10 / #30），不属于契约 I-7
       'Task',
       'User',
       'UserActivity',

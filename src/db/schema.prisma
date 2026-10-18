@@ -37,6 +37,8 @@ model User {
   visibility    ObjectVisibility[]
   // US-09（工单 #29）：这个人执行过的验收（反向关系，见文件末尾 AcceptanceRecord）
   acceptances   AcceptanceRecord[] @relation("AcceptanceActor")
+  // US-10（工单 #30）：这个人负责的风险（反向关系，见文件末尾 Risk）
+  ownedRisks    Risk[]             @relation("RiskOwner")
 }
 
 model Project {
@@ -44,6 +46,9 @@ model Project {
   name        String
   description String?
   ownerUserId String
+  // US-10（工单 #30）：项目生命周期。'ACTIVE' | 'CLOSED'；关闭前的阻断校验在本票模块。
+  // 故意不进共享 `ProjectView`（#30 设计：端点自己返回，避免改项目模块序列化）。
+  status      String   @default("ACTIVE") // ProjectStatus
   createdAt   DateTime @default(now())
 
   owner      User              @relation("ProjectOwner", fields: [ownerUserId], references: [id])
@@ -55,6 +60,8 @@ model Project {
   auditLogs  AuditLog[]
   // US-09（工单 #29）：本项目的验收记录（反向关系）
   acceptances AcceptanceRecord[]
+  // US-10（工单 #30）：本项目的风险台账（反向关系，见文件末尾 Risk）
+  risks       Risk[]
 }
 
 model ProjectMember {
@@ -137,6 +144,9 @@ model Task {
   // US-09（工单 #29）：这个任务的验收记录。**故意用 Cascade**（见文件末尾的说明）：
   // 端点 29 删除任务时验收记录随库级联清理，因此不必手写清理、也不必改 test-support 的删除顺序。
   acceptances AcceptanceRecord[]
+  // US-10（工单 #30）：关联到本任务的风险（用于敏感可见性继承）。
+  // 任务删除时置空（SetNull）而非级联删除：风险是独立台账，不应随任务消失。
+  risks       Risk[]
 }
 
 // US-09 任务验收（工单 #29）—— 验收记录。
@@ -186,6 +196,45 @@ model ObjectVisibility {
   @@id([objectType, objectId, userId])
   @@index([objectType, objectId])
   @@index([projectId, objectType])
+}
+
+// US-10 风险台账（工单 #30）—— 项目风险的落点。
+//
+// 为什么需要这张表：AC3 要求「风险支持三级 + 四态，非法值拒绝」，AC7 要求「敏感风险
+// 不计入无权者的总数与清单」；项目模块没有任何字段能承载风险台账。
+//
+// 口径来源（契约门 #24 的 ROLE-A 结论，2026-10-18 人工确认）：
+//   - 三级：高 / 中 / 低；四态：未处理 / 处理中 / 已解决 / 已关闭；
+//     线上取值与 Zod 枚举由 `src/modules/risk/` 定义（本文件的 String 列不约束枚举，
+//     与仓库既有惯例一致：枚举合法性由 `src/shared/validation.ts` / 本域校验保证）。
+//   - 权限：`risk.write` = PM + MEMBER（VIEWER 一律 403 只读，见 permissions.ts 第 5.5 条）；
+//     「风险状态四态流转是否限 PM、MEMBER 能否改 status / 重开」由 ROLE-A 在业务层按 #30 口径定，
+//     本文件与 permissions.ts 只保证「MEMBER 可写、VIEWER 不可写」这一层。
+//   - 敏感风险继承所关联任务的敏感可见性，**不扩展** `VisibilityObjectType`。
+//
+// 删除语义：project → Restrict（与 Task / UserStory 等业务对象一致，项目不应被删掉而留下孤儿风险）；
+//   owner → Restrict（人不该被删掉而留下无主风险）；task → SetNull（风险独立于任务存在）。
+model Risk {
+  id          String   @id @default(uuid())
+  projectId   String
+  title       String
+  description String?
+  level       String // RiskLevel: 'HIGH' | 'MEDIUM' | 'LOW'
+  status      String   @default("OPEN") // RiskStatus: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED'
+  ownerUserId String
+  taskId      String? // 可选关联任务（敏感可见性继承的入口）
+  resolution  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  owner   User    @relation("RiskOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  task    Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  // 读路径：按项目 + 状态列清单；按负责人 / 任务查关联
+  @@index([projectId, status])
+  @@index([ownerUserId])
+  @@index([taskId])
 }
 
 model AuditLog {

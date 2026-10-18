@@ -32,6 +32,7 @@ import type {
 /** 写类动作：MEMBER / VIEWER 执行时返回 403（对象可见，但操作不允许）。 */
 const WRITE_ACTIONS: ReadonlySet<Action> = new Set<Action>([
   'project.manage_members',
+  'project.close',
   'requirement.write',
   'task.write',
   'sensitivity.manage',
@@ -115,6 +116,7 @@ async function roleIn(
  *   3. actor.role === PM                    → 允许（含敏感对象）
  *   4. 目标敏感且 actor 不在白名单 → 404（含 read）
  *   5. 写类动作且 actor.role ∈ {MEMBER, VIEWER} → 403（对象可见，403 不泄漏任何东西）
+ *   5.5 `risk.write` 且 actor.role === VIEWER → 403（风险台账对项目成员开放，VIEWER 只读）
  *   6. 其余                                 → 允许
  *
  * 契约决策 I-9：本函数**只读数据库，不调用其他模块的 service**。
@@ -161,6 +163,11 @@ export function createAuthorization(prisma: PrismaClient) {
     }
     // 第 5 条：写类动作对 MEMBER / VIEWER → 403
     if (WRITE_ACTIONS.has(action)) return deny(403, 'FORBIDDEN')
+
+    // 第 5.5 条（#30 风险台账，2026-10-18 项目负责人确认）：风险写操作对项目成员开放，
+    //   `MEMBER` 落到第 6 条放行；`VIEWER` 全项目只读，这里显式 403（不泄漏对象内容）。
+    //   敏感继承按 #30 的方案由风险模块自行处理，本入口不扩展 ObjectVisibility 的对象类型。
+    if (action === 'risk.write' && role === 'VIEWER') return deny(403, 'FORBIDDEN')
 
     // 第 6 条：其余允许
     return { allow: true }

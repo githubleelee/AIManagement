@@ -287,4 +287,43 @@ describe('C. can() 骨架（契约决策 I-5）', () => {
     })
     expect(decision).toEqual({ allow: false, status: 404, code: 'NOT_FOUND' })
   })
+
+  // US-10（工单 #30，2026-10-18 项目负责人授权）：
+  //   risk.write   = PM + MEMBER（VIEWER 只读 → 403）
+  //   project.close = 仅 PM（MEMBER / VIEWER → 403）
+  it('#30 新增动作：risk.write 对 MEMBER 放行、project.close 仍 PM-only；VIEWER 两者皆 403', async () => {
+    const pmId = await makeUser(ctx.db, 'pm-risk')
+    const memberId = await makeUser(ctx.db, 'member-risk')
+    const viewerId = await makeUser(ctx.db, 'viewer-risk')
+    const projectId = await makeProject(ctx.db, pmId)
+    await makeMember(ctx.db, projectId, memberId, 'MEMBER')
+    await makeMember(ctx.db, projectId, viewerId, 'VIEWER')
+    const { can } = createAuthorization(ctx.db)
+    const ref: ObjectRef = { kind: 'project', projectId }
+    const denied = { allow: false, status: 403, code: 'FORBIDDEN' } as const
+
+    // PM：两个动作都放行（契约 I-5 第 3 条）
+    expect(await can(pmId, 'risk.write', ref)).toEqual({ allow: true })
+    expect(await can(pmId, 'project.close', ref)).toEqual({ allow: true })
+
+    // MEMBER：可写风险台账；不能关闭项目
+    expect(await can(memberId, 'risk.write', ref)).toEqual({ allow: true })
+    expect(await can(memberId, 'project.close', ref)).toEqual(denied)
+
+    // VIEWER：全项目只读，两个动作都 403（不是 404 —— 对象可见但无操作权）
+    expect(await can(viewerId, 'risk.write', ref)).toEqual(denied)
+    expect(await can(viewerId, 'project.close', ref)).toEqual(denied)
+  })
+
+  it('#30 新增动作：非项目成员 → 404（不泄漏项目存在性）', async () => {
+    const pmId = await makeUser(ctx.db, 'pm-risk2')
+    const outsiderId = await makeUser(ctx.db, 'outsider-risk2')
+    const projectId = await makeProject(ctx.db, pmId)
+    const { can } = createAuthorization(ctx.db)
+    const ref: ObjectRef = { kind: 'project', projectId }
+    const notFound = { allow: false, status: 404, code: 'NOT_FOUND' } as const
+
+    expect(await can(outsiderId, 'risk.write', ref)).toEqual(notFound)
+    expect(await can(outsiderId, 'project.close', ref)).toEqual(notFound)
+  })
 })
