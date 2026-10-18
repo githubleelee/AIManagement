@@ -34,6 +34,8 @@
 | `/projects/:projectId/acceptance` | `AcceptancePage` | 任务验收工作台：待我验收清单 + 通过/驳回 + 我负责的、被驳回的任务（含驳回原因）+ 验收历史（本阶段新增端点，见 `docs/us-09-acceptance-api.md`） | A / US-09（#29） |
 | `/projects/:projectId/dashboard` | `DashboardPage` | 项目仪表盘：进度（已关闭 ÷ 总数）、健康度四态（含"无法计算"）、计划时间进度、六态分布；非 PM 标注「可见范围」（`GET /projects/:projectId/dashboard`，本阶段新增，见 `docs/us-10-progress-risk-api.md`） | A / US-10（#30） |
 | `/projects/:projectId/risks` | `RiskPage` | 风险台账与项目关闭：风险三级四态清单 + 登记 + 状态流转；关闭前阻断清单与关闭/重开入口（仅 PM）（本阶段新增，见 `docs/us-10-progress-risk-api.md`） | A / US-10（#30） |
+| `/projects/:projectId/gantt` | `GanttPage` | 甘特图：需求 / 任务 / 里程碑与 FS 依赖统一时间轴，故事可展开任务；故事日期为**候选汇总口径**、进度待 C10 确认（`GET /projects/:projectId/gantt`，**本阶段新增，不在 Sprint 1 的 30 个端点内**） | B / US-06（#26） |
+| `/projects/:projectId/board` | `BoardPage` | 故事看板：按正式故事状态（`DRAFT` / `PLANNING` / `DONE`）三列展示，卡片含目标/活动路径与优先级；**本批只读**，状态写入仍走端点 21（`GET /projects/:projectId/board`，**本阶段新增，不在 Sprint 1 的 30 个端点内**） | B / US-04（#25） |
 | `*` | `NotFoundPage` | 全局 404 | M2 |
 
 ## 页面职责与数据来源

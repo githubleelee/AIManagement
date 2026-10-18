@@ -129,3 +129,16 @@
 - **value:** 处置 AI 建议（采纳 / 修改后采纳 / 拒绝）**仅 PM** 可操作；MEMBER / VIEWER 只读，不得处置。ROLE-A 的 #33 与 ROLE-C 的 #32 使用**同一个**共享处置动作，由 ROLE-B 在共享存储落地时一并加入统一 `can()`，不新增两个语义重复的 Action；分析结果可见性沿用既有汇总口径（PM 全项目，MEMBER / VIEWER 各自可见范围并标注「可见范围」）。AI 建议未经人工处置不得写入正式数据，处置须记录结论与理由。
 - **timestamp:** 2026-10-18T12:03:04+08:00
 - **rationale:** 冻结 #33 处置权限并与 #32 的 PM-only 口径合并为一个动作，避免同一语义出现两套鉴权与统计口径。
+
+
+## `permissions.risk-status-flow`
+
+- **value:** 风险状态流转（未处理 / 处理中 / 已解决 / 已关闭，含重开）按风险归属判权：MEMBER 只能流转 `ownerUserId` = 本人的风险、不得改他人风险（403）；PM 可流转全部；VIEWER 一律 403；非成员 / outsider 404。状态判定仍走统一 `can()`，归属以库中真实 `projectId` / `ownerUserId` 为准。风险的新增、编辑、状态流转（含重开）均写 `AuditLog`（操作者 / 动作 / 对象 / 前后值 / 时间）；AI 建议存储不走 `AuditLog`（见 `ai.suggestion-store-shared`）。线上取值：`level` = `HIGH` / `MEDIUM` / `LOW`；`status` = `OPEN` / `IN_PROGRESS` / `RESOLVED` / `CLOSED`，由风险模块 Zod 落地。健康度阈值以 `analytics.health-thresholds-and-planned-progress` 的「偏差 = 计划 − 实际」方向为准。
+- **timestamp:** 2026-10-18T15:35:24+08:00
+- **rationale:** 在已定 `risk.write` = PM + MEMBER 的基础上限定成员只能流转自己负责的风险，并统一审计与枚举口径，避免成员越权关闭他人风险。
+
+## `analytics.project-close-blocking`
+
+- **value:** 项目关闭存在阻断项（任何未 `CLOSED` 的任务，或状态为 `OPEN` / `IN_PROGRESS` 的风险）时，关闭请求一律拒绝并返回 409 CONFLICT + 阻断清单，**不允许强制关闭**；关闭与重开项目均仅 PM（`project.close`），重开同样不绕过既有校验。关闭 / 重开端点路径 `/projects/:projectId/close`，handler 位于 US-10 自己的模块，不改 `src/modules/project/`；`Project.status` 取值 `ACTIVE` / `CLOSED`，**不进共享 `ProjectView`**，由本票端点自行返回。关闭与重开动作写 `AuditLog`。
+- **timestamp:** 2026-10-18T15:35:24+08:00
+- **rationale:** 落实报告第 11 节「必须阻止关闭并显示清单」的要求，并固定端点命名空间、状态列可见性与审计留痕，避免绕过阻断或改动项目模块。
