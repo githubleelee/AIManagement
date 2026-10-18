@@ -23,6 +23,8 @@
 import type { TaskStatus, TaskView } from '../../../../src/shared/types'
 import type {
   AcceptanceConclusion as ServerConclusion,
+  AcceptanceQueueItem as ServerQueueItem,
+  AcceptanceQueueScope as ServerQueueScope,
   AcceptanceRecordView as ServerRecordView,
   AcceptanceSubmitInput as ServerSubmitInput,
   AcceptanceSubmitResult as ServerSubmitResult,
@@ -31,6 +33,8 @@ import type {
 } from '../../../../src/modules/acceptance/types'
 import type {
   AcceptanceConclusion,
+  AcceptanceQueueItem,
+  AcceptanceQueueScope,
   AcceptanceRecordView,
   AcceptanceSubmitInput,
   AcceptanceSubmitResult,
@@ -58,12 +62,19 @@ const conclusionIsNotLabel: AcceptanceConclusion = '通过'
 const labelCoversEveryServerConclusion: Record<ServerConclusion, string> = ACCEPTANCE_CONCLUSION_LABEL
 
 // ---------------------------------------------------------------------------
-// 二、三个响应/请求形状与服务端逐字段一致
+// 二、响应/请求形状与服务端逐字段一致
 // ---------------------------------------------------------------------------
 
 const recordViewIsIdentical: SameShape<AcceptanceRecordView, ServerRecordView> = true
 const submitInputIsIdentical: SameShape<AcceptanceSubmitInput, ServerSubmitInput> = true
 const submitResultIsIdentical: SameShape<AcceptanceSubmitResult, ServerSubmitResult> = true
+/** 清单行（任务 + 最近一次验收结论）与服务端逐字段一致 */
+const queueItemIsIdentical: SameShape<AcceptanceQueueItem, ServerQueueItem> = true
+/** 清单视角枚举与服务端一致 */
+const queueScopeIsIdentical: SameShape<AcceptanceQueueScope, ServerQueueScope> = true
+
+// @ts-expect-error 清单视角只有 acceptor（我是验收人）/ owner（我是负责人，被驳回待整改）
+const noThirdScope: AcceptanceQueueScope = 'reviewer'
 
 // ---------------------------------------------------------------------------
 // 三、状态字段必须是共享契约的 `TaskStatus`
@@ -103,6 +114,9 @@ export const __web_typecheck_used = {
   recordViewIsIdentical,
   submitInputIsIdentical,
   submitResultIsIdentical,
+  queueItemIsIdentical,
+  queueScopeIsIdentical,
+  noThirdScope,
   beforeIsTaskStatus,
   afterIsTaskStatus,
   actorIsBrief,

@@ -69,10 +69,30 @@ export function listAcceptanceHistory(taskId: string): Promise<AcceptanceRecordV
   ).then((payload) => payload.items)
 }
 
-/** 待我验收的任务（我是验收人、且执行人已提交 `DONE`）。筛选在**服务端**完成。 */
-export function listAcceptanceQueue(projectId: string): Promise<TaskView[]> {
-  return apiFetch<{ items: TaskView[] }>(
-    `/projects/${encodeURIComponent(projectId)}/acceptance-queue`,
+/** 验收清单的两种视角：我是验收人（待我验收）/ 我是负责人（被驳回待我整改）。 */
+export type AcceptanceQueueScope = 'acceptor' | 'owner'
+
+/**
+ * 清单的一行 = 任务 + 该任务**最近一次**验收结论。
+ *
+ * 为什么带上 `latestAcceptance`：执行人必须能看到"为什么被驳回"（`reason`）。
+ * 走查（2026-10-18）发现驳回理由原本只在验收人那侧可见 —— AC4 要求驳回必填原因，
+ * 而原因传不到执行人就等于没传达。
+ */
+export type AcceptanceQueueItem = TaskView & {
+  latestAcceptance: AcceptanceRecordView | null
+}
+
+/**
+ * 验收清单。筛选在**服务端**完成（两种视角各自一个 where 条件），前端不做内存过滤。
+ * 始终显式传 `scope`（而不是省略走默认），便于在浏览器网络面板里直接看出请求的是哪个视角。
+ */
+export function listAcceptanceQueue(
+  projectId: string,
+  scope: AcceptanceQueueScope = 'acceptor',
+): Promise<AcceptanceQueueItem[]> {
+  return apiFetch<{ items: AcceptanceQueueItem[] }>(
+    `/projects/${encodeURIComponent(projectId)}/acceptance-queue?scope=${encodeURIComponent(scope)}`,
   ).then((payload) => payload.items)
 }
 

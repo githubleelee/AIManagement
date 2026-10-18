@@ -39,6 +39,8 @@ import { createAuthorization } from '../authz/permissions.js'
 import {
   ACCEPTANCE_REASON_MAX_LENGTH,
   type AcceptanceConclusion,
+  type AcceptanceQueueItem,
+  type AcceptanceQueueScope,
   type AcceptanceRecordView,
   type AcceptanceSubmitInput,
   type AcceptanceSubmitResult,
@@ -342,41 +344,109 @@ export async function listTaskAcceptances(
 }
 
 /* ===========================================================================
- * ④ 待我验收的任务（界面主链路）
+ * ④ 验收清单（界面主链路，两种视角）
  * =========================================================================== */
 
 /**
- * 项目内"我是验收人、且执行人已提交（DONE）"的任务，按 `planEnd` 升序。
+ * 项目内的验收清单，按 `planEnd` 升序。
  *
- * ★ 可见性条件与筛选条件拼进**同一个 where**（决策 I-6）：先把 `visibilityScope()`
- *   的作用域算出来，再交给同一次 `findMany`。敏感任务若不在我的作用域里，既不会
- *   出现在列表里，也不会出现在任何计数里。
+ * - `scope = 'acceptor'`（默认）：**我是验收人**、且执行人已提交（`status = 'DONE'`）。
+ * - `scope = 'owner'`：**我是负责人**、且**最近一次验收结论是驳回** ⇒ 轮到我整改。
+ *   （2026-10-18 走查发现的缺口：驳回理由原本传不到执行人。）
  *
- * 为什么不在前端用端点 26 自己筛：那是内存过滤（违反 I-6），且端点 26 只支持
+ * ★ 可见性条件与筛选条件拼进**同一个 where**（决策 I-6）：`visibilityScope()` 的作用域
+ *   与视角条件交给同一次 `findMany`。敏感任务若不在我的作用域里，既不会出现在列表里，
+ *   也不会出现在任何计数里。
+ *
+ * ⚠️ `scope='owner'` 分支里有一次**内存筛选**（`latest.filter(...)`）。它**不是可见性过滤** ——
+ *   可见性已在上面的 where 中完成，这里只是在"我已经有权看到的、我自己负责的任务的记录"
+ *   上做业务判定（最近一条是否为驳回）。因为不含任何"我是否有权看到"的判断，所以不会
+ *   泄漏敏感对象的存在性，不属于决策 I-6 所禁止的那类内存过滤。
+ *
+ * 为什么不在前端用端点 26 自己筛：那是真正的内存过滤（连可见性一起），且端点 26 只支持
  * `ownerUserId` 参数，加 `acceptorUserId` 等于改旧模块文件（需另行授权）。
  */
 export async function listAcceptanceQueue(
   prisma: PrismaClient,
   actorUserId: string,
   projectId: string,
-): Promise<TaskView[]> {
+  queueScope: AcceptanceQueueScope = 'acceptor',
+): Promise<AcceptanceQueueItem[]> {
   const { can, visibilityScope } = createAuthorization(prisma)
 
   const decision = await can(actorUserId, 'project.read', { kind: 'project', projectId })
   if (!decision.allow) throw denied(decision)
 
   const scope = await visibilityScope(actorUserId, projectId, 'task')
+  const visibility = scope.mode === 'subset' ? { id: { in: scope.ids } } : {}
+
+  const orderBy = [{ planEnd: 'asc' }, { createdAt: 'asc' }] as const
+
+  if (queueScope === 'owner') {
+    // 我负责的任务里，**最近一次**验收结论是驳回的那些。
+    // `distinct: ['taskId']` + `orderBy createdAt desc` ⇒ 每个任务只留最新一条记录。
+    const latest = await prisma.acceptanceRecord.findMany({
+      where: { task: { projectId, ownerUserId: actorUserId, ...visibility } },
+      orderBy: [{ taskId: 'asc' }, { createdAt: 'desc' }],
+      distinct: ['taskId'],
+    })
+    const rejectedTaskIds = latest
+      .filter((record) => record.conclusion === 'REJECT')
+      .map((record) => record.taskId)
+    if (rejectedTaskIds.length === 0) return []
+
+    const tasks = await prisma.task.findMany({
+      where: { id: { in: rejectedTaskIds }, projectId, ...visibility },
+      orderBy: [...orderBy],
+      include: TASK_INCLUDE,
+    })
+    return attachLatestAcceptance(prisma, tasks as TaskWithPeople[])
+  }
 
   const tasks = await prisma.task.findMany({
     where: {
       projectId,
       acceptorUserId: actorUserId,
       status: 'DONE',
-      ...(scope.mode === 'subset' ? { id: { in: scope.ids } } : {}),
+      ...visibility,
     },
-    orderBy: [{ planEnd: 'asc' }, { createdAt: 'asc' }],
+    orderBy: [...orderBy],
     include: TASK_INCLUDE,
   })
+  return attachLatestAcceptance(prisma, tasks as TaskWithPeople[])
+}
 
-  return tasks.map((task) => toTaskView(task as TaskWithPeople))
+/**
+ * 给每行挂上该任务**最近一次**验收记录（两次批量查询，避免逐行 N+1）。
+ * 从未验收过的任务得到 `latestAcceptance: null`（而不是编造一条空记录）。
+ */
+async function attachLatestAcceptance(
+  prisma: PrismaClient,
+  tasks: TaskWithPeople[],
+): Promise<AcceptanceQueueItem[]> {
+  if (tasks.length === 0) return []
+
+  const latest = await prisma.acceptanceRecord.findMany({
+    where: { taskId: { in: tasks.map((task) => task.id) } },
+    orderBy: [{ taskId: 'asc' }, { createdAt: 'desc' }],
+    distinct: ['taskId'],
+  })
+  const latestByTask = new Map(latest.map((record) => [record.taskId, record]))
+
+  const actorIds = [...new Set(latest.map((record) => record.actorUserId))]
+  const actors = await prisma.user.findMany({
+    where: { id: { in: actorIds } },
+    select: { id: true, account: true, displayName: true },
+  })
+  const actorById = new Map(actors.map((actor) => [actor.id, actor]))
+
+  return tasks.map((task) => {
+    const record = latestByTask.get(task.id)
+    return {
+      ...toTaskView(task),
+      latestAcceptance: record
+        ? toRecordView(record, requireActor(actorById.get(record.actorUserId), record.actorUserId))
+        : null,
+    }
+  })
 }

@@ -33,7 +33,12 @@ import {
   makeStory,
   makeUser,
 } from '../../../test/factories.js'
-import type { AcceptanceRecordView, AcceptanceSubmitResult } from './types.js'
+import type {
+  AcceptanceQueueItem,
+  AcceptanceQueueScope,
+  AcceptanceRecordView,
+  AcceptanceSubmitResult,
+} from './types.js'
 
 type ErrorBody = {
   error: { code: string; message: string; details?: Array<{ field: string; code: string }> }
@@ -122,8 +127,16 @@ function getTask(taskId: string, actorUserId: string) {
   return ctx.asUser(ctx.loginAs(actorUserId)).get(`/tasks/${taskId}`)
 }
 
-function getQueue(actorUserId: string, targetProjectId = projectId) {
-  return ctx.asUser(ctx.loginAs(actorUserId)).get(`/projects/${targetProjectId}/acceptance-queue`)
+function getQueue(actorUserId: string, scope?: AcceptanceQueueScope) {
+  const query = scope ? `?scope=${encodeURIComponent(scope)}` : ''
+  return ctx.asUser(ctx.loginAs(actorUserId)).get(`/projects/${projectId}/acceptance-queue${query}`)
+}
+
+/** 故意构造非法 / 重复的查询参数（测试用） */
+function getQueueRaw(actorUserId: string, rawQuery: string) {
+  return ctx
+    .asUser(ctx.loginAs(actorUserId))
+    .get(`/projects/${projectId}/acceptance-queue?${rawQuery}`)
 }
 
 /* ===========================================================================
@@ -534,6 +547,110 @@ describe('待我验收清单（端点 C）', () => {
   it('未登录 → 401', async () => {
     const res = await ctx.asUser(null).get(`/projects/${projectId}/acceptance-queue`)
     expect(res.status).toBe(401)
+  })
+})
+
+/* ===========================================================================
+ * 清单的第二种视角（scope=owner）—— 2026-10-18 走查发现缺口后补
+ *
+ * 缺口：驳回理由原本只存在于"验收人那一侧的展开历史"，**执行人一处都看不到**。
+ * AC4 要求"驳回必填原因"，而原因传不到执行人就等于没传达。
+ * =========================================================================== */
+
+describe('验收清单 scope=owner：我负责的、被驳回的任务', () => {
+  it('被驳回后，负责人能看到该任务，且**驳回原因逐字可见**（本缺口的验收点）', async () => {
+    const taskId = await seedTask()
+    await postAcceptance(taskId, { conclusion: 'REJECT', reason: '导出报表是空表' }, acceptor.id)
+
+    const res = await getQueue(owner.id, 'owner')
+    expect(res.status).toBe(200)
+    const items = (res.body as { items: AcceptanceQueueItem[] }).items
+
+    expect(items).toHaveLength(1)
+    expect(items[0]?.id).toBe(taskId)
+    expect(items[0]?.latestAcceptance?.conclusion).toBe('REJECT')
+    expect(items[0]?.latestAcceptance?.reason).toBe('导出报表是空表')
+    expect(items[0]?.latestAcceptance?.actorUserId).toBe(acceptor.id)
+    // 顺带确认"任务确实回到了执行阶段"（与 AC4 一致）
+    expect(items[0]?.status).toBe('DOING')
+  })
+
+  it('从未验收过、以及已通过验收（CLOSED）的任务都不出现', async () => {
+    await seedTask({ title: '从没验收过' })
+
+    const passed = await seedTask({ title: '已通过' })
+    await postAcceptance(passed, { conclusion: 'PASS' }, acceptor.id)
+
+    const items = ((await getQueue(owner.id, 'owner')).body as { items: AcceptanceQueueItem[] }).items
+    expect(items).toEqual([])
+  })
+
+  it('别人负责的任务不出现（只看自己的）', async () => {
+    const others = await seedTask({ ownerUserId: bystander.id, acceptorUserId: acceptor.id })
+    await postAcceptance(others, { conclusion: 'REJECT', reason: '别人的问题' }, acceptor.id)
+    await seedTask() // 我自己的，但没被驳回
+
+    const items = ((await getQueue(owner.id, 'owner')).body as { items: AcceptanceQueueItem[] }).items
+    expect(items).toEqual([])
+  })
+
+  it('敏感任务：不在我白名单里时，即使我是负责人也不出现在我的清单（查询层过滤）', async () => {
+    const taskId = await seedTask({ isSensitive: true, ownerUserId: owner.id })
+    // 直接写一条驳回记录来构造状态（经接口做不到：验收人不在白名单时验收会 404）
+    await ctx.db.acceptanceRecord.create({
+      data: {
+        projectId,
+        taskId,
+        actorUserId: acceptor.id,
+        conclusion: 'REJECT',
+        reason: '敏感的驳回原因',
+        statusBefore: 'DONE',
+        statusAfter: 'DOING',
+      },
+    })
+
+    const items = ((await getQueue(owner.id, 'owner')).body as { items: AcceptanceQueueItem[] }).items
+    expect(items).toEqual([])
+
+    // 对照：PM 不受白名单限制，能看到（证明隐藏它的是敏感过滤，而不是清单坏了）
+    const pmItems = ((await getQueue(pm.id, 'owner')).body as { items: AcceptanceQueueItem[] }).items
+    expect(pmItems).toHaveLength(1)
+  })
+
+  it('不传 scope 时默认 acceptor（原行为不变；被驳回的任务**不**出现在默认清单）', async () => {
+    const taskId = await seedTask()
+    expect(((await getQueue(acceptor.id)).body as { items: AcceptanceQueueItem[] }).items).toHaveLength(1)
+
+    await postAcceptance(taskId, { conclusion: 'REJECT', reason: '退回' }, acceptor.id)
+
+    // 默认视角（我是验收人且 DONE）—— 任务已 DOING，必须消失
+    expect(((await getQueue(acceptor.id)).body as { items: AcceptanceQueueItem[] }).items).toEqual([])
+    // 而该任务负责人的 owner 视角能看到
+    expect(
+      ((await getQueue(owner.id, 'owner')).body as { items: AcceptanceQueueItem[] }).items,
+    ).toHaveLength(1)
+  })
+
+  it('scope 取值非法 → 422 scope: INVALID_VALUE', async () => {
+    const res = await getQueueRaw(acceptor.id, 'scope=reviewer')
+    expect(res.status).toBe(422)
+    expect((res.body as ErrorBody).error.details).toContainEqual({
+      field: 'scope',
+      code: 'INVALID_VALUE',
+    })
+  })
+
+  it('scope 重复传参（数组）→ 422，而不是 500', async () => {
+    const res = await getQueueRaw(acceptor.id, 'scope=acceptor&scope=owner')
+    expect(res.status).toBe(422)
+    expect((res.body as ErrorBody).error.details).toContainEqual({
+      field: 'scope',
+      code: 'INVALID_VALUE',
+    })
+  })
+
+  it('非项目成员用 owner 视角 → 404', async () => {
+    expect((await getQueue(outsider.id, 'owner')).status).toBe(404)
   })
 })
 

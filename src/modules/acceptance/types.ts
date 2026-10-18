@@ -82,9 +82,37 @@ export type AcceptanceSubmitResult = {
   record: AcceptanceRecordView
 }
 
-/** `GET /projects/:projectId/acceptance-queue` 的响应：待我验收的任务。 */
+/** `GET /projects/:projectId/acceptance-queue` 的响应。 */
 export type AcceptanceQueueResult = {
-  items: TaskView[]
+  items: AcceptanceQueueItem[]
+}
+
+/**
+ * 验收清单的两种视角。
+ *
+ * - `acceptor`（默认）：**我是验收人**、且执行人已提交（`status = 'DONE'`）⇒ 轮到我验收。
+ * - `owner`：**我是负责人**、且**最近一次验收结论是驳回** ⇒ 轮到我整改。
+ *
+ * 为什么要第二种：走查（2026-10-18）发现执行人在界面上**看不到自己的任务为什么被驳回** ——
+ * 验收记录原本只有验收人那侧的清单能展开。AC4 要求"驳回必填原因"，而原因传不到执行人
+ * 就等于没传达；AC5 的"全过程可追溯"也应当是双向的。
+ */
+export type AcceptanceQueueScope = 'acceptor' | 'owner'
+
+/** 线上常量数组（契约 I-1：不使用中文标签作为取值）。 */
+export const ACCEPTANCE_QUEUE_SCOPES = ['acceptor', 'owner'] as const
+
+/**
+ * 清单的一行 = 任务 + 该任务**最近一次**验收结论。
+ *
+ * 带上 `latestAcceptance` 是为了让两个视角都能就近看到结论与原因：
+ *   - 验收人视角：看到"上一轮为什么被驳回"（重验时的上下文）；
+ *   - 负责人视角：看到"这次要改什么"（`reason`）。
+ * 采用"内嵌最近一条"而非让前端逐行再发请求，是为了避免 N+1 请求。
+ */
+export type AcceptanceQueueItem = TaskView & {
+  /** 该任务最近一次验收记录；从未验收过为 `null` */
+  latestAcceptance: AcceptanceRecordView | null
 }
 
 /** `GET /tasks/:taskId/acceptances` 的响应：该任务的验收历史（旧→新）。 */

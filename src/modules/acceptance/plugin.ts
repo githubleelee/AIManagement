@@ -25,7 +25,7 @@ import { AppError } from '../../shared/errors.js'
 import { toFieldErrors } from '../../shared/validation.js'
 import { currentUserId, requireAuth } from '../../auth/actor.js'
 import type { RouteContext } from '../../routes.js'
-import { ACCEPTANCE_CONCLUSIONS, ACCEPTANCE_REASON_MAX_LENGTH } from './types.js'
+import { ACCEPTANCE_CONCLUSIONS, ACCEPTANCE_QUEUE_SCOPES, ACCEPTANCE_REASON_MAX_LENGTH } from './types.js'
 import { assertMayAccept, listAcceptanceQueue, listTaskAcceptances, submitAcceptance } from './service.js'
 
 /**
@@ -51,6 +51,13 @@ function validationFailed(error: z.ZodError): AppError {
   return new AppError(422, 'VALIDATION_FAILED', '字段校验失败', toFieldErrors(error.issues))
 }
 
+/**
+ * 端点 C 的 `?scope=` 取值校验。
+ *
+ * 取值非法 → `scope: INVALID_VALUE`（复用既有字段码，未新增）。**不传时默认 `acceptor`**，
+ * 因此端点 C 的原行为完全不变（向后兼容，US-09 之前的调用方无需改动）。
+ */
+const queueScopeSchema = z.enum(ACCEPTANCE_QUEUE_SCOPES).optional()
 export function registerAcceptanceRoutes(app: FastifyInstance, context: RouteContext): void {
   const prisma = context.prisma
 
@@ -85,7 +92,10 @@ export function registerAcceptanceRoutes(app: FastifyInstance, context: RouteCon
   })
 
   // -------------------------------------------------------------------------
-  // 端点 C：GET /projects/:projectId/acceptance-queue —— 待我验收的任务
+  // 端点 C：GET /projects/:projectId/acceptance-queue?scope=acceptor|owner
+  //   scope=acceptor（默认）：我是验收人、且任务待验收 ⇒ 轮到我验收
+  //   scope=owner           ：我是负责人、且最近一次验收被驳回 ⇒ 轮到我整改
+  //                           （2026-10-18 走查发现的缺口：驳回理由原本传不到执行人）
   // -------------------------------------------------------------------------
   app.get(
     '/projects/:projectId/acceptance-queue',
@@ -94,7 +104,24 @@ export function registerAcceptanceRoutes(app: FastifyInstance, context: RouteCon
       const actorUserId = currentUserId(request)
       const { projectId } = request.params as { projectId: string }
 
-      const items = await listAcceptanceQueue(prisma, actorUserId, projectId)
+      // 查询参数形状：只接受单个字符串。重复传参（?scope=a&scope=b）会被 Fastify 解析成
+      // 数组，显式拒绝以免把数组塞进后续逻辑。取值非法与形状非法都给 INVALID_VALUE
+      // （与端点 26 对 ownerUserId 的既有做法一致）。
+      const rawScope = (request.query as Record<string, unknown>).scope
+      if (rawScope !== undefined && typeof rawScope !== 'string') {
+        throw new AppError(422, 'VALIDATION_FAILED', '字段校验失败', [
+          { field: 'scope', code: 'INVALID_VALUE' },
+        ])
+      }
+      const parsedScope = queueScopeSchema.safeParse(rawScope)
+      if (!parsedScope.success) throw validationFailed(parsedScope.error)
+
+      const items = await listAcceptanceQueue(
+        prisma,
+        actorUserId,
+        projectId,
+        parsedScope.data ?? 'acceptor',
+      )
       return reply.status(200).send({ items })
     },
   )
