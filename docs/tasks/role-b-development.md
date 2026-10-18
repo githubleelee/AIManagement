@@ -65,10 +65,10 @@ Dependencies: #01 [FS]
 ## #03 获批并发出首批契约与旧业务文件授权申请
 Status: in progress
 Outcome: 经用户认可的 B 域最小确认及申请记录；提前登记甘特字段、类型、事件与挂载需求（公共层由 B 单写），并提交负载挂载与看板旧业务模块的**具体文件 / 范围**授权需求。
-Evidence: docs/role-b-publication-package.md 已产出本地待审文本包：T1–T7 分目标草稿、去重策略、本地文档补丁计划（未应用）与发布前检查清单；只读核对远端 #24/#25/#26/#27/#32/#31/#33/#37 与 PR #39 状态，登记 A 的 US-10 申请、C3 口径冲突及 #31/#32/#33 票面旧 C4 句。独立 reviewer 两轮复核：H1/H2/M1–M4 与 LOW 项已修正，数字（落后 main 36 提交、新增 10 条）经 git 复核。全部未发布。
+Evidence: docs/role-b-publication-package.md 已产出本地文本包并经两轮独立复核。2026-10-18 获用户授权后：① 推送文档分支/PR #42（仅文档：DECISIONS.md、C 确认稿、#01/#02/#04/#09/#16 文档、#43/#46 DRAFT、计划与任务；未合并）；② 发布自包含三条——#26 https://github.com/githubleelee/AIManagement/issues/26#issuecomment-6245104366、#27 https://github.com/githubleelee/AIManagement/issues/27#issuecomment-6245104653、#25 https://github.com/githubleelee/AIManagement/issues/25#issuecomment-6245104919；三票仍 open + needs-confirmation，标签未改。T1/T2/T6/T7 仍未发布。
 Done when: 用户批准具体对外文本与操作；发布后记录链接、接收负责人和待回复项；未获决定的问题保持待确认，不要求所有议题定稿，不代删执行票标签。
 Dependencies: #02 [FS]
-Blocker: 文本包已备好并通过独立复核；尚缺用户逐条核准（发布目标、T7 落点、批量范围）以及两项交付前置——引用的 DECISIONS.md 新条目与 #43/#46 草稿在远端尚不可访问。未发送任何申请或取得旧文件许可。
+Blocker: 第一批已按授权发布（见证据）。剩余 T1/T2/T6/T7、本地文档补丁（§5）及 T7 落点仍待用户逐条核准；#25/#26 的具体旧文件授权尚未取得回复。
 
 ## #04 完成成员负载单票方案与接口设计
 Status: done
@@ -343,10 +343,10 @@ Dependencies: #26 [FS], #38 [FS], #39 [FS], #40 [FS]
 ## #42 同步 C #32 新确认到文档与工单说明（本地草稿阶段，未授权发布）
 Status: in progress
 Outcome: 把本地 C 确认稿与 `DECISIONS.md` 追加条目同步到 `docs/team-handoff.md`、#24、#32 及相关工单索引说明的更新草案与发布记录；覆盖全项目 C2/C3/C6、#32 PM-only 权限例外、`task/` 限范围授权，并保留历史与变更来源。
-Evidence: docs/role-b-publication-package.md §4 T1（#24 集中同步文本）与 §5 本地补丁计划已按“保留原文+追加变更说明/supersedes 指针”细化到具体文件与锚点（含 DECISIONS.md 入库项与目标树裁决）；独立 reviewer 复核通过。尚未应用到 team-handoff/handoff-issues/sprint1/frontend-routes，尚未提交或发布。
+Evidence: docs/role-b-publication-package.md §4 T1（#24 集中同步文本、未发布）与 §5 本地补丁计划已细化到具体文件与锚点；2026-10-18 经用户授权把 DECISIONS.md 新条目与 #43/#46 DRAFT 等内容推送到文档分支并开 PR #42（未合并），使引用可访问。team-handoff/handoff-issues/sprint1/frontend-routes 的补丁仍未应用，#24 同步评论未发布。
 Done when: 明确标注「本地已存在 / 远端未发布」；更新草案区分全项目口径与 #32 限定口径，登记权限排除旧条目与 `supersedes` 关系；发布后记录链接；不把远端 PR #39 或 #32 正文描述为已同步；不批量改标签、不合并 PR、不替其他角色确认；对外发布需另行授权。
 Dependencies: none
-Blocker: 同步草稿已备好并经复核；尚未授权修改公共交接正文（team-handoff/handoff-issues/sprint1/frontend-routes）、把 DECISIONS.md 新条目入库、提交/推送文档或发布 GitHub 说明。本地已确认业务口径不以发布作为生效前置。
+Blocker: DECISIONS.md 与草稿已推送（PR #42，未合并）；尚未授权修改并提交公共交接正文（team-handoff/handoff-issues/sprint1/frontend-routes）、发布 #24 同步评论或合并 PR。本地已确认业务口径不以发布作为生效前置。
 
 ## #43 拟定并冻结 C #32 所需的最小只读数据契约
 Status: in progress
