@@ -1,0 +1,35 @@
+{
+    "value":  [
+                  {
+                      "issue":  32,
+                      "id":  6247293014,
+                      "url":  "https://github.com/githubleelee/AIManagement/issues/32#issuecomment-6247293014",
+                      "author":  "brucelyce-ux",
+                      "created_at":  "2026-10-18T07:47:07Z",
+                      "action":  "created",
+                      "linked":  true,
+                      "verified_at":  "2026-10-18T07:47:31.8794745Z"
+                  },
+                  {
+                      "issue":  24,
+                      "id":  6247293283,
+                      "url":  "https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6247293283",
+                      "author":  "brucelyce-ux",
+                      "created_at":  "2026-10-18T07:47:08Z",
+                      "action":  "created",
+                      "linked":  true,
+                      "verified_at":  "2026-10-18T07:47:34.0870327Z"
+                  },
+                  {
+                      "issue":  31,
+                      "id":  6247293487,
+                      "url":  "https://github.com/githubleelee/AIManagement/issues/31#issuecomment-6247293487",
+                      "author":  "brucelyce-ux",
+                      "created_at":  "2026-10-18T07:47:10Z",
+                      "action":  "created",
+                      "linked":  true,
+                      "verified_at":  "2026-10-18T07:47:37.0039922Z"
+                  }
+              ],
+    "Count":  3
+}

@@ -1,0 +1,122 @@
+[
+    {
+        "path":  "docs/ai-records/C/issue-32/C-I32-20261018-main01a1493f-01.md",
+        "sha256":  "7F159C15E45B0FA1699FAF073EBF77A38E8E5169617E4963396653D1E6D9792C"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/evidence/C-I32-20261018-main01a1493f-01-build.txt",
+        "sha256":  "E8145F006EB61F61E0403369FCFACD40A52F282C08ECD69593CA1E3F7868BDC2"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/evidence/C-I32-20261018-main01a1493f-01-impact-assessment.md",
+        "sha256":  "F8961DC116F3A5ED640250D90986BCB7E9E6DF7A2FEE2552709AA7D0586DA018"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/evidence/C-I32-20261018-main01a1493f-01-preview-fs.png",
+        "sha256":  "AD0194EAD21EC0A0AA2ECAB9032E61DD004D6060C009F82BC602A266AFABC48E"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/evidence/C-I32-20261018-main01a1493f-01-preview.png",
+        "sha256":  "485293CD7CF82885BD43F498D4B025540B3B4E8EB46E6BAEC15DA1131F3EFE1B"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/evidence/C-I32-20261018-main01a1493f-01-published-comments.json",
+        "sha256":  "D2355EE60535E4ACC19FD35532C45A51202EECD82F4FD0D1491D8D3309D038B0"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/evidence/C-I32-20261018-main01a1493f-01-tests.txt",
+        "sha256":  "0945B812BDD9FF7B127802E8BC9071179FF3AD5B7BF2EADEA200AE4371D4C4CD"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/evidence/C-I32-20261018-main01a1493f-01-typecheck.txt",
+        "sha256":  "5DA38B9E03B0C16DB3D9E87F12453ABF269E5D640867EEE396743E8CAE1A505B"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/evidence/C-I32-20261018-main01a1493f-01-validation.md",
+        "sha256":  "D5B8D69AAF4216A2A084545EB856E23EDC989636CCEB3C983283EE917FAB8A5E"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/raw/C-I32-20261018-main01a1493f-01-comment-drafts-visible.md",
+        "sha256":  "A3B2EDA24615D8E1A8F98E6853FAF21816F888D2F1DF13FE118B48ECA37F9426"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/raw/C-I32-20261018-main01a1493f-01-publish-visible.md",
+        "sha256":  "64801485C48368AD6C75B84A3FE799959835128FEEBAB7525B8FFDB7FC102095"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/raw/C-I32-20261018-main01a1493f-01-validation-plan-visible.md",
+        "sha256":  "638DD3C7F9513684977CFFA6E4C8D84438BD1A454A8258F0384F42ECD61CD9C5"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/raw/C-I32-20261018-main01a1493f-01-visible.md",
+        "sha256":  "272702917CAC524F221E8D8F8AE09A075BA6F138E30329162B13FF35C165ACD4"
+    },
+    {
+        "path":  "docs/role-c/issue-24-comment-draft.md",
+        "sha256":  "F09F3FE1CE161073CA3A0B1745AB30F1CEA5CFD81FC38BB0D2ADEFF60DDE40F6"
+    },
+    {
+        "path":  "docs/role-c/issue-24-comment-published.md",
+        "sha256":  "6C9AA396AEDCE644D998B5906BD9E386F5D276E7512C7054C705E450A9259AAA"
+    },
+    {
+        "path":  "docs/role-c/issue-31-comment-draft.md",
+        "sha256":  "721120B21A9A6BA6AC0AC8467DD6987E52A42C6249DEFF745CB9E8F4AD57A58D"
+    },
+    {
+        "path":  "docs/role-c/issue-31-comment-published.md",
+        "sha256":  "AA9A92107C7907DD03A574CA67D6BF5A779829C216AE08302C65782F2FD8B530"
+    },
+    {
+        "path":  "docs/role-c/issue-32-blocked.md",
+        "sha256":  "88264E61E8DBD3CB9344F40053B056CD5825C91CE5157C7BBCF65B47AA0B13A5"
+    },
+    {
+        "path":  "docs/role-c/issue-32-comment-draft.md",
+        "sha256":  "7F342B47608B2B843F738C2B69181E1709EB602DDB3F9EF4782FC7000CB59E8B"
+    },
+    {
+        "path":  "docs/role-c/issue-32-comment-published.md",
+        "sha256":  "B73FE27038E4D51B513FA1439B1B56A7FB4DB48FE79916FA4FCA19BF381C30AA"
+    },
+    {
+        "path":  "docs/role-c/issue-32-integration-proposal.md",
+        "sha256":  "E11D6A63BB33483C9FCFAD5676F5E11458EF0A6DB5DCC0794651F933C8F335BD"
+    },
+    {
+        "path":  "docs/role-c/issue-32-validation-strategy.md",
+        "sha256":  "E81B42A438B86A0DBC54695B425801FE3CCF61887D94834BD076D9C1E04C0968"
+    },
+    {
+        "path":  "src/modules/ai-scheduling/integration.pending.test.ts",
+        "sha256":  "1B930BC445648475BFB14E7489A2B5D61FF5EA91EFBE7579872B3C75C0A31319"
+    },
+    {
+        "path":  "src/modules/ai-scheduling/policy.http.test.ts",
+        "sha256":  "00E2E31789AEE12D3A2E2A2B4F6F39070C938638043EDE960A86EB02E70CBBB5"
+    },
+    {
+        "path":  "src/modules/ai-scheduling/policy.ts",
+        "sha256":  "2C2E7754C2DA6009810E1F758CE5697815B441BCEEBDD85CF5E4DCEE1653C9E9"
+    },
+    {
+        "path":  "src/modules/ai-scheduling/schemas.ts",
+        "sha256":  "AFCD0C34E4BF54C4B1401C7DC0673899027C4A2B84136BFCEEC3C8B1E028CAE7"
+    },
+    {
+        "path":  "web/src/pages/scheduling/SchedulingPage.tsx",
+        "sha256":  "B9F7BE861D6B8C4BC02075782D513BD5B2E0B5E3005C087BC6437A0289DF983C"
+    },
+    {
+        "path":  "web/src/pages/scheduling/preview.html",
+        "sha256":  "5B2D619040AD8201BDD3831169115FB0396BC21C40364D7D926DC575ABCF5911"
+    },
+    {
+        "path":  "web/src/pages/scheduling/preview.tsx",
+        "sha256":  "03CC67D077AFE40094272D40C20E5E3B0060D7E54C94C2FFB1D01EEAB808937E"
+    },
+    {
+        "path":  "web/src/pages/scheduling/scheduling.css",
+        "sha256":  "9FA9F3D955C2E9D4F1B4A9FC08AFA3D3BC2A2DB906AB6DC61BADBCDD90D192EE"
+    }
+]
