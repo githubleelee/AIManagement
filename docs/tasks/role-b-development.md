@@ -429,6 +429,17 @@ Dependencies: none
 
 ---
 
+---
+
+## #52 评审 ROLE-A 的 PR #55（US-10）并落地裁定
+Status: done
+Outcome: B 侧边界与契约核对全部通过；两份独立评审（鉴权 / 口径与测试）+ 独立实跑交叉验证；裁定写入 `DECISIONS.md` 并下发 A 的合并前待办。
+Evidence: PR #55 评审评论 6250626777（含 H1「改绑负责人再流转」两步绕过、H2「10/25pp 浮点边界错分」两个阻断项与分级发现）；实跑证据 56 files / 1282 passed（正文 53/1250 过期）；裁定 PR #61 → main `a2d67a1`（`analytics.dashboard-window-basis`、`permissions.risk-ownership-change`）；下发 #55 评论 6250738153 与 #30 评论 6250740833；#30 票面追加口径更新块；追认 `docs/frontend-routes.md` 3 行（其中 acceptance 行系 B 在 `ea81b3e` 误删）并接管维护。
+Done when: 给出可执行结论（含阻断项与复现）、裁定落地并通知 A；不改 A/C/D 业务模块、不改错误信封。
+Dependencies: none
+
+---
+
 ## 估算拆分（本轮修订口径）
 
 仅为 B 侧工作量初估，不是追加预算或整体延期批准，也不要求原 18 人日无条件吸收。新任务编号不是预算归属：文档/提案协调仍计原统筹项，原 B 票的模型/挂载/验证不重复收费。
