@@ -5,10 +5,14 @@
  * 授权口径（项目负责人 2026-10-18 批复，已冻结）
  * ===========================================================================
  *
- * - 风险的增删改与**四态流转**统一走 `can('risk.write', { kind: 'project' })`
+ * - 风险的**新建与台账字段修改**走 `can('risk.write', { kind: 'project' })`
  *   —— 公共层保证 `risk.write` = PM + MEMBER（VIEWER 403）。
- *   **业务层不再额外判角色**：任何"只让 PM 流转"的规则都得私写角色判定，违背统一入口；
- *   而"只让负责人流转"会把 PM 削弱。四态因此**不强制单向**（允许重开）。
+ *   **业务层不再额外判角色**：任何"只让 PM 改"的规则都得私写角色判定，违背统一入口。
+ * - **状态流转与归属变更走 `can('risk.flow', { kind: 'risk', projectId, riskId })`**
+ *   （权限注释第 4.6 条）：PM 全部；MEMBER 仅 `ownerUserId` = 本人的风险；其余 403。
+ *   归属变更（`ownerUserId` / `taskId`）**视同流转**（DECISIONS `permissions.risk-ownership-change`，
+ *   2026-10-19 评审 H1 修法）；四态**不强制单向**（允许重开）。
+ *   另：**创建时状态只能是 `OPEN`**（同一条 DECISIONS 条目），其余三态必须经流转产生。
  * - 项目关闭 / 重开走 `can('project.close')`（公共层保证仅 PM）。
  * - 敏感风险**继承所关联任务的可见性**（见 `riskVisibilityWhere`）；
  *   对具体风险的读/写再加一道对象级可见性守卫，不可见时与"不存在"同样返回 **404**。
@@ -424,8 +428,10 @@ export async function patchRisk(
 
 export type ProjectLifecycleView = {
   project: { id: string; name: string; status: 'ACTIVE' | 'CLOSED' }
-  /** 关闭时若被阻断，这里给出可读的计数摘要（完整清单走 closure-check） */
-  blockedBy?: { tasks: number; risks: number }
+  // ★ 2026-10-19 评审整改：删除原 `blockedBy?: { tasks; risks }` —— 它声明后**从未赋值**，
+  //   容易被读成"409 会带阻断清单"。实际口径见 DECISIONS `contract.close-blocking-response`：
+  //   清单只走 `GET /projects/:projectId/closure-check`，409 的错误体里只有计数摘要（在
+  //   `error.message` 文本里，不可机器解析，这是已确认的取舍）。
 }
 
 /**

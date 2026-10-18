@@ -13,11 +13,14 @@
  *
  *   ① 计划时间进度基准：**从任务推导** `min(planStart)` ~ `max(planEnd)`；
  *      **不给 `Project` 加日期字段**（`Project` 本来就没有起止日期）。
- *   ② C1 阈值：偏差 **≥ -10% 健康 / -10% ~ -25% 预警 / < -25% 风险**；
- *      阈值集中在 `service.ts` 的两个常量，并**随响应返回** `basis.thresholds`
- *      —— 定案后只改一处，界面与审查不必猜。
- *   ③ C6：**PM 全局基数；其余角色可见基数，且分子与分母同源**。
- *   ④ 时区：沿用 US-08 的 **UTC 日期**口径（C3 待定案；与 `workbench/service.ts` 一致）。
+ *   ② C1 阈值（**2026-10-18 批复冻结，已取代本处原写法**）：**偏差 = 计划时间进度 − 实际进度**
+ *      （正数表示落后于计划），单位百分点；**≤ 10pp 健康 / > 10pp 且 ≤ 25pp 预警 / > 25pp 风险**；
+ *      比较用**整数交叉相乘**（见 `caliber.ts` 的 `healthOf`）。阈值常量集中在 `caliber.ts`，
+ *      并**随响应返回** `basis.thresholds` —— 定案后只改一处，界面与审查不必猜。
+ *   ③ C6：**PM 全局基数；其余角色可见基数**，且分子、分母与计划窗口**同源**
+ *      （DECISIONS `analytics.dashboard-window-basis`）。
+ *   ④ 时区：**Asia/Shanghai 自然日**（C3 已于 2026-10-18 批复定案；DECISIONS
+ *      `timezone.project-wide-asia-shanghai`）。取「今天」的实现见 `caliber.ts` 的 `isoToday()`。
  *
  * 进度口径（handoff §9，本票的必守口径）：
  *   **进度 = 已关闭任务数 ÷ 项目任务总数，`DONE` 不计入分子。**

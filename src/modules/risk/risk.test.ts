@@ -766,3 +766,71 @@ describe('排序：未处理排前、高危优先', () => {
     expect(view.blockingRisks.rows[1]!.title).toBe('中危')
   })
 })
+
+/* ===========================================================================
+ * 评审非门槛项：补齐测试缺口（2026-10-19）
+ *
+ * 独立评审在「建议」里点出三处"将来改坏了不会红"的位置：
+ *   ① 409 的错误体形状（DECISIONS `contract.close-blocking-response` 要求不给 details 加 blockers）；
+ *   ② S5 修复的回归（「关联不可见的敏感任务」与「任务不存在」必须给同一条 422，不泄漏存在性）；
+ *   ③ 「负责人 + 关联任务不可见 + 状态流转」这个三条件组合没有显式用例 ——
+ *      可见性守卫必须**先于**流转判定（否则负责人会对他看不见的风险拿到 200）。
+ * =========================================================================== */
+
+describe('测试缺口补齐：409 形状 / S5 回归 / 可见性先于流转', () => {
+  it('① 关闭被阻断的 409：错误体只有 code + message，既无 details 也无清单', async () => {
+    await seedTask({ status: 'DOING' }) // 任务侧构成阻断
+
+    const res = await closeProject(pm.id)
+    expect(res.status).toBe(409)
+
+    const body = res.body as Record<string, unknown>
+    // 顶层只有 error，error 只有 code / message —— 结构上不可能塞进阻断清单
+    expect(Object.keys(body)).toEqual(['error'])
+    expect(Object.keys(body.error as Record<string, unknown>).sort()).toEqual(['code', 'message'])
+    const error = body.error as ErrorBody['error']
+    expect(error.code).toBe('CONFLICT')
+    expect(error.details).toBeUndefined()
+    // 计数摘要在文本里，并提示去 closure-check 取清单（当前已确认的取舍，不是遗漏）
+    expect(error.message).toContain('closure-check')
+  })
+
+  it('② S5 回归：「关联不可见的敏感任务」与「不存在的任务」给同一条 422', async () => {
+    const sensitiveTask = await seedTask({ isSensitive: true })
+
+    const unseen = await postRisk(member1.id, {
+      title: '试敏感任务',
+      level: 'HIGH',
+      ownerUserId: member1.id,
+      taskId: sensitiveTask, // 存在，但 member1 看不到
+    })
+    const missing = await postRisk(member1.id, {
+      title: '试不存在的任务',
+      level: 'HIGH',
+      ownerUserId: member1.id,
+      taskId: '00000000-0000-0000-0000-000000000000',
+    })
+
+    expect(unseen.status).toBe(422)
+    expect(missing.status).toBe(422)
+    // 逐字一致：一旦有差异，就成了"猜 id 强弱存在性"的预言机
+    expect(unseen.body).toEqual(missing.body)
+  })
+
+  it('③ 负责人改自己风险的**状态**，但风险关联着他看不到的敏感任务 → 404（可见性先于流转）', async () => {
+    const sensitiveTask = await seedTask({ isSensitive: true })
+    const risk = await makeRisk(pm.id, {
+      title: '挂敏感任务的风险',
+      taskId: sensitiveTask,
+      ownerUserId: member1.id,
+    })
+
+    // member1 是负责人（单看 `risk.flow` 会放行），但风险对他不可见 ⇒ 必须 404
+    const flow = await patchRisk(member1.id, risk.id, { status: 'IN_PROGRESS' })
+    expect(flow.status).toBe(404)
+    expect((flow.body as ErrorBody).error.code).toBe('NOT_FOUND')
+
+    // 对照：PM 不受白名单限制，能正常流转
+    expect((await patchRisk(pm.id, risk.id, { status: 'IN_PROGRESS' })).status).toBe(200)
+  })
+})

@@ -11,9 +11,9 @@
  *   - 「被提及」的真实通知数据（AC5，依赖通知模块）；
  *   - 协作人可见范围（AC7 的"协作人"，当前 `Task` 无该字段，属待确认项 C12）。
  *
- * 日期的处理：端点内部按 **UTC 的今天** 取基准，测试无法注入，因此这里用
- * 「相对今天的偏移」构造数据，并把边界（今天 / 今天-1 / 今天+7 / 今天+8）都钉住。
- * 若哪天口径改为可注入（C3 定案后），本文件的偏移写法依然成立。
+ * 日期的处理：「今天」由**服务端**按 **Asia/Shanghai 自然日**取（端点不提供覆盖参数），
+ * 因此这里用「相对今天的偏移」构造数据，并把边界（今天 / 今天-1 / 今天+7 / 今天+8）都钉住。
+ * 测试侧的「今天」必须与端点同口径（见下方 `isoToday()`），否则每天 08:00 之前会错位一天。
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createTestContext, type HttpTestContext } from '../../../test/helpers.js'
