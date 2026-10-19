@@ -6,9 +6,14 @@
  *
  * 口径（设计 §4 / §5）：
  *   - 故事 `planStart/planEnd` 是**候选汇总**（`candidate-minmax`），日期存在时
- *     必须同时标注「候选汇总口径（待确认）」；
- *   - 故事 `progress` 恒为 null（`progressState='unconfirmed'`），**显示
- *     「进度口径未确认」而不是 0%** —— 把"还没定"显示成"0%"是本仓库已登记过的问题；
+ *     必须同时标注「候选汇总口径（待确认）」—— C10 只收口了**进度**，日期仍是候选；
+ *   - 故事 `progress` 已按 C10 口径计算（`progressState='computed'`，DECISIONS
+ *     `analytics.story-progress-aggregation`）：已 `CLOSED` 任务数 ÷ 同一可见任务集合的
+ *     任务总数，`DONE` 不计入；形状与仪表盘一致（`closed`/`total`/`ratio`）。
+ *     `progress === null` 表示**该故事下没有可见任务**，显示「—」+ 说明，
+ *     **不显示 0%**（把"算不出来"显示成"0%"是本仓库已登记过的问题）；
+ *   - 非 PM 的进度只是**可见范围**口径：沿用页面既有的 `basis.scopeLabel` 标注
+ *     （由 `GanttPage` 传下），不新造文案体系；
  *   - 日期缺失（`null`）不画条，显示「未排期」；
  *   - `planStart > planEnd` 属异常历史数据，按设计 §4.3 **标记**、不静默修正；
  *   - 状态标签复用既有实现（`TASK_STATUS_LABEL` / `STORY_STATUS_LABEL`），
@@ -19,9 +24,11 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import EmptyState from '../../components/EmptyState'
+// 百分比文案复用仪表盘那一份（同一个 `ratio` 形状，同一个展示规则，不抄第二套）
+import { percentText } from '../analytics/api'
 import { STORY_STATUS_LABEL } from '../requirement/terms'
 import { TASK_STATUS_LABEL } from '../task/TaskStatusBadge'
-import type { GanttStory } from './types'
+import type { GanttScopeLabel, GanttStory } from './types'
 
 const DAY_MS = 86_400_000
 const KNOWN_TASK_STATUSES = new Set(Object.keys(TASK_STATUS_LABEL))
@@ -107,7 +114,14 @@ function planText(start: string | null, end: string | null): string {
   return `计划 ${start ?? '—'} ~ ${end ?? '—'}`
 }
 
-export default function GanttTimeline({ stories }: { stories: GanttStory[] }) {
+export default function GanttTimeline({
+  stories,
+  scopeLabel,
+}: {
+  stories: GanttStory[]
+  /** 页面已有的范围口径（`basis.scopeLabel`）：进度的分母是它所说的那个集合。 */
+  scopeLabel: GanttScopeLabel
+}) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const axis = computeAxis(stories)
 
@@ -184,7 +198,19 @@ export default function GanttTimeline({ stories }: { stories: GanttStory[] }) {
                       </>
                     ) : null}
                     {inverted ? <span className="gantt-warn">日期倒置（异常）</span> : null}
-                    <span className="gantt-note">进度口径未确认</span>
+                    {story.progress === null ? (
+                      <span className="gantt-note">进度：—（该故事下暂无可见任务）</span>
+                    ) : (
+                      <>
+                        <span className="gantt-progress">
+                          进度 {percentText(story.progress.ratio)}（已关闭 {story.progress.closed} / 共{' '}
+                          {story.progress.total} 个任务）
+                        </span>
+                        <span className="gantt-note">
+                          {scopeLabel}口径，「待验收」不计入进度
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

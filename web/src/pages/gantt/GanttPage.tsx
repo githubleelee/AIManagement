@@ -244,7 +244,7 @@ export default function GanttPage() {
 
       <section className="gantt-section">
         <SectionTitle title="统一时间轴" hint="故事可展开查看其任务" />
-        <GanttTimeline stories={stories} />
+        <GanttTimeline stories={stories} scopeLabel={scope} />
       </section>
 
       <section className="gantt-section">

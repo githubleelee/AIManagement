@@ -230,6 +230,13 @@
   color: var(--muted);
 }
 
+/* 故事进度：数值 + 分子/分母，与其它 meta 项同样用等宽数字对齐 */
+.gantt-progress {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .gantt-warn {
   color: #b3261e;
   font-weight: 600;

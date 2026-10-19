@@ -13,8 +13,11 @@
  *   `src/modules/workload/service.ts` 同范式）。
  * - **可见性过滤在查询层**（契约决策 I-6）：`visibilityScope()` 取作用域，把
  *   `id IN (…)` 拼进**同一个 `where`**；绝不「先查全量、再内存剔除」。
- * - **不计算故事进度**：C10 未书面收口，`progress` 恒为 `null`、
- *   `progressState='unconfirmed'`，故事日期只标 `aggregation='candidate-minmax'`。
+ * - **故事进度按 C10 口径计算**（DECISIONS `analytics.story-progress-aggregation`）：
+ *   已 `CLOSED` 任务数 ÷ 同一可见任务集合的任务总数，`DONE` 不计入；无任务 → `null`。
+ *   表达形状与取整**沿用仪表盘**（`closed` / `total` / `ratio`，4 位小数），故对同一
+ *   任务集合，本字段与 `GET /projects/:projectId/dashboard` 的 `progress` 必然相等。
+ *   故事**日期**仍是候选口径（`aggregation='candidate-minmax'`），C10 只收口了进度。
  * - **依赖区恒为 `ok`**：`TaskDependency` 表本批已落地、数据源始终可用，
  *   故不用 `unavailable` 造假（`unavailable` 只是给未来数据源缺席留的两态形状）。
  * - 不含 `isSensitive`：过滤在查询层完成，列表不再回传敏感标记。
@@ -40,6 +43,10 @@
  */
 import type { Prisma, PrismaClient } from '@prisma/client'
 import { createAuthorization } from '../authz/permissions.js'
+// ★ 取整与仪表盘**同一实现**（`roundTo`，纯函数、零 I/O）。一致性要求（C10 第 6 条）
+//   不允许本模块自写第二套 `Math.round` —— 否则同集合两个端点的数值迟早分叉。
+import { roundTo } from '../analytics/caliber.js'
+import type { ProjectProgress } from '../analytics/types.js'
 import type { Scope, StoryStatus } from '../../shared/types.js'
 import {
   GANTT_STORY_AGGREGATION,
@@ -150,19 +157,43 @@ export async function buildGanttView(
   const visibleTaskRows = tasksTruncated ? taskRows.slice(0, GANTT_TASK_LIMIT) : taskRows
 
   // 故事日期汇总：在**全部**可见任务上取 min(planStart) / max(planEnd)（精确，不受
-  // 上述明细上限影响），只标候选口径。无可见任务 → null。**不计算进度**。
-  const aggregates = await prisma.task.groupBy({
-    by: ['storyId'],
-    where: effectiveTaskWhere,
-    _min: { planStart: true },
-    _max: { planEnd: true },
-  })
+  // 上述明细上限影响），只标候选口径。无可见任务 → null。
+  //
+  // 故事进度（C10）：与上面 min/max **同一集合**（同一个 `effectiveTaskWhere`），
+  // 按 `storyId × status` 计数后算出 `closed / total`。刻意**不**在已截断的
+  // `visibleTaskRows` 上数 —— 截断只是展示上限，不得让进度悄悄变小。
+  const [aggregates, statusCounts] = await Promise.all([
+    prisma.task.groupBy({
+      by: ['storyId'],
+      where: effectiveTaskWhere,
+      _min: { planStart: true },
+      _max: { planEnd: true },
+    }),
+    prisma.task.groupBy({
+      by: ['storyId', 'status'],
+      where: effectiveTaskWhere,
+      _count: { _all: true },
+    }),
+  ])
   const rangeByStory = new Map<string, { planStart: string | null; planEnd: string | null }>()
   for (const agg of aggregates) {
     rangeByStory.set(agg.storyId, {
       planStart: agg._min.planStart ?? null,
       planEnd: agg._max.planEnd ?? null,
     })
+  }
+
+  // 每故事 closed / total（`DONE` 只进分母，不进分子）。
+  const progressByStory = new Map<string, ProjectProgress>()
+  for (const row of statusCounts) {
+    const current = progressByStory.get(row.storyId) ?? { closed: 0, total: 0, ratio: null }
+    current.total += row._count._all
+    if (row.status === 'CLOSED') current.closed += row._count._all
+    progressByStory.set(row.storyId, current)
+  }
+  for (const progress of progressByStory.values()) {
+    // 与仪表盘 `progress.ratio` 同一条取整规则：4 位小数，`total === 0` 时为 null（不是 0）
+    progress.ratio = progress.total === 0 ? null : roundTo(progress.closed / progress.total, 4)
   }
 
   // 非 PM 用「有效可见任务 id 集」过滤里程碑关联与依赖边端点。
@@ -264,7 +295,8 @@ export async function buildGanttView(
       planStart: range?.planStart ?? null,
       planEnd: range?.planEnd ?? null,
       aggregation: GANTT_STORY_AGGREGATION,
-      progress: null,
+      // 无可见任务 → null（不显示 0%）；有任务则形状与仪表盘 `progress` 完全一致
+      progress: progressByStory.get(story.id) ?? null,
       progressState: GANTT_STORY_PROGRESS_STATE,
       tasks: tasksByStory.get(story.id) ?? [],
     }

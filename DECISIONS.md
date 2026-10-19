@@ -191,3 +191,10 @@
 - **value:** 新增动作 `uml.write`（用例图 / 时序图及其类型化关联的增删改），**仅 PM**：列入 `WRITE_ACTIONS` → MEMBER / VIEWER 一律 **403**、PM 由 `can()` 第 3 条放行；**不新增 `ObjectRef`**（写侧按项目引用 `{ kind:'project', projectId }`，PM-only 无需对象关系判定）；读侧**不新增 scope**（可见性在 `uml` 模块查询层按 `uml.minimal-model-and-visibility` 的交集口径过滤）；所有 `uml.write` 动作在 `can()` **显式拒绝非 PM**，不得落默认允许；业务层不得私写角色判断。事件（若需要）走 D 的 `#37` 端口，**本批不接线**。`#32` / `risk` 的既有权限例外**不覆盖**本动作。
 - **timestamp:** 2026-10-19T16:20:00+08:00
 - **rationale:** 与刚合入的 `gantt.write`（`permissions.gantt-write`）同型，避免为同一语义造两套判定；`docs/role-b-gantt-design.md` §7 与 C 的 #35 申请均要求「新 Action 须单独批准」，现由项目负责人 / 权限负责人批准后落地。
+
+## `analytics.story-progress-aggregation`
+
+- **value:** 甘特「故事进度」= 该故事**可见任务集合**中 `status = 'CLOSED'` 的任务数 ÷ **同一集合**的任务总数（`DONE` 不计入分子）；统计集合 = 读侧已用于故事 `min(planStart) ~ max(planEnd)` 汇总的**同一集合**（PM = 全项目，MEMBER / VIEWER = `visibilityScope` 可见范围，界面沿用既有 `basis.scopeLabel` 标注）；**无任务 → `progress = null`**（不显示 0%，沿用「算不出来就不编数字」）；故事**日期**仍为候选汇总口径（`aggregation = 'candidate-minmax'`，**不**改为已确认）；**不做**加权 / 故事点 / 工时 / 自定义权重，**不得**由部分可见子集推全局；**一致性（可测）**：同一账号同一时刻，「故事进度」与 `GET /projects/:projectId/dashboard` 的实际进度对**同一任务集合**必须给出相同结果 —— 故沿用仪表盘 `ProjectProgress` 的形状与取整规则（`closed` / `total` / `ratio`，`ratio` 保留 4 位小数，`total = 0` 时 `null`），不另立第二套表达。
+- **timestamp:** 2026-10-19T16:14:00+08:00
+- **rationale:** ROLE-B 建议见 #26 评论 6262495800，项目负责人 2026-10-19 批准（按 B 的建议）；沿用仪表盘已冻结的 `closed` / `total` / `ratio` 形状与 4 位小数取整，避免同一个「进度」在甘特与仪表盘出现两套口径。
+

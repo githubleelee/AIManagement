@@ -11,7 +11,9 @@
  *     「含隐藏任务端点的依赖边」都不出现；
  *   - 未授权敏感故事不出现（含其下任务不泄漏）；被指名的敏感故事可见；
  *   - 空项目返回空数组而非报错；
- *   - `aggregation='candidate-minmax'` / `progressState='unconfirmed'` / `progress === null`；
+ *   - `aggregation='candidate-minmax'`（日期仍为候选）；故事进度按 C10 口径计算
+ *     （DECISIONS `analytics.story-progress-aggregation`）：`progressState='computed'`，
+ *     `progress = { closed, total, ratio }`，`DONE` 不计入分子，无任务 → `null`；
  *   - `dependencies.state === 'ok'`（本批数据源始终可用，不造假 unavailable）；
  *   - 故事日期 = 可见任务的 min/max；无任务 → null；排序符合契约；
  *   - 截断：任务 500 / 里程碑 200 / 依赖 500 上限置 `truncated` 标记；
@@ -239,13 +241,14 @@ describe('GET /projects/:projectId/gantt —— PM 全项目口径', () => {
     // 故事按 createdAt asc, id asc
     expect(view.stories.map((s) => s.id)).toEqual([s1, s2])
 
-    // 故事日期 = 可见任务 min/max；候选口径与未确认进度字段齐备
+    // 故事日期 = 可见任务 min/max；日期仍是候选口径，进度已按 C10 口径计算
     const story1 = storyById(view, s1)
     expect(story1.planStart).toBe('2026-01-01')
     expect(story1.planEnd).toBe('2026-01-20')
     expect(story1.aggregation).toBe('candidate-minmax')
-    expect(story1.progress).toBeNull()
-    expect(story1.progressState).toBe('unconfirmed')
+    expect(story1.progressState).toBe('computed')
+    // 该故事 2 个任务均未关闭（默认 TODO）→ closed 0 / total 2 / ratio 0
+    expect(story1.progress).toEqual({ closed: 0, total: 2, ratio: 0 })
     // 故事内任务按 planStart asc
     expect(story1.tasks.map((t) => t.id)).toEqual([t1, t2])
     expect(story1.tasks.map((t) => t.ownerDisplayName)).toEqual(['Alice', 'Dave'])
@@ -390,6 +393,134 @@ describe('GET /projects/:projectId/gantt —— VIEWER 只读同口径', () => {
   })
 })
 
+describe('GET /projects/:projectId/gantt —— 故事进度（C10 口径）', () => {
+  it('部分 CLOSED：closed / total / ratio 正确，且 DONE 只进分母不进分子', async () => {
+    const story = await seedStory({ title: '混合状态故事' })
+    await seedTask({ storyId: story, ownerUserId: member.id, status: 'CLOSED', title: '已关闭' })
+    await seedTask({ storyId: story, ownerUserId: member.id, status: 'DONE', title: '待验收' })
+    await seedTask({ storyId: story, ownerUserId: member.id, status: 'DOING', title: '进行中' })
+    await seedTask({ storyId: story, ownerUserId: member.id, status: 'TODO', title: '未开始' })
+
+    const s = storyById(await fetchGantt(pm.id), story)
+    expect(s.progressState).toBe('computed')
+    // 1 个 CLOSED ÷ 4 个任务；DONE 不进分子
+    expect(s.progress).toEqual({ closed: 1, total: 4, ratio: 0.25 })
+  })
+
+  it('全部 CLOSED → ratio = 1', async () => {
+    const story = await seedStory({ title: '全部关闭故事' })
+    await seedTask({ storyId: story, ownerUserId: member.id, status: 'CLOSED', title: 'A' })
+    await seedTask({ storyId: story, ownerUserId: member.id, status: 'CLOSED', title: 'B' })
+
+    const s = storyById(await fetchGantt(pm.id), story)
+    expect(s.progress).toEqual({ closed: 2, total: 2, ratio: 1 })
+  })
+
+  it('ratio 保留 4 位小数（与仪表盘同一取整）', async () => {
+    const story = await seedStory({ title: '三分之一故事' })
+    await seedTask({ storyId: story, ownerUserId: member.id, status: 'CLOSED', title: 'A' })
+    await seedTask({ storyId: story, ownerUserId: member.id, status: 'TODO', title: 'B' })
+    await seedTask({ storyId: story, ownerUserId: member.id, status: 'TODO', title: 'C' })
+
+    const s = storyById(await fetchGantt(pm.id), story)
+    // 1/3 → 0.3333（不是 0.33333333…，也不是 33%）
+    expect(s.progress).toEqual({ closed: 1, total: 3, ratio: 0.3333 })
+  })
+
+  it('无任务 → progress 为 null（不显示 0%）', async () => {
+    const story = await seedStory({ title: '空故事' })
+    const s = storyById(await fetchGantt(pm.id), story)
+    expect(s.progress).toBeNull()
+  })
+
+  it('MEMBER 只按可见任务计算：隐藏任务既不进分子也不进分母', async () => {
+    const story = await seedStory({ title: '部分可见故事' })
+    // 可见：1 CLOSED + 1 TODO → 1/2
+    const visibleClosed = await seedTask({
+      storyId: story,
+      ownerUserId: member.id,
+      status: 'CLOSED',
+      title: '可见已关闭',
+    })
+    const visibleTodo = await seedTask({
+      storyId: story,
+      ownerUserId: member.id,
+      status: 'TODO',
+      title: '可见未开始',
+    })
+    // 隐藏：若被计入，分母会变成 4、ratio 变成 0.25，从而暴露
+    const hiddenClosed = await seedTask({
+      storyId: story,
+      ownerUserId: member.id,
+      status: 'CLOSED',
+      title: '隐藏已关闭',
+      isSensitive: true,
+    })
+    const hiddenTodo = await seedTask({
+      storyId: story,
+      ownerUserId: member.id,
+      status: 'TODO',
+      title: '隐藏未开始',
+      isSensitive: true,
+    })
+    await makeSensitive('task', hiddenClosed, [])
+    await makeSensitive('task', hiddenTodo, [])
+
+    const memberView = await fetchGantt(member.id)
+    expect(memberView.basis.scopeLabel).toBe('可见范围')
+    const memberStory = storyById(memberView, story)
+    expect(memberStory.tasks.map((t) => t.id)).toEqual([visibleClosed, visibleTodo])
+    expect(memberStory.progress).toEqual({ closed: 1, total: 2, ratio: 0.5 })
+
+    // PM 全项目：4 个任务、2 个 CLOSED → 0.5（分子分母同步变大，仍相等是巧合，故另断言 total）
+    const pmStory = storyById(await fetchGantt(pm.id), story)
+    expect(pmStory.progress).toEqual({ closed: 2, total: 4, ratio: 0.5 })
+  })
+
+  it('同一账号、同一任务集合：故事进度与仪表盘实际进度逐字段一致', async () => {
+    // 构造两个故事：故事 A 部分关闭，故事 B 全关闭
+    const storyA = await seedStory({ title: 'A' })
+    const storyB = await seedStory({ title: 'B' })
+    await seedTask({ storyId: storyA, ownerUserId: member.id, status: 'CLOSED' })
+    await seedTask({ storyId: storyA, ownerUserId: member.id, status: 'DONE' })
+    await seedTask({ storyId: storyA, ownerUserId: member.id, status: 'TODO' })
+    await seedTask({ storyId: storyB, ownerUserId: member.id, status: 'CLOSED' })
+    // 敏感任务：只对 PM 可见（用来区分 PM 全项目 与 MEMBER 可见范围两个集合）
+    const secret = await seedTask({
+      storyId: storyB,
+      ownerUserId: member.id,
+      status: 'TODO',
+      isSensitive: true,
+    })
+    await makeSensitive('task', secret, [])
+
+    for (const actor of [pm.id, member.id]) {
+      const gantt = await fetchGantt(actor)
+      const res = await ctx.asUser(ctx.loginAs(actor)).get(`/projects/${projectId}/dashboard`)
+      expect(res.status).toBe(200)
+      const dashboard = res.body as { progress: { closed: number; total: number; ratio: number | null } }
+
+      // 本端点各故事进度之和 = 仪表盘（同一集合，按故事切分后仍相等）
+      const closed = gantt.stories.reduce((sum, s) => sum + (s.progress?.closed ?? 0), 0)
+      const total = gantt.stories.reduce((sum, s) => sum + (s.progress?.total ?? 0), 0)
+      expect({ closed, total }).toEqual({ closed: dashboard.progress.closed, total: dashboard.progress.total })
+      expect(total === 0 ? null : Math.round((closed / total) * 10_000) / 10_000).toBe(
+        dashboard.progress.ratio,
+      )
+    }
+
+    // 单故事口径也能对上仪表盘：故事 B（PM 全项目）2 个任务 1 个关闭 → 0.5
+    const pmView = await fetchGantt(pm.id)
+    expect(storyById(pmView, storyB).progress).toEqual({ closed: 1, total: 2, ratio: 0.5 })
+    // MEMBER 看不到敏感任务：故事 B 只有 1 个任务、1 个关闭 → 1
+    expect(storyById(await fetchGantt(member.id), storyB).progress).toEqual({
+      closed: 1,
+      total: 1,
+      ratio: 1,
+    })
+  })
+})
+
 describe('GET /projects/:projectId/gantt —— 空态与字段口径', () => {
   it('空项目返回空数组而非报错；dependencies 恒为 ok', async () => {
     const view = await fetchGantt(pm.id)
@@ -403,7 +534,7 @@ describe('GET /projects/:projectId/gantt —— 空态与字段口径', () => {
     })
   })
 
-  it('故事无可见任务 → 日期 null，进度字段仍是候选未确认', async () => {
+  it('故事无可见任务 → 日期 null，进度 null（不是 0%）', async () => {
     const story = await seedStory({ title: '无任务故事' })
     const view = await fetchGantt(pm.id)
     const s = storyById(view, story)
@@ -411,8 +542,9 @@ describe('GET /projects/:projectId/gantt —— 空态与字段口径', () => {
     expect(s.planEnd).toBeNull()
     expect(s.tasks).toEqual([])
     expect(s.aggregation).toBe('candidate-minmax')
+    // 算不出来就不编数字：null，不是 { closed: 0, total: 0, ratio: 0 }
     expect(s.progress).toBeNull()
-    expect(s.progressState).toBe('unconfirmed')
+    expect(s.progressState).toBe('computed')
   })
 })
 
