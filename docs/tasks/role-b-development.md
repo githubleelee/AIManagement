@@ -454,6 +454,17 @@ Dependencies: none
 
 ---
 
+---
+
+## #54 甘特写侧前端 UI（里程碑 / FS 依赖可视入口）
+Status: done
+Outcome: 甘特页在 **PM** 下提供里程碑新建 / 行内编辑 / 删除与 FS 依赖新建 / 删除入口；非 PM 只读并显示提示；类型固定 FS 不可选；写成功后重拉聚合视图作唯一真相；错误就近展示（403 / 404 用页面口径，409 贴服务端 message 并定位字段）。
+Evidence: PR #69 → main `e9055b2`（`web/src/pages/gantt/**` 8 文件 / +1210−77：新增 `GanttMilestoneEditor.tsx`、`GanttDependencyEditor.tsx`）。`npm run typecheck` exit 0；`npm run build:web` exit 0。**浏览器走查（主代理实跑）**：PM 新建里程碑 → 改名+改关联（**抓包确认 PATCH 只带改动字段**）→ 新建依赖 A3→B1 → **故意造环得 409「加入该依赖会形成 FS 环」+「后继任务：取值非法」且计数不变** → 重复边 409「该依赖已存在」→ 删除依赖 / 里程碑（确认框 → 204 → 重拉，计数回 2/2，DB `TaskMilestone` 无孤儿）；MEMBER / VIEWER **零写按钮** + 只读提示，MEMBER 直连接口 **403 FORBIDDEN**。截图：`docs/ai-records/B/issue-26/evidence/B-I26-20261019-{pm-gantt-write-ui,member1-gantt-readonly-ui}.png`；记录 `B-I26-20261019-bmaster-02.md`。
+Done when: 写入口仅 PM 渲染且服务端权威（403 实测）；里程碑 / 依赖的增删改全流程可用；环与重复边有可读错误；不泄漏不可见任务（选择器只用视图内可见任务）；不改后端与骨架。
+Dependencies: #12 [FS]
+
+---
+
 ## 估算拆分（本轮修订口径）
 
 仅为 B 侧工作量初估，不是追加预算或整体延期批准，也不要求原 18 人日无条件吸收。新任务编号不是预算归属：文档/提案协调仍计原统筹项，原 B 票的模型/挂载/验证不重复收费。
