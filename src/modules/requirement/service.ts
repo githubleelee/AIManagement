@@ -849,6 +849,30 @@ export type UserStoryPatch = {
 }
 
 /**
+ * 需求域事件端口 —— **类型占位，本批不接线**。
+ *
+ * 依据 `DECISIONS.md` `legacy.requirement-status-audit-authorization`（C13）：
+ * 本批只落「事件**提交点**」，传输与订阅由 D 的 `#37` 端口提供，**本批不注入**，
+ * 因此这里**没有**实现类、**没有**默认 no-op 实现，也**没有**在签名上挂可选参数 ——
+ * 那三者都会让「事件其实没发」看起来像「已经接好了」。
+ *
+ * 接线方式（待 `#37` 交付后）：由调用方构造实现并作为**必填**依赖传入，
+ * 在下方 `【事件占位】` 注释处调用。`occurredAt` 用 ISO 8601 UTC 字符串，
+ * 与决策 I-2 的响应时间口径一致；payload **只含状态**，不含故事正文
+ * （`docs/role-b-board-design.md` §7「审计行与事件不得写入敏感正文」）。
+ */
+export type RequirementEventPort = {
+  publishStoryStatusChanged(event: {
+    projectId: string
+    storyId: string
+    actorUserId: string
+    before: StoryStatus
+    after: StoryStatus
+    occurredAt: string
+  }): Promise<void>
+}
+
+/**
  * 更新用户故事（端点 21，部分更新）。
  *
  * 实现与端点 12/16 **完全同型**（只提交请求体出现的字段、空补丁走只读分支、
@@ -856,9 +880,39 @@ export type UserStoryPatch = {
  *   - 可改字段从 3 个变成 8 个，其中 `status` 是 **`StoryStatus`**（DRAFT/PLANNING/DONE）
  *     而不是 `GoalStatus`（决策 I-1 的三 DONE 陷阱）；
  *   - 不含 `isSensitive`（见 `UserStoryPatch`）。
+ *
+ * ---------------------------------------------------------------------------
+ * 【状态变更审计】（`DECISIONS.md` `legacy.requirement-status-audit-authorization`）
+ *
+ * 授权范围严格限定为「审计 + 事件占位」：不改鉴权、不改其他字段行为、不新增端点、
+ * 不建镜像写路径。因此审计的触发条件被刻意收窄到**最小且可测**的一条：
+ *
+ *   `patch.status` **出现** 且 **与库中现值不同** → 写一条 `AuditLog`。
+ *
+ * 三个反例都是刻意的（都有回归用例钉住）：
+ *   - 只改 `title` 等非状态字段 → **不写**审计（本批不为全字段审计扩权，
+ *     `docs/role-b-board-design.md` §7 把「其余 8 字段是否一并审计」列为待确认扩项）；
+ *   - `status` 传**相同值** → 更新照旧执行，但**不写**审计（审计记录的是「真实发生的变化」，
+ *     不是「有人发过请求」）；
+ *   - 空补丁 `{}` → 只读分支，既不改行也不写审计（同端点 12/16）。
+ *
+ * 【为什么 before 读与 audit 写必须在同一个 `$transaction` 里】
+ *   `before` 若在事务外读、`update` 与 `auditLog.create` 在事务内，三者之间就有窗口：
+ *   ① 事务外读到的 `before` 可能已是别人改过之后的值 → 审计的「前值」是假的；
+ *   ② `update` 成功而 `auditLog.create` 失败 → 留下**无痕的状态变更**（比没有审计更糟，
+ *      因为它看起来像「没改过」）。放进同一事务后两者同成同败；SQLite 单写者模型的
+ *      写锁还把「读 before → 写」串行化，前值不会被人插队改掉。
+ *   先例：`src/modules/authz/sensitivity.ts` 的 `setSensitivity`、`src/modules/risk/service.ts`
+ *   的 `patchRisk`（审计写法参照后者，但**不跨模块 import**：审计直接用 `tx.auditLog`）。
+ *
+ * 【非状态补丁为什么不进事务】保持既有语义与开销：单条 `UPDATE` 本身原子，
+ * 没有需要与写入对齐的第二件事，包事务只是徒增开销（同端点 12/16 的推理）。
+ * 于是本函数有两条写路径，差别只在于「有没有审计要跟更新同生共死」。
+ * ---------------------------------------------------------------------------
  */
 export async function updateUserStory(
   prisma: PrismaClient,
+  actorUserId: string,
   storyId: string,
   patch: UserStoryPatch,
 ): Promise<UserStory | null> {
@@ -874,11 +928,61 @@ export async function updateUserStory(
     ...(patch.acceptanceCriteria === undefined ? {} : { acceptanceCriteria: patch.acceptanceCriteria }),
   }
 
-  // 补丁为空 → 不写，只读（同端点 12/16）
-  const row =
-    Object.keys(data).length === 0
-      ? await prisma.userStory.findUnique({ where: { id: storyId }, select: USER_STORY_FIELDS })
-      : await prisma.userStory.update({ where: { id: storyId }, data, select: USER_STORY_FIELDS })
+  // 补丁为空 → 不写，只读（同端点 12/16）。此分支**永不**写审计。
+  if (Object.keys(data).length === 0) {
+    const row = await prisma.userStory.findUnique({ where: { id: storyId }, select: USER_STORY_FIELDS })
+    return row ? toUserStory(row) : null
+  }
+
+  // 非状态补丁：单条 UPDATE，行为与改造前完全一致（含 P2025 的原样抛出）。
+  if (patch.status === undefined) {
+    const row = await prisma.userStory.update({
+      where: { id: storyId },
+      data,
+      select: USER_STORY_FIELDS,
+    })
+    return toUserStory(row)
+  }
+
+  // 状态补丁：before 读 + 更新 + 审计同事务（理由见上方注释）
+  const row = await prisma.$transaction(async (tx) => {
+    // 窄读：只取判断所需的两列，不把故事正文读进内存（同端点 20/21 的纵深防御口径）
+    const existing = await tx.userStory.findUnique({
+      where: { id: storyId },
+      select: { status: true },
+    })
+    // 目标不存在 → 返回 `null` 交给 handler 转 404，**且不写审计**（无对象可记）
+    if (!existing) return null
+
+    const updated = await tx.userStory.update({
+      where: { id: storyId },
+      data,
+      select: USER_STORY_FIELDS,
+    })
+
+    // 传相同值 → 更新照旧，但**不写**审计（记录真实变化，不记录请求次数）
+    if (existing.status !== updated.status) {
+      await tx.auditLog.create({
+        data: {
+          projectId: updated.projectId,
+          actorUserId,
+          action: 'story.status',
+          objectType: 'story',
+          objectId: updated.id,
+          // before / after 与 `risk/service.ts` 的 `auditData` 同形：JSON 字符串
+          before: JSON.stringify({ status: existing.status }),
+          after: JSON.stringify({ status: updated.status }),
+        },
+      })
+
+      // 【事件占位】`story.status.changed`
+      // 本批**不发布**：传输由 D 的 `#37` 端口提供（见上方 `RequirementEventPort`），
+      // 待其交付后在此调用，payload 只用 `existing.status` / `updated.status` +
+      // `updated.projectId` / `actorUserId` / `storyId`，不含故事正文。
+    }
+
+    return updated
+  })
 
   return row ? toUserStory(row) : null
 }

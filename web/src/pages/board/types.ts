@@ -33,6 +33,7 @@ import type {
   BoardScopeLabel as ServerBoardScopeLabel,
   BoardView as ServerBoardView,
 } from '../../../../src/modules/board/types'
+import type { StoryStatus } from '../../../../src/shared/types'
 
 /** 看板计算范围标签（线上值即中文，界面直接展示）。 */
 export type BoardScopeLabel = ServerBoardScopeLabel
@@ -48,3 +49,11 @@ export type BoardColumn = ServerBoardColumn
 
 /** `GET /projects/:projectId/board` 的响应。 */
 export type BoardView = ServerBoardView
+
+/**
+ * 故事三态（本页状态选择的取值域）。
+ *
+ * 直接复用 `src/shared/types.ts` 的 `StoryStatus`：它与 `GoalStatus`（ACTIVE/DONE）、
+ * `TaskStatus`（六态）**不可互换**（决策 I-1 的三 DONE 陷阱）。写入口只提交这三个值。
+ */
+export type StoryStatusValue = StoryStatus

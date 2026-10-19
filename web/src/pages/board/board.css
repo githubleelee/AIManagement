@@ -32,6 +32,29 @@
   font-size: 13px;
 }
 
+/* ---------- 写入口的提示条（只读说明 / 成功提示） ---------- */
+.board-readonly-note {
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  background: var(--panel-soft, var(--bg));
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.board-notice {
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  border: 1px solid #b7e0c4;
+  border-left: 3px solid #1e7a3f;
+  border-radius: 8px;
+  background: #f1faf4;
+  color: #1e7a3f;
+  font-size: 13px;
+}
+
 /* ---------- 三列（固定顺序，不合并、不隐藏空列） ---------- */
 .board-columns {
   display: grid;
@@ -179,6 +202,46 @@
 .board-status--done {
   background: #e8f5ec;
   color: #1e7a3f;
+}
+
+/* ---------- PM 专属：卡片内的三态选择 ---------- */
+.board-status-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.board-status-select-label {
+  white-space: nowrap;
+}
+
+.board-status-select select {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.board-status-select select:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* 写失败就近提示（403 / 404 / 422） */
+.board-card-error {
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  border: 1px solid #f0c2c2;
+  border-radius: 8px;
+  background: #fdf3f3;
+  color: #a12a2a;
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 820px) {
