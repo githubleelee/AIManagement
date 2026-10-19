@@ -267,7 +267,10 @@ describe('决策 I-7 表集合与字段逐列比对', () => {
    * 新增第 10 张表 `AcceptanceRecord`（验收记录，AC5 的唯一落点）；US-10（工单 #30）经
    * 项目负责人 2026-10-18 授权再新增第 11 张表 `Risk`（风险台账）；US-06（工单 #26）经
    * 项目负责人 2026-10-18 授权再新增 `Milestone` / `TaskDependency` / `TaskMilestone`
-   * （甘特图里程碑 / FS 依赖边 / 任务—里程碑关联，见 `docs/role-b-gantt-design.md` §3）。
+   * （甘特图里程碑 / FS 依赖边 / 任务—里程碑关联，见 `docs/role-b-gantt-design.md` §3）；
+   * US-15（工单 #35）经项目负责人 2026-10-19 授权再新增 7 张 UML 表 `UmlDiagram` /
+   * `UmlNode` / `UmlEdge` / `UmlDiagramGoal` / `UmlDiagramActivity` / `UmlDiagramStory` /
+   * `UmlDiagramTask`（在线用例图 / 时序图及其 4 类类型化关联，见 `docs/role-b-uml-design.md` §3）。
    *
    * 断言形式**未变**：仍是"不多不少"的等值比较 ⇒ 任何**未经授权**的新表依然失败。
    *
@@ -275,7 +278,7 @@ describe('决策 I-7 表集合与字段逐列比对', () => {
    * 的既定职责（"断言直接对齐契约原文"）。新表的列集合由 US-09 自己的模块测试与
    * `_脚本\_us09_migration_check.mjs` 的 PRAGMA 逐列核对覆盖，未混进契约清单里。
    */
-  it('表集合 = 契约规定的 9 张 + 本阶段经授权新增的 5 张（不多不少）', async () => {
+  it('表集合 = 契约规定的 9 张 + 本阶段经授权新增的 12 张（不多不少）', async () => {
     expect(await getTableNames()).toEqual([
       'AcceptanceRecord', // ← 本阶段经 #24 授权新增（US-09 / #29），不属于契约 I-7
       'AuditLog',
@@ -288,6 +291,14 @@ describe('决策 I-7 表集合与字段逐列比对', () => {
       'Task',
       'TaskDependency', // ← US-06 / #26
       'TaskMilestone', // ← US-06 / #26
+      // ↓ US-15 / #35：7 张 UML 表。ASCII 序（'m' < 's'）⇒ 落在 TaskMilestone 之后、User* 之前
+      'UmlDiagram',
+      'UmlDiagramActivity',
+      'UmlDiagramGoal',
+      'UmlDiagramStory',
+      'UmlDiagramTask',
+      'UmlEdge',
+      'UmlNode',
       'User',
       'UserActivity',
       'UserStory',

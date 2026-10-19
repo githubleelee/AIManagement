@@ -83,10 +83,14 @@ describe('表结构与迁移', () => {
    * US-06（工单 #26）经项目负责人 2026-10-18 授权再新增 3 张表 `Milestone` / `TaskDependency` /
    * `TaskMilestone`（甘特图里程碑、FS 依赖边、任务—里程碑关联 —— 见 `docs/role-b-gantt-design.md` §3）。
    *
+   * US-15（工单 #35）经项目负责人 2026-10-19 授权再新增 7 张表 `UmlDiagram` / `UmlNode` /
+   * `UmlEdge` / `UmlDiagramGoal` / `UmlDiagramActivity` / `UmlDiagramStory` / `UmlDiagramTask`
+   * （在线用例图 / 时序图及其 4 类类型化关联 —— 见 `docs/role-b-uml-design.md` §3、§7）。
+   *
    * 断言形式**未变**：仍是"不多不少"的等值比较 ⇒ 任何**未经授权**的新表依然会让本用例
    * 失败，原保护意图（防止有人顺手往库里加表）完整保留。
    */
-  it('表集合 = 契约 I-7 的 9 张 + 本阶段经授权新增的 5 张（不多不少）', async () => {
+  it('表集合 = 契约 I-7 的 9 张 + 本阶段经授权新增的 12 张（不多不少）', async () => {
     const rows = await db.prisma.$queryRawUnsafe<Array<{ name: string }>>(
       `SELECT name FROM sqlite_master
        WHERE type = 'table'
@@ -106,6 +110,14 @@ describe('表结构与迁移', () => {
       'Task',
       'TaskDependency', // ← US-06 / #26
       'TaskMilestone', // ← US-06 / #26
+      // ↓ US-15 / #35：7 张 UML 表。ASCII 序（'m' < 's'）⇒ 落在 TaskMilestone 之后、User* 之前
+      'UmlDiagram',
+      'UmlDiagramActivity',
+      'UmlDiagramGoal',
+      'UmlDiagramStory',
+      'UmlDiagramTask',
+      'UmlEdge',
+      'UmlNode',
       'User',
       'UserActivity',
       'UserStory',

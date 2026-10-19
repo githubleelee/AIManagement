@@ -25,6 +25,7 @@ const PRISMA_CLI = join(REPO_ROOT, 'node_modules', 'prisma', 'build', 'index.js'
  *
  * 顺序原则：先删「引用方」（子表），再删「被引用方」（父表）。
  *   AuditLog / ObjectVisibility / Risk / TaskMilestone / TaskDependency / Milestone
+ *   → UmlDiagramTask / UmlDiagramActivity / UmlDiagramGoal / UmlDiagramStory / UmlEdge / UmlNode / UmlDiagram
  *   → Task → UserStory → UserActivity → BusinessGoal → ProjectMember → Project → User
  *
  * 注意：`ObjectVisibility.objectId` 是多态列、没有真实外键，无法依赖数据库级联；
@@ -36,6 +37,13 @@ const PRISMA_CLI = join(REPO_ROOT, 'node_modules', 'prisma', 'build', 'index.js'
  * US-06（工单 #26）：`TaskMilestone` / `TaskDependency` / `Milestone` 必须先于
  * `Task` / `Project` 删除 —— `TaskDependency` 两端与 `Milestone.projectId` 均为
  * `Restrict`，若留到 `task.deleteMany()` / `project.deleteMany()` 时会让它们失败。
+ *
+ * US-15（工单 #35）：`UmlDiagramTask` / `UmlDiagramActivity` / `UmlDiagramGoal` /
+ * `UmlDiagramStory` / `UmlEdge` / `UmlNode` / `UmlDiagram` 必须先于 `Task` / `UserStory` /
+ * `UserActivity` / `BusinessGoal` / `Project` 删除 —— `UmlDiagram.projectId` 与
+ * `UmlDiagram.ownerUserId` 是 `Restrict`，若留到 `project.deleteMany()` 时会让它失败。
+ * 虽然关联行 / 节点 / 边都有 `Cascade`，仍显式删除（与 `taskMilestone` 既有做法一致）：
+ * 不依赖隐式级联，避免将来改 `onDelete` 时静默失效。
  */
 export async function resetDatabase(prisma: PrismaClient): Promise<void> {
   // 多态表 / 审计表：引用 Project 与 User，最先删除
@@ -48,6 +56,15 @@ export async function resetDatabase(prisma: PrismaClient): Promise<void> {
   await prisma.taskMilestone.deleteMany()
   await prisma.taskDependency.deleteMany()
   await prisma.milestone.deleteMany()
+  // US-15 在线 UML：关联行 → 边 → 节点 → 图（子表在前）。
+  // UmlDiagram.projectId / ownerUserId 是 Restrict，必须早于 project / user 删除。
+  await prisma.umlDiagramTask.deleteMany()
+  await prisma.umlDiagramActivity.deleteMany()
+  await prisma.umlDiagramGoal.deleteMany()
+  await prisma.umlDiagramStory.deleteMany()
+  await prisma.umlEdge.deleteMany()
+  await prisma.umlNode.deleteMany()
+  await prisma.umlDiagram.deleteMany()
   // 任务：引用 Project / UserStory / User
   await prisma.task.deleteMany()
   // 用户故事：引用 Project / UserActivity

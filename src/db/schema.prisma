@@ -41,6 +41,8 @@ model User {
   ownedRisks    Risk[]             @relation("RiskOwner")
   // US-06（工单 #26）：这个人负责的里程碑（反向关系，见文件末尾 Milestone）
   ownedMilestones Milestone[]      @relation("MilestoneOwner")
+  // US-15（工单 #35）：这个人负责的 UML 图（反向关系，见文件末尾 UmlDiagram）
+  ownedUmlDiagrams UmlDiagram[]    @relation("UmlDiagramOwner")
 }
 
 model Project {
@@ -68,6 +70,8 @@ model Project {
   // 注：`TaskMilestone` 只有 (taskId, milestoneId) 两列，无 projectId，故 Project 侧无对应反向关系。
   milestones       Milestone[]
   taskDependencies TaskDependency[]
+  // US-15（工单 #35）：本项目的 UML 图（反向关系，见文件末尾 UmlDiagram）
+  umlDiagrams      UmlDiagram[]
 }
 
 model ProjectMember {
@@ -92,6 +96,8 @@ model BusinessGoal {
 
   project    Project        @relation(fields: [projectId], references: [id], onDelete: Restrict)
   activities UserActivity[]
+  // US-15（工单 #35）：引用本目标的 UML 图（反向关系，见文件末尾 UmlDiagramGoal）
+  umlDiagramLinks UmlDiagramGoal[]
 }
 
 model UserActivity {
@@ -105,6 +111,8 @@ model UserActivity {
 
   goal    BusinessGoal @relation(fields: [goalId], references: [id], onDelete: Restrict)
   stories UserStory[]
+  // US-15（工单 #35）：引用本活动的 UML 图（反向关系，见文件末尾 UmlDiagramActivity）
+  umlDiagramLinks UmlDiagramActivity[]
 }
 
 model UserStory {
@@ -125,6 +133,8 @@ model UserStory {
   project  Project      @relation(fields: [projectId], references: [id], onDelete: Restrict)
   activity UserActivity @relation(fields: [activityId], references: [id], onDelete: Restrict)
   tasks    Task[]
+  // US-15（工单 #35）：引用本故事的 UML 图（反向关系，见文件末尾 UmlDiagramStory）
+  umlDiagramLinks UmlDiagramStory[]
 }
 
 model Task {
@@ -157,6 +167,9 @@ model Task {
   milestoneLinks          TaskMilestone[]
   predecessorDependencies TaskDependency[] @relation("TaskPredecessor")
   successorDependencies   TaskDependency[] @relation("TaskSuccessor")
+  // US-15（工单 #35）：引用本任务的 UML 图。**Cascade**（见文件末尾说明）：任务删除时
+  // 关联行随库级联清理，故既有端点 29（DELETE /tasks/:taskId）语义不变。
+  umlDiagramLinks         UmlDiagramTask[]
 }
 
 // US-09 任务验收（工单 #29）—— 验收记录。
@@ -320,4 +333,145 @@ model TaskDependency {
   @@index([projectId])
   @@index([predecessorTaskId])
   @@index([successorTaskId])
+}
+
+// US-15 在线 UML（工单 #35）—— 用例图 / 时序图的最小模型。
+//
+// 为什么需要这 7 张表：AC1 要求「在线创建并编辑用例图与时序图（非仅上传）」，
+// AC2 要求「图可关联项目 / 业务目标 / 用户活动 / 用户故事 / 任务」。既有表没有任何字段
+// 能承载图、节点、边或类型化关联，故本票新增。依据：`docs/role-b-uml-design.md` §3（FROZEN v1.0）。
+//
+// 三处关键取舍（设计 §3.1）：
+//   ① 不落任何几何坐标：只落结构 + 序（`UmlNode.orderIndex` 生命线序、`UmlEdge.seq` 消息序）。
+//      已批准口径明确「不做自动布局 / 自由画布语义校验」，落坐标会把画布语义带回来。
+//   ② 4 张真实关联表（Goal / Activity / Story / Task）各两个真实外键、两端 Cascade：
+//      多态列（如 `ObjectVisibility`）无外键 ⇒ 无 DB 级联 ⇒ 删任务后留孤儿关联行，与
+//      已批准口径「关联行 Cascade」冲突；且若对任务引用用 Restrict，会让**既有
+//      `DELETE /tasks/:taskId`（端点 29）开始失败**。
+//   ③ 两类图共用 3 张表（`UmlDiagram` / `UmlNode` / `UmlEdge`），用 `kind` + `nodeType` /
+//      `edgeType` 判别；枚举合法性由写入层（Zod）保证，与文件头第 1 条一致（DB 不约束枚举）。
+//
+// 删除语义理由（设计 §3.6）：
+//   UmlDiagram.projectId   → Restrict：项目不应被删掉而留下孤儿图。
+//   UmlDiagram.ownerUserId → Restrict：人不该被删掉而留下无主图。
+//   UmlNode / UmlEdge → UmlDiagram → Cascade：图内容的从属物。
+//   UmlEdge 两端 → UmlNode（复合外键）→ Cascade：节点删除后残留边即脏数据。
+//   4 张关联表两端 → Cascade：关联行只是连接，任一端消失即失去意义；删任务 / 故事时
+//     关联行自动消失，旧删除端点零改动。
+//
+// 边同图约束由数据库兜底（设计 §3.3 / §3.7 实测）：`UmlEdge` 用**复合外键**
+//   `(diagramId, sourceNodeId)` / `(diagramId, targetNodeId) → UmlNode(diagramId, id)`，
+//   因此「A 图的边指向 B 图的节点」在物理上不可能落库（跨图建边得 P2003），
+//   不依赖写入层是否漏检。为此 `UmlNode` 必须有 `@@unique([diagramId, id])` 作为引用目标。
+model UmlDiagram {
+  id          String   @id @default(uuid())
+  projectId   String
+  kind        String // 'USECASE' | 'SEQUENCE'；创建后不可变（写入层保证）
+  title       String
+  description String?
+  ownerUserId String // 创建时取当前 PM；可转移给任意项目成员（写入层校验）
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  owner   User    @relation("UmlDiagramOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+
+  nodes      UmlNode[]
+  edges      UmlEdge[]
+  goals      UmlDiagramGoal[]
+  activities UmlDiagramActivity[]
+  stories    UmlDiagramStory[]
+  tasks      UmlDiagramTask[]
+
+  // 列表主查询（按项目 + 类型）；负责人维度的「我的图」
+  @@index([projectId, kind])
+  @@index([ownerUserId])
+}
+
+model UmlNode {
+  id         String   @id @default(uuid())
+  diagramId  String
+  nodeType   String // 用例图：'ACTOR' | 'USECASE'；时序图：'LIFELINE'
+  name       String
+  orderIndex Int      @default(0) // 序，不是坐标：时序图生命线横向排列序；用例图恒 0
+  createdAt  DateTime @default(now())
+
+  diagram UmlDiagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+  // 复合外键的目标（UmlEdge 用 (diagramId, id) 引用），故必须唯一
+  outgoingEdges UmlEdge[] @relation("UmlEdgeSource")
+  incomingEdges UmlEdge[] @relation("UmlEdgeTarget")
+
+  @@unique([diagramId, id])
+  @@index([diagramId])
+}
+
+model UmlEdge {
+  id           String   @id @default(uuid())
+  diagramId    String
+  edgeType     String // 用例图：'ASSOCIATION' | 'INCLUDE' | 'EXTEND'；时序图：'SYNC' | 'ASYNC' | 'RETURN'
+  sourceNodeId String
+  targetNodeId String
+  label        String?
+  seq          Int? // 仅时序图（消息序号，服务端分配）；用例图恒 null
+  createdAt    DateTime @default(now())
+
+  diagram UmlDiagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+  // 复合外键把 diagramId 一起带进引用目标 ⇒ 边两端必然属于同一张图（DB 兜底，见上方说明）
+  source UmlNode @relation("UmlEdgeSource", fields: [diagramId, sourceNodeId], references: [diagramId, id], onDelete: Cascade)
+  target UmlNode @relation("UmlEdgeTarget", fields: [diagramId, targetNodeId], references: [diagramId, id], onDelete: Cascade)
+
+  // 时序图内 seq 唯一（注意：是「唯一」不是「严格递增」，递增语义只能由写入层保证）；
+  // SQLite 唯一索引允许多个 NULL ⇒ 用例图多条 seq = null 的边可共存（设计 §3.3 / §3.7 实测）
+  @@unique([diagramId, seq])
+  @@index([diagramId])
+  @@index([sourceNodeId])
+  @@index([targetNodeId])
+}
+
+// 图 ↔ 业务目标（目标 / 活动无敏感维度，恒对项目成员可见；见设计 §Z）
+model UmlDiagramGoal {
+  diagramId String
+  goalId    String
+
+  diagram UmlDiagram   @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+  goal    BusinessGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@id([diagramId, goalId])
+  @@index([goalId])
+}
+
+// 图 ↔ 用户活动
+model UmlDiagramActivity {
+  diagramId  String
+  activityId String
+
+  diagram  UmlDiagram   @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+  activity UserActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@id([diagramId, activityId])
+  @@index([activityId])
+}
+
+// 图 ↔ 用户故事（可见性交集口径的输入之一）
+model UmlDiagramStory {
+  diagramId String
+  storyId   String
+
+  diagram UmlDiagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+  story   UserStory  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@id([diagramId, storyId])
+  @@index([storyId])
+}
+
+// 图 ↔ 任务（可见性交集口径的另一输入；**两端 Cascade** 是保住端点 29 删除语义的关键）
+model UmlDiagramTask {
+  diagramId String
+  taskId    String
+
+  diagram UmlDiagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+  task    Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@id([diagramId, taskId])
+  @@index([taskId])
 }

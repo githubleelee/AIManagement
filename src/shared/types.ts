@@ -226,6 +226,7 @@ export type Action =
   | 'risk.flow' // 风险状态流转（含重开）：PM 全部；MEMBER 仅自己负责的风险；VIEWER 403（见权限注释第 4.6 条）
   | 'project.close' // 关闭 / 重开项目（仅 PM；关闭前的阻断校验由风险 / 仪表盘模块实现）
   | 'gantt.write' // 甘特图写：里程碑 / 任务依赖（仅 FS）的增删改（仅 PM；MEMBER / VIEWER 只读）
+  | 'uml.write' // UML 图与关联的增删改（仅 PM；MEMBER / VIEWER 只读）
 
 /**
  * `can()` 的目标引用（决策 I-5）。
