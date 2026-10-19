@@ -198,3 +198,27 @@
 - **timestamp:** 2026-10-19T16:14:00+08:00
 - **rationale:** ROLE-B 建议见 #26 评论 6262495800，项目负责人 2026-10-19 批准（按 B 的建议）；沿用仪表盘已冻结的 `closed` / `total` / `ratio` 形状与 4 位小数取整，避免同一个「进度」在甘特与仪表盘出现两套口径。
 
+
+## `permissions.story-status-write`
+
+- **value:** **故事状态写入不扩权**：唯一写路径仍为端点 21 `PATCH /stories/:storyId`，鉴权沿用 `requirement.write`（**仅 PM**）；**不新增** `story.flow` 一类动作，也**不**为成员开放「按可见性改任意故事状态」。看板（`GET /projects/:projectId/board`）的写入口**只对 PM 渲染**；MEMBER / VIEWER 保持只读。故事**没有归属字段**，故不存在「成员只能改自己负责的故事」这种对象关系判定可用；任何成员写故事状态都属扩权，本期不做。
+- **timestamp:** 2026-10-19T16:50:00+08:00
+- **rationale:** C11 自 2026-10-17 起登记未决，ROLE-B 在 #24 提出逐项三选一（授权 / 不授权 / 最保守），项目负责人 2026-10-19 选 **(1) 不扩权**。避免为「看板上改状态」这一 UI 便利引入无归属依据的权限语义；本地 #18/#19/#20 相应收敛为「PM 写 + 审计 + 跨视图一致」。
+
+## `legacy.requirement-status-audit-authorization`
+
+- **value:** 授权 ROLE-B 在**登记窗口内**最小修改 `src/modules/requirement/service.ts` 的 `updateUserStory`（及必要测试），为故事状态变更补：① `AuditLog` 记录（操作者 / 动作 / 对象 / **前后值** / 时间，沿用既有审计模型与写法）；② **事件提交点**（类型占位，实现待 D 的 `#37` 端口，**本批不接线**）。**不得**改鉴权、不得改其他 requirement 行为、不得新增端点或镜像写路径。窗口：文件清单先登记并通知模块原负责人（ROLE-A），同一时刻同一文件单写；B 落笔后给出 commit 与验证输出。
+- **timestamp:** 2026-10-19T16:50:00+08:00
+- **rationale:** 现状端点 21 改状态**不留审计、不发事件**，直接影响本地 #18（写路径审计）与 #19（跨视图同步）；C13 原为「旧业务文件须原 owner 对具体文件 / 范围授权」，ROLE-B 在 #24 逐项申请，项目负责人 2026-10-19 选 **(1) 授权最小改动**。
+
+## `legacy.task-start-guard-authorization`
+
+- **value:** **排队授权**：待 ROLE-C 的 `task/` 写窗口关闭后（其 PR 合入或双方书面关闭），授权 ROLE-B 最小修改 `src/modules/task/routes.ts` 与 `src/modules/task/rules.ts`，在**真实写入口**落地 FS 开工守卫：前置任务必须 `CLOSED`（`DONE` 不算）、后继建议开始不得早于前置计划结束日次日（自然日含首尾、Asia/Shanghai），并补回归用例；**不得**新增镜像任务写路径、不得改鉴权选择与其他状态转换、不得把 `#32` 的 TODO-only / 应用规则强加给普通手工 PATCH。窗口期内 B **不修改**这两个文件；落笔前先给出改动清单与验证方案。
+- **timestamp:** 2026-10-19T16:50:00+08:00
+- **rationale:** `scheduling.fs-release-closed-natural-days` 已确认该规则，但真实入口 `PATCH /tasks/:taskId` 无守卫，直连接口可绕过（甘特 UI 提示不算）；本地 #13 因此无法开工、#15 该项无法勾选。ROLE-B 在 #24 逐项申请，项目负责人 2026-10-19 选 **(1) 排队授权**（尊重 C 的写窗口，不并发改同一文件）。
+
+## `workload.no-collaborator-model`
+
+- **value:** 本期**不引入协作人模型**：`Task` 不新增协作人字段，成员负载（`GET /projects/:projectId/workload`）与相关汇总一律按**负责人**（`ownerUserId`）定义；`#27` 的「可见范围」口径不变。C12 若后续要求协作人，须另案裁定并显式说明对负载 / 报告范围的影响，不得以「报告范围已实现」或「永久排除」两种口径默认替代。
+- **timestamp:** 2026-10-19T16:50:00+08:00
+- **rationale:** C12 长期未决使负载模型口径悬空；ROLE-B 在 #24 附带申请，项目负责人 2026-10-19 以「按你的来」采纳 B 建议（不引入），据此固定本期口径并保留后续另案空间。
