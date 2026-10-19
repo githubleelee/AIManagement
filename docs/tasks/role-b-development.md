@@ -465,6 +465,38 @@ Dependencies: #12 [FS]
 
 ---
 
+---
+
+## #55 US-15 UML 设计稿与口径冻结（#35）
+Status: done
+Outcome: `docs/role-b-uml-design.md` 从 DRAFT 冻结为 **FROZEN v1.0**（关联对象 4 类、7 个 model、§Z 12 项结论、§Z2 P1 实测状态）。
+Evidence: 设计稿 commit `573b7bd`；三处取舍经实测（不落坐标；四张真 FK 关联表拿 DB 级 Cascade；`UmlEdge` 复合外键使跨图建边物理不可能 P2003）；裁定入库 PR #72 → main `aa69288`（`uml.minimal-model-and-visibility`、`permissions.uml-write`）；项目负责人 2026-10-19 裁定关联 4 类；冻结 PR #77 → main `dad65e3`；#24 评论 6263362484（交付与裁定）、#35 评论 6263746115（冻结通知）。
+Done when: 最小关系 / 消息集合、角色、敏感、删除四项口径获批；模型 / 校验 / 可见性 / 接口 / 批次 / 待决 / AC 方案齐备；未批准项不写死。
+Dependencies: none
+
+## #56 US-15 UML P1：模型 + 迁移 + 测试基建 + uml.write
+Status: done
+Outcome: 7 个 model（`UmlDiagram`/`UmlNode`/`UmlEdge` + 目标/活动/故事/任务四张关联表）+ 迁移 + 重置顺序 + 表集合快照 + 行为验证 + `Action 'uml.write'`（仅 PM）。
+Evidence: PR #78 → main `d8315c4`（8 文件 / +979−3）；迁移 `20261019090000_add_uml_models`（14 FK = 2 RESTRICT + 12 CASCADE，**无 ALTER**）；空库 deploy 实测 21 张表、`Uml*` 按 ASCII 序落在 `TaskMilestone` 与 `User*` 之间；`src/modules/uml/uml-schema.test.ts` 25 例（含删任务→关联行消失、删节点→边消失、**跨图边 P2003**）；`typecheck` exit 0、全量 **61 文件 / 1420 例全绿**；设计稿 §7 数字已校正并追加 §Z2；#35 评论 6264046314 给出就绪 SHA。
+Done when: 模型 / 迁移 / 测试基建 / 权限动作齐备并验证；不新增端点、不改 `routes.ts`/`app.ts`、不碰 `web/**`。
+Dependencies: #55 [FS]
+
+## #57 US-15 UML P2/P3：本域类型与端点（C 实现，B 复核）
+Status: not started
+Note: P1 已就绪（`d8315c4`），等 ROLE-C 开 P2（`src/modules/uml/types.ts` + `validation.ts`/`schemas.ts`）与 P3（`service.ts` / `plugin.ts` / 测试）；B 复核其可见性交集查询、整图替换事务与错误映射（只用契约 I-4 表内 code）。
+Outcome: C 域 UML 服务与 6 个端点实现，含可见性交集、整图替换、校验与错误映射。
+Done when: C 交付并给出测试证据；B 复核通过（不越权、不泄漏不可见关联、404 文案统一、无镜像写路径）。
+Dependencies: #56 [FS]
+
+## #58 US-15 UML P4/P5：注册行 + 骨架挂载 + 路由文档
+Status: not started
+Note: 等 P3 导出 `registerUmlRoutes` 后由 B 落笔（`src/routes.ts` 注册行、`web/src/routes.tsx` 路由行、`ProjectLayout.tsx` 左导航行、`docs/frontend-routes.md` 表行）；页面本体归 C（`web/src/pages/uml/**`）。
+Outcome: 端点与页面在公共层挂载完成，路由文档同步。
+Done when: 注册行 / 路由行 / 导航行 / 文档行落笔并验证（`typecheck` + 浏览器走查）；同一时刻同一文件单写。
+Dependencies: #57 [FS]
+
+---
+
 ## 估算拆分（本轮修订口径）
 
 仅为 B 侧工作量初估，不是追加预算或整体延期批准，也不要求原 18 人日无条件吸收。新任务编号不是预算归属：文档/提案协调仍计原统筹项，原 B 票的模型/挂载/验证不重复收费。
