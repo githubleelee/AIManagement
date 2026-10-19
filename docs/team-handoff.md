@@ -221,8 +221,32 @@ D 提供独立组件、Props 与补丁，由 B 在 `web/src/pages/RequirementDet
 - **B 域 `#27 → #26 → #25` 顺序仅为优先级，不是硬依赖**：三票在 `workload/`、`gantt/`、`board/` 独立目录可并行推进设计与实现；公共文件由 B 单写、组件按就绪挂载，**不整模块等待**。`docs/tasks/role-b-development.md` 中已取消仅由顺序产生的 FS / FF 硬边。
 - A 的 [#28](https://github.com/githubleelee/AIManagement/issues/28) / [#29](https://github.com/githubleelee/AIManagement/issues/29) / [#30](https://github.com/githubleelee/AIManagement/issues/30) / [#33](https://github.com/githubleelee/AIManagement/issues/33) **接口并行**，不互相串行等待。
 - [#34](https://github.com/githubleelee/AIManagement/issues/34) 通知**基础先做**（订阅事件 → 落库 → 拉取）；6 类通知的**最终送达 AC** 需 [#26](https://github.com/githubleelee/AIManagement/issues/26) / [#28](https://github.com/githubleelee/AIManagement/issues/28) / [#29](https://github.com/githubleelee/AIManagement/issues/29) / [#30](https://github.com/githubleelee/AIManagement/issues/30) 真实生产方联动证据，模块内模拟事件测试**不替代**端到端；**不要**制造 US08↔US14 硬环。
+  - **口径变更（2026-10-19，按 §7.1 三分法）**：原句「需 … 真实生产方联动证据」**不列为 #34 的 AC 前置**。改为：`AC1/AC2(a)` 其余 5 类先勾（模块内模拟事件测试 + 三态降级）；`AC1/AC2(b)` @提及 1 类**后置联调项**，由后交付方（#28 或 #34 中后交付者）**单向取证**。原文保留为历史。
 - [#28](https://github.com/githubleelee/AIManagement/issues/28) 的「被提及」同样必须接真通知数据（[#34](https://github.com/githubleelee/AIManagement/issues/34)）后才验收。
+  - **口径变更（2026-10-19，按 §7.1 三分法）**：原句**不列为 #28 AC5 的前置**。改写为 `AC5(a)` 接口已对接 + 无数据源时如实 `state='unavailable'` / `total=null` / `note` 说明原因（**本票可验收**）；`AC5(b)` 真数据联调：由 #34 交付后**单向取证**，记为**后置联调项**。原文保留为历史。
 - 阻塞只阻塞被依赖部分的**最终验收**；UI / 测试设计先行。
+
+### 7.1 跨票依赖的验收三分法（2026-10-19 确认；`DECISIONS.md` `deps.sibling-ticket-ac-layering`）
+
+同级票之间按**三层**处理，**不得把他票交付物写进本票 AC 的前置条件**：
+
+| 层 | 规则 |
+|---|---|
+| ① 接口层 | 签名与信封（事件信封、订阅签名、错误码）先冻结，双方各自开发、**互不阻塞** |
+| ② 降级层 | 对方数据源未就绪时，本域**必须如实返回三态**（`state='unavailable'` / `total=null` / `note` 说明原因）；**不得用 `0` 或空数组冒充「没有」** |
+| ③ 联调层 | 端到端联动证据由**后交付的一方单向取证**（用对方已上线的写路径真实触发一次、观察本侧产出）；**不要求双方「同时已完成」** |
+
+**禁止条款**：AC 中不得出现「需 X 票的真实数据才勾」这类跨票前置。应改写为：
+
+```
+✗ 「必须接 #34 真通知数据后才验收」
+✓ 「AC5(a) 接口已对接 + 无数据源时如实 unavailable（本票可验收）；
+    AC5(b) 真数据联调：由 #34 交付后单向取证（记为后置联调项，不列为本票 AC 前置）」
+```
+
+**自查方法（1 分钟）**：把各票 AC 里所有「需 … / 必须 … 才勾」抽出来做一个有向图；若两张票互相指向，即存在**验收层环**，按三分法改写。正例：`#28` 的「被提及」块（`state='unavailable'` + `total=null` + note 明写「通知模块尚未交付，这不代表没有消息」）。
+
+`depends_on` / `interface_depends_on` 字段语义不变；本规则只约束 **AC 写法**，不新增执行依赖、不改变图上无环的结论。
 
 ---
 
