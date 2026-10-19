@@ -466,6 +466,178 @@
   font-size: 12px;
 }
 
+/* ---------- 写侧（仅 PM 渲染；服务端才是权威） ---------- */
+.gantt-write {
+  min-width: 0;
+}
+
+.gantt-write-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.gantt-readonly-note {
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  background: var(--panel-soft, var(--bg));
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.gantt-notice {
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  border: 1px solid #b7e0c4;
+  border-left: 3px solid #1e7a3f;
+  border-radius: 8px;
+  background: #f1faf4;
+  color: #1e7a3f;
+  font-size: 13px;
+}
+
+.gantt-editor {
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel-soft, var(--bg));
+}
+
+.gantt-editor-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.gantt-form-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px 16px;
+}
+
+.gantt-form-grid .form-field {
+  min-width: 200px;
+  flex: 1 1 200px;
+}
+
+.gantt-field-static {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 200px;
+  flex: 1 1 200px;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.gantt-field-static-label {
+  display: block;
+}
+
+.gantt-type-fixed {
+  display: inline-block;
+  width: fit-content;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #edf3fc;
+  color: #2457a8;
+  font-weight: 600;
+}
+
+.gantt-form-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.gantt-form-error {
+  margin: 0;
+}
+
+.gantt-field-errors {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.gantt-field-error {
+  display: block;
+  margin-top: 2px;
+  color: #b3261e;
+  font-size: 12px;
+}
+
+.gantt-form-info {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.gantt-row-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.gantt-row-error {
+  flex-basis: 100%;
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+
+.gantt-task-picker {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.gantt-task-picker legend {
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.gantt-picker-note {
+  margin: 6px 0;
+  color: #8a6100;
+  font-size: 12px;
+}
+
+.gantt-task-group {
+  margin-top: 8px;
+}
+
+.gantt-task-group-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.gantt-task-group-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
+.gantt-task-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.gantt-dep-actions {
+  margin-left: auto;
+}
+
 @media (max-width: 700px) {
   .gantt-axis,
   .gantt-row {

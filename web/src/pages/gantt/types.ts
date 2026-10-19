@@ -82,6 +82,70 @@ export type GanttDependency = {
   type: 'FS'
 }
 
+// ---------------------------------------------------------------------------
+// 写侧契约（后端 #12 已合入 main，字段名由主代理冻结，前端只读、不改字段名）
+//
+// 写操作**仅 PM**（MEMBER / VIEWER 403，非成员 404，未登录 401）；前端隐藏写控件
+// 只是体验层，服务端 `gantt.write` 才是权威。
+// ---------------------------------------------------------------------------
+
+/** `POST /projects/:projectId/milestones` 写响应。负责人可空（`owner` 为 null）。 */
+export type MilestoneWriteView = {
+  id: string
+  projectId: string
+  name: string
+  dueDate: string
+  ownerUserId: string | null
+  owner: { id: string; displayName: string } | null
+  createdAt: string
+  taskIds: string[]
+}
+
+/** `POST /projects/:projectId/milestones` 请求体。 */
+export type MilestoneCreateInput = {
+  name: string
+  dueDate: string
+  ownerUserId?: string | null
+  taskIds?: string[]
+}
+
+/** `PATCH /milestones/:milestoneId` 请求体（部分更新）。`taskIds` 出现即整体替换。 */
+export type MilestonePatchInput = {
+  name?: string
+  dueDate?: string
+  ownerUserId?: string | null
+  taskIds?: string[]
+}
+
+/** `POST /projects/:projectId/task-dependencies` 写响应（本期仅 FS）。 */
+export type TaskDependencyWriteView = {
+  id: string
+  projectId: string
+  predecessorTaskId: string
+  successorTaskId: string
+  type: 'FS'
+  createdAt: string
+}
+
+/** `POST /projects/:projectId/task-dependencies` 请求体；`type` 缺省即 FS。 */
+export type TaskDependencyCreateInput = {
+  predecessorTaskId: string
+  successorTaskId: string
+  type?: 'FS'
+}
+
+/**
+ * 写侧「可见任务」选项 —— **只**由当前 `GanttView` 内联的可见任务构建，
+ * **绝不**另拉全量任务接口（避免越权/泄漏、避免与视图截断口径不一致）。
+ */
+export type GanttTaskOption = {
+  id: string
+  title: string
+  storyId: string
+  storyTitle: string
+  ownerDisplayName: string
+}
+
 /**
  * 依赖区两态包装（设计 §2、§7）：
  *   - `ok`：拿到依赖（`items` 可能为空数组 = 确实没有依赖）；

@@ -10,14 +10,21 @@
  *   - 依赖区（`GanttDependencies`）：两态，`unavailable` 明确提示不当作「无依赖」；
  *   - 顶部：范围标签（`basis.scopeLabel`）+ 计数摘要。
  *
- * 不做：拖拽、自动调度、写操作、导出；不显示敏感标记；不引入新依赖。
+ * 写侧（本地 #12 / 后端已合入 main）：里程碑与 FS 依赖的增删改**仅 PM**。
+ *   - 角色门禁是**体验层**：非 PM 不渲染写控件，但服务端 `gantt.write` 才是权威，
+ *     非 PM 直连接口仍会被 403 / 404 拒绝（见 `src/modules/gantt/write.ts`）；
+ *   - 任何写成功后**重新拉取 `GET /projects/:projectId/gantt` 作为唯一真相**，
+ *     不做乐观本地改写；写失败不改本地状态，只在对应表单 / 行旁展示错误。
+ *
+ * 不做：拖拽、自动调度、导出；不显示敏感标记；不引入新依赖；选择器只含视图内可见任务。
  */
-import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useOutletContext, useParams } from 'react-router-dom'
+import type { ProjectMemberView, ProjectView } from '../../../../src/shared/types'
 import PageHeader from '../../components/PageHeader'
-import { ApiError } from '../../api'
+import { ApiError, listMembers } from '../../api'
 import { getGantt } from './api'
-import type { GanttView } from './types'
+import type { GanttTaskOption, GanttView } from './types'
 import GanttTimeline from './GanttTimeline'
 import GanttMilestones from './GanttMilestones'
 import GanttDependencies from './GanttDependencies'
@@ -50,7 +57,14 @@ function SectionTitle({ title, hint }: { title: string; hint?: string }) {
 
 export default function GanttPage() {
   const { projectId } = useParams<{ projectId: string }>()
+  const project = useOutletContext<ProjectView>()
+  // 角色门禁（体验层）：只有 PM 渲染写控件。服务端 `gantt.write` 才是权威。
+  const isPM = project.myRole === 'PM'
+
   const [state, setState] = useState<LoadState>({ status: 'loading' })
+  const [reloadKey, setReloadKey] = useState(0)
+  const [members, setMembers] = useState<ProjectMemberView[]>([])
+  const [notice, setNotice] = useState<string | null>(null)
 
   useEffect(() => {
     if (!projectId) {
@@ -62,7 +76,9 @@ export default function GanttPage() {
       return
     }
     let cancelled = false
-    setState({ status: 'loading' })
+    // 首次 / 出错后重试显示加载态；写成功后刷新时保留旧数据到新响应到达 ——
+    // 唯一真相仍是新响应的聚合视图，不用旧数据做乐观改写。
+    setState((prev) => (prev.status === 'ready' ? prev : { status: 'loading' }))
     getGantt(projectId)
       .then((data) => {
         if (!cancelled) setState({ status: 'ready', data })
@@ -94,7 +110,48 @@ export default function GanttPage() {
     return () => {
       cancelled = true
     }
-  }, [projectId])
+  }, [projectId, reloadKey])
+
+  // 负责人下拉候选：只有 PM 需要；非 PM 不请求（其一也用不到，其二少一次请求）。
+  useEffect(() => {
+    if (!isPM || !projectId) return
+    let cancelled = false
+    listMembers(projectId)
+      .then((res) => {
+        if (!cancelled) setMembers(res.items)
+      })
+      .catch(() => {
+        // 成员列表取不到不阻塞写主流程：仍可「不指定」负责人。
+        if (!cancelled) setMembers([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isPM, projectId])
+
+  // 写侧选择器只允许视图内**可见任务**；绝不另拉全量任务接口。
+  const taskOptions = useMemo<GanttTaskOption[]>(() => {
+    if (state.status !== 'ready') return []
+    const rows: GanttTaskOption[] = []
+    for (const story of state.data.stories ?? []) {
+      for (const task of story.tasks ?? []) {
+        rows.push({
+          id: task.id,
+          title: task.title,
+          storyId: story.id,
+          storyTitle: story.title,
+          ownerDisplayName: task.ownerDisplayName,
+        })
+      }
+    }
+    return rows
+  }, [state])
+
+  // 写成功：展示提示 + 重新拉取甘特视图（唯一真相）。
+  const handleChanged = (message: string) => {
+    setNotice(message)
+    setReloadKey((key) => key + 1)
+  }
 
   if (state.status === 'loading') {
     return (
@@ -155,9 +212,21 @@ export default function GanttPage() {
     <div className="page gantt-page">
       <PageHeader
         title="项目甘特图"
-        description="按统一时间轴查看故事与任务的计划区间、里程碑与任务依赖（只读）。"
+        description="按统一时间轴查看故事与任务的计划区间、里程碑与任务依赖。"
         actions={<span className="gantt-scope">{scope}</span>}
       />
+
+      {!isPM ? (
+        <p className="gantt-readonly-note" role="status">
+          只有项目经理可以维护里程碑与依赖；你当前是只读访问。
+        </p>
+      ) : null}
+
+      {notice ? (
+        <p className="gantt-notice" role="status">
+          {notice}
+        </p>
+      ) : null}
 
       <div className="gantt-summary">
         <CountChip label="故事" value={stories.length} />
@@ -180,12 +249,28 @@ export default function GanttPage() {
 
       <section className="gantt-section">
         <SectionTitle title="里程碑" hint="按截止日期展示（不落在统一时间轴上）" />
-        <GanttMilestones milestones={milestones} />
+        <GanttMilestones
+          milestones={milestones}
+          canWrite={isPM}
+          projectId={data.projectId}
+          members={members}
+          taskOptions={taskOptions}
+          tasksTruncated={truncated.tasks}
+          onChanged={handleChanged}
+        />
       </section>
 
       <section className="gantt-section">
         <SectionTitle title="任务依赖" hint="本期仅 FS（前驱完成后继才能开始）" />
-        <GanttDependencies dependencies={data.dependencies} taskTitleById={taskTitleById} />
+        <GanttDependencies
+          dependencies={data.dependencies}
+          taskTitleById={taskTitleById}
+          canWrite={isPM}
+          projectId={data.projectId}
+          taskOptions={taskOptions}
+          tasksTruncated={truncated.tasks}
+          onChanged={handleChanged}
+        />
       </section>
     </div>
   )
