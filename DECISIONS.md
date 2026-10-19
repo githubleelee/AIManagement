@@ -179,3 +179,15 @@
 - **value:** 甘特图的**里程碑与 FS 依赖写路径**（`POST /projects/:projectId/milestones`、`PATCH|DELETE /milestones/:milestoneId`、`POST /projects/:projectId/task-dependencies`、`DELETE /task-dependencies/:dependencyId`）使用新增动作 `gantt.write`，**仅 PM**：`can()` 第 3 条放行 PM，`gantt.write` 列入 `WRITE_ACTIONS` 后对 MEMBER / VIEWER 返回 403（保持 `#26` 的「PM 建改、MEMBER / VIEWER 只读」）。按 id 操作先按 id **最小解析真实 `projectId`** 再判权，**对象不存在与非成员一律 404 且文案一致**；业务层不得私写角色判断。写入仅接受 `type='FS'`，拒绝自依赖、跨项目引用（**不可见与不存在同一条**）、重复边与 FS 环；**环判定与插入在同一事务内**（迭代式 BFS），环与重复边返回 **409 `CONFLICT`**、其余校验返回 **422**；`details[].code` 一律取自契约 I-4 冻结表（**不新增 code、不扩 `FieldErrorCode`**，前端 `FIELD_ERROR_HINT` 穷举表不受影响）。并发删除竞态（Prisma `P2025`）与事务写冲突（`P2034`）映射为 404 / 409，不落 500。**事件发布不在本条目范围**：由 D 的 `#37` 提供传输后接线，本批只在 `src/modules/gantt/types.ts` 留 `GanttEventPort` 占位与写点事件名注释。
 - **timestamp:** 2026-10-19T15:10:00+08:00
 - **rationale:** `docs/role-b-gantt-design.md` §7 要求「写权限必须经统一 `can()` 落实、不得用 `project.read` 充当写授权；如需新增 Action 须本票另获范围许可」；项目负责人 2026-10-19 授权「先做 #12 写路径（事件后接）」。故以最小新增动作（PM-only，不扩权给 MEMBER / VIEWER）落地，并同时冻结错误码来源与并发语义，避免后续各域各自解释。
+
+## `uml.minimal-model-and-visibility`
+
+- **value:** US-15（在线 UML）本期最小口径：**仅两类图** —— 用例图（参与者 / 用例 / 关系）与时序图（生命线 / 有序消息）。用例图关系**仅** `ASSOCIATION`（参与者—用例）、`INCLUDE`、`EXTEND`（用例—用例）三类；时序图消息 `sync` / `async` / `return` 三选一，`seq` **严格递增**；**不做**泛化 / 组合 / 泳道 / 片段 / 自动布局 / 自由画布语义校验。交互为**本地结构化编辑 + SVG 即时预览**，**不引入外部建模服务**。**权限**：PM 可 CRUD 与管理关联；**MEMBER / VIEWER 本期只读**（不为本期新造对象关系判定）。**敏感**：**不给图加独立敏感标记**；可见性 = **关联对象（任务 / 故事）可见性的交集**，任一关联不可见时该图对调用者**整体不返回**（404，且与「不存在」逐字一致）；**不做遮链接式降级**、不返回标题占位；解除关联或目标被删**不自动降密**（不改变既有可见性判定）。**删除**：图 → 项目 / 负责人 `Restrict`；图 ↔ 任务 / 故事的关联行 `Cascade`（关键理由：若对任务引用用 `Restrict`，会让**既有 `DELETE /tasks/:taskId` 开始失败**）；既有 `TaskDependency` 的 `Restrict` 与端点 29 的 `P2003 → 409` 错误映射仍为**独立待办**，不在本条目范围。**读取**：列表与计数同源、可见性在**本模块查询层**过滤，**不新增 `visibilityScope` 对象类型**。
+- **timestamp:** 2026-10-19T16:20:00+08:00
+- **rationale:** ROLE-C 在 #35 提出最小契约申请（#24 评论 6249728765），ROLE-B 逐项答复技术建议（#24 评论 6261802627），项目负责人 / 权限负责人 2026-10-19 批准（「我批准你开始做了」）。固定最小集合与可见性 / 删除语义，避免各域各自解释 UML 关系种类、出现第二套敏感模型，或为 UML 关联改坏既有任务删除行为。
+
+## `permissions.uml-write`
+
+- **value:** 新增动作 `uml.write`（用例图 / 时序图及其类型化关联的增删改），**仅 PM**：列入 `WRITE_ACTIONS` → MEMBER / VIEWER 一律 **403**、PM 由 `can()` 第 3 条放行；**不新增 `ObjectRef`**（写侧按项目引用 `{ kind:'project', projectId }`，PM-only 无需对象关系判定）；读侧**不新增 scope**（可见性在 `uml` 模块查询层按 `uml.minimal-model-and-visibility` 的交集口径过滤）；所有 `uml.write` 动作在 `can()` **显式拒绝非 PM**，不得落默认允许；业务层不得私写角色判断。事件（若需要）走 D 的 `#37` 端口，**本批不接线**。`#32` / `risk` 的既有权限例外**不覆盖**本动作。
+- **timestamp:** 2026-10-19T16:20:00+08:00
+- **rationale:** 与刚合入的 `gantt.write`（`permissions.gantt-write`）同型，避免为同一语义造两套判定；`docs/role-b-gantt-design.md` §7 与 C 的 #35 申请均要求「新 Action 须单独批准」，现由项目负责人 / 权限负责人批准后落地。
