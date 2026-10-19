@@ -155,6 +155,10 @@ export async function buildInsightMetrics(
   // ★ 一个读取窗口（2026-10-19 #33 评审 P3）：5 条查询放进**同一个事务**，避免并发写入时
   //   拿到互相矛盾的一组数（例如 total = 0 却 planWindow ≠ null、验收轮次与任务状态对不上）。
   //   仍是只读：事务里没有任何写操作。
+  //   ⚠️ 前提（2026-10-19 复审 P-3 补）：这条"单一快照"保证来自**数据库的隔离级别**，不是
+  //   `$transaction` 本身 —— SQLite 的事务可串行化（延迟 BEGIN、首读建快照），因此成立；
+  //   若将来迁到默认 READ COMMITTED 的库（Postgres / MySQL），事务内每条语句各取新快照，
+  //   本条保证**失效**，届时需改用 REPEATABLE READ 或把相关读取合并成一条语句。
   const [taskGroups, window, acceptanceGroups, riskGroups, memberRows] = await prisma.$transaction([
     // 只取计数：不把任务行取进内存（纪律 3）
     prisma.task.groupBy({
