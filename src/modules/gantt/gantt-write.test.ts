@@ -32,6 +32,7 @@ import {
 } from '../../../test/factories.js'
 import type { UserBrief } from '../../shared/types.js'
 import { registerGanttRoutes } from './plugin.js'
+import { MILESTONE_NAME_MAX_LENGTH } from './types.js'
 import type { GanttView, MilestoneWriteView, TaskDependencyView } from './types.js'
 
 type ErrorBody = {
@@ -288,6 +289,10 @@ describe('写端点权限矩阵（`gantt.write` 仅 PM）', () => {
     expectForbidden(await postMilestone(viewer.id, body))
     expectProjectNotFound(await postMilestone(outsider.id, body))
     expect((await postMilestone(null, body)).status).toBe(401)
+
+    // 越权分支零写入：只有 PM 那一次成功
+    expect(await ctx.db.milestone.count({ where: { projectId } })).toBe(1)
+    expect(await ctx.db.taskMilestone.count()).toBe(1)
   })
 
   it('PATCH /milestones/:milestoneId', async () => {
@@ -301,6 +306,11 @@ describe('写端点权限矩阵（`gantt.write` 仅 PM）', () => {
     expectForbidden(await patchMilestone(viewer.id, created.id, { name: '越权' }))
     expectProjectNotFound(await patchMilestone(outsider.id, created.id, { name: '越权' }))
     expect((await patchMilestone(null, created.id, { name: '越权' })).status).toBe(401)
+
+    // 越权分支零写入：仍只有 PM 改出来的那一个值，行数不变
+    const row = await ctx.db.milestone.findUniqueOrThrow({ where: { id: created.id } })
+    expect(row.name).toBe('新名称')
+    expect(await ctx.db.milestone.count({ where: { projectId } })).toBe(1)
   })
 
   it('DELETE /milestones/:milestoneId', async () => {
@@ -314,6 +324,9 @@ describe('写端点权限矩阵（`gantt.write` 仅 PM）', () => {
     expectForbidden(await deleteMilestone(viewer.id, forViewer.id))
     expectProjectNotFound(await deleteMilestone(outsider.id, forOutsider.id))
     expect((await deleteMilestone(null, forOutsider.id)).status).toBe(401)
+
+    // 越权分支零删除：只有 PM 删掉的那条消失，其余三条仍在
+    expect(await ctx.db.milestone.count({ where: { projectId } })).toBe(3)
   })
 
   it('POST /projects/:projectId/task-dependencies', async () => {
@@ -328,6 +341,9 @@ describe('写端点权限矩阵（`gantt.write` 仅 PM）', () => {
     expectForbidden(await postDependency(viewer.id, body))
     expectProjectNotFound(await postDependency(outsider.id, body))
     expect((await postDependency(null, body)).status).toBe(401)
+
+    // 越权分支零写入：只有 PM 那一条边
+    expect(await ctx.db.taskDependency.count({ where: { projectId } })).toBe(1)
   })
 
   it('DELETE /task-dependencies/:dependencyId', async () => {
@@ -345,6 +361,9 @@ describe('写端点权限矩阵（`gantt.write` 仅 PM）', () => {
     expectForbidden(await deleteDependency(viewer.id, forViewer.id))
     expectProjectNotFound(await deleteDependency(outsider.id, forViewer.id))
     expect((await deleteDependency(null, forViewer.id)).status).toBe(401)
+
+    // 越权分支零删除：只有 PM 删掉的那条消失，其余两条仍在
+    expect(await ctx.db.taskDependency.count({ where: { projectId } })).toBe(2)
   })
 })
 
@@ -412,6 +431,28 @@ describe('POST /projects/:projectId/milestones', () => {
     expect(await ctx.db.milestone.count({ where: { projectId } })).toBe(0)
   })
 
+  it('name 超长 / 纯空白 / 缺失 → 422（TOO_LONG / REQUIRED）', async () => {
+    const tooLong = await postMilestone(pm.id, {
+      name: '名'.repeat(MILESTONE_NAME_MAX_LENGTH + 1),
+      dueDate: '2026-02-10',
+    })
+    expectValidation(tooLong, 'name', 'TOO_LONG')
+
+    const blank = await postMilestone(pm.id, { name: '   ', dueDate: '2026-02-10' })
+    expectValidation(blank, 'name', 'REQUIRED')
+
+    const missing = await postMilestone(pm.id, { dueDate: '2026-02-10' })
+    expectValidation(missing, 'name', 'REQUIRED')
+
+    // 长度边界：恰好 100 字符可建
+    const atLimit = await postMilestone(pm.id, {
+      name: '名'.repeat(MILESTONE_NAME_MAX_LENGTH),
+      dueDate: '2026-02-10',
+    })
+    expect(atLimit.status).toBe(201)
+    expect(await ctx.db.milestone.count({ where: { projectId } })).toBe(1)
+  })
+
   it('ownerUserId 非本项目成员 → 422 NOT_PROJECT_MEMBER', async () => {
     const res = await postMilestone(pm.id, {
       name: 'X',
@@ -474,6 +515,28 @@ describe('PATCH /milestones/:milestoneId', () => {
     expect(
       await ctx.db.taskMilestone.count({ where: { milestoneId: created.id, taskId: t1 } }),
     ).toBe(0)
+  })
+
+  it('空体 {} → 200 且 name / dueDate / ownerUserId 都不变', async () => {
+    const created = await createMilestoneOk(pm.id, {
+      name: '保持不变',
+      dueDate: '2026-02-01',
+      ownerUserId: member.id,
+    })
+
+    const res = await patchMilestone(pm.id, created.id, {})
+    expect(res.status).toBe(200)
+    expect(res.body as MilestoneWriteView).toMatchObject({
+      id: created.id,
+      name: '保持不变',
+      dueDate: '2026-02-01',
+      ownerUserId: member.id,
+    })
+
+    const row = await ctx.db.milestone.findUniqueOrThrow({ where: { id: created.id } })
+    expect(row.name).toBe('保持不变')
+    expect(row.dueDate).toBe('2026-02-01')
+    expect(row.ownerUserId).toBe(member.id)
   })
 
   it('taskIds = [] 清空关联；未提供 taskIds 时不动关联', async () => {
@@ -717,6 +780,21 @@ describe('POST /projects/:projectId/task-dependencies', () => {
     // 同一张图上「顺向冗余边」不是环：A→C 只是 A→B→C 的传递边，允许建立
     const redundant = await postDependency(pm.id, { predecessorTaskId: a, successorTaskId: c })
     expect(redundant.status).toBe(201)
+    expect(await ctx.db.taskDependency.count({ where: { projectId } })).toBe(3)
+  })
+
+  it('四节点长链环（A→B→C→D 后 D→A）→ 409 CONFLICT + INVALID_VALUE', async () => {
+    const storyId = await seedStory()
+    const a = await seedTask({ storyId })
+    const b = await seedTask({ storyId })
+    const c = await seedTask({ storyId })
+    const d = await seedTask({ storyId })
+    await createDependencyOk(pm.id, a, b)
+    await createDependencyOk(pm.id, b, c)
+    await createDependencyOk(pm.id, c, d)
+
+    const cycle = await postDependency(pm.id, { predecessorTaskId: d, successorTaskId: a })
+    expectConflict(cycle, 'successorTaskId', 'INVALID_VALUE')
     expect(await ctx.db.taskDependency.count({ where: { projectId } })).toBe(3)
   })
 

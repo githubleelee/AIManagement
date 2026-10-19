@@ -39,8 +39,7 @@
  * 每个写成功点都用 `【事件占位】` 注释登记将来要发布的事件名；传输实现由 ROLE-D 的
  * #37 提供，本批不注入 `GanttEventPort`、不 new no-op 实现、不调用（见 `./types.ts`）。
  */
-import { Prisma } from '@prisma/client'
-import type { PrismaClient } from '@prisma/client'
+import type { Prisma, PrismaClient } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
 import type { FieldErrorCode } from '../../shared/types.js'
 import { createAuthorization } from '../authz/permissions.js'
@@ -73,13 +72,16 @@ function notFound(): AppError {
 }
 
 /**
- * 把 `can()` 的否定结论原样变成错误：**不自行判断 403 / 404**，只用 `decision.status`。
- * 同时把文案归一成本模块唯一的一条 404 / 一条 403（响应形状不变）。
+ * 把 `can()` 的否定结论原样变成错误：**不自行判断 403 / 404**，直接透传
+ * `decision.status` / `decision.code`（契约 I-5 约束 2，与 `./plugin.ts` 同款）；
+ * 只按 code 选本模块唯一的一条 404 / 一条 403 文案（响应形状不变）。
  */
-function denied(decision: { status: 403 | 404 }): AppError {
-  return decision.status === 404
-    ? notFound()
-    : new AppError(403, 'FORBIDDEN', FORBIDDEN_MESSAGE)
+function denied(decision: { status: 403 | 404; code: 'FORBIDDEN' | 'NOT_FOUND' }): AppError {
+  return new AppError(
+    decision.status,
+    decision.code,
+    decision.code === 'NOT_FOUND' ? NOT_FOUND_MESSAGE : FORBIDDEN_MESSAGE,
+  )
 }
 
 /**
@@ -105,9 +107,19 @@ function conflictError(message: string, field: string, code: FieldErrorCode): Ap
   return new AppError(409, 'CONFLICT', message, [{ field, code }])
 }
 
-/** Prisma 已知错误码判定（P2002 唯一冲突 / P2025 记录不存在）。 */
-function isPrismaErrorCode(error: unknown, code: string): boolean {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === code
+/**
+ * 读出 Prisma 的**已知错误码**（形如 `P2002` / `P2025` / `P2034`），非 Prisma 错误返回 `null`。
+ *
+ * 用鸭子类型而不是 `instanceof Prisma.PrismaClientKnownRequestError`：注入的
+ * `PrismaClient` 与错误类可能不是同一模块实例（测试 / 多实例），构造器身份不一致会让
+ * 错误映射**静默退化为 500**。正则 `/^P\d{4}$/` 只认 Prisma 的码形状，不会把恰好带
+ * `code` 字段的其它错误误判。同款写法见 `src/modules/task/routes.ts` 的
+ * `isRecordNotFoundError` 与 `src/modules/requirement/service.ts` 的 `prismaErrorCode`。
+ */
+function prismaErrorCode(error: unknown): string | null {
+  if (typeof error !== 'object' || error === null) return null
+  const code: unknown = (error as { code?: unknown }).code
+  return typeof code === 'string' && /^P\d{4}$/.test(code) ? code : null
 }
 
 /**
@@ -208,11 +220,14 @@ async function assertTaskInProject(
  * 能到达 `predecessor` 即成环。**禁止递归**（长链会爆栈），队列用下标出队避免
  * `Array.shift()` 的 O(n) 移动。
  *
- * 一致性：本函数必须与插入在**同一个 `$transaction`** 内（调用方保证）。SQLite 只有
- * 单写者，Prisma 的 SQLite 连接在事务内串行执行，所以「读全量边 → BFS → 插入」不会与
- * 另一个并发建边事务交错：后开始的事务看到的必然是前者**已提交**的边。两个互反建边
- * 的并发请求（A→B 与 B→A）里，后到者因此能从既有边走到自己，判出环（`gantt-write.test.ts`
- * 的「并发互反建边」用例覆盖该论证）。
+ * 一致性：本函数必须与插入在**同一个 `$transaction`** 内（调用方保证）。当前数据源为
+ * SQLite，Prisma 在事务内串行使用连接、并由**事务写锁**串行化写入，所以「读全量边 →
+ * BFS → 插入」不会与另一个并发建边事务交错：后取得写锁的事务看到的是前者已提交的边。
+ * 两个互反建边的并发请求（A→B 与 B→A）里，后到者因此能从既有边走到自己，判出环
+ * （`gantt-write.test.ts` 的「并发互反建边」用例覆盖该行为，实测稳定）。
+ *
+ * 局限：这是**当前 SQLite 实现**下的串行化保证，不是跨后端的通用保证；换并发后端
+ * （如 Postgres）需另加锁 / CAS，本函数不再成立。
  */
 async function wouldCreateCycle(
   tx: Prisma.TransactionClient,
@@ -378,7 +393,7 @@ export async function updateMilestone(
     } catch (error) {
       // 并发删除竞态：解析/判权之后、写入之前该方法行被另一个请求删掉。
       // P2025 → 404（与「不存在」同一条文案，不泄漏是「刚被删」还是「从未存在」）。
-      if (isPrismaErrorCode(error, 'P2025')) throw notFound()
+      if (prismaErrorCode(error) === 'P2025') throw notFound()
       throw error
     }
 
@@ -419,7 +434,7 @@ export async function deleteMilestone(
   } catch (error) {
     // 并发删除竞态：两个 DELETE 同时通过解析与判权，后到者拿到 P2025。
     // 映射为 404（同一条文案）；级联清理已由先到者的事务完成。
-    if (isPrismaErrorCode(error, 'P2025')) throw notFound()
+    if (prismaErrorCode(error) === 'P2025') throw notFound()
     throw error
   }
   // 【事件占位】本批不接线：将来在此发布 `gantt.milestone.deleted`。
@@ -491,11 +506,19 @@ export async function createDependency(
     } catch (error) {
       // 4. 重复边由 `@@unique([predecessorTaskId, successorTaskId, type])` 兜底。
       //    环检测在前：重复边本身不构成环（A→B 不会让 B 到达 A），所以这里只会是重复。
-      if (isPrismaErrorCode(error, 'P2002')) {
+      if (prismaErrorCode(error) === 'P2002') {
         throw conflictError('该依赖已存在', 'successorTaskId', 'DUPLICATE')
       }
       throw error
     }
+  })
+  // P2034（写冲突 / 死锁）：并发事务争锁，重试即可 → 409，不是 500。
+  // 不是字段级问题，故不带 `details`（仅靠顶层 code + message 区分）。
+  .catch((error: unknown) => {
+    if (prismaErrorCode(error) === 'P2034') {
+      throw new AppError(409, 'CONFLICT', '并发冲突，请重试')
+    }
+    throw error
   })
 
   // 【事件占位】本批不接线：将来在此发布 `gantt.dependency.created`
@@ -532,7 +555,7 @@ export async function deleteDependency(
     await prisma.taskDependency.delete({ where: { id: dependencyId } })
   } catch (error) {
     // 并发删除竞态：后到者拿到 P2025 → 404（与「不存在」同一条文案）。
-    if (isPrismaErrorCode(error, 'P2025')) throw notFound()
+    if (prismaErrorCode(error) === 'P2025') throw notFound()
     throw error
   }
   // 【事件占位】本批不接线：将来在此发布 `gantt.dependency.deleted`。
