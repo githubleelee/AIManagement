@@ -38,6 +38,9 @@ const WRITE_ACTIONS: ReadonlySet<Action> = new Set<Action>([
   'sensitivity.manage',
   // 甘特图写（里程碑 / 任务依赖，仅 FS）：仅 PM —— 落在第 5 条，MEMBER / VIEWER 403。
   'gantt.write',
+  // UML 图写（用例图 / 时序图及其类型化关联）：与 `gantt.write` 同型，仅 PM ——
+  // 落在第 5 条，MEMBER / VIEWER 403。
+  'uml.write',
 ])
 
 function deny(status: 403 | 404, code: 'FORBIDDEN' | 'NOT_FOUND'): Decision {
@@ -159,6 +162,8 @@ async function roleIn(
  *   5.5 `risk.write` 且 actor.role === VIEWER → 403（风险台账对项目成员开放，VIEWER 只读）
  *   5.6 `gantt.write`（里程碑 / 任务依赖增删改）与其它写类动作同规则：仅 PM（第 3 条放行）；
  *       MEMBER / VIEWER 一律 403，本入口不为甘特单开角色分支
+ *   5.7 `uml.write`（UML 图及其关联的增删改）与其它写类动作同规则：仅 PM（第 3 条放行）；
+ *       MEMBER / VIEWER 一律 403，本入口不为 UML 单开角色分支
  *   6. 其余                                 → 允许
  *
  * 契约决策 I-9：本函数**只读数据库，不调用其他模块的 service**。
