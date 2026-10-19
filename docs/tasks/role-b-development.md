@@ -177,20 +177,19 @@ Dependencies: #16 [FS]
 已解除：用户 2026-10-18 批准 #25 只读看板（#17）编码范围。本轮只做只读三列（不含状态写入/审计，写路径属 #18，待 C11/C13）。
 
 ## #18 扩展获授权的故事状态写路径
-Status: not started
-Note: 前置只读看板已完成（#17 done，PR #53）；本任务仍待 C11（成员能否改故事状态）与 C13（requirement 具体文件授权）。
+Status: done
+Note: C11 裁定**不扩权**（故事状态写入仅 PM，`permissions.story-status-write`）；C13 授权最小改动（`legacy.requirement-status-audit-authorization`）；**事件未接线**（D 的 `#37` 未交付，仅 `RequirementEventPort` 类型占位 + 写点注释，无 no-op 实现）。
 Outcome: 既有故事 PATCH 的状态操作授权、who/when/before/after 审计与状态变更事件。
+Evidence: PR #75 → main `6638004`（`feat/story-status-audit`，8 文件 / +606−28）：`updateUserStory` 增 `actorUserId`、**仅状态真实变化**时同事务写 `AuditLog`（`action=story.status`，before/after JSON）、空补丁仍只读、非状态补丁仍单语句；`plugin.ts` **恰好 1 行**；新增 11 例审计/权限测试；窗口登记 #24 评论 6263265008 + 6263277635，通知模块原负责人 #20 评论 6263266208。验证：`npm run typecheck` exit 0；`src/modules/requirement/` 14 文件 / 559 例；全量 **60 文件 / 1395 例** 全绿；`build:web` exit 0；**浏览器走查**（PM 改状态 → 抓包 body 仅 `{"status":"PLANNING"}` → 重拉 → 移列；**DB 审计行核验** before/after/actor/projectId 正确且仅 1 条；MEMBER 0 个写控件 + 直连 403）。
 Done when: C11 成员操作及 Action 规则已书面确认；C13 对具体文件范围已授权；复用 `can()`；按确认的一致性策略完成真实写入、审计、事件处理；公共文件由 B 单写、旧业务文件须原 owner 具体授权后改，不绕过 `requirement.write`，不创建替代写入口。
 Dependencies: #17 [FS]
-Blocker: 需 C11/C13 结论、原 owner 的具体旧模块授权，以及事件接入和写入/审计/事件失败一致性契约。
-
 ## #19 接入看板状态操作与跨视图同步
-Status: not started
+Status: done
+Note: 看板写入口已实现（PM-only 三态下拉，写后重拉 board 作唯一真相）；**跨视图一致**已验证（故事地图 / 详情 / 看板三处读数一致）；**事件驱动的实时同步未接线**（待 D 的 `#37`），当前依赖各视图自然刷新。
 Outcome: 看板调用既有 PATCH 调整状态，并在重新拉取后与故事地图、详情及统计一致。
+Evidence: PR #75 → main `6638004`：`web/src/pages/board/**`（卡片三态选择、非 PM 只读 + 页顶提示、错误就近、失败不改本地态）。验证：PM 改状态后 **故事地图（`GET /projects/:projectId/goals`）两故事均 PLANNING**、**故事详情（端点 20）PLANNING**、**看板 PLANNING 列 2 张** —— 同账号同授权下三视图一致；MEMBER 直连 `PATCH /stories/:storyId` → 403（服务端权威）。
 Done when: 公共层（B 单写授权）完成必要挂载；交互按已确认角色授权展示，服务端仍判权；成功与失败反馈正确；同账号同授权视角下多视图一致；涉及他人业务页面文件须先获具体授权，不擅自修改。
 Dependencies: #18 [FS]
-Blocker: 需实际页面/后端挂载；如需旧页面改动，先取得其 owner 授权。
-
 ## #20 验收并交付故事看板
 Status: not started
 Outcome: GitHub #25 AC1–AC6 的模块、浏览器与审计事件证据包。
