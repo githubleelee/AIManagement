@@ -1,10 +1,10 @@
 /**
- * US-04 故事看板（GitHub #25）—— 项目内三列只读故事看板（默认导出）。
+ * US-04 故事看板（GitHub #25）—— 项目内三列故事看板（默认导出）。
  *
  * 挂载：`/projects/:projectId/board`（由公共骨架另批完成，本文件只交付组件，
  * **不改** `web/src/routes.tsx` / 布局 / `web/src/api.ts`）。
  *
- * 只读页面（本地任务 #17 的前端部分）：
+ * 只读部分（本地任务 #17 的前端部分）：
  *   - 三列固定为 `DRAFT → PLANNING → DONE`，列序**取后端 `columns` 顺序**
  *     （后端已按此顺序返回）；列头用需求模块既有 `STORY_STATUS_LABEL` + 精确 `count`；
  *   - 卡片：标题 / `goalName / activityName` 路径 / 优先级标签（复用 `PRIORITY_LABEL`）；
@@ -13,12 +13,19 @@
  *   - 顶部显示 `basis.scopeLabel`，可见范围时提示不代表项目全量基数；
  *   - 加载态 / 错误态 / 无权限态（404/403 文案，不白屏）齐备。
  *
- * 不做：状态调整按钮、拖拽、写请求（写入属 #18）、自定义列、敏感标记、新依赖。
- * 跨视图同步（设计 §9）本批只做「重新拉取」的读取基础：状态变更后由调用方
- * 重新挂载/重新拉取本页即可，前端不做本地乐观改写。
+ * 不做：拖拽、自定义列、敏感标记、新依赖。
+ * 写入口（本地 #18，`DECISIONS.md` `permissions.story-status-write`）：
+ *   - **只对 PM 渲染**每张卡片的三态选择（DRAFT / PLANNING / DONE），提交只带
+ *     `{ status }` 的 `PATCH /stories/:storyId`（既有端点 21，鉴权沿用
+ *     `requirement.write`；**不新增端点、不新增动作、不扩权**）；
+ *   - 成功后**重新拉取 `GET /projects/:projectId/board` 作为唯一真相**，不做本地乐观改写；
+ *   - MEMBER / VIEWER 只读：不渲染任何写控件，并在页顶给出只读提示。
+ * 跨视图同步（设计 §9）的口径就是「重新拉取」：状态变更后本页重新请求看板聚合，
+ * 前端不自行拼一份「已同步」的假象。
  */
-import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useCallback, useEffect, useState } from 'react'
+import { useOutletContext, useParams } from 'react-router-dom'
+import type { ProjectView } from '../../../../src/shared/types'
 import PageHeader from '../../components/PageHeader'
 import EmptyState from '../../components/EmptyState'
 import { ApiError } from '../../api'
@@ -59,7 +66,15 @@ function normalizeColumns(columns: BoardColumn[] | undefined): BoardColumn[] {
 
 export default function BoardPage() {
   const { projectId } = useParams<{ projectId: string }>()
+  const project = useOutletContext<ProjectView>()
+  // 角色门禁（体验层）：只有 PM 渲染写控件。服务端 `requirement.write` 才是权威
+  // （`DECISIONS.md` `permissions.story-status-write`：故事状态写入不扩权）。
+  const isPM = project.myRole === 'PM'
+
   const [state, setState] = useState<LoadState>({ status: 'loading' })
+  // 写成功后 +1 → 重新拉取看板（唯一真相）。不做本地乐观改写。
+  const [reloadKey, setReloadKey] = useState(0)
+  const [notice, setNotice] = useState<string | null>(null)
 
   useEffect(() => {
     if (!projectId) {
@@ -71,7 +86,9 @@ export default function BoardPage() {
       return
     }
     let cancelled = false
-    setState({ status: 'loading' })
+    // 首次 / 出错后重试显示加载态；写成功后刷新时保留旧数据到新响应到达 ——
+    // 唯一真相仍是新响应的聚合视图，不用旧数据做乐观改写。
+    setState((prev) => (prev.status === 'ready' ? prev : { status: 'loading' }))
     getBoard(projectId)
       .then((data) => {
         if (!cancelled) setState({ status: 'ready', data })
@@ -103,6 +120,17 @@ export default function BoardPage() {
     return () => {
       cancelled = true
     }
+  }, [projectId, reloadKey])
+
+  // 写成功：展示提示 + 重新拉取看板（唯一真相）
+  const handleStatusChanged = useCallback((message: string) => {
+    setNotice(message)
+    setReloadKey((key) => key + 1)
+  }, [])
+
+  // 切换项目时清掉上一个项目的成功提示（路由参数变化不会重挂本组件）
+  useEffect(() => {
+    setNotice(null)
   }, [projectId])
 
   if (state.status === 'loading') {
@@ -142,9 +170,26 @@ export default function BoardPage() {
     <div className="page board-page">
       <PageHeader
         title="故事看板"
-        description="按故事状态（待规划 / 规划中 / 已完成）分列查看需求（只读）。"
+        description={
+          isPM
+            ? '按故事状态（待规划 / 规划中 / 已完成）分列查看需求；可直接调整状态。'
+            : '按故事状态（待规划 / 规划中 / 已完成）分列查看需求（只读）。'
+        }
         actions={<span className="board-scope">{scope}</span>}
       />
+
+      {!isPM ? (
+        <p className="board-readonly-note" role="status">
+          只有项目经理可以调整故事状态；你当前是只读访问。
+        </p>
+      ) : null}
+
+      {notice ? (
+        <p className="board-notice" role="status">
+          {notice}
+        </p>
+      ) : null}
+
       <p className="board-scope-note">{scopeNote}</p>
 
       {totalCount === 0 ? (
@@ -183,7 +228,12 @@ export default function BoardPage() {
               ) : (
                 <div className="board-column-items">
                   {column.items.map((story) => (
-                    <StoryCard story={story} key={story.id} />
+                    <StoryCard
+                      story={story}
+                      key={story.id}
+                      canWrite={isPM}
+                      onStatusChanged={handleStatusChanged}
+                    />
                   ))}
                 </div>
               )}

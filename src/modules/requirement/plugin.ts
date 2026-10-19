@@ -895,7 +895,7 @@ export function registerRequirementRoutes(app: FastifyInstance, ctx: RouteContex
         }
       }
 
-      const updated = await updateUserStory(ctx.prisma, storyId, {
+      const updated = await updateUserStory(ctx.prisma, actorUserId, storyId, {
         ...(trimmed.title === undefined ? {} : { title: trimmed.title }),
         ...(trimmed.roleText === undefined ? {} : { roleText: trimmed.roleText }),
         ...(trimmed.capabilityText === undefined ? {} : { capabilityText: trimmed.capabilityText }),
