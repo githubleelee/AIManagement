@@ -306,9 +306,9 @@ D 提供独立组件、Props 与补丁，由 B 在 `web/src/pages/RequirementDet
 | C8 | 通知 6 类判定与「1 分钟」口径 —— **D 域已确认**：仅站内、Asia/Shanghai、逾期次日 00:00、去重规则与接收者映射见 `DECISIONS.md` `notifications.events-timing-timezone` |
 | C9 | 项目关闭阻断的执行入口与清单口径 |
 | C10 | 进度口径确认（= closed/total，DONE 不计入） |
-| C11 | 操作授权 `Action` / 角色映射（US04 成员能否改故事；US08 负责人更新 / PM 管理边界；US09 指定验收人可验、VIEWER 是否允许、验收人可选范围；现无 `task.accept`；不得绕 `can()` / `visibilityScope()`）—— **未自动确认**，仍待权限负责人 + 项目负责人拍板 |
+| C11 | 操作授权 `Action` / 角色映射（US04 成员能否改故事；US08 负责人更新 / PM 管理边界；US09 指定验收人可验、VIEWER 是否允许、验收人可选范围；~~现无 `task.accept`~~；不得绕 `can()` / `visibilityScope()`）—— **未自动确认**，仍待权限负责人 + 项目负责人拍板。**更正（2026-10-19）**：`task.accept` 已由 B 落地（US-08 对象关系判定，`permissions.ts` 第 4.5 条）；`task.progress` 同批。US-04 的成员改故事状态仍待本项裁定 |
 | C12 | 协作人模型 / 任务成员权限（当前 `Task` 无协作人，不得擅自缩减报告范围）—— **未自动确认**，仍待技术负责人 + 项目负责人 + A |
-| C13 | 旧模块修改归属与项目关闭入口 —— **部分更新**：公共文件已授权 B 单写（见 §4.1）；旧业务文件仍须原 owner 对具体文件 / 范围授权；项目关闭入口当前无 close endpoint，归属待确认 |
+| C13 | 旧模块修改归属与项目关闭入口 —— **部分更新**：公共文件已授权 B 单写（见 §4.1）；旧业务文件仍须原 owner 对具体文件 / 范围授权；~~项目关闭入口当前无 close endpoint，归属待确认~~。**更正（2026-10-19）**：关闭 / 重开已落地于 **US-10 自己的模块**（`POST /projects/:projectId/close`、`.../reopen`，`analytics.project-close-blocking`），未改 `src/modules/project/`；`#32` 的 `task/` 写窗口已登记并对 C 开放（写者 ROLE-C、基线 `9c380ca`、文件 `task/rules.ts` + `task/routes.ts` + 自有测试）；`#25` requirement 文件授权与甘特真实开工守卫（本地 #13）仍待授权 |
 
 > **六状态不属于「待确认」范畴**：它是**本阶段必交**，见 [#24](https://github.com/githubleelee/AIManagement/issues/24) 第 2 点（枚举映射 / 转换 / 授权 / 迁移 / 单写人）；US08/09/10 的最终 AC 依赖其落地。C1–C13 的状态以各行结论为准，未决部分只做设计；D 域确认不代替 A / C 域确认。
 

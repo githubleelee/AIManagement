@@ -138,7 +138,7 @@ Outcome: 已授权的里程碑/依赖写接口、业务校验与本域事件发�
 Done when: 仅接受 FS；拒绝自依赖、环与跨项目依赖；完成任务里程碑及汇总；按确认的权限判定与公共事件接口处理写入及事件，不直接调用 D 域业务 service，不在敏感载荷中带未授权标题内容。
 Evidence: PR #68 → main（`feat/gantt-write-path`：`c8e1366` 实现 + `80d9daf` 错误码改契约表内 + `2acb726` 按独立评审修 M1/L1/L2/L4/L7）。改动 6 文件（`shared/types.ts` +1 Action、`authz/permissions.ts` +`WRITE_ACTIONS` 一项、`gantt/{types,write,plugin}.ts`、新建 `gantt-write.test.ts`）。验证：`npm run typecheck` exit 0；`npx vitest run src/modules/gantt/` 2 文件 / 45 用例；全量 `npm test` 59 文件 / 1378 用例全绿（子 agent `b-gantt-verify` 独立复跑确认）；并发互反建边 10/10 稳定 `201+409`、库中恒 1 条边；自环/2/3/4 节点长链环均 409；跨项目与不存在响应逐字相等。独立评审 `b-gantt-review`：可合入（无代码级阻断），M1 已修。决策：`DECISIONS.md` `permissions.gantt-write`。
 Dependencies: #11 [FS]
-Blocker: 需写操作授权、必要 schema 交付，以及公共事件接口、放置/注入与失败处理契约；真实事件接入须由公共事件实现方（GitHub #37，D）提供。
+Note: **事件接入待 D 的 #37**（本批只留 `GanttEventPort` 占位、未接线）；写操作授权（`gantt.write`）与模型 / 迁移已交付。
 
 ## #13 落实真实任务入口的 FS 放行校验
 Status: not started
@@ -362,12 +362,12 @@ Dependencies: none
 已解除：交接正文补丁已合入 main（PR #42/#45/#47），#24/#32 同步评论已发布，PR #39 已关闭。
 
 ## #43 拟定并冻结 C #32 所需的最小只读数据契约
-Status: in progress
+Status: done
 Outcome: #32 可消费的 #26 / #27 最小只读契约与样例，含输入范围 / snapshot / 有效权限语义候选、PM 全项目基数与 MEMBER/VIEWER 可见范围基数、AI 参与子集说明。
-Evidence: docs/role-b-scheduling-data-contract.md 已产出 DRAFT（main 398aa76），结合 #04/#09 候选设计核对受众/数据可用性；独立审查修正已落实。样例均未运行，仍无 C 书面核对，不冒充契约冻结。
+Evidence: C 的书面核对已到（#32 评论 6247293014），B 逐项答复全部接受（#32 评论 6260611783）；`docs/role-b-scheduling-data-contract.md` 由 DRAFT **冻结为 v1.0**（PR #66 → main `cafce79`，含 §Z 冻结变更记录：7 问落点、受众拆独立 DTO 出口、排敏覆盖关联故事、`asOf` 为一致读取标记、可用性两态 + 截断另列元数据、基线 398aa76→9c380ca）。
+
 Done when: 覆盖成员负载、任务计划日期、FS 依赖、里程碑的最小字段与合法读取方式；明确敏感过滤在查询层、AI 子集重算、不得冒充全局基数；只读消费不直接改 #26/#27 派生结构，已授权日期应用由统一受控路径承担且应用后随原任务数据更新；契约文本与 C 核对后冻结；与本地 #04/#09 双向协调，但可先完成已明确的最小字段，不要求它们全部设计完成或 GitHub #26/#27 整体验收；不在本任务发布远端说明或实施数据接口。
 Dependencies: none
-Blocker: 待 C 对提案 §5 的字段、受众隔离、跨 AI 子集约束和读取协议书面核对；不以 #26/#27 运行时实现或 D 两类端口齐备作为本任务设计冻结前置。
 
 ## #44 落实 #32 最小 PM-only 权限
 Status: not started
@@ -384,12 +384,12 @@ Dependencies: #46 [FS]
 Blocker: 待 D 的 #31 字段 / 端口提案 + A 的 #33 字段需求汇总，以及 #46 事务 / 幂等 / 快照字段接口明确与本批编码授权。
 
 ## #46 确认公共读 / 写端口与事务 / 鉴权协议
-Status: in progress
+Status: done
 Outcome: #32 公共读 / 写端口、事务边界、事务内鉴权与任务规则复用协议，以及幂等 / 冲突 / 事件提交语义的书面提案与确认结论。
-Evidence: docs/role-b-scheduling-transaction-proposal.md 已产出 DRAFT；独立审查所提鉴权归属解析顺序、限范围写能力、未知依赖拒应用等已修正复核，新增 Action 显式拒非 PM 已由 tester 定向复核。验收矩阵未运行、无 C 确认，签名与协议未冻结。
+Evidence: C 的 12 问书面核对已到并逐项接受（#32 评论 6260611783）；`docs/role-b-scheduling-transaction-proposal.md` 由 DRAFT **冻结为 v1.0**（PR #66 → main `cafce79`）。其中 C2 窄 `Pick` 已先期落地（`AuthzDb`，PR #57）；C6 采纳 C 的独立处置请求标识取代 B 的纯摘要候选；C4 唯一处置约束 + CAS、C9 失败证据分流、C10「重放先于快照复核」均入册；§5.5 动作命名与 §8 事件签名仍待 D 提案（不阻塞本冻结）。
+
 Done when: 明确 `createAuthorization` / 内部 helper / `assertTaskAssignment` 如何支持事务内鉴权与规则复用（具体 `Pick` / `union` 签名待提案核对，**B 不擅定**）；snapshot 数据定义与有效权限语义；一份建议唯一处置、相同请求重试返回已有、异内容 / 并发冲突、**成功重放不误判自身日期更新为过期**、**先鉴权后重放**、**事件失败重试不重复改计划**；不擅定幂等键 / hash / `outbox` / URL；读写/事务协议与 C 核对，涉及公共 AI/事件签名的部分再按对应已就绪提案与 D 核对；不以本地 #24 两类端口提案全部接收作为门槛。协议可与 #43 数据契约并行设计，最终收口对齐已冻结字段，不要求先交运行时实现。
 Dependencies: #43 [FF]
-Blocker: 待 C 对事务/鉴权/请求身份及事件提交方案书面核对，并待 #43 最终字段对齐（FF）；对应 D 签名尚未取得只阻塞其相应接口收口，不要求两类提案全部交齐。模型交付/写窗口仅为后续实现条件。
 
 ## #47 组装公共端口与 app / routes 注入
 Status: not started
@@ -399,11 +399,12 @@ Dependencies: #46 [FS], #45 [FF], #29 [FF]
 Blocker: 待 C 独立实现/注册与注入补丁及本批编码授权；AI 签名按已接收 AI 提案对齐，不等待事件或其他 D 能力。
 
 ## #48 登记 task 写窗口并完成现写者交接
-Status: not started
+Status: done
 Outcome: B 登记的 `src/modules/task/routes.ts`、`rules.ts` 具体文件与范围清单，以及 A / 当前写者写锁状态与实际交接记录。
+Evidence: 写窗口已登记并对 C 开放（#32 评论 6260611783 第三节四要素）：写者 **ROLE-C**；可交接基线 `9c380ca`；文件范围 `src/modules/task/rules.ts` + `src/modules/task/routes.ts` + C 自有目录测试（不新增 `task/service.ts`、不改其他旧模块）；窗口自评论起开放、至其 PR 合入或双方书面关闭。核对：A 的在途 PR（#55/#63/#64/#65）均已合入，B 在窗口期内不改这两个文件；C 尚未推分支（窗口空闲未使用）。
 Done when: 改动清单先经 B 登记；核对 `task/` 当前写锁**不得假定空闲**；若 A 持锁，先等其当前小任务合入再交接；C 仅在登记范围内最小修改，**复用原有项目隔离 / 有效负责人验收人 / 日期与敏感可见性等基础校验**；**不把 #32 独有 TODO-only / 应用规则强加给所有旧手工 PATCH 或其他业务**；公共层仍 B 单写，不另建旁路、不调 task service。
 Dependencies: none
-Blocker: 待 C 提供具体改动清单，并核对当前写者与实际交接窗口；不重复申请已确认的 #32 限范围许可，也不假定写锁空闲。
+Note: 交接核对已完成：C 尚未推分支（窗口空闲未使用）；B 在窗口期内不改 `task/rules.ts`、`task/routes.ts`，不假定写锁空闲；不重复申请已确认的 #32 限范围许可。
 
 ## #49 挂载 C 前端排期路由与导航
 Status: not started
