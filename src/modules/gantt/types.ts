@@ -47,6 +47,70 @@ export type TaskDependencyView = {
 }
 
 // ===========================================================================
+// 写路径 DTO（`docs/role-b-gantt-design.md` §4.2 写入时校验 + §7 候选端点）
+// ===========================================================================
+
+/** 里程碑名称长度上限（与其它业务对象一致，超长 → Zod `TOO_LONG`）。 */
+export const MILESTONE_NAME_MAX_LENGTH = 100
+
+/**
+ * 里程碑写响应：读取投影 + 关联任务 id。
+ *
+ * `taskIds` 按任务 `createdAt asc, id asc` 稳定排序（不依赖关联行的插入顺序）。
+ */
+export type MilestoneWriteView = MilestoneView & { taskIds: string[] }
+
+/** `POST /projects/:projectId/milestones` 请求体。 */
+export type MilestoneCreateInput = {
+  name: string
+  /** 'YYYY-MM-DD'；除格式外还须是**真实存在**的自然日（`2026-02-30` 由服务层拒绝）。 */
+  dueDate: string
+  /** 可选负责人；给定则必须是本项目成员。 */
+  ownerUserId?: string | null
+  /** 可选关联任务；每个都必须属于本项目，重复 id 去重。 */
+  taskIds?: string[]
+}
+
+/**
+ * `PATCH /milestones/:milestoneId` 请求体（部分更新）。
+ *
+ * `taskIds` **出现即整体替换**关联集（含 `[]` = 清空）；不出现则不动关联。
+ */
+export type MilestonePatchInput = {
+  name?: string
+  dueDate?: string
+  ownerUserId?: string | null
+  taskIds?: string[]
+}
+
+/** `POST /projects/:projectId/task-dependencies` 请求体（线上原文，`type` 由服务层收窄）。 */
+export type TaskDependencyCreateInput = {
+  predecessorTaskId: string
+  successorTaskId: string
+  /** 缺省视为 `'FS'`；其余取值由服务层拒绝（422 `VALIDATION_FAILED` / field `type` / `INVALID_VALUE`）。 */
+  type?: string
+}
+
+// ===========================================================================
+// 事件端口占位（**本批不接线**）
+// ===========================================================================
+
+/**
+ * 甘特域业务事件的发布端口 —— **占位，仅类型**。
+ *
+ * 传输 / 存储 / 订阅 / 幂等由 ROLE-D 的 #37 提供实现；本批（#12 写路径）只在
+ * `write.ts` 的写成功点用注释登记将来要发布的事件名，**不注入、不 new 假实现、
+ * 不调用**（`docs/role-b-gantt-design.md` §9.4：本域只负责发布动作，不承诺 outbox）。
+ */
+export type GanttEventPort = {
+  publish(event: {
+    type: string
+    projectId: string
+    payload: Record<string, unknown>
+  }): Promise<void>
+}
+
+// ===========================================================================
 // `GET /projects/:projectId/gantt` 聚合响应（主代理已冻结字段名，前后端并行按此实现）
 // ===========================================================================
 

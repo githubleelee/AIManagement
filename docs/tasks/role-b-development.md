@@ -131,9 +131,12 @@ Dependencies: #10 [FS]
 已解除：读路径按已确认口径实现（C6 基础汇总 + 可见范围）；故事进度按 C10 未确认处理为 null+unconfirmed，不冒充已批准公式。
 
 ## #12 实现里程碑与 FS 依赖写操作及事件
-Status: not started
+Status: done
+Note: **事件发布未接线**（D 的 #37 未交付，项目负责人 2026-10-19 授权「事件后接」）：仅在 `src/modules/gantt/types.ts` 留 `GanttEventPort` 占位与 5 处写点事件名注释，无 no-op 实现、无可选死参。
+Outcome: 里程碑与 FS 依赖写接口（5 个端点）、业务校验（仅 FS / 拒自依赖 / 拒跨项目 / 拒重复边 / 拒 FS 环）与新增 `gantt.write`（PM-only）权限；事件端口留占位待 D。
 Outcome: 已授权的里程碑/依赖写接口、业务校验与本域事件发布。
 Done when: 仅接受 FS；拒绝自依赖、环与跨项目依赖；完成任务里程碑及汇总；按确认的权限判定与公共事件接口处理写入及事件，不直接调用 D 域业务 service，不在敏感载荷中带未授权标题内容。
+Evidence: PR #68 → main（`feat/gantt-write-path`：`c8e1366` 实现 + `80d9daf` 错误码改契约表内 + `2acb726` 按独立评审修 M1/L1/L2/L4/L7）。改动 6 文件（`shared/types.ts` +1 Action、`authz/permissions.ts` +`WRITE_ACTIONS` 一项、`gantt/{types,write,plugin}.ts`、新建 `gantt-write.test.ts`）。验证：`npm run typecheck` exit 0；`npx vitest run src/modules/gantt/` 2 文件 / 45 用例；全量 `npm test` 59 文件 / 1378 用例全绿（子 agent `b-gantt-verify` 独立复跑确认）；并发互反建边 10/10 稳定 `201+409`、库中恒 1 条边；自环/2/3/4 节点长链环均 409；跨项目与不存在响应逐字相等。独立评审 `b-gantt-review`：可合入（无代码级阻断），M1 已修。决策：`DECISIONS.md` `permissions.gantt-write`。
 Dependencies: #11 [FS]
 Blocker: 需写操作授权、必要 schema 交付，以及公共事件接口、放置/注入与失败处理契约；真实事件接入须由公共事件实现方（GitHub #37，D）提供。
 
@@ -436,6 +439,17 @@ Status: done
 Outcome: B 侧边界与契约核对全部通过；两份独立评审（鉴权 / 口径与测试）+ 独立实跑交叉验证；裁定写入 `DECISIONS.md` 并下发 A 的合并前待办。
 Evidence: PR #55 评审评论 6250626777（含 H1「改绑负责人再流转」两步绕过、H2「10/25pp 浮点边界错分」两个阻断项与分级发现）；实跑证据 56 files / 1282 passed（正文 53/1250 过期）；裁定 PR #61 → main `a2d67a1`（`analytics.dashboard-window-basis`、`permissions.risk-ownership-change`）；下发 #55 评论 6250738153 与 #30 评论 6250740833；#30 票面追加口径更新块；追认 `docs/frontend-routes.md` 3 行（其中 acceptance 行系 B 在 `ea81b3e` 误删）并接管维护。
 Done when: 给出可执行结论（含阻断项与复现）、裁定落地并通知 A；不改 A/C/D 业务模块、不改错误信封。
+Dependencies: none
+
+---
+
+---
+
+## #53 按 C 核对冻结 #32 契约 v1.0 + 采纳跨票依赖验收三分法
+Status: done
+Outcome: C 的 7 + 12 项核对全部答复并接受；两份 #32 契约由 DRAFT 冻结为 v1.0（含 §Z 冻结变更记录）；A 提议的「跨票依赖验收三分法」经 B 作为技术负责人确认后落入 `docs/team-handoff.md` §7.1 与 `DECISIONS.md`；`task/` 写窗口对 C 开放。
+Evidence: PR #66 → main `cafce79`（#43/#46 冻结 v1.0）；PR #67 → main `84ea318`（§7.1 三分法 + `deps.sibling-ticket-ac-layering`，含 #28/#34 互锁 AC 口径变更）；#32 评论 6260611783（逐项答复 + 写窗口四要素）与 6260626307（就绪声明）；#24 评论 6260639193。另：独立验证 A 的 H1/H2 修复（全量 58 files / 1346 passed、typecheck exit 0，子 agent `main-verify-post-a`）。
+Done when: C 的书面核对得到逐项答复、契约状态明确（冻结或列明未决）、写窗口四要素给出、跨票 AC 写法规则落地并通知相关角色。
 Dependencies: none
 
 ---

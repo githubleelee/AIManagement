@@ -173,3 +173,9 @@
 - **value:** 同级票（兄弟票）之间的依赖按**三层**处理，**不得把他票的交付物写进本票 AC 的前置条件**：① **接口层** —— 签名与信封（事件信封、订阅签名、错误码）先冻结，双方各自开发、互不阻塞；② **降级层** —— 对方数据源未就绪时，本域必须**如实返回三态**（`state='unavailable'` / `total=null` / `note` 说明原因），**不得用 `0` 或空数组冒充「没有」**；③ **联调层** —— 端到端联动证据由**后交付的一方单向取证**（用对方已上线的写路径真实触发一次、观察本侧产出），不要求双方「同时已完成」。禁止条款：AC 不得写「需 X 票的真实数据才勾」，应改写为 `(a) 接口已对接 + 无数据源时如实 unavailable（本票可验收）` 与 `(b) 真数据联调（由后交付方单向取证，记为后置联调项，不列为 AC 前置）`。自查法：把各票 AC 的「需…才勾」抽成有向图，互相指向即为**验收层环**，按三层法改写。`depends_on` / `interface_depends_on` 字段语义不变，本条目只约束 AC 写法。落点：`docs/team-handoff.md` §7.1。
 - **timestamp:** 2026-10-19T13:52:00+08:00
 - **rationale:** #28 AC5 与 #34 AC1/AC2 的文字互为前置（消费者等生产者、生产者等消费者），使两票都无法结案；而两票说明段本就写了「接口先行、不制造硬环」——把该意图落到**可勾选的 AC** 上，避免跨域无限期互等。
+
+## `permissions.gantt-write`
+
+- **value:** 甘特图的**里程碑与 FS 依赖写路径**（`POST /projects/:projectId/milestones`、`PATCH|DELETE /milestones/:milestoneId`、`POST /projects/:projectId/task-dependencies`、`DELETE /task-dependencies/:dependencyId`）使用新增动作 `gantt.write`，**仅 PM**：`can()` 第 3 条放行 PM，`gantt.write` 列入 `WRITE_ACTIONS` 后对 MEMBER / VIEWER 返回 403（保持 `#26` 的「PM 建改、MEMBER / VIEWER 只读」）。按 id 操作先按 id **最小解析真实 `projectId`** 再判权，**对象不存在与非成员一律 404 且文案一致**；业务层不得私写角色判断。写入仅接受 `type='FS'`，拒绝自依赖、跨项目引用（**不可见与不存在同一条**）、重复边与 FS 环；**环判定与插入在同一事务内**（迭代式 BFS），环与重复边返回 **409 `CONFLICT`**、其余校验返回 **422**；`details[].code` 一律取自契约 I-4 冻结表（**不新增 code、不扩 `FieldErrorCode`**，前端 `FIELD_ERROR_HINT` 穷举表不受影响）。并发删除竞态（Prisma `P2025`）与事务写冲突（`P2034`）映射为 404 / 409，不落 500。**事件发布不在本条目范围**：由 D 的 `#37` 提供传输后接线，本批只在 `src/modules/gantt/types.ts` 留 `GanttEventPort` 占位与写点事件名注释。
+- **timestamp:** 2026-10-19T15:10:00+08:00
+- **rationale:** `docs/role-b-gantt-design.md` §7 要求「写权限必须经统一 `can()` 落实、不得用 `project.read` 充当写授权；如需新增 Action 须本票另获范围许可」；项目负责人 2026-10-19 授权「先做 #12 写路径（事件后接）」。故以最小新增动作（PM-only，不扩权给 MEMBER / VIEWER）落地，并同时冻结错误码来源与并发语义，避免后续各域各自解释。

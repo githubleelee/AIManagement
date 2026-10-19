@@ -156,6 +156,20 @@
 
 ---
 
+## 7.1 实现状态（2026-10-19 更新，追加说明；上文候选形状保留为历史）
+
+| 批次 | 状态 |
+|---|---|
+| P1 模型与迁移（`Milestone` / `TaskMilestone` / `TaskDependency`） | ✅ 已合入（PR #51） |
+| P2/P3 只读聚合 `GET /projects/:projectId/gantt` | ✅ 已合入（PR #52，故事日期 `candidate-minmax`、进度待 C10） |
+| P3 写路径（里程碑 / FS 依赖，5 端点） | ✅ 已合入（PR #68）：仅 FS、拒自依赖 / 跨项目 / 重复边 / FS 环（同事务迭代 BFS）、`gantt.write` **仅 PM**；错误码全部取自契约 I-4 冻结表 |
+| P4 组装挂载 | ✅ 插件已注册于 `src/routes.ts`（无需改动） |
+| P5 前端写侧 UI | ⛔ 未做（本批仅后端；页面写入口另批） |
+| 事件发布（§9.4） | ⛔ 未接线：`GanttEventPort` 占位 + 写点事件名注释，待 D 的 `#37` |
+| §4.4 真实开工守卫（本地 #13） | ⛔ 顺延：`task/routes.ts`、`task/rules.ts` 当前属 C 的写窗口，B 在窗口期内不改 |
+
+口径与决策：`DECISIONS.md` `permissions.gantt-write`（PM-only、409/422 语义、环判定同事务、code 不扩表、事件待 D）、`scheduling.fs-release-closed-natural-days`。
+
 ## 8. 公共层落地清单与短 PR 优先级（非硬依赖）
 
 | 批次 | 文件 / 目录 | 内容 |

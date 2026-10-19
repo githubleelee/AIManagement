@@ -36,6 +36,8 @@ const WRITE_ACTIONS: ReadonlySet<Action> = new Set<Action>([
   'requirement.write',
   'task.write',
   'sensitivity.manage',
+  // 甘特图写（里程碑 / 任务依赖，仅 FS）：仅 PM —— 落在第 5 条，MEMBER / VIEWER 403。
+  'gantt.write',
 ])
 
 function deny(status: 403 | 404, code: 'FORBIDDEN' | 'NOT_FOUND'): Decision {
@@ -155,6 +157,8 @@ async function roleIn(
  *   4.6 条件性动作 `risk.flow`：VIEWER → 403；`ownerUserId` = 调用者放行，否则 403
  *   5. 写类动作且 actor.role ∈ {MEMBER, VIEWER} → 403（对象可见，403 不泄漏任何东西）
  *   5.5 `risk.write` 且 actor.role === VIEWER → 403（风险台账对项目成员开放，VIEWER 只读）
+ *   5.6 `gantt.write`（里程碑 / 任务依赖增删改）与其它写类动作同规则：仅 PM（第 3 条放行）；
+ *       MEMBER / VIEWER 一律 403，本入口不为甘特单开角色分支
  *   6. 其余                                 → 允许
  *
  * 契约决策 I-9：本函数**只读数据库，不调用其他模块的 service**。
