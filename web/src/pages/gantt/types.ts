@@ -17,10 +17,14 @@
  * 以避免"同一件事两份定义"漂移。
  *
  * 口径提醒：
- *   - 故事**无独立计划日期字段**，`planStart/planEnd` 是候选汇总口径
- *     （`aggregation: 'candidate-minmax'`，待 C10 收口），故界面必须标注
- *     「候选汇总口径（待确认）」；`progress` 恒为 `null`、
- *     `progressState === 'unconfirmed'`，**不得**显示为 0% 或任何进度。
+ *   - 故事**无独立计划日期字段**，`planStart/planEnd` 仍是候选汇总口径
+ *     （`aggregation: 'candidate-minmax'`），故界面仍须标注「候选汇总口径（待确认）」；
+ *   - 故事**进度已按 C10 口径计算**（DECISIONS `analytics.story-progress-aggregation`，
+ *     `progressState === 'computed'`）：`progress` 的形状**与仪表盘完全一致**
+ *     （`closed` / `total` / `ratio`，`ratio` 保留 4 位小数）；`progress === null`
+ *     表示**该故事下没有可见任务**，此时显示「—」/说明，**不得**显示为 0%；
+ *   - 非 PM 的进度只是**可见范围**口径，由页面既有的 `basis.scopeLabel` 标注，
+ *     本组件不另造文案体系。
  *   - `dependencies` 是**两态**：`ok`（有值，可能为空数组）或 `unavailable`
  *     （取不到依赖，`data` 为 `null`）。**绝不**用空数组冒充「确实没有依赖」。
  *   - `truncated` 为真时，对应集合被截断，**不得**用 `items.length` 反推总数。
@@ -47,6 +51,20 @@ export type GanttTask = {
   milestoneIds: string[]
 }
 
+/**
+ * 故事进度：**与仪表盘 `ProjectDashboardView['progress']` 同一形状**（见
+ * `web/src/pages/analytics/api.ts`）。前端不自行推导，也不另立一套百分比字段。
+ *
+ * - `closed`：该故事可见任务中 `status === 'CLOSED'` 的数量（`DONE` 不计入）；
+ * - `total`：该故事可见任务总数；
+ * - `ratio`：`closed / total`（保留 4 位小数）；`total === 0` 时为 `null`。
+ */
+export type GanttStoryProgress = {
+  closed: number
+  total: number
+  ratio: number | null
+}
+
 /** 故事行：其任务以 `tasks` 内联，展开即显示（不再单独请求故事任务端点）。 */
 export type GanttStory = {
   id: string
@@ -55,11 +73,12 @@ export type GanttStory = {
   /** 候选汇总（min(planStart) ~ max(planEnd)），无有效任务日期时为 null。 */
   planStart: string | null
   planEnd: string | null
-  /** 汇总口径：固定候选 min-max，未获书面收口前只是候选（设计 §5）。 */
+  /** 汇总口径：固定候选 min-max（C10 只收口了进度，日期仍是候选，设计 §5）。 */
   aggregation: 'candidate-minmax'
-  /** 故事进度**未确认**：恒为 null。 */
-  progress: null
-  progressState: 'unconfirmed'
+  /** 故事进度（C10 已确认口径）；**无可见任务时为 null**（不是 0%）。 */
+  progress: GanttStoryProgress | null
+  /** `'computed'` = 已按 C10 口径计算（不再是 `'unconfirmed'`）。 */
+  progressState: 'computed'
   tasks: GanttTask[]
 }
 

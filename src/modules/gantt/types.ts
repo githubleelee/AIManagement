@@ -8,6 +8,9 @@
  * 两态 `Availability<T>`）。**本节只登记类型候选，不代表任何路由已注册或已冻结**。
  */
 import type { StoryStatus, UserBrief } from '../../shared/types.js'
+// ★ 只 import **类型**（不改 `analytics/**`）：故事进度的形状必须与仪表盘一致，
+//   复制一份本地类型等于给「同一个进度」留两处定义，迟早漂移。
+import type { ProjectProgress } from '../analytics/types.js'
 
 /**
  * 依赖 / 里程碑读取的两态包装（设计 §2、§7）。
@@ -122,11 +125,21 @@ export type GanttBasis = {
   scopeLabel: GanttScopeLabel
 }
 
-/** 故事日期汇总口径：固定候选 min/max（C10 未书面收口前只是候选，不是批准公式）。 */
+/**
+ * 故事日期汇总口径：固定候选 min/max。
+ *
+ * ★ C10 只收口了**进度**（DECISIONS `analytics.story-progress-aggregation`），
+ *   **日期**仍是候选口径，故本常量保持 `'candidate-minmax'`，不改写成「已确认」。
+ */
 export const GANTT_STORY_AGGREGATION = 'candidate-minmax' as const
 
-/** 故事进度状态：C10 未确认 —— 本批不编造故事进度。 */
-export const GANTT_STORY_PROGRESS_STATE = 'unconfirmed' as const
+/**
+ * 故事进度状态：`'computed'` = 已按 C10 口径算出（`analytics.story-progress-aggregation`）。
+ *
+ * 取值不再是 `'unconfirmed'`：口径已书面批准，故状态表达「已计算」而不是「未确认」。
+ * 注意「已计算」≠「一定有数」：故事下没有可见任务时 `progress` 仍为 `null`。
+ */
+export const GANTT_STORY_PROGRESS_STATE = 'computed' as const
 
 /** 甘特中的一行任务投影（**不含 `isSensitive`**：过滤已在查询层完成）。 */
 export type GanttTaskItem = {
@@ -152,8 +165,16 @@ export type GanttStoryItem = {
   /** 候选汇总：该 actor 可见任务的 max(planEnd)；无可见任务时为 null。 */
   planEnd: string | null
   aggregation: typeof GANTT_STORY_AGGREGATION
-  /** C10 未确认 → 恒为 null，不编造故事进度。 */
-  progress: null
+  /**
+   * 故事进度：**沿用仪表盘 `ProjectProgress` 的形状与取整规则**（`closed` / `total` /
+   * `ratio`，`ratio` 保留 4 位小数），不另立第二套表达 —— 这样同一账号同一时刻、
+   * 对同一任务集合，本字段与 `GET /projects/:projectId/dashboard` 的 `progress` 必然相等。
+   *
+   * - 统计集合 = 本故事**可见任务集合**（与上面 `planStart` / `planEnd` 的汇总同一集合）；
+   * - 分子只计 `status === 'CLOSED'`，**`DONE` 不计入**；
+   * - **无可见任务 → `null`**（不显示 0%，沿用「算不出来就不编数字」）。
+   */
+  progress: ProjectProgress | null
   progressState: typeof GANTT_STORY_PROGRESS_STATE
   tasks: GanttTaskItem[]
 }
