@@ -63,8 +63,8 @@ const milestonePatchSchema = milestoneCreateSchema.partial()
 /**
  * 新建 FS 依赖。
  *
- * `type` 刻意**不用** `z.enum(['FS'])`：那会映射成 `INVALID_VALUE`，而本票要求
- * `UNSUPPORTED_DEPENDENCY_TYPE`（422）。故这里只校验形状，取值由 `./write.ts` 拒绝。
+ * `type` 刻意**不用** `z.enum(['FS'])` 单独表达「非 FS」：非 `'FS'` 取值由 `./write.ts`
+ * 判 422 `INVALID_VALUE`（field `type`，原因在 message），此处只校验形状（非空字符串）。
  */
 const dependencyCreateSchema = z.object({
   predecessorTaskId: z.string().min(1),
@@ -158,10 +158,11 @@ export function registerGanttRoutes(app: FastifyInstance, ctx: RouteContext): vo
   // 请求  { predecessorTaskId, successorTaskId, type? }（type 缺省 FS）
   // 响应  201 TaskDependencyView
   // 错误  401；403 FORBIDDEN；404 NOT_FOUND；
-  //       422 VALIDATION_FAILED（type: UNSUPPORTED_DEPENDENCY_TYPE；
-  //           successorTaskId: SELF_DEPENDENCY；
+  //       422 VALIDATION_FAILED（type: INVALID_VALUE（仅支持 FS）；
+  //           successorTaskId: INVALID_VALUE（自依赖）；
   //           predecessorTaskId / successorTaskId: CROSS_PROJECT_REF）；
-  //       409 CONFLICT（successorTaskId: DUPLICATE_DEPENDENCY | FS_CYCLE）
+  //       409 CONFLICT（successorTaskId: DUPLICATE（重复边）或 INVALID_VALUE（FS 环））
+  //       —— 字段码全部取决策 I-4 冻结表内取值，原因由 message 说明。
   // ===========================================================================
   app.post(
     '/projects/:projectId/task-dependencies',

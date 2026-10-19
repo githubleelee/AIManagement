@@ -563,6 +563,30 @@ describe('DELETE /milestones/:milestoneId', () => {
     // 别项目里程碑仍然存在
     expect(await ctx.db.milestone.findUnique({ where: { id: other.milestoneId } })).not.toBeNull()
   })
+
+  it('并发两次 DELETE → 恰好一个 204、另一个 404（不得 500），关联行被清理', async () => {
+    const storyId = await seedStory()
+    const taskId = await seedTask({ storyId })
+    const created = await createMilestoneOk(pm.id, {
+      name: '并发删除里程碑',
+      dueDate: '2026-02-01',
+      taskIds: [taskId],
+    })
+    expect(await ctx.db.taskMilestone.count({ where: { milestoneId: created.id } })).toBe(1)
+
+    const token = ctx.loginAs(pm.id)
+    const url = `/milestones/${created.id}`
+    const [first, second] = await Promise.all([
+      ctx.asUser(token).delete(url),
+      ctx.asUser(token).delete(url),
+    ])
+
+    expect([first.status, second.status].sort()).toEqual([204, 404])
+    // 后到者：P2025 已映射为与「不存在」逐字一致的 404，不是 500
+    expectProjectNotFound(first.status === 404 ? first : second)
+    expect(await ctx.db.milestone.findUnique({ where: { id: created.id } })).toBeNull()
+    expect(await ctx.db.taskMilestone.count({ where: { milestoneId: created.id } })).toBe(0)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -594,7 +618,7 @@ describe('POST /projects/:projectId/task-dependencies', () => {
     expect(await ctx.db.taskDependency.count({ where: { projectId } })).toBe(1)
   })
 
-  it("type 非 'FS'（SS / FF / SF）→ 422 UNSUPPORTED_DEPENDENCY_TYPE", async () => {
+  it("type 非 'FS'（SS / FF / SF）→ 422 INVALID_VALUE（field type）", async () => {
     const storyId = await seedStory()
     const t1 = await seedTask({ storyId })
     const t2 = await seedTask({ storyId })
@@ -605,12 +629,12 @@ describe('POST /projects/:projectId/task-dependencies', () => {
         successorTaskId: t2,
         type,
       })
-      expectValidation(res, 'type', 'UNSUPPORTED_DEPENDENCY_TYPE')
+      expectValidation(res, 'type', 'INVALID_VALUE')
     }
     expect(await ctx.db.taskDependency.count({ where: { projectId } })).toBe(0)
   })
 
-  it('自依赖 → 422 SELF_DEPENDENCY', async () => {
+  it('自依赖 → 422 INVALID_VALUE（field successorTaskId）', async () => {
     const storyId = await seedStory()
     const taskId = await seedTask({ storyId })
 
@@ -618,7 +642,7 @@ describe('POST /projects/:projectId/task-dependencies', () => {
       predecessorTaskId: taskId,
       successorTaskId: taskId,
     })
-    expectValidation(res, 'successorTaskId', 'SELF_DEPENDENCY')
+    expectValidation(res, 'successorTaskId', 'INVALID_VALUE')
     expect(await ctx.db.taskDependency.count({ where: { projectId } })).toBe(0)
   })
 
@@ -652,7 +676,7 @@ describe('POST /projects/:projectId/task-dependencies', () => {
     expect(await ctx.db.taskDependency.count()).toBe(0)
   })
 
-  it('重复边 → 409 DUPLICATE_DEPENDENCY', async () => {
+  it('重复边 → 409 CONFLICT + DUPLICATE', async () => {
     const storyId = await seedStory()
     const t1 = await seedTask({ storyId })
     const t2 = await seedTask({ storyId })
@@ -663,22 +687,22 @@ describe('POST /projects/:projectId/task-dependencies', () => {
       successorTaskId: t2,
       type: 'FS',
     })
-    expectConflict(duplicate, 'successorTaskId', 'DUPLICATE_DEPENDENCY')
+    expectConflict(duplicate, 'successorTaskId', 'DUPLICATE')
     expect(await ctx.db.taskDependency.count({ where: { projectId } })).toBe(1)
   })
 
-  it('二节点环（A→B 后 B→A）→ 409 FS_CYCLE，环不落库', async () => {
+  it('二节点环（A→B 后 B→A）→ 409 CONFLICT + INVALID_VALUE，环不落库', async () => {
     const storyId = await seedStory()
     const a = await seedTask({ storyId })
     const b = await seedTask({ storyId })
     await createDependencyOk(pm.id, a, b)
 
     const cycle = await postDependency(pm.id, { predecessorTaskId: b, successorTaskId: a })
-    expectConflict(cycle, 'successorTaskId', 'FS_CYCLE')
+    expectConflict(cycle, 'successorTaskId', 'INVALID_VALUE')
     expect(await ctx.db.taskDependency.count({ where: { projectId } })).toBe(1)
   })
 
-  it('三节点环（A→B、B→C 后 C→A）→ 409 FS_CYCLE', async () => {
+  it('三节点环（A→B、B→C 后 C→A）→ 409 CONFLICT + INVALID_VALUE', async () => {
     const storyId = await seedStory()
     const a = await seedTask({ storyId })
     const b = await seedTask({ storyId })
@@ -687,7 +711,7 @@ describe('POST /projects/:projectId/task-dependencies', () => {
     await createDependencyOk(pm.id, b, c)
 
     const cycle = await postDependency(pm.id, { predecessorTaskId: c, successorTaskId: a })
-    expectConflict(cycle, 'successorTaskId', 'FS_CYCLE')
+    expectConflict(cycle, 'successorTaskId', 'INVALID_VALUE')
     expect(await ctx.db.taskDependency.count({ where: { projectId } })).toBe(2)
 
     // 同一张图上「顺向冗余边」不是环：A→C 只是 A→B→C 的传递边，允许建立
@@ -719,7 +743,7 @@ describe('POST /projects/:projectId/task-dependencies', () => {
     expect(statuses).toEqual([201, 409])
 
     const loser = first.status === 409 ? first : second
-    expectConflict(loser, 'successorTaskId', 'FS_CYCLE')
+    expectConflict(loser, 'successorTaskId', 'INVALID_VALUE')
 
     // 关键：不会因为两个请求各自通过检测而写出两条互反边
     expect(await ctx.db.taskDependency.count({ where: { projectId } })).toBe(1)
@@ -744,6 +768,25 @@ describe('DELETE /task-dependencies/:dependencyId', () => {
 
   it('不存在 id → 404（与「项目不存在」同一条文案）', async () => {
     expectProjectNotFound(await deleteDependency(pm.id, 'no-such-dependency'))
+  })
+
+  it('并发两次 DELETE → 恰好一个 204、另一个 404（不得 500）', async () => {
+    const storyId = await seedStory()
+    const t1 = await seedTask({ storyId })
+    const t2 = await seedTask({ storyId })
+    const created = await createDependencyOk(pm.id, t1, t2)
+
+    const token = ctx.loginAs(pm.id)
+    const url = `/task-dependencies/${created.id}`
+    const [first, second] = await Promise.all([
+      ctx.asUser(token).delete(url),
+      ctx.asUser(token).delete(url),
+    ])
+
+    expect([first.status, second.status].sort()).toEqual([204, 404])
+    // 后到者：P2025 已映射为 404，不是 500
+    expectProjectNotFound(first.status === 404 ? first : second)
+    expect(await ctx.db.taskDependency.findUnique({ where: { id: created.id } })).toBeNull()
   })
 })
 

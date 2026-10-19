@@ -87,7 +87,7 @@ export type MilestonePatchInput = {
 export type TaskDependencyCreateInput = {
   predecessorTaskId: string
   successorTaskId: string
-  /** 缺省视为 `'FS'`；其余取值由服务层拒绝（422 `UNSUPPORTED_DEPENDENCY_TYPE`）。 */
+  /** 缺省视为 `'FS'`；其余取值由服务层拒绝（422 `VALIDATION_FAILED` / field `type` / `INVALID_VALUE`）。 */
   type?: string
 }
 
