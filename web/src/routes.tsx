@@ -59,7 +59,7 @@ export default function AppRoutes() {
             <Route path="risks" element={<RiskPage />} />
             {/* US-06 甘特图（工单 #26）：需求 / 任务 / 里程碑与 FS 依赖统一时间轴，入口在左导航 */}
             <Route path="gantt" element={<GanttPage />} />
-            {/* US-04 故事看板（工单 #25）：只读三列看板（状态写入属 #18，待 C11/C13），入口在左导航 */}
+            {/* US-04 故事看板（工单 #25）：三列看板；PM 可在卡片调整状态（唯一写路径端点 21），MEMBER / VIEWER 只读（C11 已裁定不扩权），入口在左导航 */}
             <Route path="board" element={<BoardPage />} />
             <Route path="members" element={<ProjectMembersPage />} />
           </Route>

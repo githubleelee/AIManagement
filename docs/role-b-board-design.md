@@ -165,3 +165,14 @@
 - 估算**只归原 #25 的 4 人日**（`docs/plans/role-b-development.md:31`），**不额外重复 C/D 预算**；本设计文档不新增估算。
 - 编码、公共挂载、旧文件写、运行验证**均需另行授权**（本地 `#17/#18/#19/#20`）。
 - 本文为 **ROLE-B 单方 DRAFT**：**未宣称 C11/C13 已批准、接口已冻结或 AC 已通过**；未改其他文件/代码/任务清单/契约/`DECISIONS.md`，未 git 或远端写；可交用户审阅。
+
+---
+
+## 写路径实现状态（2026-10-19 追加；上文候选保留为历史）
+
+- **唯一写路径**：端点 21 `PATCH /stories/:storyId`（`requirement.write`，**仅 PM**）—— 与设计一致，**未新建看板镜像写路径**；决策见 `DECISIONS.md` `permissions.story-status-write`（C11 裁定**不扩权**）。
+- **审计**：状态**真实变化**时同事务写 `AuditLog`（`action='story.status'`、`objectType='story'`、`before`/`after` 为 `{"status":"…"}` JSON）；非状态字段编辑与空补丁不写审计（授权范围仅状态变更，见 `legacy.requirement-status-audit-authorization`）。
+- **前端**：卡片三态下拉仅对 PM 渲染；写成功后重拉 `GET /projects/:projectId/board`；失败就近显示且不改本地状态。
+- **跨视图一致**：写后故事地图 / 详情 / 看板读数一致（已实测）。
+- **事件**：**未接线**（D 的 `#37` 未交付）—— 仅 `RequirementEventPort` 类型占位与写点事件名注释；因此「实时同步」当前靠各视图自然刷新。
+- **仍未做**：拖拽交互；`web/src/routes.tsx` 的 board 注释已在本次更新；其余 8 个字段的审计属待确认扩项。
