@@ -485,7 +485,7 @@ type UmlDiagramListResponse = { items: UmlDiagramSummary[]; truncated: boolean }
 
 | 批次 | 归属 | 文件 / 目录 | 内容 |
 |---|---|---|---|
-| **P1** | **B** | `src/db/schema.prisma`、`src/db/migrations/<ts>_add_uml_models/`、`src/db/test-support.ts`、`test/db-schema.test.ts`、`test/db-schema-contract.test.ts`、`src/shared/types.ts`、`src/modules/authz/permissions.ts` | 5 张模型 + 迁移 + 重置顺序 + 表集合快照 + `uml.write` 入 `Action` / `WRITE_ACTIONS` |
+| **P1** | **B** | `src/db/schema.prisma`、`src/db/migrations/<ts>_add_uml_models/`、`src/db/test-support.ts`、`test/db-schema.test.ts`、`test/db-schema-contract.test.ts`、`src/shared/types.ts`、`src/modules/authz/permissions.ts` | **7 张模型** + 迁移 + 重置顺序 + 表集合快照 + `uml.write` 入 `Action` / `WRITE_ACTIONS` |
 | **P2** | C | `src/modules/uml/types.ts`、`validation.ts`（或 `schemas.ts`） | 本域类型、Zod schema、枚举白名单、上限常量 |
 | **P3** | C | `src/modules/uml/service.ts`、`plugin.ts`、`*.test.ts` | 可见性交集查询、整图替换事务、6 端点、HTTP 层测试 |
 | **P4** | **B** | `src/routes.ts` | `import { registerUmlRoutes }` + `registerUmlRoutes(app, context)` |
@@ -495,20 +495,24 @@ type UmlDiagramListResponse = { items: UmlDiagramSummary[]; truncated: boolean }
 
 ### 7.1 P1 在 `src/db/schema.prisma` 的具体改动点
 
-1. **追加 5 个 model**（放在文件末尾，紧随 `TaskDependency`，并加一段与甘特同款的注释块说明「为什么需要 / 枚举列为何是 String / 删除语义理由」）：`UmlDiagram`、`UmlNode`、`UmlEdge`、`UmlDiagramTask`、`UmlDiagramStory`。
-2. **追加 4 处反向关系**（既有 model 内各加一行，不改既有字段）：
+1. **追加 7 个 model**（放在文件末尾，紧随 `TaskDependency`，并加一段与甘特同款的注释块说明「为什么需要 / 枚举列为何是 String / 删除语义理由」）：`UmlDiagram`、`UmlNode`、`UmlEdge`、`UmlDiagramGoal`、`UmlDiagramActivity`、`UmlDiagramStory`、`UmlDiagramTask`。
+2. **追加 6 处反向关系**（既有 model 内各加一行，不改既有字段；Prisma 要求关系双向声明，故 4 张关联表对应 4 处，加 `Project` / `User` 两处）：
    - `model Project`：`umlDiagrams UmlDiagram[]`
    - `model User`：`ownedUmlDiagrams UmlDiagram[] @relation("UmlDiagramOwner")`
-   - `model Task`：`umlDiagramLinks UmlDiagramTask[]`
+   - `model BusinessGoal`：`umlDiagramLinks UmlDiagramGoal[]`
+   - `model UserActivity`：`umlDiagramLinks UmlDiagramActivity[]`
    - `model UserStory`：`umlDiagramLinks UmlDiagramStory[]`
+   - `model Task`：`umlDiagramLinks UmlDiagramTask[]`
 3. **不改任何既有字段 / 默认值 / 索引**——本次是**纯新增**，不对既有表做 `ALTER TABLE`。
 
 ### 7.2 P1 在 `src/db/test-support.ts` 的具体改动点
 
-1. `resetDatabase()` 内新增 5 行 `deleteMany()`，位置放在**甘特块之后、`task.deleteMany()` 之前**（即当前第 48–50 行的 `taskMilestone` / `taskDependency` / `milestone` 之后）：
+1. `resetDatabase()` 内新增 **7 行** `deleteMany()`，位置放在**甘特块之后、`task.deleteMany()` 之前**（即当前第 48–50 行的 `taskMilestone` / `taskDependency` / `milestone` 之后）：
    ```ts
    await prisma.umlDiagramTask.deleteMany()
    await prisma.umlDiagramStory.deleteMany()
+   await prisma.umlDiagramActivity.deleteMany()
+   await prisma.umlDiagramGoal.deleteMany()
    await prisma.umlEdge.deleteMany()
    await prisma.umlNode.deleteMany()
    await prisma.umlDiagram.deleteMany()   // projectId 是 Restrict，必须早于 project.deleteMany()
@@ -519,7 +523,7 @@ type UmlDiagramListResponse = { items: UmlDiagramSummary[]; truncated: boolean }
 
 ### 7.3 P1 在 `test/db-schema.test.ts` 与 `test/db-schema-contract.test.ts` 的具体改动点
 
-两文件各有一处**表集合等值快照**（`db-schema.test.ts` 第 89 行起、`db-schema-contract.test.ts` 第 278 行起），当前都是 13 张表：
+两文件各有一处**表集合等值快照**（`db-schema.test.ts` 第 89 行起、`db-schema-contract.test.ts` 第 278 行起），基线实测 **14 张表**，本批后 **21 张表**（`Uml*` 按 ASCII 序落在 `TaskMilestone` 与 `User*` 之间，**不是末尾**）：
 
 ```
 AcceptanceRecord, AuditLog, BusinessGoal, Milestone, ObjectVisibility, Project,
@@ -661,3 +665,19 @@ ProjectMember, Risk, Task, TaskDependency, TaskMilestone, User, UserActivity, Us
 | 上限 | nodes 200 / edges 500 / 关联各 50 |
 | 上传补充图 | 本期不做（无 D 的附件运行时）；`#35` AC6 记为不勾 |
 | 前端渲染 / 换序交互 | C 决定（后端 `PUT content` 已支持重排） |
+
+---
+
+## Z2. P1 实现状态（2026-10-19，PR 合入后追加）
+
+| 项 | 实测结果 |
+|---|---|
+| 模型数量 | **7 个**（含 4 张关联表），**纯新增**；反向关系 **6 处**（`Project` / `User` / `BusinessGoal` / `UserActivity` / `UserStory` / `Task`） |
+| 迁移 | `20261019090000_add_uml_models`：7 `CREATE TABLE` + 13 `CREATE INDEX`；**14 处外键 = 2 RESTRICT（图→项目 / 负责人）+ 12 CASCADE**；**无 `ALTER TABLE`**（既有表物理列序不变） |
+| 复合外键 | `UmlEdge` 的 `(diagramId, sourceNodeId)` / `(diagramId, targetNodeId)` → `UmlNode(diagramId, id)` 均 CASCADE（跨图建边物理不可能） |
+| 空库验证 | `DATABASE_URL=file:/tmp/uml-p1-fresh.db npx prisma migrate deploy` 成功；21 张表按 ASCII 序实测落在 `TaskMilestone` 与 `User*` 之间 |
+| 重置顺序 | `resetDatabase()` 新增 **7 行**（关联行 → 边 → 节点 → 图；图早于 `project`） |
+| 行为验证 | 新增 `src/modules/uml/uml-schema.test.ts` **25 例**：PRAGMA 逐列 / `onDelete` 语义 / 删任务→关联行消失 / 删节点→边消失 / **跨图边 `P2003`** / `seq=null` 共存与 `(diagramId, seq)` 唯一 / 关联表复合主键去重（`P2002`）/ 自环边 DB 接受（证明拒绝责任在写入层） |
+| 权限 | `Action 'uml.write'` + `WRITE_ACTIONS`（紧跟 `gantt.write`），判定顺序注释补 5.7，**无新分支** |
+| 测试 | `typecheck` exit 0；`uml` + `db-schema*` 3 文件 / 62 例；**全量 61 文件 / 1420 例全绿** |
+| 已知抖动 | `test/db-schema-contract.test.ts` 的「`User.account` 有唯一约束」在满载并行下偶发 5s 超时（单独跑 1.09s、复跑全绿）——既有用例的时限抖动，未改断言 / 超时，另行登记 |
