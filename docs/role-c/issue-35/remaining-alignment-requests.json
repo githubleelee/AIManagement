@@ -1,0 +1,14 @@
+[
+    {
+        "id":  6295348117,
+        "html_url":  "https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6295348117",
+        "body":  "\u003c!-- role-c-us15-remaining-security-request-v2 --\u003e\n## ROLE-C：提交前剩余保密对齐请求（不是重新申请已批准范围）\n\n@githubleelee 用户要求将尚需对齐的事项明确登记后提交代码。本轮继续使用既有 C5、PM 写、交集可见性与“不自动降密”批复，不重新扩大权限。此前具体反例见 comment-6282420799；截至本轮读取未见回复。\n\n**请 B / 项目负责人明确答复并提供可落地交付：**\n1. 在关联行必须 Cascade、又不能添加图独立敏感标记的前提下，图保留的标题/正文如何保留历史访问限制？请给出持续 guard 的字段/约束、解除关联与目标删除时的处理，以及公共模型变更归属和就绪 SHA。\n2. MEMBER/VIEWER 的列表、total、详情须共用包含该 guard 的数据库查询条件；请明确旧图/无关联新图的处理，不能把历史受限图和新建无关联图混为一类。\n3. 若要接受删掉敏感关联后自动公开正文，需负责人明确 supersedes 哪条“不自动降密”决策，不能仅以“every 算法未变”认定没有降密。\n\nC 当前对非全局读取 scope 临时 fail-closed，既不泄露正文，也**不声称已经满足正常只读或 AC5**。3 项相关用例明确 todo。C 已继续完成不受该问题影响的 PM 事务 CRUD、四类关联、正式页面组件和真实 API 浏览器链路，待方案就绪后接 guard 并补完整角色矩阵。\n\n本轮会提交到独立 `feat/US15-uml` 分支，交付 SHA 随后补 #35；不请求将临时关闭当最终策略批准，也不要求合 PR/关闭票。",
+        "created_at":  "2026-10-20T16:05:58Z"
+    },
+    {
+        "id":  6295349205,
+        "html_url":  "https://github.com/githubleelee/AIManagement/issues/35#issuecomment-6295349205",
+        "body":  "\u003c!-- role-c-us15-p4-p5-anchor-request-v2 --\u003e\n## ROLE-C：正式接线与任务行锚点请求（本轮提交后补 SHA）\n\n@githubleelee 用户要求登记剩余对齐事项并提交代码。请 B 按单写边界回复是否采用以下接线方式、实施窗口，并在落笔后提供就绪 SHA；C 不代改公共层或旧业务文件。\n\n### P4 后端注册\n在 `src/routes.ts` 引入本域 `registerUmlRoutes`，并调用 `registerUmlRoutes(app, context)`。插件已有 6 个端点，无 `/api` 前缀。**正式开放非 PM 前须先解决 #24 的不自动降密请求**，不可把当前 fail-closed 当完整只读上线。\n\n### P5 前端路由 / 导航 / 文档\n- 默认组件：`web/src/pages/uml/UmlPage.tsx`。\n- 在 ProjectLayout 下挂 `/projects/:projectId/uml`，复用 `useOutletContext\u003cProjectView\u003e()`；加入项目内 UML 导航及 `docs/frontend-routes.md`。\n- 详情深链：同一路径 `?diagram=\u003cdiagramId\u003e`，不需要额外详情 route。\n- 请确认路径是否采用；如需调整请回复确定路径，C 仅改自有页面/链接。\n\n### AC4 任务行精确跳转\n请核对并采用 comment-6282421130 的最小 `TaskSection.tsx` 补丁（useLocation hash、仅在已加载可见任务中匹配后定位/聚焦、行锚点）。URL 为 `/projects/:projectId/requirements/:storyId#task-\u003cencodeURIComponent(taskId)\u003e`；不新增任务详情 API 或假路由。请提供采用/等价方案及就绪 SHA，C 再实际点击验证刷新、同页切 hash、前进/后退及不可见 id 无额外请求。\n\n### 交付边界\n本轮即提交并推送独立分支，随后补可获取的代码 SHA。目前实测：78 passed / 3 todo（定向）、34 项独立编辑器 + 8 项真实 API 浏览器通过，typecheck/build/独立 bundle 通过。未勾最终 AC。\n\n关联对象选择器属于 C 后续易用性工作：现在是可实际保存的四类 ID 输入，**不将此项归因于等待 B**。附件上传按已登记本期不做，不借本轮扩大范围。",
+        "created_at":  "2026-10-20T16:06:01Z"
+    }
+]

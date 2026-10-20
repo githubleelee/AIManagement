@@ -1,0 +1,339 @@
+{
+  "checks": [
+    {
+      "name": "PM creates sequence and all four refs through real API, fresh server ids, correct persisted seq",
+      "passed": true
+    },
+    {
+      "name": "refresh restores actual server document and editable content",
+      "passed": true
+    },
+    {
+      "name": "metadata save preserves unsubmitted content draft; content save preserves other metadata draft",
+      "passed": true
+    },
+    {
+      "name": "invalid association returns real 422 without replacing draft or saved metadata",
+      "passed": true
+    },
+    {
+      "name": "wire adapters preserve reverse associations, custom labels, null labels and both directed association tuples",
+      "passed": true
+    },
+    {
+      "name": "real permission denial clears existing graph, drafts and saved association titles",
+      "passed": true
+    },
+    {
+      "name": "PM deletes via confirmed actual DELETE, then document is absent after refresh",
+      "passed": true
+    },
+    {
+      "name": "PM edits use-case relations/labels through the production component and restores SVG after real save/refresh",
+      "passed": true
+    }
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726",
+      "status": 401,
+      "hasAuthorization": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726/uml-diagrams",
+      "status": 201,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2/content",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2",
+      "status": 422,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726/uml-diagrams",
+      "status": 201,
+      "hasAuthorization": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/uml-diagrams/9c3f1381-dedc-44ef-8dbe-03390edb5528/content",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2/content",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2/content",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2",
+      "status": 404,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2",
+      "status": 404,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2",
+      "status": 204,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/a3f98645-f81a-4960-bc9a-d69fb4dd66c2",
+      "status": 404,
+      "hasAuthorization": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726/uml-diagrams",
+      "status": 201,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/a51c36b5-9fbf-4465-82ff-c2253fe26693",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/6c03d228-44dd-4bce-b644-495c7fc12726/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/a51c36b5-9fbf-4465-82ff-c2253fe26693",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/a51c36b5-9fbf-4465-82ff-c2253fe26693",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/a51c36b5-9fbf-4465-82ff-c2253fe26693",
+      "status": 200,
+      "hasAuthorization": true
+    }
+  ],
+  "pageErrors": [],
+  "limitations": [
+    "Synthetic isolated migrated DB and explicit test registration, not production mounting",
+    "Non-PM read currently fail-closed, not AC5 complete",
+    "Task href only, target anchor not exercised",
+    "No real project data or credentials archived"
+  ]
+}
