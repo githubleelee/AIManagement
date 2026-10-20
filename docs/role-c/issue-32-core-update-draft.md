@@ -1,4 +1,7 @@
-# #32 / #24 核心能力进展评论草稿（未发布，待用户审核）
+# #32 / #24 核心能力进展评论初稿（历史保留）
+
+> 用户已批准后续版本发布。本文件仍保留最初未提交阶段原文，不当作当前状态或实际发布正文。代码已推2282221；实际发布正文见`issue-32-core-comment-body.md`、`issue-24-us12-core-comment-body.md`、`issue-31-us12-core-comment-body.md`。
+> 已发回执：[#32](https://github.com/githubleelee/AIManagement/issues/32#issuecomment-6296407025)、[#24](https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6296408050)、[#31](https://github.com/githubleelee/AIManagement/issues/31#issuecomment-6296408986)。请求发出不代表已获答复。
 
 ## ROLE-C：已完成本批授权核心能力，请收清公共接入与错误映射
 

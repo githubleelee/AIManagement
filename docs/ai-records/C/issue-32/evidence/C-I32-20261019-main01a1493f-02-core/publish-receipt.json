@@ -1,0 +1,44 @@
+﻿{
+    "checkedAt":  "2026-10-21 00:58:35 +08:00",
+    "login":  "brucelyce-ux",
+    "codeCommit":  "2282221f69ec4129979eb8b24ba2c716d509a4a0",
+    "branch":  "feat/US12-scheduling-core",
+    "comments":  [
+                     {
+                         "issue":  32,
+                         "id":  6296407025,
+                         "url":  "https://github.com/githubleelee/AIManagement/issues/32#issuecomment-6296407025",
+                         "login":  "brucelyce-ux",
+                         "created":  true,
+                         "createdAt":  "2026-10-20T16:58:28Z",
+                         "verifiedByGet":  true,
+                         "bodyFile":  "docs/role-c/issue-32-core-comment-body.md",
+                         "bodySha256":  "3aa953efb39d3f3bf1b9ca34dcd7aa85b5aea668636aeb9181c9144999edb804",
+                         "status":  "published"
+                     },
+                     {
+                         "issue":  24,
+                         "id":  6296408050,
+                         "url":  "https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6296408050",
+                         "login":  "brucelyce-ux",
+                         "created":  true,
+                         "createdAt":  "2026-10-20T16:58:31Z",
+                         "verifiedByGet":  true,
+                         "bodyFile":  "docs/role-c/issue-24-us12-core-comment-body.md",
+                         "bodySha256":  "a445b01038d8cdbc8ede9eb5194b2cfd7134d0b959a034cffc6c22861e7fe92f",
+                         "status":  "published"
+                     },
+                     {
+                         "issue":  31,
+                         "id":  6296408986,
+                         "url":  "https://github.com/githubleelee/AIManagement/issues/31#issuecomment-6296408986",
+                         "login":  "brucelyce-ux",
+                         "created":  true,
+                         "createdAt":  "2026-10-20T16:58:34Z",
+                         "verifiedByGet":  true,
+                         "bodyFile":  "docs/role-c/issue-31-us12-core-comment-body.md",
+                         "bodySha256":  "cf91dc479f9faccf057e5cfa2f75b4a1515937a1dd4b1a25ee86ffd1f77e2d1d",
+                         "status":  "published"
+                     }
+                 ]
+}

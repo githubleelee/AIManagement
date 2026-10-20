@@ -1,5 +1,7 @@
 # #32 本批核心能力交付 / B 接入清单
 
+> **实际交付已推送**：功能分支`feat/US12-scheduling-core`，代码提交`2282221f69ec4129979eb8b24ba2c716d509a4a0`。#32/#24/#31补充请求均已发布并GET核验，见[发布回执](issue-32-core-publish-receipt.md)。未合main、未关闭task窗口，B/D尚待答复。
+>
 > 当前为授权范围内的阶段性实现，不是完整 US12、正式 AI 接入或最终验收。用户已授权：确认与main无冲突后推送功能分支并补齐Issue；实际提交、推送与留言回执在独立记录中追加，不直接推main。没有新增公共 Action、共享端口、表/迁移或生产路由。历史 `issue-32-blocked.md`、`issue-32-validation-result.md` 是各自固定基线的快照，不按当前状态重写。
 
 ## 1. 基线与唯一写者
