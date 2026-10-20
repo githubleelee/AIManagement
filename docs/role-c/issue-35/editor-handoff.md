@@ -2,7 +2,7 @@
 
 ## 基线与状态
 
-- worktree `AIManagement-US15`，分支 `feat/US15-uml`，main 基线 `37287c26a2d867e938132a906f9422354f66eb7c`；代码已本地提交 `dca876a28288ccdc6a569f3d74285ce321a1af2d`。推送被 GitHub 403 拒绝（xichoutrees 无仓库写权限），**未形成远端可获取交付**；后续文档提交见 git log。
+- worktree `AIManagement-US15`，分支 `feat/US15-uml`，main 基线 `37287c26a2d867e938132a906f9422354f66eb7c`；代码已本地提交 `dca876a28288ccdc6a569f3d74285ce321a1af2d`。首次 xichoutrees 推送 403；用户明确确认改用 brucelyce-ux 后已成功推送 `origin/feat/US15-uml`。可获取的交付与最新测试限制见 [prepush-status.md](prepush-status.md)；后续文档提交见 git log。
 - 已接收 B P1：`d8315c4830b01773fd3e6f053b6f3389e40a656a`，#35 comment-6264046314。已重新生成 Prisma Client。
 - 按 `docs/role-b-uml-design.md` FROZEN v1.0 的 §Z/§Z2 覆盖早期 DRAFT：7 表、四类关联、PM 写、服务端 seq、自消息、列表 total、nodes 200/edges 500/关联各 50。
 - **目前为未正式挂载的集成开发交付，不是 #35 完成**。MEMBER/VIEWER 读取仍安全关闭；任务行定位待 B 落笔；没有勾最终 AC。

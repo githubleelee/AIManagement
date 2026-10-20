@@ -1,0 +1,99 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/临时项目/AIManagement-US15[39m
+
+ [32m✓[39m src/modules/uml/uml-schema.test.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 6377[2mms[22m[39m
+   [33m[2m✓[22m[39m 级联删除：图内容与关联行[2m > [22m删图 → 节点 / 边 / 4 类关联行全部消失（DB 级联，不需要手写清理） [33m382[2mms[22m[39m
+   [33m[2m✓[22m[39m 级联删除：图内容与关联行[2m > [22m删关联对象：任务 / 故事 / 活动 / 目标被删时其关联行消失 [33m327[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 29（DELETE /tasks/:taskId）语义不变[2m > [22m任务被 UML 图关联后，PM 删除该任务仍返回 204（不因 UML 关联变 409），关联行随之消失 [33m326[2mms[22m[39m
+   [33m[2m✓[22m[39m 关联表复合主键去重[2m > [22m同一 (diagramId, taskId) 插入两次被拒（P2002） [33m306[2mms[22m[39m
+ [32m✓[39m src/modules/requirement/requirement.goal-tree.test.ts [2m([22m[2m27 tests[22m[2m)[22m[33m 34282[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 正例：层级树结构[2m > [22m没有任何目标的项目 → 200，items 为空数组 [33m326[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 正例：层级树结构[2m > [22m单目标 → GoalNode 的键集合精确等于 BusinessGoal 的 6 字段 + activities [33m448[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 正例：层级树结构[2m > [22m单活动 → ActivityNode 的键集合精确等于 UserActivity 的 7 字段 + stories [33m435[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 正例：层级树结构[2m > [22m单故事 → StoryNode 的键集合精确等于 UserStory 的 13 字段（不得多给任务相关字段） [33m437[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 正例：层级树结构[2m > [22m完整三层：逐字段断言 目标 → 活动 → 故事 的归属与内容 [33m474[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 正例：层级树结构[2m > [22m空目标与空活动都正常返回空数组（不省略键） [33m537[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 正例：层级树结构[2m > [22m多目标多活动的归属正确：每个活动只出现在它自己的目标下 [33m455[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 正例：层级树结构[2m > [22m状态与优先级保持线上英文常量（决策 I-1：不得返回中文标签） [33m482[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 正例：层级树结构[2m > [22m只返回本项目：另一个项目的目标与活动不出现在树里 [33m594[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 正例：层级树结构[2m > [22m3 目标 × 3 活动 × 3 故事 → 计数与归属完整 [33m899[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 正例：层级树结构[2m > [22m故事的 createdAt 是 ISO 8601 UTC 字符串（决策 I-7 数据层约定 4） [33m864[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10：排序口径[2m > [22mgoals 按 sortOrder 升序（与插入顺序无关） [33m1309[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10：排序口径[2m > [22msortOrder 有空洞或负数也按升序排列 [33m1711[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10：排序口径[2m > [22mactivities 按 sortOrder 升序（与插入顺序无关） [33m1580[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10：排序口径[2m > [22mstories 按 createdAt 升序（显式设为不同整秒，避开秒级精度的干扰） [33m1857[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10：排序口径[2m > [22m⚠️ createdAt 完全相同（SQLite CURRENT_TIMESTAMP 只有秒级精度）→ 顺序仍确定且可复现 [33m1736[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10：排序口径[2m > [22msortOrder 完全相同的目标 → 并列时顺序仍确定（次级键 id 升序） [33m1594[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 可见性：与 T2.5 无关、永远成立的部分[2m > [22mPM 读取的树里，被标为敏感的故事照常出现（PM 不受敏感白名单限制） [33m1757[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 可见性：与 T2.5 无关、永远成立的部分[2m > [22m非 PM 成员读取含**非敏感**故事的树 → 200，结构完整 [33m1559[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 可见性：与 T2.5 无关、永远成立的部分[2m > [22mVIEWER 读取 → 200（本轮 VIEWER 为全项目只读） [33m1834[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 反例：权限（401 / 404）[2m > [22m非项目成员 → 404 NOT_FOUND，且响应体不含任何层级字段 [33m1520[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 反例：权限（401 / 404）[2m > [22m未登录 → 401 UNAUTHENTICATED（鉴权先于权限） [33m1491[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 反例：权限（401 / 404）[2m > [22mAuthorization 头是垃圾令牌 → 401 UNAUTHENTICATED [33m1285[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 反例：权限（401 / 404）[2m > [22mprojectId 不存在 → 404 NOT_FOUND（与「存在但非成员」同为 404） [33m1439[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 反例：权限（401 / 404）[2m > [22m「项目不存在」与「存在但非成员」的响应结构完全相同（不可区分，防存在性探测） [33m1413[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 反例：权限（401 / 404）[2m > [22m被移出项目的成员立即 404（权限即时生效，决策 I-10 不做进程内缓存） [33m1504[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 10 反例：权限（401 / 404）[2m > [22m读端点不得出现 403：成员与 VIEWER 都被允许，拒绝只有 404 一种形态 [33m1355[2mms[22m[39m
+ [32m✓[39m src/modules/authz/sensitivity.http.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 19887[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22mPM 可设置故事与任务的敏感白名单；其他角色不能设置 [33m2858[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m仅 PM 可以设置；未登录 401，非成员 404，成员 403 且不落审计 [33m1776[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m故事白名单全量覆盖，旧凭证下一次请求立即失效，404 不泄漏标题 [33m2322[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m可见范围过滤在数据库查询层生效，恢复非敏感时保留旧名单 [33m1780[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m任务敏感设置可用；非项目成员名单被拒且事务无副作用 [33m1768[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m审计保存前后对象、操作人与时间；改权限的用户下一次请求直接按库判定 [33m1820[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m角色变更与成员移除都在同一事务写入审计 [33m1429[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m三角色 × 五动作 × 敏感状态：仅 PM 可写，未授权敏感对象先返回 404 [33m1645[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m无效请求无写入；不存在对象与外部人员不可区分 [33m1740[2mms[22m[39m
+ [32m✓[39m src/modules/uml/uml.http.test.ts [2m([22m[2m47 tests[22m[2m | [22m[33m3 skipped[39m[2m)[22m[33m 68040[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mcreates real use-case content, fresh node ids, refs of all four kinds, and reads identical saved content [33m2306[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mtreats another diagram real node id as a new local alias; cross-graph edge references do not update or expose the original graph [33m3032[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22massigns seq by array order, accepts self messages, ignores client seq and sorts lifelines by orderIndex [33m2316[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mPATCH only replaces specified associations; [] clears; owner transfer does not grant UML write [33m1991[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mrejects unknown PATCH fields and changing kind; metadata cannot masquerade as content replacement [33m2379[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mPUT accepts an empty document and removes previous content atomically [33m2238[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mdeletes diagram and subsequent GET/PATCH/PUT/DELETE all return the same nonexistent response [33m2218[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mlist has no diagram content/ref titles and kind filter and total use the same where [33m2013[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mreports exact total when list is truncated, not length-derived total [33m1930[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mconcurrent whole-content replacement yields complete winner, never a mixed graph or 500 [33m1991[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects unsupported kind without creating a diagram [33m1651[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects blank title without creating a diagram [33m1304[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized title without creating a diagram [33m1318[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized description without creating a diagram [33m998[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects too many nodes without creating a diagram [33m853[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects too many edges without creating a diagram [33m1551[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized refs without creating a diagram [33m1947[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects unknown create field without creating a diagram [33m1425[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects wrong node kind on PUT and preserves content [33m1572[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects blank node on PUT and preserves content [33m1667[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects unsupported enum on PUT and preserves content [33m1643[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects duplicate node ids on PUT and preserves content [33m1396[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects missing source on PUT and preserves content [33m1666[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects self include on PUT and preserves content [33m1313[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects case-case association on PUT and preserves content [33m1399[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects actor include on PUT and preserves content [33m1668[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects wrong edge kind on PUT and preserves content [33m1114[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects usecase seq on PUT and preserves content [33m933[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects duplicate relationship on PUT and preserves content [33m882[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized name on PUT and preserves content [33m928[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized edge label on PUT and preserves content [33m1093[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects client coordinates on PUT and preserves content [33m872[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mcross-project and missing goalIds return identical 422; failed PATCH rolls back metadata/refs [33m1127[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mcross-project and missing activityIds return identical 422; failed PATCH rolls back metadata/refs [33m1080[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mcross-project and missing storyIds return identical 422; failed PATCH rolls back metadata/refs [33m1191[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mcross-project and missing taskIds return identical 422; failed PATCH rolls back metadata/refs [33m1313[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects owner outside project and leaves metadata unchanged [33m849[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam; pending reader policy explicitly fail-closed[2m > [22mmember cannot write through any UML endpoint [33m1003[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam; pending reader policy explicitly fail-closed[2m > [22mviewer cannot write through any UML endpoint [33m1016[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam; pending reader policy explicitly fail-closed[2m > [22moutsider cannot write through any UML endpoint [33m1453[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam; pending reader policy explicitly fail-closed[2m > [22manonymous cannot write through any UML endpoint [33m1138[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam; pending reader policy explicitly fail-closed[2m > [22manonymous cannot list/detail; outsider existing id and missing id have identical 404 envelopes [33m1306[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam; pending reader policy explicitly fail-closed[2m > [22mTEMPORARY fail-closed reader scope is empty with total=0 even for ordinary/unassociated diagrams [33m1037[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam; pending reader policy explicitly fail-closed[2m > [22mdoes not automatically disclose old sensitive diagram text after real task delete Cascade or unlink [33m1601[2mms[22m[39m
+ [32m✓[39m test/error-handler.test.ts [2m([22m[2m20 tests[22m[2m)[22m[90m 135[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m5 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m [1m[32m125 passed[39m[22m[2m | [22m[90m3 todo[39m[90m (128)[39m
+[2m   Start at [22m 00:53:32
+[2m   Duration [22m 78.68s[2m (transform 1.03s, setup 0ms, collect 4.32s, tests 128.72s, environment 1ms, prepare 660ms)[22m
+
+JSON report written to D:/临时项目/AIManagement-US15/docs/role-c/issue-35/evidence/prepush-targeted-results.json
