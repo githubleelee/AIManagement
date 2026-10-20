@@ -1,0 +1,34 @@
+﻿[
+    {
+        "path":  "src/modules/task/rules.ts",
+        "sha256":  "338A73EA6840DD0CACDA5E885628BF8B6D9586E704C2226383EECC8E27C469D7"
+    },
+    {
+        "path":  "src/modules/task/routes.ts",
+        "sha256":  "D7DFEDA90379D7315D0D03BE955BA2A94493AA394E0F9B5922066285BAE141CB"
+    },
+    {
+        "path":  "src/modules/ai-scheduling/source.ts",
+        "sha256":  "218BB6A6A5A32987938329DF91CAC28BFCB8086BA6D58DCDFEA14277F71AA07D"
+    },
+    {
+        "path":  "src/modules/ai-scheduling/verification.ts",
+        "sha256":  "F32A29ECB031A2A0CA9134973C17C0E05D77E707251F31559086CD4B06128389"
+    },
+    {
+        "path":  "src/modules/ai-scheduling/schemas.ts",
+        "sha256":  "9C85010124F6420EEA51C9CC7D4E18E44D868720CC3C9C41DE9E4C5EF5659A9E"
+    },
+    {
+        "path":  "src/modules/ai-scheduling/policy.ts",
+        "sha256":  "D349E3E32261F0E96C77734BE8666CBEBE346CFEFB148EE7C71C53B2236AADC7"
+    },
+    {
+        "path":  "src/modules/ai-scheduling/policy.http.test.ts",
+        "sha256":  "4187B50A41F34861E297A5D2656AF7B85AF61C1069A491AF4C73FC9484D21BD6"
+    },
+    {
+        "path":  "src/modules/ai-scheduling/core.http.test.ts",
+        "sha256":  "16109C0CA21E995DECB0BE4EC6EE19F79981D9B5B35BED7AD860491983990932"
+    }
+]

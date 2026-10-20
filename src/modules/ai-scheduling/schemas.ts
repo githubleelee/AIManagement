@@ -10,7 +10,7 @@ export const calendarDateSchema = z.string().refine((value) => {
 
 const id = z.string().trim().min(1)
 export const schedulingTaskSchema = z.object({
-  id, projectId: id, title: z.string(), ownerUserId: id, acceptorUserId: id,
+  id, projectId: id, storyId: id.optional(), title: z.string(), ownerUserId: id, acceptorUserId: id,
   status: taskStatusSchema, planStart: calendarDateSchema, planEnd: calendarDateSchema,
   isSensitive: z.boolean(),
 }).strict()
@@ -21,6 +21,10 @@ export const schedulingSnapshotSchema = z.object({
   revision: id,
   capturedAt: z.string().datetime(),
   memberIds: z.array(id),
+  // Legacy fixture snapshots omit these. Real DB projections always supply them.
+  memberRoles: z.array(z.object({ userId: id, role: z.enum(['PM', 'MEMBER', 'VIEWER']) }).strict()).optional(),
+  sourceComplete: z.boolean().optional(),
+  sourceConstraints: z.enum(['complete', 'requires-private-validation', 'unavailable']).optional(),
   tasks: z.array(schedulingTaskSchema),
   dependencies: z.array(z.object({ predecessorId: id, successorId: id }).strict()),
   milestones: z.array(z.object({ id, taskIds: z.array(id), date: calendarDateSchema }).strict()),

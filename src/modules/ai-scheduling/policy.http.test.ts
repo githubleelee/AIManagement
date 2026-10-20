@@ -145,11 +145,36 @@ describe('US12 approved policy through test-only HTTP seam', () => {
     expect(context.tasks[0]).not.toHaveProperty('acceptorUserId')
     expect(context.tasks[0]).not.toHaveProperty('isSensitive')
   })
+  it.each(['incomplete', 'unavailable', 'private'] as const)('fails closed on explicit source evidence: %s', async (kind) => {
+    const snapshot = fixture()
+    if (kind === 'incomplete') snapshot.sourceComplete = false
+    if (kind === 'unavailable') snapshot.sourceConstraints = 'unavailable'
+    if (kind === 'private') snapshot.sourceConstraints = 'requires-private-validation'
+    const res = (await assess(snapshot)).json()
+    expect(res.canApplyDates).toBe(false)
+    expect(res.blockers).toEqual(expect.arrayContaining([expect.objectContaining({
+      code: kind === 'private' ? 'PRIVATE_VALIDATION_REQUIRED' : 'INCOMPLETE_SOURCE',
+    })]))
+  })
+  it('membership role change expires a baseline even with the same member IDs', async () => {
+    const before = fixture(); const after = fixture()
+    before.memberRoles = [{ userId: 'u1', role: 'PM' }, { userId: 'u2', role: 'MEMBER' }]
+    after.memberRoles = [{ userId: 'u1', role: 'PM' }, { userId: 'u2', role: 'VIEWER' }]
+    expect(await same(before, after)).toBe(false)
+  })
+  it('does not send a private-derived revision or source evidence to a model', async () => {
+    const snapshot = fixture(); snapshot.revision = 'PRIVATE-DIGEST'
+    snapshot.sourceConstraints = 'requires-private-validation'; snapshot.sourceComplete = true
+    const text = JSON.stringify(await input(snapshot))
+    expect(text).not.toContain('PRIVATE-DIGEST')
+    expect(text).not.toContain('sourceConstraints')
+    expect(text).not.toContain('sourceComplete')
+  })
   it('compares baselines independent of ordering/capture time', async () => {
     const before = fixture(); const after = fixture(); after.tasks.reverse(); after.memberIds.reverse(); after.capturedAt = '2026-10-19T00:00:00Z'
     expect(await same(before, after)).toBe(true)
   })
-  it.each(['revision', 'date', 'status', 'owner', 'acceptor', 'members', 'fs', 'milestone', 'sensitivity'])('invalidates changed baseline: %s', async (kind) => {
+  it.each(['revision', 'date', 'status', 'owner', 'acceptor', 'members', 'fs', 'milestone', 'sensitivity', 'story'])('invalidates changed baseline: %s', async (kind) => {
     const before = fixture(); const after = fixture()
     if (kind === 'revision') after.revision = 'permissions-v2'
     if (kind === 'date') after.tasks[0]!.planEnd = '2026-10-22'
@@ -160,6 +185,7 @@ describe('US12 approved policy through test-only HTTP seam', () => {
     if (kind === 'fs') after.dependencies = []
     if (kind === 'milestone') after.milestones[0]!.date = '2026-10-24'
     if (kind === 'sensitivity') after.tasks[0]!.isSensitive = true
+    if (kind === 'story') after.tasks[0]!.storyId = 'another-parent-story'
     expect(await same(before, after)).toBe(false)
   })
   it.each([

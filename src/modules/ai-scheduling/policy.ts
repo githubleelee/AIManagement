@@ -16,7 +16,7 @@ export function buildSchedulingInput(snapshot: SchedulingSnapshot) {
   return {
     scenario: 'scheduling' as const,
     projectId: snapshot.projectId,
-    revision: snapshot.revision,
+    // Revision can contain private-constraint evidence: never send it to a model.
     capturedAt: snapshot.capturedAt,
     scope: '已授权且非敏感任务子集（不是 PM 全项目基数）',
     tasks: tasks.map(({ id, title, ownerUserId, status, planStart, planEnd }) => ({
@@ -28,7 +28,9 @@ export function buildSchedulingInput(snapshot: SchedulingSnapshot) {
       if (milestone.taskIds.length === 0 || !milestone.taskIds.every((id) => taskIds.has(id))) return []
       return [{ id: milestone.id, taskIds: [...milestone.taskIds], date: milestone.date }]
     }),
-    workload: snapshot.memberIds.map((userId) => ({
+    // Current member lists omit departed owners; their authorized tasks must not vanish
+    // from load totals. Membership validity still blocks their date application below.
+    workload: [...new Set([...snapshot.memberIds, ...tasks.map((task) => task.ownerUserId)])].sort().map((userId) => ({
       userId, openTaskCount: tasks.filter((task) => task.ownerUserId === userId && task.status !== 'CLOSED').length,
     })),
   }
@@ -39,7 +41,10 @@ export function sameSchedulingBaseline(a: SchedulingSnapshot, b: SchedulingSnaps
   const canonical = (snapshot: SchedulingSnapshot) => JSON.stringify({
     projectId: snapshot.projectId, revision: snapshot.revision,
     members: [...snapshot.memberIds].sort(),
-    tasks: snapshot.tasks.map((task) => [task.id, task.projectId, task.ownerUserId, task.acceptorUserId,
+    memberRoles: snapshot.memberRoles?.map((member) => [member.userId, member.role]).sort(),
+    sourceComplete: snapshot.sourceComplete,
+    sourceConstraints: snapshot.sourceConstraints,
+    tasks: snapshot.tasks.map((task) => [task.id, task.projectId, task.storyId, task.ownerUserId, task.acceptorUserId,
       task.status, task.planStart, task.planEnd, task.isSensitive]).sort((x, y) => JSON.stringify(x).localeCompare(JSON.stringify(y))),
     dependencies: snapshot.dependencies.map((edge) => [edge.predecessorId, edge.successorId]).sort(),
     milestones: snapshot.milestones.map((milestone) => [milestone.id, milestone.date, [...milestone.taskIds].sort()]).sort(),
@@ -59,6 +64,12 @@ export function assessSchedulingDates(snapshot: SchedulingSnapshot, changes: Dat
   const changed = new Set<string>()
   const today = shanghaiToday(now)
 
+  if (snapshot.sourceComplete === false || snapshot.sourceConstraints === 'unavailable') {
+    block('INCOMPLETE_SOURCE', [], '必要来源不可用或完整性未知，不能应用')
+  }
+  if (snapshot.sourceConstraints === 'requires-private-validation') {
+    block('PRIVATE_VALIDATION_REQUIRED', [], '相关约束需在受保护事务内完整复核，当前本地检查不能放行')
+  }
   if (new Set(snapshot.tasks.map((task) => task.id)).size !== snapshot.tasks.length) {
     block('INVALID_SNAPSHOT', [], '输入快照含重复任务，需由数据适配器修复')
   }

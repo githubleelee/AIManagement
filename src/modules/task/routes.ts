@@ -48,7 +48,7 @@ import type {
 import { currentUserId, requireAuth } from '../../auth/actor.js'
 import { createAuthorization } from '../authz/permissions.js'
 import type { RouteContext } from '../../routes.js'
-import { assertTaskAssignment } from './rules.js'
+import { assertTaskAssignment, writeAssignedTask } from './rules.js'
 
 /**
  * 任务标题长度上限。
@@ -495,19 +495,11 @@ export function registerTaskRoutes(app: FastifyInstance, context: RouteContext):
     //   只捕获 P2025，其它错误仍原样抛出转 500。
     let updated: TaskRow
     try {
-      updated = await prisma.task.update({
-        where: { id: task.id },
-        data: {
-          title: merged.title,
-          description: merged.description,
-          ownerUserId: merged.ownerUserId,
-          acceptorUserId: merged.acceptorUserId,
-          planStart: merged.planStart,
-          planEnd: merged.planEnd,
-          status: merged.status,
-          progress: merged.progress,
-          blockedReason: nextBlockedReason,
-        },
+      // One SQL update for all mixed PATCH fields, through the same assignment/date core
+      // as caller-owned transactional batches. Keep original authorization/error order.
+      updated = await writeAssignedTask(prisma, task.projectId, task.id, {
+        ...merged,
+        blockedReason: nextBlockedReason,
       })
     } catch (error) {
       if (isRecordNotFoundError(error)) {
