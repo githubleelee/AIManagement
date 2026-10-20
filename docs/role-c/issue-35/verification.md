@@ -2,7 +2,7 @@
 
 ## 环境
 
-- 工作目录：`D:/临时项目/AIManagement-US15`；分支 `feat/US15-uml`；基线 `37287c26a2d867e938132a906f9422354f66eb7c`，未 commit/push。
+- 工作目录：`D:/临时项目/AIManagement-US15`；分支 `feat/US15-uml`；基线 `37287c26a2d867e938132a906f9422354f66eb7c`；代码提交 `dca876a28288ccdc6a569f3d74285ce321a1af2d`（本地）。实际推送被 GitHub 403 拒绝，未对远端交付；[提交/推送结果及 Issue 回读](submission-result.json)。
 - 实际 Node `v24.15.0`，Vite `6.4.3`，Vitest `2.1.9`，Prisma Client `6.19.3`；Windows 本地真实 Chromium。
 - B P1 模型已合入并 `npm run db:generate` 成功；未读取用户数据库、.env 或真实项目数据。
 - 集成浏览器使用既有 createHttpTestContext/factories 生成独立临时 SQLite，应用真实迁移，显式注册实际 UML 插件，经过真实 Vite /api proxy；不是网络拦截或 mock 后端，也不是正式挂载验证。
@@ -77,4 +77,4 @@ PM 创建/保存/读取/删除两类图、全量替换事务、客户端临时 i
 - 非 PM 正常可见图仍被临时安全关闭，**AC5 未完成**；等待已登记的不自动降密 guard 设计。
 - 未完成目标任务行真实点击跳转，**AC4 目标行定位未通过**；等 B 任务区补丁。
 - 未做对象选择器，四类关联为 ID 输入；未做附件上传、乐观锁或事件接线。
-- 未关闭 Issue、合 PR、提交或推送；最终 AC1–AC6 均未据此勾选。
+- 未关闭 Issue或合 PR；按用户授权已本地提交，推送 403 失败。最终 AC1–AC6 均未据此勾选。
