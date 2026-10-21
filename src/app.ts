@@ -35,6 +35,8 @@ import { registerRoutes, type RouteContext } from './routes.js'
 import { registerActorResolver } from './auth/actor.js'
 import { prisma as defaultPrisma } from './db/client.js'
 import { PrismaEventRepository, createEventAuthorizationPort } from './db/event-repository.js'
+import { createGanttEventPort } from './modules/gantt/event-port.js'
+import { createRequirementEventPort } from './modules/requirement/event-port.js'
 import { PrismaAiSuggestionRepository, createAiAuthorizationPort } from './db/ai-repository.js'
 import { createDomainEventInfrastructure } from './modules/events/factory.js'
 import { createAiBreakdownService } from './modules/ai/factory.js'
@@ -99,8 +101,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   // #37 领域事件：显式注入 DB 仓储 + 统一鉴权适配器，组装 D 的事件实现。
   // 业务域通过 `app.events` 使用 publisher / query 端口，不 import D 的 service（契约 I-9）。
+  // ★ 同一个 `PrismaEventRepository` 实例同时供 D 的基础设施与两个域内事件适配器使用：
+  //   两套连接语义（同一 prisma 客户端）才不会出现「查询看不到域内写入」的裂缝。
+  const eventRepository = new PrismaEventRepository(context.prisma)
   const infrastructure = createDomainEventInfrastructure({
-    repository: new PrismaEventRepository(context.prisma),
+    repository: eventRepository,
     authorization: createEventAuthorizationPort(context.prisma),
   })
   const events: EventPorts = {
@@ -116,6 +121,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     },
   }
   app.decorate('events', events)
+
+  // 业务域事件端口：域内适配器把草稿映射为信封，在**调用方事务**内追加（不自行提交）。
+  // 与 D 的基础设施共用同一个仓储实例（见上）。
+  context.ganttEvents = createGanttEventPort({ repository: eventRepository })
+  context.requirementEvents = createRequirementEventPort({ repository: eventRepository })
   // 生命周期：Fastify 启动完成 / 关闭时驱动 D 的事件基础设施。
   app.addHook('onReady', async () => {
     await infrastructure.start()

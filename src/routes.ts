@@ -19,6 +19,8 @@ import { registerWorkbenchRoutes } from './modules/workbench/plugin.js'
 import { registerRequirementRoutes } from './modules/requirement/plugin.js'
 import { registerAiRoutes } from './modules/ai/plugin.js'
 import type { AiBreakdownService } from './modules/ai/service.js'
+import type { GanttEventPort } from './modules/gantt/types.js'
+import type { RequirementEventPort } from './modules/requirement/service.js'
 
 export type RouteContext = {
   prisma: PrismaClient
@@ -31,6 +33,16 @@ export type RouteContext = {
    * 可选：模块测试可能只构造 `{ prisma }` 并注册部分路由；缺省时跳过 AI 路由注册。
    */
   aiService?: AiBreakdownService
+  /**
+   * 甘特域事件发布端口（由 `src/app.ts` 用 `createGanttEventPort` 显式组装注入）。
+   *
+   * 为什么用端口实例而不是在插件里现建：组装（仓储 / 事务适配器）必须留在唯一组装点
+   * `src/app.ts`；路由总表只负责注册。可选：模块测试可能只构造 `{ prisma }` 并注册
+   * 部分路由；缺省时 `registerGanttRoutes` 会 fail-fast 报组装缺失（不得静默跳过发布）。
+   */
+  ganttEvents?: GanttEventPort
+  /** 需求域事件发布端口（由 `createRequirementEventPort` 组装注入，同上）。 */
+  requirementEvents?: RequirementEventPort
 }
 
 export function registerRoutes(app: FastifyInstance, context: RouteContext): void {
