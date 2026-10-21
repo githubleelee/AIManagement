@@ -92,8 +92,13 @@ describe('表结构与迁移', () => {
    *
    * #37 领域事件（工单 #37）经 `DECISIONS.md` `arch.shared-ports-and-assembly` 授权再新增
    * 第 22 张表 `DomainEvent`（事件持久化落点，见 `docs/role-d/ROLE-D-EVENTS-public-integration-request.md`）。
+   *
+   * #31 US-11（工单 #31）经 `DECISIONS.md` `ai.suggestion-store-shared` /
+   * `permissions.ai-suggestion-disposal` 授权再新增 3 张表 `AiSuggestion` / `AiDisposition` /
+   * `AiApplication`（共享「建议 + 处置 + 应用」存储，见
+   * `docs/role-d/ROLE-D-US11-public-integration-request.md`）。
    */
-  it('表集合 = 契约 I-7 的 9 张 + 本阶段经授权新增的 13 张（不多不少）', async () => {
+  it('表集合 = 契约 I-7 的 9 张 + 本阶段经授权新增的 16 张（不多不少）', async () => {
     const rows = await db.prisma.$queryRawUnsafe<Array<{ name: string }>>(
       `SELECT name FROM sqlite_master
        WHERE type = 'table'
@@ -103,6 +108,10 @@ describe('表结构与迁移', () => {
     )
     expect(rows.map((row) => row.name)).toEqual([
       'AcceptanceRecord', // ← 本阶段经 #24 授权新增（US-09 / #29），不属于契约 I-7
+      // ↓ #31 US-11：3 张 AI 建议表。ASCII 序（'c' < 'i' < 'u'）⇒ 落在 AcceptanceRecord 与 AuditLog 之间
+      'AiApplication',
+      'AiDisposition',
+      'AiSuggestion',
       'AuditLog',
       'BusinessGoal',
       'DomainEvent', // ← 本阶段经 #37 授权新增（领域事件），不属于契约 I-7；ASCII 序落在 BusinessGoal 与 Milestone 之间

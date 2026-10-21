@@ -228,3 +228,15 @@
 - **value:** US-15 的「不自动降密」以**持久 guard** 落实，取代「仅靠交集算法不变」的口径（该口径存在真实降密路径）：`UmlDiagram` 增加 **`everRestricted Boolean @default(false)`** —— 一旦该图**曾**关联过敏感对象（建立任务 / 故事关联时目标 `isSensitive = true`，在**同一事务**内置位），**永不自动清除**；此后**非 PM 读取一律 404**（列表、`total`、详情共用同一条件，且与「不存在」逐字一致）。即：非 PM 可见 = **当前关联交集可见 且 `everRestricted = false`**；解除关联或目标被删**不**恢复非 PM 可见性。**显式降密**（PM 动作 + 审计 + 明确影响面）属**另案**，本期不提供，也不得由业务层用 `AuditLog` 或内存状态冒充主权限存储。迁移对已存在的图按「当前是否仍关联敏感对象」回填，避免历史受限图漏置位。字段与索引由 ROLE-B 落（`UmlDiagram` 属公共模型）；**置位与查询 guard 由 `uml` 服务在同一事务 / 同一 `where` 实现**。
 - **timestamp:** 2026-10-21T20:30:00+08:00
 - **rationale:** ROLE-C 在 #24 指出冻结设计的真实反例（图关联敏感任务 → member2 得 404；PM 删任务触发关联行 Cascade → `every(empty)=true` → 同一 member2 可见图正文，**实际可见范围扩大**），并要求持久 guard 或明确 supersedes。项目负责人 2026-10-21 裁定 **A（持久「曾经受限」标记，一旦受限非 PM 永久 404）**；既满足「不自动降密」，又不引入按用户的白名单（不违背「不给图加独立敏感标记」的本意）。
+
+## `permissions.ai-suggestion-generate`
+
+- **value:** AI 建议新增统一动作 **`ai.suggestion.generate`（仅 PM）**：与 `ai.suggestion.dispose` 同型加入统一 `can()` 的 `WRITE_ACTIONS` —— MEMBER / VIEWER 一律 403，PM 由判定顺序第 3 条放行，本入口不为 AI 单开角色分支。**读取复用既有 `project.read` + 查询层可见性作用域**，不新增读动作。**不实现** D 协议里的 `ai.suggestion.audit`（死能力，本批不加动作）；权限适配器对它 fail-closed（403），不留无人判定语义的空壳能力。`ai.suggestion.dispose` 的仅 PM 口径见 `permissions.ai-suggestion-disposal`。
+- **timestamp:** 2026-10-21T21:00:00+08:00
+- **rationale:** #31 US-11 公共接入时，D 的接口协议列出 read / generate / dispose / audit 四个能力；按 PR #82 评审结论与 B 的裁定，生成与处置均仅 PM、read 复用 `project.read`、不引入没有动作的 audit 能力，避免同一语义出现两套鉴权。
+
+## `ai.suggestion-store-shape`
+
+- **value:** AI 建议共享存储的落地形状（`src/shared/ai.ts` + 迁移 `20261021150000_add_ai_suggestion_store`）：**三张表** `AiSuggestion`（唯一真源 `status`、`projectId` 外键 RESTRICT、生成时间 `generatedAt` 为 `DateTime`）/ `AiDisposition`（`suggestionId` **主键** 1:1 子表，外键 CASCADE）/ `AiApplication`（`suggestionId` 主键 1:1 子表，外键 CASCADE；`application.status` **不落库**，为 `AiSuggestion.status` 的派生视图）。**唯一最终处置**由 `AiDisposition.suggestionId` 主键在数据库层兜底（并发下第二条处置 P2002），`finalizeDisposition` 再叠加唯一真源 `PENDING → DISPOSED` 的**条件更新（CAS）**。**幂等三元组** `(suggestionId, actorUserId, requestId)`：同 actor 同 requestId 同 `contentDigest` → 重放（返回首次结果）；异 digest → 409；不同 actor 不算同一请求。`contentDigest` 由 `SHA-256_CANONICAL_JSON_V1` 规范 JSON 规则计算（**稳定键序 + UTF-16 码元比较，不用 `localeCompare`**）。**理由规则**：`ACCEPTED` 可不填；`MODIFIED` / `REJECTED` 必填（校验层强制）。应用结果的 `updateApplication(id, patch, expectedStatus, tx?)` 只做**字段级补丁 + CAS**（不整行覆盖），CAS 期望状态集合 `{DISPOSED, APPLICATION_FAILED}`（**应用失败可重试**）。事务由调用方传入、适配器**不自行提交**（缺省时内部事务不提前提交）。**可见性在查询层**：列表 / 统计用 `visibilityScope()` 生成 `where`，PM 全量、MEMBER / VIEWER 按其 `inputScope` 对象引用过滤，不可见与不存在同一条 404；列表另加行数上限 `AI_SUGGESTION_LIST_LIMIT = 200` + `truncated` / `total` 截断标记。**仅合成数据可用外部 API**：`EXTERNAL + PROJECT_DATA` 一律拒绝。**不得**用 `AuditLog` 当建议存储。
+- **timestamp:** 2026-10-21T21:00:00+08:00
+- **rationale:** 落实 `ai.suggestion-store-shared` 的字段与端口提案，并固定 PR #82 的 H1/H3/M4/M7/M8/L12/L15 结论为可复用的公共形状，使 #32 / #33 复用同一套存储而不各自建表。

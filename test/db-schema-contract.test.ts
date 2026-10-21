@@ -280,10 +280,17 @@ describe('决策 I-7 表集合与字段逐列比对', () => {
    * 本文件其余部分（逐列比对 / 外键规则）**仍只覆盖契约 I-7 的 9 张表** —— 那是本文件
    * 的既定职责（"断言直接对齐契约原文"）。新表的列集合由各票自己的模块测试与
    * `_脚本\_us09_migration_check.mjs` 的 PRAGMA 逐列核对覆盖，未混进契约清单里。
+   *
+   * #31 US-11（工单 #31）经 `DECISIONS.md` `ai.suggestion-store-shared` 授权再新增 3 张表
+   * `AiSuggestion` / `AiDisposition` / `AiApplication`（共享「建议 + 处置 + 应用」存储）。
    */
-  it('表集合 = 契约规定的 9 张 + 本阶段经授权新增的 13 张（不多不少）', async () => {
+  it('表集合 = 契约规定的 9 张 + 本阶段经授权新增的 16 张（不多不少）', async () => {
     expect(await getTableNames()).toEqual([
       'AcceptanceRecord', // ← 本阶段经 #24 授权新增（US-09 / #29），不属于契约 I-7
+      // ↓ #31 US-11：3 张 AI 建议表。ASCII 序（'c' < 'i' < 'u'）⇒ 落在 AcceptanceRecord 与 AuditLog 之间
+      'AiApplication',
+      'AiDisposition',
+      'AiSuggestion',
       'AuditLog',
       'BusinessGoal',
       'DomainEvent', // ← 本阶段经 #37 授权新增（领域事件）；ASCII 序落在 BusinessGoal 与 Milestone 之间

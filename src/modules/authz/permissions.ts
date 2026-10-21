@@ -41,6 +41,11 @@ const WRITE_ACTIONS: ReadonlySet<Action> = new Set<Action>([
   // UML 图写（用例图 / 时序图及其类型化关联）：与 `gantt.write` 同型，仅 PM ——
   // 落在第 5 条，MEMBER / VIEWER 403。
   'uml.write',
+  // AI 建议生成 / 处置（#31 US-11，`DECISIONS.md` `permissions.ai-suggestion-disposal` /
+  // `permissions.ai-suggestion-generate`）：与其它写类动作同型，**仅 PM** —— 落在第 5 条，
+  // MEMBER / VIEWER 403；read 复用 `project.read`，不在本集合内。
+  'ai.suggestion.generate',
+  'ai.suggestion.dispose',
 ])
 
 function deny(status: 403 | 404, code: 'FORBIDDEN' | 'NOT_FOUND'): Decision {
@@ -164,6 +169,8 @@ async function roleIn(
  *       MEMBER / VIEWER 一律 403，本入口不为甘特单开角色分支
  *   5.7 `uml.write`（UML 图及其关联的增删改）与其它写类动作同规则：仅 PM（第 3 条放行）；
  *       MEMBER / VIEWER 一律 403，本入口不为 UML 单开角色分支
+ *   5.8 `ai.suggestion.generate` / `ai.suggestion.dispose`（#31 US-11）与其它写类动作同规则：
+ *       仅 PM（第 3 条放行），MEMBER / VIEWER 一律 403；本入口不为 AI 单开角色分支
  *   6. 其余                                 → 允许
  *
  * 契约决策 I-9：本函数**只读数据库，不调用其他模块的 service**。
