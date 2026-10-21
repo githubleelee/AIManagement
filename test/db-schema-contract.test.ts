@@ -274,15 +274,19 @@ describe('决策 I-7 表集合与字段逐列比对', () => {
    *
    * 断言形式**未变**：仍是"不多不少"的等值比较 ⇒ 任何**未经授权**的新表依然失败。
    *
+   * #37 领域事件（工单 #37）经 `DECISIONS.md` `arch.shared-ports-and-assembly` 授权再新增
+   * `DomainEvent`（事件持久化落点）。
+   *
    * 本文件其余部分（逐列比对 / 外键规则）**仍只覆盖契约 I-7 的 9 张表** —— 那是本文件
-   * 的既定职责（"断言直接对齐契约原文"）。新表的列集合由 US-09 自己的模块测试与
+   * 的既定职责（"断言直接对齐契约原文"）。新表的列集合由各票自己的模块测试与
    * `_脚本\_us09_migration_check.mjs` 的 PRAGMA 逐列核对覆盖，未混进契约清单里。
    */
-  it('表集合 = 契约规定的 9 张 + 本阶段经授权新增的 12 张（不多不少）', async () => {
+  it('表集合 = 契约规定的 9 张 + 本阶段经授权新增的 13 张（不多不少）', async () => {
     expect(await getTableNames()).toEqual([
       'AcceptanceRecord', // ← 本阶段经 #24 授权新增（US-09 / #29），不属于契约 I-7
       'AuditLog',
       'BusinessGoal',
+      'DomainEvent', // ← 本阶段经 #37 授权新增（领域事件）；ASCII 序落在 BusinessGoal 与 Milestone 之间
       'Milestone', // ← 本阶段经项目负责人 2026-10-18 授权新增（US-06 / #26），不属于契约 I-7
       'ObjectVisibility',
       'Project',

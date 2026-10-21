@@ -1,123 +1,15 @@
-export type JsonPrimitive = string | number | boolean | null
-export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue }
-export type JsonObject = { [key: string]: JsonValue }
-
-export type DomainEventName = `${string}.${string}`
-
-export type EventObjectRef = {
-  objectType: string
-  objectId: string
-}
-
-export type EventActor =
-  | { kind: 'USER'; userId: string }
-  | { kind: 'SYSTEM'; component: string }
-
-type PublishEventBase = {
-  eventName: DomainEventName
-  projectId: string
-  object: EventObjectRef
-  actor: EventActor
-  occurredAt: string
-  idempotencyKey: string
-  correlationId?: string
-  causationId?: string
-}
-
-export type PublishEventInput =
-  | (PublishEventBase & { sensitive: false; payload: JsonObject })
-  | (PublishEventBase & {
-      sensitive: true
-      /** Sensitive events carry references only; never titles, descriptions or content. */
-      payload: { references: EventObjectRef[] }
-    })
-
-export type DomainEventEnvelope = PublishEventInput & {
-  id: string
-  schemaVersion: 1
-  storedAt: string
-}
-
-export type EventAccessMetadata = Pick<
-  DomainEventEnvelope,
-  'id' | 'projectId' | 'eventName' | 'object' | 'sensitive' | 'storedAt'
->
-
-export type EventQuery = {
-  projectId: string
-  eventName?: DomainEventName
-  storedFrom?: string
-  storedTo?: string
-}
-
-export type AppendEventResult =
-  | { kind: 'APPENDED'; event: DomainEventEnvelope }
-  | { kind: 'DUPLICATE'; event: DomainEventEnvelope }
-
-/** Uniqueness scope is exactly projectId + eventName + idempotencyKey. */
-export interface EventRepositoryPort {
-  appendIfAbsent(event: DomainEventEnvelope): Promise<AppendEventResult>
-  findAccessMetadata(eventId: string): Promise<EventAccessMetadata | null>
-  findById(eventId: string): Promise<DomainEventEnvelope | null>
-  query(query: EventQuery): Promise<DomainEventEnvelope[]>
-}
-
-export type EventReadDecision =
-  | { allow: true }
-  | { allow: false; status: 403 | 404; code: 'FORBIDDEN' | 'NOT_FOUND' }
-
-export interface EventAuthorizationPort {
-  canRead(actorUserId: string, projectId: string): Promise<EventReadDecision>
-}
-
-export type EventDeliveryKind = 'LIVE' | 'REDELIVERY' | 'REPLAY'
-
-export type EventHandler = (
-  event: DomainEventEnvelope,
-  context: { deliveryKind: EventDeliveryKind },
-) => Promise<void> | void
-
-export type EventDeliveryResult = {
-  subscriberId: string
-  status: 'DELIVERED' | 'FAILED'
-  errorCode: string | null
-}
-
-export type PublishEventResult = {
-  persistence: 'APPENDED' | 'DUPLICATE'
-  event: DomainEventEnvelope
-  deliveries: EventDeliveryResult[]
-}
-
-export type RedeliverEventResult = {
-  event: DomainEventEnvelope
-  deliveries: EventDeliveryResult[]
-}
-
-export interface DomainEventPublisherPort {
-  publish(input: PublishEventInput): Promise<PublishEventResult>
-}
-
-export interface DomainEventSubscriberPort {
-  subscribe(eventName: DomainEventName, subscriberId: string, handler: EventHandler): () => void
-}
-
-export interface DomainEventQueryPort {
-  query(actorUserId: string, query: EventQuery): Promise<DomainEventEnvelope[]>
-}
-
-export interface DomainEventReplayPort {
-  redeliver(actorUserId: string, eventId: string): Promise<RedeliverEventResult>
-  replay(actorUserId: string, query: EventQuery): Promise<RedeliverEventResult[]>
-}
-
-export interface DomainEventLifecyclePort {
-  start(): Promise<void>
-  stop(): Promise<void>
-}
-
-export type DomainEventInfrastructurePort = DomainEventPublisherPort &
-  DomainEventSubscriberPort &
-  DomainEventQueryPort &
-  DomainEventReplayPort &
-  DomainEventLifecyclePort
+/**
+ * ROLE-D 事件契约的**转发**文件（公共接入后，唯一权威定义已上提到 `src/shared/events.ts`）。
+ *
+ * 依据：`docs/role-d/ROLE-D-EVENTS-public-integration-request.md` 第 1 项、
+ * `DECISIONS.md` `arch.shared-ports-and-assembly`（公共事件类型与端口放 `src/shared/`）。
+ *
+ * 本文件**只做 re-export**，不再持有任何定义 —— 避免 shared 与模块各留一份会漂移的类型。
+ * D 的 `service.ts` / `factory.ts` / `in-memory-repository.ts` / `validation.ts` 继续
+ * `import … from './contracts.js'`，经此处解析到 `src/shared/events.ts`，实现零改动。
+ *
+ * 字段名与语义与提取前逐字一致；唯一的**新增**是 `EventQuery.actorUserId?`（可选，
+ * 由 `src/app.ts` 的公共 query 端口注入，供 DB 仓储做查询层可见性过滤），属向后兼容的
+ * 可选扩展，不影响 D 的既有实现与测试。
+ */
+export * from '../../shared/events.js'

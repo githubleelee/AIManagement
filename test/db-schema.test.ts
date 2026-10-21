@@ -89,8 +89,11 @@ describe('表结构与迁移', () => {
    *
    * 断言形式**未变**：仍是"不多不少"的等值比较 ⇒ 任何**未经授权**的新表依然会让本用例
    * 失败，原保护意图（防止有人顺手往库里加表）完整保留。
+   *
+   * #37 领域事件（工单 #37）经 `DECISIONS.md` `arch.shared-ports-and-assembly` 授权再新增
+   * 第 22 张表 `DomainEvent`（事件持久化落点，见 `docs/role-d/ROLE-D-EVENTS-public-integration-request.md`）。
    */
-  it('表集合 = 契约 I-7 的 9 张 + 本阶段经授权新增的 12 张（不多不少）', async () => {
+  it('表集合 = 契约 I-7 的 9 张 + 本阶段经授权新增的 13 张（不多不少）', async () => {
     const rows = await db.prisma.$queryRawUnsafe<Array<{ name: string }>>(
       `SELECT name FROM sqlite_master
        WHERE type = 'table'
@@ -102,6 +105,7 @@ describe('表结构与迁移', () => {
       'AcceptanceRecord', // ← 本阶段经 #24 授权新增（US-09 / #29），不属于契约 I-7
       'AuditLog',
       'BusinessGoal',
+      'DomainEvent', // ← 本阶段经 #37 授权新增（领域事件），不属于契约 I-7；ASCII 序落在 BusinessGoal 与 Milestone 之间
       'Milestone', // ← 本阶段经项目负责人 2026-10-18 授权新增（US-06 / #26），不属于契约 I-7
       'ObjectVisibility',
       'Project',

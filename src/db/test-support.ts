@@ -24,7 +24,7 @@ const PRISMA_CLI = join(REPO_ROOT, 'node_modules', 'prisma', 'build', 'index.js'
  * 对外键逆序清空全表。
  *
  * 顺序原则：先删「引用方」（子表），再删「被引用方」（父表）。
- *   AuditLog / ObjectVisibility / Risk / TaskMilestone / TaskDependency / Milestone
+ *   DomainEvent / AuditLog / ObjectVisibility / Risk / TaskMilestone / TaskDependency / Milestone
  *   → UmlDiagramTask / UmlDiagramActivity / UmlDiagramGoal / UmlDiagramStory / UmlEdge / UmlNode / UmlDiagram
  *   → Task → UserStory → UserActivity → BusinessGoal → ProjectMember → Project → User
  *
@@ -46,6 +46,9 @@ const PRISMA_CLI = join(REPO_ROOT, 'node_modules', 'prisma', 'build', 'index.js'
  * 不依赖隐式级联，避免将来改 `onDelete` 时静默失效。
  */
 export async function resetDatabase(prisma: PrismaClient): Promise<void> {
+  // #37 领域事件：`DomainEvent.projectId` 是 Restrict，必须先于 `project` 删除。
+  // 只在 projectId 上有外键，actor 列是字符串快照、不建外键，故与 User 无先后约束。
+  await prisma.domainEvent.deleteMany()
   // 多态表 / 审计表：引用 Project 与 User，最先删除
   await prisma.auditLog.deleteMany()
   await prisma.objectVisibility.deleteMany()
