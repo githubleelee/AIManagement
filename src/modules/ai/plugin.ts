@@ -71,11 +71,7 @@ export function registerAiRoutes(app: FastifyInstance, context: AiRouteContext):
     disposeHandler,
   )
 
-  // Compatibility alias for the already-built #31 UI. New consumers use
-  // `/disposition`; both paths execute the same authorization and store logic.
-  app.post(
-    '/projects/:projectId/stories/:storyId/ai-suggestions/:suggestionId/review',
-    { preHandler: requireAuth },
-    disposeHandler,
-  )
+  // ★ 2026-10-21 B 公共接入裁定（PR #82 评审 M10）：删除 `/review` 兼容别名 ——
+  //   它与 `/disposition` 语义完全重复、无调用方、无测试覆盖，却会成为公共路由表里的
+  //   第二个同义端点。D 的前端只调 `/disposition`，删除不影响任何既有消费方。
 }

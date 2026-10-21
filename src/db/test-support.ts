@@ -44,8 +44,16 @@ const PRISMA_CLI = join(REPO_ROOT, 'node_modules', 'prisma', 'build', 'index.js'
  * `UmlDiagram.ownerUserId` 是 `Restrict`，若留到 `project.deleteMany()` 时会让它失败。
  * 虽然关联行 / 节点 / 边都有 `Cascade`，仍显式删除（与 `taskMilestone` 既有做法一致）：
  * 不依赖隐式级联，避免将来改 `onDelete` 时静默失效。
+ *
+ * #31 US-11：`AiDisposition` / `AiApplication` 是 `AiSuggestion` 的 1:1 子表（`suggestionId`
+ * 主键 + `Cascade`）；`AiSuggestion.projectId` 是 `Restrict`，故必须先删子表、再删建议表，
+ * 且都在 `project.deleteMany()` 之前。
  */
 export async function resetDatabase(prisma: PrismaClient): Promise<void> {
+  // #31 US-11 AI 建议：先删 1:1 子表，再删建议主表（`projectId` 为 Restrict，必须早于 project）。
+  await prisma.aiDisposition.deleteMany()
+  await prisma.aiApplication.deleteMany()
+  await prisma.aiSuggestion.deleteMany()
   // #37 领域事件：`DomainEvent.projectId` 是 Restrict，必须先于 `project` 删除。
   // 只在 projectId 上有外键，actor 列是字符串快照、不建外键，故与 User 无先后约束。
   await prisma.domainEvent.deleteMany()

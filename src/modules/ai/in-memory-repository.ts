@@ -1,5 +1,6 @@
 import type {
   AiAdoptionStats,
+  AiApplicationPatch,
   AiSuggestionQuery,
   AiSuggestionRecord,
   AiSuggestionRepository,
@@ -103,14 +104,43 @@ export class InMemoryAiSuggestionRepository<
     return { kind: 'APPLIED', record: copy(updated) }
   }
 
+  /**
+   * 应用结果登记：支持两种调用形式（见 `src/shared/ai.ts` 的端口重载）。
+   *
+   * 本内存桩是 D 的模块测试夹具，**不是**正式持久化；改动仅为满足公共端口新增的
+   * H3 规范形式（`id, patch, expectedStatus`），旧形式（整条记录）行为逐字保留。
+   * 真正的字段级补丁 + CAS 语义由 `src/db/ai-repository.ts` 实现。
+   */
   async updateApplication(
-    record: TRecord,
-    expectedStatus: 'DISPOSED',
+    target: TRecord | string,
+    patchOrExpectedStatus: AiApplicationPatch | 'DISPOSED' | 'APPLICATION_FAILED',
+    expectedStatus?: 'DISPOSED' | 'APPLICATION_FAILED',
   ): Promise<TRecord | null> {
-    const current = this.records.get(record.id)
-    if (!current || current.status !== expectedStatus) return null
-    this.records.set(record.id, copy(record))
-    return copy(record)
+    const id = typeof target === 'string' ? target : target.id
+    const current = this.records.get(id)
+    const expected = typeof target === 'string' ? expectedStatus : patchOrExpectedStatus
+    if (!current || current.status !== expected) return null
+
+    const updated =
+      typeof target === 'string'
+        ? ({
+            ...current,
+            status: (patchOrExpectedStatus as AiApplicationPatch).suggestionStatus,
+            application: {
+              status:
+                (patchOrExpectedStatus as AiApplicationPatch).suggestionStatus === 'APPLIED'
+                  ? 'APPLIED'
+                  : 'FAILED',
+              appliedAt: (patchOrExpectedStatus as AiApplicationPatch).appliedAt,
+              appliedByUserId: (patchOrExpectedStatus as AiApplicationPatch).appliedByUserId,
+              result: (patchOrExpectedStatus as AiApplicationPatch).result,
+              targetReferences: (patchOrExpectedStatus as AiApplicationPatch).targetReferences,
+            },
+          } as TRecord)
+        : (target as TRecord)
+
+    this.records.set(id, copy(updated))
+    return copy(updated)
   }
 
   async adoptionStats(query: AiSuggestionQuery): Promise<AiAdoptionStats> {

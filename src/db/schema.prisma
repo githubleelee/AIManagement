@@ -74,6 +74,8 @@ model Project {
   umlDiagrams      UmlDiagram[]
   // #37 领域事件：本项目的事件记录（反向关系，见文件末尾 DomainEvent）
   domainEvents     DomainEvent[]
+  // #31 US-11：本项目的 AI 建议（反向关系，见文件末尾 AiSuggestion）
+  aiSuggestions    AiSuggestion[]
 }
 
 model ProjectMember {
@@ -390,8 +392,12 @@ model UmlDiagram {
   stories    UmlDiagramStory[]
   tasks      UmlDiagramTask[]
 
-  // 列表主查询（按项目 + 类型）；负责人维度的「我的图」
+  // 列表主查询（按项目 + 类型）；负责人维度的「我的图」；
+  // ★ 非 PM 读取条件含 `everRestricted = false`（guard），故索引第三列跟随
+  //   （迁移 `20261021120000_add_uml_ever_restricted` 已建同名索引；
+  //   2026-10-21 补齐 schema 声明，消除 `prisma migrate diff` 漂移）。
   @@index([projectId, kind])
+  @@index([projectId, kind, everRestricted])
   @@index([ownerUserId])
 }
 
@@ -527,4 +533,110 @@ model DomainEvent {
   // 读路径：按项目 + 时间范围列事件；按项目 + 事件名筛选
   @@index([projectId, occurredAt])
   @@index([projectId, eventName])
+}
+
+// #31 US-11 AI 建议（ROLE-D 的共享「建议 + 处置」存储，公共表由 ROLE-B 落地）。
+//
+// 为什么需要：D 的进程内实现只把建议放在内存里（模块测试用）；AC 要求建议、处置与应用结果
+// 可持久化，且「唯一最终处置」必须由数据库约束兜底（并发处置时内存 Map 不足以保证）。
+// 依据：`DECISIONS.md` `ai.suggestion-store-shared`（一套共享存储，字段至少覆盖 8 类）、
+//   `permissions.ai-suggestion-disposal`（处置仅 PM）、`arch.shared-ports-and-assembly`；
+//   `docs/role-d/ROLE-D-US11-public-integration-request.md`。
+//
+// 三张表（`AiSuggestion` / `AiDisposition` / `AiApplication`）而不是 1:1 合并的理由：
+//   1. `AiDisposition.suggestionId` 作为**主键**（1:1 子表）把「唯一最终处置」变成可实测的
+//      DB 级约束 —— 同一建议的第二条处置在物理上无法落库（P2002），并发下恰好一次成功；
+//   2. `AiApplication` 是可变的（应用失败可重试），与不可变的建议正文 / 快照分离；
+//   3. 与 D 的 `AiSuggestionRecord{ disposition, application }` 嵌套结构一一对应，映射直观。
+//
+// 「status 为唯一真源」（裁定 6）：`AiSuggestion.status` 是生命周期唯一真源；
+//   `application.status` 不落库，读取时按 `src/shared/ai.ts` 的派生规则计算。
+//
+// 时间列用 `DateTime`（DATETIME）而非 String：`generatedAt` / `disposedAt` / `appliedAt` 的
+//   范围查询与排序必须走**原生时间比较**（与 `DomainEvent` 同款理由）。
+//
+// 删除语义：project → Restrict（与 Task / Risk / Milestone / UmlDiagram / DomainEvent 一致，
+//   项目不应被删掉而留下孤儿建议）；disposition / application → Cascade（从属物，随建议消失）。
+// 明确不建外键到 `User`：`generatedByUserId` / `disposedByUserId` / `appliedByUserId` 是
+//   操作者**字符串快照**，属历史事实，不应因用户被删而丢失（与 `DomainEvent` 的 actor 同款）。
+// **不得**用 `AuditLog` 当建议存储（`DECISIONS.md` `ai.suggestion-store-shared`）。
+model AiSuggestion {
+  id                           String   @id @default(uuid())
+  projectId                    String
+  scenario                     String // AiScenario
+  sourceObjectType             String
+  sourceObjectId               String
+  status                       String // AiSuggestionStatus —— **唯一真源**
+  generatedByUserId            String
+  generatedAt                  DateTime
+  // 生成追溯（`AiGenerationTrace`；`generationStatus` = SUCCEEDED | FAILED | TIMED_OUT）
+  generationStatus             String
+  generationRequestId          String
+  generationErrorCode          String? // AiDomainFailureCode（与顶层 ErrorCode 区分）
+  generationErrorMessage       String?
+  generationRetryable          Boolean?
+  // 模型或桩标识与实际可得版本（未知版本记「未提供」）
+  modelProvider                String
+  modelName                    String
+  modelVersion                 String
+  modelMode                    String // STUB | API
+  modelExecution               String // LOCAL | EXTERNAL
+  // 建议内容（不可变模型输出；人工修改落在 AiDisposition）
+  suggestion                   Json?
+  // 输入范围与基数（`AiInputScope`）
+  inputScope                   Json
+  // 快照 + 指纹（`AiSnapshot`；算法 SHA-256_CANONICAL_JSON_V1）
+  snapshotAsOf                 DateTime
+  snapshotData                 Json
+  snapshotFingerprint          String
+  snapshotFingerprintAlgorithm String
+  createdAt                    DateTime @default(now())
+
+  project     Project        @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  disposition AiDisposition?
+  application AiApplication?
+
+  // 列表主查询：按项目 + 场景 + 生成时间倒序（原生时间比较）
+  @@index([projectId, scenario, generatedAt])
+  // 查询层可见性过滤：按项目 + 来源对象（story / task）
+  @@index([projectId, sourceObjectType, sourceObjectId])
+}
+
+// 唯一最终处置（1:1 子表）。`suggestionId` 同时是主键 ⇒ 同一建议最多一条最终处置，
+// 由数据库物理兜底；`PENDING → 最终` 的条件更新（CAS）作用在 `AiSuggestion.status` 上。
+//
+// 幂等三元组 `(suggestionId, actorUserId, requestId)`（裁定 3）：由于 `suggestionId` 主键
+// 已保证唯一，三元组只用于**重放判定**（同 actor 同 requestId 同 `contentDigest` → REPLAY；
+// 否则 CONFLICT；不同 actor 不算同一请求）。`contentDigest` 由 `canonicalAiJsonDigest` 按
+// `SHA-256_CANONICAL_JSON_V1`（稳定键序 + 码元比较）算出。
+model AiDisposition {
+  suggestionId     String   @id
+  status           String // ACCEPTED | MODIFIED | REJECTED
+  disposedByUserId String
+  disposedAt       DateTime
+  requestId        String
+  contentDigest    String
+  reason           String? // MODIFIED / REJECTED 必填（校验层强制）
+  modification     Json?
+  finalContent     Json?
+
+  suggestion AiSuggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+
+  // 重放判定读路径（项目内按处置人 + 请求标识回溯）
+  @@index([disposedByUserId, requestId])
+}
+
+// 应用结果（1:1 子表，可变：应用失败可重试）。
+//
+// `status` **不落库**：`application.status` 是 `AiSuggestion.status` 的派生视图（裁定 6）。
+// 本表只存应用事实：时间、操作者、结果摘要白名单对象与目标引用；CAS 期望状态集合
+// `{DISPOSED, APPLICATION_FAILED}`（裁定 5，应用失败可重试）。
+model AiApplication {
+  suggestionId     String   @id
+  appliedAt        DateTime
+  appliedByUserId  String
+  result           Json?
+  targetReferences Json // AiSourceObjectRef[]
+
+  suggestion AiSuggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
 }

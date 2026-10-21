@@ -35,7 +35,11 @@ import { registerRoutes, type RouteContext } from './routes.js'
 import { registerActorResolver } from './auth/actor.js'
 import { prisma as defaultPrisma } from './db/client.js'
 import { PrismaEventRepository, createEventAuthorizationPort } from './db/event-repository.js'
+import { PrismaAiSuggestionRepository, createAiAuthorizationPort } from './db/ai-repository.js'
 import { createDomainEventInfrastructure } from './modules/events/factory.js'
+import { createAiBreakdownService } from './modules/ai/factory.js'
+import { createPrismaAiStorySource } from './modules/ai/story-source.js'
+import type { RequirementBreakdownRecord } from './shared/ai.js'
 import type {
   DomainEventPublisherPort,
   DomainEventQueryPort,
@@ -82,6 +86,16 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   // 不传 prisma 时与原先行为完全一致（回落单例）
   const context: RouteContext = { prisma: options.prisma ?? defaultPrisma }
+
+  // #31 US-11 AI 建议：显式组装模型端口（本轮 `LOCAL_STUB`）、DB 仓储、统一鉴权适配器与只读
+  // 故事来源，注入路由总表。业务域通过服务端口复用，不 import D 的 service（契约 I-9）。
+  // 外部模式必须显式注入 adapter；配置错误直接阻止启动，禁止静默降级为桩。
+  context.aiService = createAiBreakdownService({
+    ai: { mode: 'LOCAL_STUB' },
+    authorization: createAiAuthorizationPort(context.prisma),
+    repository: new PrismaAiSuggestionRepository<RequirementBreakdownRecord>(context.prisma),
+    storySource: createPrismaAiStorySource(context.prisma),
+  })
 
   // #37 领域事件：显式注入 DB 仓储 + 统一鉴权适配器，组装 D 的事件实现。
   // 业务域通过 `app.events` 使用 publisher / query 端口，不 import D 的 service（契约 I-9）。

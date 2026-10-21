@@ -17,9 +17,20 @@ import { registerGanttRoutes } from './modules/gantt/plugin.js'
 import { registerBoardRoutes } from './modules/board/plugin.js'
 import { registerWorkbenchRoutes } from './modules/workbench/plugin.js'
 import { registerRequirementRoutes } from './modules/requirement/plugin.js'
+import { registerAiRoutes } from './modules/ai/plugin.js'
+import type { AiBreakdownService } from './modules/ai/service.js'
 
 export type RouteContext = {
   prisma: PrismaClient
+  /**
+   * #31 US-11 AI 建议服务（由 `src/app.ts` 显式组装注入）。
+   *
+   * 为什么用服务实例而不是在 `registerRoutes` 里现建：AI 模块的插件签名是
+   * `registerAiRoutes(app, { service })`（D 的独立实现），组装（模型端口 / 仓储 / 鉴权 /
+   * 故事来源）必须留在唯一组装点 `src/app.ts`，路由总表只负责注册。
+   * 可选：模块测试可能只构造 `{ prisma }` 并注册部分路由；缺省时跳过 AI 路由注册。
+   */
+  aiService?: AiBreakdownService
 }
 
 export function registerRoutes(app: FastifyInstance, context: RouteContext): void {
@@ -78,4 +89,9 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
   // 不在 Sprint 1 契约的 30 个端点内，属本阶段新增（见 docs/role-b-board-design.md）。
   // 状态写入仍走既有 PATCH /stories/:storyId（端点 21），本模块不建镜像写入口。
   registerBoardRoutes(app, context)
+
+  // #31 US-11 AI 建议（B 公共接入）：POST / AI 建议生成、GET 列表、POST 处置。
+  // 不在 Sprint 1 契约的 30 个端点内，属本阶段新增；服务由 `src/app.ts` 组装后经 context 注入。
+  // 三个入口均 `requireAuth`，服务端逐次走 `can()`（read 复用 project.read；生成 / 处置仅 PM）。
+  if (context.aiService) registerAiRoutes(app, { service: context.aiService })
 }
