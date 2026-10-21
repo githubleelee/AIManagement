@@ -224,39 +224,41 @@ Done when: 新授权、权限排除、业务文件具体授权、优先级非硬
 Dependencies: none
 
 ## #24 按能力接收最小 AI / 事件端口提案
-Status: not started
+Status: done
+Note: D 的 `#31`（AI 框架）与 `#37`（领域事件）两份最小契约提案已到（#31 评论 2026-10-21 01:02、#37 评论 01:03），并各自附 PR；B 已按「接收 → 独立评审 → 合入 D 自有模块 → 公共接入另批」处理。
 Outcome: D 的 AI 与事件提案分别留存签名、输入输出、实现工厂、注入和最小测试示例的接收结论。
+Evidence: PR #82（AI，30 文件）与 PR #83（事件，15 文件）均经 B 的独立 reviewer 评审（结论「有条件合入」，0 阻断）+ B 实跑复核，**已合入 main**（`c9f4255` / `9a1ee31`）。评审结论与 B 裁定见 #82 评论 6315805522、#83 评论 6315750257（含 H1–H3 接线前必修项与 M/L 项）。
 Done when: 两类提案分别记录已确认/待补充、证据链接与后续分批字段申请；任一提案先就绪即可独立推进其已授权公共实现，不要求本任务整体完成，也不要求字段迁移或四模块一次交齐；不代 D 写业务实现。
 Dependencies: none
-Blocker: 待 D 提交最小 AI / 事件端口提案；两类独立接收，不以另一类缺件阻塞已就绪部分。
-
 ## #25 落地事件 schema 与迁移
-Status: not started
+Status: done
+Note: 事件表与迁移已落地（`DomainEvent`，16 字段 + 唯一索引 `(projectId, eventName, idempotencyKey)` + 索引 `(projectId, occurredAt)` / `(projectId, eventName)` + FK `projectId` **RESTRICT**；时间列为 `DateTime` 以支持原生比较）。
 Outcome: B 单写的最小事件存储模型、索引与顺序迁移。
+Evidence: PR #86 → main `7ea0332`：迁移 `20261021130000_add_domain_event`（空库 `migrate deploy` 实测通过）；`src/db/test-support.ts` 重置顺序补 `domainEvent.deleteMany()`；两处表集合快照 21 → 22（`DomainEvent` 落在 ASCII 序 `BusinessGoal` 与 `Milestone` 之间）。
 Done when: 依据 D 本能力字段提案完成幂等/查询所需最小数据结构，核对现有数据影响和迁移验证；不等 AI/附件/通知模型，不写入未决业务规则。
 Dependencies: none
-Blocker: 待 D 的事件字段/迁移提案及本批编码授权。
-
 ## #26 组装事件运行时与必要路由
-Status: not started
+Status: done
+Note: 事件运行时已组装并注入：`src/app.ts` 用 `createDomainEventInfrastructure({ repository, authorization })` 显式组装，`app.decorate('events', …)` 暴露 publisher / subscriber / query / replay，`onReady` / `onClose` 调用 `start()` / `stop()`。**本域无需 HTTP 路由**（事件为内部端口，D 的模块不注册端点），故 `src/routes.ts` 未改。
 Outcome: `src/app.ts` 构造 D 的独立事件实现并注入端口；有明确查询路由需求时由 `src/routes.ts` 集中注册。
+Evidence: PR #86 → main `7ea0332`；`src/shared/events.ts` 为端口唯一权威定义（`src/modules/events/contracts.ts` 只 re-export，方向 `modules → shared`）；`src/db/event-repository.ts` 提供 DB 仓储（接受调用方事务上下文、不自行提交）+ 权限适配器（只用 `can()`）。
 Done when: 生命周期/依赖注入和错误处理有证据，无跨业务 service 调用；所需事件迁移可用；不扩展业务生产者，不代写 A/C 逻辑；不等待其他能力。
 Dependencies: #28 [FS], #25 [FF]
-Blocker: 待 D 事件实现工厂、注册/生命周期补丁与本批编码授权。
-
 ## #27 验证事件公共集成
-Status: not started
+Status: done
+Note: 事件公共集成已验证：幂等（P2002 → `DUPLICATE`）、重复 publish 只去重不重投、**查询层对象级可见性过滤**（成员看不到敏感 task/story 的事件与 `payload.references` 引用；PM 全量；不可见与不存在同一条 404）、时间范围 UTC 归一化后原生比较、事务回滚不落库、app 组装与生命周期。
 Outcome: 事件公共层的定向集成证据和未完成验收项清单。
+Evidence: PR #86 → main `7ea0332`：`src/db/event-repository.test.ts` 11 例；B 独立复核 `typecheck` exit 0、定点 5 文件 / 57 例、**全量 64 文件 / 1440 例全绿**、空库 deploy 通过。**业务域的事件生产（甘特 / 风险 / 看板 / 通知）属各域自己的批次**，本任务不含。
 Done when: 相关模块测试、typecheck 与真实存储/订阅/幂等接入检查通过；模拟生产者与真实业务生产者明确分开；真实生产方未就绪则登记未验证，不声称业务端到端完成；真实外部 AI API 对本能力不适用，不作为本任务阻塞。
 Dependencies: #25 [FS], #26 [FS]
 
 ## #28 实现已确认的最小公共事件端口
-Status: not started
+Status: done
+Note: 最小公共事件端口已实现并上提 `src/shared/`：信封（`DomainEventEnvelope` / `PublishEventInput` / `EventQuery` / `EventObjectRef` / `EventActor`）+ Publisher / Subscriber / Query / Replay / Lifecycle / Infrastructure 端口 + **`EventRepositoryPort` / `EventAuthorizationPort`**（避免反向 import D 模块）；注释冻结「ISO 8601 UTC 带毫秒」「幂等三元组」「重复 publish 只去重不重投」「无 outbox / 不承诺 exactly-once」「消费方按 `event.id` 自保幂等」。
 Outcome: `src/shared/` 的事件信封、发布/订阅端口与必要校验。
+Evidence: PR #86 → main `7ea0332`（`src/shared/events.ts`，215 行）；与 D 契约的唯一偏差 `EventQuery.actorUserId?`（组装层注入、调用方传入会被覆盖）已登记并请 D 评估改为显式形参。
 Done when: 仅依据已接收的事件提案实现；记录事件名、项目/操作者/对象引用、发生时间、载荷、幂等语义与敏感边界；独立可编译并提供给各域，不等待 AI 提案或数据库迁移。
 Dependencies: none
-Blocker: 待 D 最小事件提案确认与本批编码授权；不要求 #24 两类提案全部接收完成。
-
 ## #29 实现已确认的最小公共 AI 端口
 Status: not started
 Outcome: `src/shared/` 的供应商无关 AI 输入/建议输出/错误与显式运行模式端口。
