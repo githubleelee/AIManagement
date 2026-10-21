@@ -392,8 +392,12 @@ model UmlDiagram {
   stories    UmlDiagramStory[]
   tasks      UmlDiagramTask[]
 
-  // 列表主查询（按项目 + 类型）；负责人维度的「我的图」
+  // 列表主查询（按项目 + 类型）；负责人维度的「我的图」；
+  // ★ 非 PM 读取条件含 `everRestricted = false`（guard），故索引第三列跟随
+  //   （迁移 `20261021120000_add_uml_ever_restricted` 已建同名索引；
+  //   2026-10-21 补齐 schema 声明，消除 `prisma migrate diff` 漂移）。
   @@index([projectId, kind])
+  @@index([projectId, kind, everRestricted])
   @@index([ownerUserId])
 }
 
