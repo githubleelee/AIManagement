@@ -370,6 +370,11 @@ model UmlDiagram {
   title       String
   description String?
   ownerUserId String // 创建时取当前 PM；可转移给任意项目成员（写入层校验）
+  // ★ 持久「曾经受限」guard（2026-10-21 项目负责人裁定 A；`DECISIONS.md` `uml.no-auto-declassification-guard`）：
+  //   一旦本图曾关联过敏感对象即置 true 且**永不自动清除**；非 PM 读一律 404（与「不存在」逐字一致），
+  //   以堵住「解除最后一个受限关联 → every(empty)=true → 正文对成员自动公开」的降密路径。
+  //   显式降密属另案（需 PM 动作 + 审计），本期不做。
+  everRestricted Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
