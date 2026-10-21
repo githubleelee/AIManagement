@@ -144,6 +144,15 @@ export function registerRequirementRoutes(app: FastifyInstance, ctx: RouteContex
   // 使用 M3，不复制其逻辑）。两者签名冻结，本模块只调用、不实现。
   const { can, visibilityScope } = createAuthorization(ctx.prisma)
 
+  // 事件端口由 `src/app.ts` 显式组装注入；缺失即 fail-fast，**不得**静默跳过发布。
+  const events = ctx.requirementEvents
+  if (!events) {
+    throw new Error(
+      '需求路由组装缺失：RouteContext.requirementEvents 未注入。请在 src/app.ts 用 ' +
+        'createRequirementEventPort({ repository }) 组装后传入。',
+    )
+  }
+
   // ===========================================================================
   // 端点 11 —— POST /projects/:projectId/goals —— 权限：requirement.write
   //
@@ -895,7 +904,7 @@ export function registerRequirementRoutes(app: FastifyInstance, ctx: RouteContex
         }
       }
 
-      const updated = await updateUserStory(ctx.prisma, actorUserId, storyId, {
+      const updated = await updateUserStory(ctx.prisma, events, actorUserId, storyId, {
         ...(trimmed.title === undefined ? {} : { title: trimmed.title }),
         ...(trimmed.roleText === undefined ? {} : { roleText: trimmed.roleText }),
         ...(trimmed.capabilityText === undefined ? {} : { capabilityText: trimmed.capabilityText }),

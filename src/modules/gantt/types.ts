@@ -7,7 +7,9 @@
  * 依据：`docs/role-b-gantt-design.md` §7（接口候选：`MilestoneView` / `TaskDependencyView` /
  * 两态 `Availability<T>`）。**本节只登记类型候选，不代表任何路由已注册或已冻结**。
  */
+import type { Prisma } from '@prisma/client'
 import type { StoryStatus, UserBrief } from '../../shared/types.js'
+import type { EventActor, EventObjectRef, JsonObject } from '../../shared/events.js'
 // ★ 只 import **类型**（不改 `analytics/**`）：故事进度的形状必须与仪表盘一致，
 //   复制一份本地类型等于给「同一个进度」留两处定义，迟早漂移。
 import type { ProjectProgress } from '../analytics/types.js'
@@ -95,22 +97,59 @@ export type TaskDependencyCreateInput = {
 }
 
 // ===========================================================================
-// 事件端口占位（**本批不接线**）
+// 事件端口（#37 公共事件基础设施已合入，本批接线）
 // ===========================================================================
 
 /**
- * 甘特域业务事件的发布端口 —— **占位，仅类型**。
+ * 甘特域事件名（命名规范 `<domain>.<object>.<action>`，已登记于
+ * `src/shared/events.ts` 的「业务域事件目录」）。
+ */
+export type GanttMilestoneEventName =
+  | 'gantt.milestone.created'
+  | 'gantt.milestone.updated'
+  | 'gantt.milestone.deleted'
+
+export type GanttDependencyEventName =
+  | 'gantt.dependency.created'
+  | 'gantt.dependency.deleted'
+
+export type GanttEventName = GanttMilestoneEventName | GanttDependencyEventName
+
+/**
+ * 域内事件草稿：**不含** `id` / `schemaVersion` / `storedAt` / `idempotencyKey`。
  *
- * 传输 / 存储 / 订阅 / 幂等由 ROLE-D 的 #37 提供实现；本批（#12 写路径）只在
- * `write.ts` 的写成功点用注释登记将来要发布的事件名，**不注入、不 new 假实现、
- * 不调用**（`docs/role-b-gantt-design.md` §9.4：本域只负责发布动作，不承诺 outbox）。
+ * 后四者由模块内适配器（`./event-port.ts`）负责补齐：`id` / `storedAt` 由适配器的
+ * `newId` / `now` 注入（可被测试覆盖），`idempotencyKey` 按确定性规则计算。
+ *
+ * 判别联合要求：**敏感分支的载荷只能是 `references`**，不得含任务标题 / 描述 / 正文
+ * （契约 I-6；否则 `src/db/event-repository.ts` 的查询层过滤看不到它）。
+ * `sensitive` 的判定在写路径的**同一事务内**查 `Task.isSensitive` 得出（见 `./write.ts`）。
+ */
+type GanttEventDraftBase = {
+  eventName: GanttEventName
+  projectId: string
+  object: EventObjectRef
+  actor: EventActor
+  /** ISO 8601 UTC（带毫秒，`…Z`）。 */
+  occurredAt: string
+}
+
+export type GanttEventDraft =
+  | (GanttEventDraftBase & { sensitive: false; payload: JsonObject })
+  | (GanttEventDraftBase & { sensitive: true; payload: { references: EventObjectRef[] } })
+
+/**
+ * 甘特域业务事件的发布端口。
+ *
+ * 接线方式：由 `./plugin.ts` 从 `RouteContext.ganttEvents` 取得（`src/app.ts` 用
+ * `createGanttEventPort` 显式组装），缺失即 fail-fast；**不 new no-op 实现、不静默跳过**。
+ *
+ * 语义：必须在业务写入的**同一个 `$transaction` 内**调用，`transaction` 即该事务的
+ * `tx`；适配器把事件追加到该事务（`appendIfAbsent(event, tx)`），**不自行提交、不派发
+ * 订阅者**。发布失败 = 同一事务回滚业务写入（刻意：宁可业务失败，不丢事件）。
  */
 export type GanttEventPort = {
-  publish(event: {
-    type: string
-    projectId: string
-    payload: Record<string, unknown>
-  }): Promise<void>
+  publish(event: GanttEventDraft, transaction: Prisma.TransactionClient): Promise<void>
 }
 
 // ===========================================================================

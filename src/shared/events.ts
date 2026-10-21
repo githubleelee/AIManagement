@@ -92,6 +92,55 @@ export type DomainEventEnvelope = PublishEventInput & {
   storedAt: string
 }
 
+/**
+ * 由发布输入 + 基础设施元数据构造完整信封（**纯函数**，shared 单写）。
+ *
+ * 为什么集中在这里：`id` / `schemaVersion` / `storedAt` 的补齐是**基础设施职责**，
+ * 域内适配器只注入 `id` / `storedAt` 两个值，避免每个域各自拼信封、各自决定
+ * `schemaVersion`。本函数在 `src/shared/` 内，会被前端打包，故**不得** import
+ * `node:crypto` / `node:process`；`id` 与 `storedAt` 的缺省值一律由调用方（模块内适配器）
+ * 给出（缺省 `randomUUID()` + `new Date().toISOString()`，测试可覆盖）。
+ */
+export function buildDomainEventEnvelope(
+  input: PublishEventInput,
+  meta: { id: string; storedAt: string },
+): DomainEventEnvelope {
+  return { ...input, id: meta.id, schemaVersion: 1, storedAt: meta.storedAt }
+}
+
+// ---------------------------------------------------------------------------
+// 业务域事件目录（ROLE-B 生产接线，本批接入甘特 + 需求）
+// ---------------------------------------------------------------------------
+//
+// 命名规范：`<domain>.<object>.<action>`（全小写、点分三段）。domain 取模块名，
+// object 取被动名词，action 取过去式动词。新增事件必须遵循本规范并在此登记。
+//
+// | 事件名                              | object                    | 非敏感载荷                                            | 幂等键                                        | 敏感判定来源                                            |
+// | ----------------------------------- | ------------------------- | ----------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------- |
+// | `gantt.milestone.created`           | `milestone`               | `{name, dueDate}`                                     | `<name>:<milestoneId>`                        | 关联任务任一 `isSensitive`                              |
+// | `gantt.milestone.updated`           | `milestone`               | `{name, dueDate}`                                     | `<name>:<milestoneId>:<occurredAt>`           | 更新后关联任务任一 `isSensitive`                        |
+// | `gantt.milestone.deleted`           | `milestone`               | `{name, dueDate}`                                     | `<name>:<milestoneId>`                        | 删除前关联任务任一 `isSensitive`                        |
+// | `gantt.dependency.created`          | `task-dependency`         | `{predecessorTaskId, successorTaskId, type:'FS'}`     | `<name>:<dependencyId>`                       | 两端任务任一 `isSensitive`                              |
+// | `gantt.dependency.deleted`          | `task-dependency`         | `{predecessorTaskId, successorTaskId, type:'FS'}`     | `<name>:<dependencyId>`                       | 两端任务任一 `isSensitive`                              |
+// | `requirement.story.status-changed`  | `story`                   | `{from, to}`（只含状态）                              | `<name>:<storyId>:<occurredAt>`               | 故事 `isSensitive`                                      |
+//
+// 敏感规则（契约 I-6，必须遵守）：只要事件涉及的对象里有**敏感**的 `task` / `story`，
+// 该事件必须以**敏感事件**发布（`sensitive: true`，`payload` **只能**是
+// `{references: EventObjectRef[]}`）。否则 `src/db/event-repository.ts` 的查询层过滤
+// 看不到它、会泄漏给非授权成员。before/after 等业务值已在 `AuditLog` 审计行里，
+// **不**放进敏感事件载荷。
+//
+// 幂等键规则（确定性）：创建 / 删除 → `<eventName>:<objectId>`；更新 / 状态变更 →
+// `<eventName>:<objectId>:<occurredAt ISO>`。同一毫秒内的重复更新会因幂等键相同而被
+// 去重（`DUPLICATE`）——这是**有意**的可接受行为（同毫秒内同对象同动作视为同一次）。
+// 幂等作用域仍由数据库的 `(projectId, eventName, idempotencyKey)` 唯一约束兜底。
+//
+// 同事务语义：域内写路径必须在**业务写入的同一个 `$transaction` 内**调用
+// `appendIfAbsent(event, tx)` 落库（适配器**不自行提交**）。**发布失败 = 业务写入回滚**
+// —— 宁可业务失败，也不产生「业务成功但事件丢失」。订阅者派发是 `app.events.publisher`
+// 的职责，不在域内；本批**无 outbox**、不承诺 exactly-once（见文件头固定语义 3）。
+// ---------------------------------------------------------------------------
+
 /** 权限判定所需的最小事件元数据（不含 payload，避免越权读取敏感内容）。 */
 export type EventAccessMetadata = Pick<
   DomainEventEnvelope,

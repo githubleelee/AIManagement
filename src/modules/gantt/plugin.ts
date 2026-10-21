@@ -28,7 +28,7 @@ import { dateSchema, toFieldErrors } from '../../shared/validation.js'
 import { createAuthorization } from '../authz/permissions.js'
 import type { RouteContext } from '../../routes.js'
 import { buildGanttView } from './service.js'
-import { MILESTONE_NAME_MAX_LENGTH } from './types.js'
+import { MILESTONE_NAME_MAX_LENGTH, type GanttEventPort } from './types.js'
 import {
   createDependency,
   createMilestone,
@@ -80,6 +80,15 @@ export function registerGanttRoutes(app: FastifyInstance, ctx: RouteContext): vo
   // 唯一鉴权入口来自 authz（决策 I-9：不复制权限逻辑，一律问 can()）。
   const { can } = createAuthorization(ctx.prisma)
 
+  // 事件端口由 `src/app.ts` 显式组装注入；缺失即 fail-fast，**不得**静默跳过发布。
+  const events: GanttEventPort | undefined = ctx.ganttEvents
+  if (!events) {
+    throw new Error(
+      '甘特路由组装缺失：RouteContext.ganttEvents 未注入。请在 src/app.ts 用 ' +
+        'createGanttEventPort({ repository }) 组装后传入。',
+    )
+  }
+
   // ===========================================================================
   // GET /projects/:projectId/gantt —— 权限 project.read
   //
@@ -116,7 +125,7 @@ export function registerGanttRoutes(app: FastifyInstance, ctx: RouteContext): vo
     const parsed = milestoneCreateSchema.safeParse(req.body)
     if (!parsed.success) throw validationFailed(parsed.error)
 
-    const milestone = await createMilestone(ctx.prisma, actorUserId, projectId, parsed.data)
+    const milestone = await createMilestone(ctx.prisma, events, actorUserId, projectId, parsed.data)
     return reply.status(201).send(milestone)
   })
 
@@ -134,7 +143,7 @@ export function registerGanttRoutes(app: FastifyInstance, ctx: RouteContext): vo
     const parsed = milestonePatchSchema.safeParse(req.body)
     if (!parsed.success) throw validationFailed(parsed.error)
 
-    const milestone = await updateMilestone(ctx.prisma, actorUserId, milestoneId, parsed.data)
+    const milestone = await updateMilestone(ctx.prisma, events, actorUserId, milestoneId, parsed.data)
     return reply.status(200).send(milestone)
   })
 
@@ -148,7 +157,7 @@ export function registerGanttRoutes(app: FastifyInstance, ctx: RouteContext): vo
     const actorUserId = currentUserId(req)
     const { milestoneId } = req.params as { milestoneId: string }
 
-    await deleteMilestone(ctx.prisma, actorUserId, milestoneId)
+    await deleteMilestone(ctx.prisma, events, actorUserId, milestoneId)
     return reply.status(204).send()
   })
 
@@ -174,7 +183,7 @@ export function registerGanttRoutes(app: FastifyInstance, ctx: RouteContext): vo
       const parsed = dependencyCreateSchema.safeParse(req.body)
       if (!parsed.success) throw validationFailed(parsed.error)
 
-      const dependency = await createDependency(ctx.prisma, actorUserId, projectId, parsed.data)
+      const dependency = await createDependency(ctx.prisma, events, actorUserId, projectId, parsed.data)
       return reply.status(201).send(dependency)
     },
   )
@@ -192,7 +201,7 @@ export function registerGanttRoutes(app: FastifyInstance, ctx: RouteContext): vo
       const actorUserId = currentUserId(req)
       const { dependencyId } = req.params as { dependencyId: string }
 
-      await deleteDependency(ctx.prisma, actorUserId, dependencyId)
+      await deleteDependency(ctx.prisma, events, actorUserId, dependencyId)
       return reply.status(204).send()
     },
   )

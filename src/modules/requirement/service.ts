@@ -849,27 +849,36 @@ export type UserStoryPatch = {
 }
 
 /**
- * 需求域事件端口 —— **类型占位，本批不接线**。
+ * 需求域事件端口（**本批接线**，#37 公共基础设施已合入）。
  *
- * 依据 `DECISIONS.md` `legacy.requirement-status-audit-authorization`（C13）：
- * 本批只落「事件**提交点**」，传输与订阅由 D 的 `#37` 端口提供，**本批不注入**，
- * 因此这里**没有**实现类、**没有**默认 no-op 实现，也**没有**在签名上挂可选参数 ——
- * 那三者都会让「事件其实没发」看起来像「已经接好了」。
- *
- * 接线方式（待 `#37` 交付后）：由调用方构造实现并作为**必填**依赖传入，
- * 在下方 `【事件占位】` 注释处调用。`occurredAt` 用 ISO 8601 UTC 字符串，
- * 与决策 I-2 的响应时间口径一致；payload **只含状态**，不含故事正文
- * （`docs/role-b-board-design.md` §7「审计行与事件不得写入敏感正文」）。
+ * 依据 `DECISIONS.md` `legacy.requirement-status-audit-authorization`（C13）与
+ * `events.business-domain-production`：
+ *   - 由调用方（`src/app.ts` 的 `createRequirementEventPort`）构造实现并作为**必填**依赖
+ *     传入 `updateUserStory`；插件缺失时 fail-fast。**没有**默认 no-op 实现 —— 那会让
+ *     「事件其实没发」看起来像「已经接好了」。
+ *   - 必须在**状态真的变化**时，于审计行所在的**同一 `$transaction` 内**发布：
+ *     `transaction` 即该事务的 `tx`，适配器把事件追加到该事务、**不自行提交**；
+ *     发布失败 = 业务写入（含审计行）冋滚。
+ *   - `occurredAt` 用 ISO 8601 UTC 字符串；非敏感载荷**只含状态** `{from, to}`，
+ *     不含故事正文（`docs/role-b-board-design.md` §7）。
+ *   - 敏感故事（`isSensitive`）→ 敏感事件，载荷**只能是 `references`**；before / after 已在
+ *     同一事务的 `AuditLog` 审计行里，**不**重复放进事件载荷（契约 I-6 取舍）。
  */
+export type RequirementStoryStatusChangedEvent = {
+  projectId: string
+  storyId: string
+  actorUserId: string
+  before: StoryStatus
+  after: StoryStatus
+  occurredAt: string
+  /** 故事 `isSensitive`（在同一事务内窄读得到）。 */
+  sensitive: boolean
+  /** 调用方业务事务；适配器在此事务内追加事件。 */
+  transaction: Prisma.TransactionClient
+}
+
 export type RequirementEventPort = {
-  publishStoryStatusChanged(event: {
-    projectId: string
-    storyId: string
-    actorUserId: string
-    before: StoryStatus
-    after: StoryStatus
-    occurredAt: string
-  }): Promise<void>
+  publishStoryStatusChanged(event: RequirementStoryStatusChangedEvent): Promise<void>
 }
 
 /**
@@ -912,6 +921,7 @@ export type RequirementEventPort = {
  */
 export async function updateUserStory(
   prisma: PrismaClient,
+  events: RequirementEventPort,
   actorUserId: string,
   storyId: string,
   patch: UserStoryPatch,
@@ -946,10 +956,10 @@ export async function updateUserStory(
 
   // 状态补丁：before 读 + 更新 + 审计同事务（理由见上方注释）
   const row = await prisma.$transaction(async (tx) => {
-    // 窄读：只取判断所需的两列，不把故事正文读进内存（同端点 20/21 的纵深防御口径）
+    // 窄读：只取判断所需的两列（状态 + 敏感标记），不把故事正文读进内存
     const existing = await tx.userStory.findUnique({
       where: { id: storyId },
-      select: { status: true },
+      select: { status: true, isSensitive: true },
     })
     // 目标不存在 → 返回 `null` 交给 handler 转 404，**且不写审计**（无对象可记）
     if (!existing) return null
@@ -975,10 +985,18 @@ export async function updateUserStory(
         },
       })
 
-      // 【事件占位】`story.status.changed`
-      // 本批**不发布**：传输由 D 的 `#37` 端口提供（见上方 `RequirementEventPort`），
-      // 待其交付后在此调用，payload 只用 `existing.status` / `updated.status` +
-      // `updated.projectId` / `actorUserId` / `storyId`，不含故事正文。
+      // 事件与审计同事务、同时机：只在状态真实变化时发布，嚎一事务回滚。
+      // 敏感故事 → 敏感事件（载荷只 references）；before / after 不重复入事件载荷。
+      await events.publishStoryStatusChanged({
+        projectId: updated.projectId,
+        storyId: updated.id,
+        actorUserId,
+        before: existing.status as StoryStatus,
+        after: updated.status as StoryStatus,
+        occurredAt: new Date().toISOString(),
+        sensitive: existing.isSensitive,
+        transaction: tx,
+      })
     }
 
     return updated
