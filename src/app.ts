@@ -34,6 +34,34 @@ import { registerErrorHandler } from './error-handler.js'
 import { registerRoutes, type RouteContext } from './routes.js'
 import { registerActorResolver } from './auth/actor.js'
 import { prisma as defaultPrisma } from './db/client.js'
+import { PrismaEventRepository, createEventAuthorizationPort } from './db/event-repository.js'
+import { createDomainEventInfrastructure } from './modules/events/factory.js'
+import type {
+  DomainEventPublisherPort,
+  DomainEventQueryPort,
+  DomainEventReplayPort,
+  DomainEventSubscriberPort,
+} from './shared/events.js'
+
+/**
+ * 挂到 Fastify 实例上的事件公共端口（业务域只依赖这些端口，不 import D 的 service）。
+ *
+ * 组装点唯一（`DECISIONS.md` `arch.shared-ports-and-assembly`）：仓储适配器、权限适配器、
+ * D 的事件实现都在这里显式注入；生命周期由 `onReady` / `onClose` 驱动。
+ */
+export type EventPorts = {
+  publisher: DomainEventPublisherPort
+  subscriber: DomainEventSubscriberPort
+  query: DomainEventQueryPort
+  replay: DomainEventReplayPort
+}
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    /** 领域事件公共端口（由 `buildApp` 组装注入）。 */
+    events: EventPorts
+  }
+}
 
 export type BuildAppOptions = {
   /** 是否开启 Fastify 日志。测试环境建议关闭，避免噪声。 */
@@ -54,6 +82,33 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   // 不传 prisma 时与原先行为完全一致（回落单例）
   const context: RouteContext = { prisma: options.prisma ?? defaultPrisma }
+
+  // #37 领域事件：显式注入 DB 仓储 + 统一鉴权适配器，组装 D 的事件实现。
+  // 业务域通过 `app.events` 使用 publisher / query 端口，不 import D 的 service（契约 I-9）。
+  const infrastructure = createDomainEventInfrastructure({
+    repository: new PrismaEventRepository(context.prisma),
+    authorization: createEventAuthorizationPort(context.prisma),
+  })
+  const events: EventPorts = {
+    publisher: { publish: (input) => infrastructure.publish(input) },
+    subscriber: { subscribe: (eventName, subscriberId, handler) =>
+      infrastructure.subscribe(eventName, subscriberId, handler) },
+    // ★ 组装层把 actor 注入 filter：D 的 service 原样透传给仓储，
+    //   DB 适配器据此在**查询层**做对象级可见性过滤（契约 I-6）。
+    query: { query: (actorUserId, query) => infrastructure.query(actorUserId, { ...query, actorUserId }) },
+    replay: {
+      redeliver: (actorUserId, eventId) => infrastructure.redeliver(actorUserId, eventId),
+      replay: (actorUserId, query) => infrastructure.replay(actorUserId, { ...query, actorUserId }),
+    },
+  }
+  app.decorate('events', events)
+  // 生命周期：Fastify 启动完成 / 关闭时驱动 D 的事件基础设施。
+  app.addHook('onReady', async () => {
+    await infrastructure.start()
+  })
+  app.addHook('onClose', async () => {
+    await infrastructure.stop()
+  })
 
   registerErrorHandler(app)
   // Actor 解析：只把「当前是谁」注入 request，不做权限判定（权限一律由 can() 现查库）。

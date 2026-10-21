@@ -72,6 +72,8 @@ model Project {
   taskDependencies TaskDependency[]
   // US-15（工单 #35）：本项目的 UML 图（反向关系，见文件末尾 UmlDiagram）
   umlDiagrams      UmlDiagram[]
+  // #37 领域事件：本项目的事件记录（反向关系，见文件末尾 DomainEvent）
+  domainEvents     DomainEvent[]
 }
 
 model ProjectMember {
@@ -479,4 +481,50 @@ model UmlDiagramTask {
 
   @@id([diagramId, taskId])
   @@index([taskId])
+}
+
+// #37 领域事件（ROLE-D 的信封，公共表由 ROLE-B 落地）—— 事件持久化落点。
+//
+// 为什么需要：D 的进程内实现只把事件放在内存里（模块测试用），AC 要求事件可持久化、
+// 可查询、可重放；且 `(projectId, eventName, idempotencyKey)` 的幂等去重必须由数据库
+// 唯一约束兜底（并发 publish 时内存 Map 不足以保证）。
+//
+// 字段取信封（`src/shared/events.ts` 的 `DomainEventEnvelope`）：
+//   object  → objectType / objectId；
+//   actor   → actorKind + actorUserId? / actorComponent?；
+//   payload → payload（Json；敏感事件只存 references，见信封注释）。
+//
+// 时间列用 `DateTime` 而非 String：查询的时间范围必须走**原生时间比较**，
+// 字符串字典序会把带偏移量（如 `+08:00`）的 ISO 串排错（D 的内存桩正是这个缺陷）。
+//
+// 删除语义：project → Restrict（与 Task / Risk / Milestone / UmlDiagram 一致，项目不应被删掉
+// 而留下孤儿事件）；actor 相关列只是字符串快照，不建外键（事件是历史事实，不应因用户被删而丢失）。
+//
+// 不建 outbox / 投递状态表：本批不承诺 exactly-once 与可靠投递（见 `DECISIONS.md`
+// `arch.shared-ports-and-assembly` 与 D 的协议 §5）。
+model DomainEvent {
+  id             String   @id @default(uuid())
+  schemaVersion  Int
+  eventName      String
+  projectId      String
+  objectType     String
+  objectId       String
+  actorKind      String // 'USER' | 'SYSTEM'（枚举合法性由写入层保证，与文件头第 1 条一致）
+  actorUserId    String?
+  actorComponent String?
+  occurredAt     DateTime
+  storedAt       DateTime
+  idempotencyKey String
+  correlationId  String?
+  causationId    String?
+  sensitive      Boolean
+  payload        Json
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  // 幂等唯一作用域（D 的信封契约固定为 projectId + eventName + idempotencyKey）
+  @@unique([projectId, eventName, idempotencyKey])
+  // 读路径：按项目 + 时间范围列事件；按项目 + 事件名筛选
+  @@index([projectId, occurredAt])
+  @@index([projectId, eventName])
 }
