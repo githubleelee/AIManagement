@@ -479,7 +479,19 @@ describe('数据边界（设计 §5.1 第 2 条）与只读', () => {
     //   上面那几个字面串只能抓住"我想到的"泄漏；这一层能抓住"将来新增字段带出原文"。
     //   口径文案（basis.* / unavailable[] / healthNote）按路径豁免 —— 它们是静态字面量，
     //   我在 audit 里逐句核过（无插值）。
-    const exemptPath = [/^projectId$/, /^basis\./, /^unavailable\[\d+\]\.(metric|needs|reason)$/, /^metrics\.progress\.healthNote$/]
+    //   ★ 豁免**按精确路径枚举**，不用 `^basis\.` 整段前缀（2026-10-19 复审 P-2 整改）：
+    //   前缀豁免等于"basis 下新增任何字段都默认跳过检查"——日后若有人把动态内容拼进公式文案
+    //   （例如在 formulas.progress 里插 `${planWindow.start}`，甚至插任务名"举例说明"），
+    //   扫描不会报，而这正是本用例声称要防的事。现在**新增 basis 字段默认会被检查**。
+    const exemptPath = [
+      /^projectId$/,
+      /^basis\.(asOf|populationBasis|scopeLabel|caliberOwner|timezone|anonymization|dataBoundary)$/,
+      /^basis\.formulas\.(progress|quality|riskByLevel|memberLoad)$/,
+      /^basis\.thresholds\.(healthyPp|warningPp)$/,
+      /^basis\.sourceTables\[\d+\]$/,
+      /^unavailable\[\d+\]\.(metric|needs|reason)$/,
+      /^metrics\.progress\.healthNote$/,
+    ]
     const allowedValue = [
       /^mk-[0-9a-f]{12}$/, // 匿名成员键
       /^INSIGHT_(QUALITY|PROGRESS|RISK|EFFICIENCY)$/, // 场景常量

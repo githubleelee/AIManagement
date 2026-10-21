@@ -180,6 +180,38 @@ describe('进度指标', () => {
     expect(result.healthState).toBe('WARNING')
   })
 
+  /* ---------------------------------------------------------------------------
+   * ★ 区间内锚点（2026-10-19 复审 P-1 整改）
+   *
+   * 上面两条只钉"正好落在阈值上 ⇒ 仍算上一档"，它们是**单侧**的：把阈值从 10 调到 11，
+   * 那两条**仍然全绿**（都是 ≤10 的情形），也就是说"阈值被上调"这件事此前没有任何护栏。
+   * 下面两条把偏差放在**阈值区间内**，于是阈值一旦上调就必然红：
+   *   · 11pp：阈值 10 ⇒ 预警；阈值改成 11 ⇒ 恰好落在边界上变「健康」⇒ 断言红
+   *   · 26pp：阈值 25 ⇒ 风险；阈值改成 26 ⇒ 变「预警」⇒ 断言红
+   * 数据取整以免浮点抖动：11pp = 计划 7/10 − 实际 59/100；26pp = 计划 2/4 − 实际 24/100。
+   * ------------------------------------------------------------------------- */
+
+  it('★ 区间内锚点：偏差 11pp（10 与 11 之间）⇒ 预警 —— 阈值被上调会立刻变红', () => {
+    const result = progressOf(
+      taskFacts(taskCounts(['CLOSED', 59], ['TODO', 41]), { start: '2026-03-01', end: '2026-03-10' }),
+      '2026-03-07', // 含首尾 10 天、已过 7 天 ⇒ 计划 0.7；实际 0.59 ⇒ 偏差 11pp
+    )
+    expect(result.planTimeProgress).toBe(0.7)
+    expect(result.ratio).toBe(0.59)
+    expect(result.deviationPp).toBe(11)
+    expect(result.healthState).toBe('WARNING')
+  })
+
+  it('★ 区间内锚点：偏差 26pp（25 与 26 之间）⇒ 风险 —— 阈值被上调会立刻变红', () => {
+    const result = progressOf(
+      taskFacts(taskCounts(['CLOSED', 24], ['TODO', 76]), HALF_WINDOW),
+      AS_OF, // 计划 0.5；实际 0.24 ⇒ 偏差 26pp
+    )
+    expect(result.planTimeProgress).toBe(0.5)
+    expect(result.deviationPp).toBe(26)
+    expect(result.healthState).toBe('AT_RISK')
+  })
+
   it('计划窗口原样带出（可见窗口口径由取数层负责）', () => {
     const result = progressOf(taskFacts(taskCounts(['TODO', 1])), AS_OF)
     expect(result.planWindow).toEqual(HALF_WINDOW)
