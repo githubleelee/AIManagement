@@ -28,12 +28,15 @@ import {
   makeGoal,
   makeMember,
   makeProject,
+  makeSensitive,
   makeUser,
 } from '../../../test/factories.js'
+import { PrismaEventRepository } from '../../db/event-repository.js'
 import type { UserBrief } from '../../shared/types.js'
 import { registerGanttRoutes } from './plugin.js'
 import { MILESTONE_NAME_MAX_LENGTH } from './types.js'
 import type { GanttView, MilestoneWriteView, TaskDependencyView } from './types.js'
+import { createMilestone } from './write.js'
 
 type ErrorBody = {
   error: {
@@ -925,5 +928,222 @@ describe('写后读回归：GET /projects/:projectId/gantt', () => {
     expect(story.tasks.map((task) => task.id).sort()).toEqual([t1, t2].sort())
     expect(story.tasks.find((task) => task.id === t1)?.milestoneIds).toEqual([milestone.id])
     expect(story.tasks.find((task) => task.id === t2)?.milestoneIds).toEqual([milestone.id])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 领域事件生产（#37 接线）：5 个写操作 + 同事务语义 + 幂等键 + 敏感可见性
+// ---------------------------------------------------------------------------
+
+/** 读本项目某事件名的全部事件行（按 storedAt 升序）。 */
+async function eventsByName(eventName: string) {
+  return ctx.db.domainEvent.findMany({
+    where: { projectId, eventName },
+    orderBy: { storedAt: 'asc' },
+  })
+}
+
+describe('领域事件（同事务追加 + 幂等键 + 敏感判定）', () => {
+  it('5 个写操作各产出恰好一条事件：名字 / object / payload / actor / occurredAt', async () => {
+    const storyId = await seedStory()
+    const t1 = await seedTask({ storyId })
+    const t2 = await seedTask({ storyId })
+
+    const milestone = await createMilestoneOk(pm.id, {
+      name: '事件里程碑',
+      dueDate: '2026-05-01',
+      taskIds: [t1],
+    })
+    const dependency = await createDependencyOk(pm.id, t1, t2)
+    expect((await patchMilestone(pm.id, milestone.id, { name: '改名里程碑' })).status).toBe(200)
+    expect((await deleteDependency(pm.id, dependency.id)).status).toBe(204)
+    expect((await deleteMilestone(pm.id, milestone.id)).status).toBe(204)
+
+    // 恰好 5 条：创建里程碑 / 创建依赖 / 改里程碑 / 删依赖 / 删里程碑
+    expect(await ctx.db.domainEvent.count({ where: { projectId } })).toBe(5)
+
+    const created = (await eventsByName('gantt.milestone.created'))[0]!
+    expect(created).toMatchObject({
+      schemaVersion: 1,
+      projectId,
+      objectType: 'milestone',
+      objectId: milestone.id,
+      actorKind: 'USER',
+      actorUserId: pm.id,
+      sensitive: false,
+      payload: { name: '事件里程碑', dueDate: '2026-05-01' },
+      idempotencyKey: `gantt.milestone.created:${milestone.id}`,
+    })
+    expect(created.occurredAt.toISOString()).toMatch(/T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+    expect(created.storedAt.toISOString()).toMatch(/T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+
+    const depCreated = (await eventsByName('gantt.dependency.created'))[0]!
+    expect(depCreated).toMatchObject({
+      projectId,
+      objectType: 'task-dependency',
+      objectId: dependency.id,
+      actorUserId: pm.id,
+      sensitive: false,
+      payload: { predecessorTaskId: t1, successorTaskId: t2, type: 'FS' },
+      idempotencyKey: `gantt.dependency.created:${dependency.id}`,
+    })
+
+    const updated = (await eventsByName('gantt.milestone.updated'))[0]!
+    expect(updated).toMatchObject({
+      objectType: 'milestone',
+      objectId: milestone.id,
+      sensitive: false,
+      payload: { name: '改名里程碑', dueDate: '2026-05-01' },
+    })
+    // 更新类事件的幂等键确定性携带 occurredAt（同毫秒重复更新去重）
+    expect(updated.idempotencyKey).toBe(
+      `gantt.milestone.updated:${milestone.id}:${updated.occurredAt.toISOString()}`,
+    )
+
+    const depDeleted = (await eventsByName('gantt.dependency.deleted'))[0]!
+    expect(depDeleted).toMatchObject({
+      objectType: 'task-dependency',
+      objectId: dependency.id,
+      sensitive: false,
+      payload: { predecessorTaskId: t1, successorTaskId: t2, type: 'FS' },
+      idempotencyKey: `gantt.dependency.deleted:${dependency.id}`,
+    })
+
+    const deleted = (await eventsByName('gantt.milestone.deleted'))[0]!
+    expect(deleted).toMatchObject({
+      objectType: 'milestone',
+      objectId: milestone.id,
+      sensitive: false,
+      payload: { name: '改名里程碑', dueDate: '2026-05-01' },
+      idempotencyKey: `gantt.milestone.deleted:${milestone.id}`,
+    })
+  })
+
+  it('业务事务失败（成环 / 重复边 / P2025 删除不存在）→ 事件表零新增', async () => {
+    const storyId = await seedStory()
+    const a = await seedTask({ storyId })
+    const b = await seedTask({ storyId })
+    await createDependencyOk(pm.id, a, b)
+    const baseline = await ctx.db.domainEvent.count({ where: { projectId } })
+    expect(baseline).toBe(1)
+
+    // FS 环
+    expectConflict(
+      await postDependency(pm.id, { predecessorTaskId: b, successorTaskId: a }),
+      'successorTaskId',
+      'INVALID_VALUE',
+    )
+    // 重复边
+    expectConflict(
+      await postDependency(pm.id, { predecessorTaskId: a, successorTaskId: b, type: 'FS' }),
+      'successorTaskId',
+      'DUPLICATE',
+    )
+    // P2025：删除不存在的里程碑 / 依赖
+    expectProjectNotFound(await deleteMilestone(pm.id, 'no-such-milestone'))
+    expectProjectNotFound(await deleteDependency(pm.id, 'no-such-dependency'))
+
+    // 失败的写操作没有留下任何事件（同事务回滚，不产生孤删事件）
+    expect(await ctx.db.domainEvent.count({ where: { projectId } })).toBe(baseline)
+  })
+
+  it('事件发布失败 → 业务写入同事务回滚（不产生「业务成功但事件丢失」）', async () => {
+    // 直接调 service 注入必定失败的端口，验证同一事务回滚设计（HTTP 层无法注入失败）。
+    const failingEvents = {
+      async publish(): Promise<void> {
+        throw new Error('event-store-down')
+      },
+    }
+
+    await expect(
+      createMilestone(ctx.db, failingEvents, pm.id, projectId, {
+        name: '回滚里程碑',
+        dueDate: '2026-06-01',
+      }),
+    ).rejects.toThrow('event-store-down')
+
+    expect(await ctx.db.milestone.count({ where: { projectId } })).toBe(0)
+    expect(await ctx.db.domainEvent.count({ where: { projectId } })).toBe(0)
+  })
+
+  it('敏感任务参与依赖 → 敏感事件（载荷只有 references）+ MEMBER 查不到 / PM 查得到', async () => {
+    const storyId = await seedStory()
+    const t1 = await seedTask({ storyId })
+    const t2 = await seedTask({ storyId })
+    // 标记 t1 敏感，白名单为空 → MEMBER 不可见（仅 PM 全量可见）
+    await makeSensitive('task', t1, [])
+
+    await createDependencyOk(pm.id, t1, t2)
+    const event = (await eventsByName('gantt.dependency.created'))[0]!
+    expect(event.sensitive).toBe(true)
+    expect(Object.keys(event.payload as object)).toEqual(['references'])
+    const references = (event.payload as { references: unknown[] }).references
+    expect(references).toHaveLength(2)
+    expect(references).toEqual(
+      expect.arrayContaining([
+        { objectType: 'task', objectId: t1 },
+        { objectType: 'task', objectId: t2 },
+      ]),
+    )
+
+    // 真实查询层过滤：MEMBER 查不到，PM 查得到
+    const repo = new PrismaEventRepository(ctx.db)
+    const memberView = await repo.query({
+      projectId,
+      eventName: 'gantt.dependency.created',
+      actorUserId: member.id,
+    })
+    expect(memberView).toHaveLength(0)
+    const pmView = await repo.query({
+      projectId,
+      eventName: 'gantt.dependency.created',
+      actorUserId: pm.id,
+    })
+    expect(pmView.map((e) => e.id)).toEqual([event.id])
+  })
+
+  it('敏感任务关联里程碑 → 敏感事件（references 列出关联任务）+ MEMBER 查不到', async () => {
+    const storyId = await seedStory()
+    const t1 = await seedTask({ storyId })
+    await makeSensitive('task', t1, [])
+
+    const milestone = await createMilestoneOk(pm.id, {
+      name: '敏感里程碑',
+      dueDate: '2026-05-02',
+      taskIds: [t1],
+    })
+    const event = (await eventsByName('gantt.milestone.created'))[0]!
+    expect(event.objectId).toBe(milestone.id)
+    expect(event.sensitive).toBe(true)
+    expect(event.payload).toEqual({ references: [{ objectType: 'task', objectId: t1 }] })
+
+    const repo = new PrismaEventRepository(ctx.db)
+    const memberView = await repo.query({
+      projectId,
+      eventName: 'gantt.milestone.created',
+      actorUserId: member.id,
+    })
+    expect(memberView).toHaveLength(0)
+    const pmView = await repo.query({
+      projectId,
+      eventName: 'gantt.milestone.created',
+      actorUserId: pm.id,
+    })
+    expect(pmView.map((e) => e.id)).toEqual([event.id])
+  })
+
+  it('非敏感依赖事件：MEMBER 也能查到（查询层过滤不误伤）', async () => {
+    const storyId = await seedStory()
+    const t1 = await seedTask({ storyId })
+    const t2 = await seedTask({ storyId })
+    const dependency = await createDependencyOk(pm.id, t1, t2)
+
+    const repo = new PrismaEventRepository(ctx.db)
+    const memberView = await repo.query({
+      projectId,
+      eventName: 'gantt.dependency.created',
+      actorUserId: member.id,
+    })
+    expect(memberView.map((e) => e.object.objectId)).toEqual([dependency.id])
   })
 })

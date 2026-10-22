@@ -33,17 +33,27 @@
  * 存在性预言机（契约 I-3 / 设计 §6）。
  *
  * ===========================================================================
- * 事件（**本批不接线**）
+ * 事件（**本批接线**，#37 公共基础设施已合入）
  * ===========================================================================
  *
- * 每个写成功点都用 `【事件占位】` 注释登记将来要发布的事件名；传输实现由 ROLE-D 的
- * #37 提供，本批不注入 `GanttEventPort`、不 new no-op 实现、不调用（见 `./types.ts`）。
+ * 5 个写函数在**既有业务事务内**、写入成功后 `await deps.events.publish(draft, tx)`：
+ *   - 适配器把草稿映射为信封并 `appendIfAbsent(event, tx)`，**不自行提交、不派发订阅者**；
+ *   - 发布失败 = 同一事务回滚业务写入（刻意：宁可业务失败，不丢事件）。
+ *
+ * 敏感判定（契约 I-6）在**同一事务内**查 `Task.isSensitive`：依赖事件查两端任务，
+ * 里程碑事件查 `TaskMilestone` 关联任务；任一为真 → 敏感事件 + `references`。
+ * 事件名 / 载荷 / 幂等键 / 敏感规则见 `src/shared/events.ts` 的「业务域事件目录」。
  */
 import type { Prisma, PrismaClient } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
+import type { EventObjectRef } from '../../shared/events.js'
 import type { FieldErrorCode } from '../../shared/types.js'
 import { createAuthorization } from '../authz/permissions.js'
 import type {
+  GanttDependencyEventName,
+  GanttEventDraft,
+  GanttEventPort,
+  GanttMilestoneEventName,
   MilestoneCreateInput,
   MilestonePatchInput,
   MilestoneWriteView,
@@ -307,6 +317,101 @@ async function toMilestoneWriteView(
 }
 
 /* ===========================================================================
+ * 事件草稿构造与敏感判定（契约 I-6）
+ * =========================================================================== */
+
+/**
+ * 读某里程碑**关联任务**的引用与「是否有敏感任务」。
+ *
+ * 必须在同一事务内调用；`DELETE` 分支须在删除（级联清关联行）**之前**读。
+ * `references` 列出全部关联任务：只要其中任一不可见，查询层就把整条敏感事件过滤掉。
+ */
+async function readMilestoneTaskSensitivity(
+  tx: Prisma.TransactionClient,
+  milestoneId: string,
+): Promise<{ references: EventObjectRef[]; anySensitive: boolean }> {
+  const links = await tx.taskMilestone.findMany({
+    where: { milestoneId },
+    select: { task: { select: { id: true, isSensitive: true } } },
+  })
+  return {
+    references: links.map((link) => ({ objectType: 'task', objectId: link.task.id })),
+    anySensitive: links.some((link) => link.task.isSensitive),
+  }
+}
+
+/** 读依赖**两端任务**的引用与「是否有敏感任务」（同一事务内）。 */
+async function readDependencyTaskSensitivity(
+  tx: Prisma.TransactionClient,
+  predecessorTaskId: string,
+  successorTaskId: string,
+): Promise<{ references: EventObjectRef[]; anySensitive: boolean }> {
+  const tasks = await tx.task.findMany({
+    where: { id: { in: [predecessorTaskId, successorTaskId] } },
+    select: { id: true, isSensitive: true },
+  })
+  return {
+    references: tasks.map((task) => ({ objectType: 'task', objectId: task.id })),
+    anySensitive: tasks.some((task) => task.isSensitive),
+  }
+}
+
+/** 里程碑事件草稿：关联任务任一敏感 → 敏感分支（载荷只含 references）。 */
+function milestoneEventDraft(args: {
+  eventName: GanttMilestoneEventName
+  projectId: string
+  actorUserId: string
+  occurredAt: string
+  milestoneId: string
+  name: string
+  dueDate: string
+  sensitivity: { references: EventObjectRef[]; anySensitive: boolean }
+}): GanttEventDraft {
+  const base = {
+    eventName: args.eventName,
+    projectId: args.projectId,
+    object: { objectType: 'milestone', objectId: args.milestoneId },
+    actor: { kind: 'USER', userId: args.actorUserId } as const,
+    occurredAt: args.occurredAt,
+  }
+  return args.sensitivity.anySensitive
+    ? { ...base, sensitive: true, payload: { references: args.sensitivity.references } }
+    : { ...base, sensitive: false, payload: { name: args.name, dueDate: args.dueDate } }
+}
+
+/** 依赖事件草稿：两端任务任一敏感 → 敏感分支（references 列出这两个任务）。 */
+function dependencyEventDraft(args: {
+  eventName: GanttDependencyEventName
+  projectId: string
+  actorUserId: string
+  occurredAt: string
+  dependencyId: string
+  predecessorTaskId: string
+  successorTaskId: string
+  type: TaskDependencyType
+  sensitivity: { references: EventObjectRef[]; anySensitive: boolean }
+}): GanttEventDraft {
+  const base = {
+    eventName: args.eventName,
+    projectId: args.projectId,
+    object: { objectType: 'task-dependency', objectId: args.dependencyId },
+    actor: { kind: 'USER', userId: args.actorUserId } as const,
+    occurredAt: args.occurredAt,
+  }
+  return args.sensitivity.anySensitive
+    ? { ...base, sensitive: true, payload: { references: args.sensitivity.references } }
+    : {
+        ...base,
+        sensitive: false,
+        payload: {
+          predecessorTaskId: args.predecessorTaskId,
+          successorTaskId: args.successorTaskId,
+          type: args.type,
+        },
+      }
+}
+
+/* ===========================================================================
  * 里程碑写
  * =========================================================================== */
 
@@ -317,6 +422,7 @@ async function toMilestoneWriteView(
  */
 export async function createMilestone(
   prisma: PrismaClient,
+  events: GanttEventPort,
   actorUserId: string,
   projectId: string,
   input: MilestoneCreateInput,
@@ -340,11 +446,24 @@ export async function createMilestone(
         data: taskIds.map((taskId) => ({ taskId, milestoneId: milestone.id })),
       })
     }
+
+    // 同事务追加事件：关联任务此时已落库，敏感判定在事务内查（I-6）。
+    await events.publish(
+      milestoneEventDraft({
+        eventName: 'gantt.milestone.created',
+        projectId,
+        actorUserId,
+        occurredAt: new Date().toISOString(),
+        milestoneId: milestone.id,
+        name: input.name,
+        dueDate: input.dueDate,
+        sensitivity: await readMilestoneTaskSensitivity(tx, milestone.id),
+      }),
+      tx,
+    )
     return milestone
   })
 
-  // 【事件占位】本批不接线（ROLE-D 的 #37 未交付）：将来在此发布
-  //   `gantt.milestone.created`（payload：里程碑 id / 项目 id / 关联任务 id）。
   return toMilestoneWriteView(prisma, created.id)
 }
 
@@ -355,6 +474,7 @@ export async function createMilestone(
  */
 export async function updateMilestone(
   prisma: PrismaClient,
+  events: GanttEventPort,
   actorUserId: string,
   milestoneId: string,
   input: MilestonePatchInput,
@@ -380,15 +500,16 @@ export async function updateMilestone(
       : await resolveTaskIdsInProject(prisma, existing.projectId, input.taskIds)
 
   await prisma.$transaction(async (tx) => {
+    let updated: { id: string; name: string; dueDate: string }
     try {
-      await tx.milestone.update({
+      updated = await tx.milestone.update({
         where: { id: milestoneId },
         data: {
           ...(input.name === undefined ? {} : { name: input.name }),
           ...(input.dueDate === undefined ? {} : { dueDate: input.dueDate }),
           ...(ownerUserId === undefined ? {} : { ownerUserId }),
         },
-        select: { id: true },
+        select: { id: true, name: true, dueDate: true },
       })
     } catch (error) {
       // 并发删除竞态：解析/判权之后、写入之前该方法行被另一个请求删掉。
@@ -406,9 +527,23 @@ export async function updateMilestone(
         })
       }
     }
+
+    // 同事务追加事件：敏感判定基于**替换后**的关联任务集合（I-6）。
+    await events.publish(
+      milestoneEventDraft({
+        eventName: 'gantt.milestone.updated',
+        projectId: existing.projectId,
+        actorUserId,
+        occurredAt: new Date().toISOString(),
+        milestoneId,
+        name: updated.name,
+        dueDate: updated.dueDate,
+        sensitivity: await readMilestoneTaskSensitivity(tx, milestoneId),
+      }),
+      tx,
+    )
   })
 
-  // 【事件占位】本批不接线：将来在此发布 `gantt.milestone.updated`（含变更字段集）。
   return toMilestoneWriteView(prisma, milestoneId)
 }
 
@@ -419,6 +554,7 @@ export async function updateMilestone(
  */
 export async function deleteMilestone(
   prisma: PrismaClient,
+  events: GanttEventPort,
   actorUserId: string,
   milestoneId: string,
 ): Promise<void> {
@@ -429,15 +565,40 @@ export async function deleteMilestone(
   if (!existing) throw notFound()
   await assertCanWrite(prisma, actorUserId, existing.projectId)
 
-  try {
-    await prisma.milestone.delete({ where: { id: milestoneId } })
-  } catch (error) {
-    // 并发删除竞态：两个 DELETE 同时通过解析与判权，后到者拿到 P2025。
-    // 映射为 404（同一条文案）；级联清理已由先到者的事务完成。
-    if (prismaErrorCode(error) === 'P2025') throw notFound()
-    throw error
-  }
-  // 【事件占位】本批不接线：将来在此发布 `gantt.milestone.deleted`。
+  // 删除与事件必须同事务：删除前先读关联任务做敏感判定（级联会先清掉关联行）。
+  await prisma.$transaction(async (tx) => {
+    try {
+      const row = await tx.milestone.findUnique({
+        where: { id: milestoneId },
+        select: { name: true, dueDate: true },
+      })
+      if (!row) {
+        // 并发删除竞态：解析/判权之后被另一请求删掉。触发 P2025 → 404。
+        await tx.milestone.delete({ where: { id: milestoneId } })
+        return
+      }
+
+      const sensitivity = await readMilestoneTaskSensitivity(tx, milestoneId)
+      await tx.milestone.delete({ where: { id: milestoneId } })
+      await events.publish(
+        milestoneEventDraft({
+          eventName: 'gantt.milestone.deleted',
+          projectId: existing.projectId,
+          actorUserId,
+          occurredAt: new Date().toISOString(),
+          milestoneId,
+          name: row.name,
+          dueDate: row.dueDate,
+          sensitivity,
+        }),
+        tx,
+      )
+    } catch (error) {
+      // P2025 → 404（与「不存在」同一条文案）。
+      if (prismaErrorCode(error) === 'P2025') throw notFound()
+      throw error
+    }
+  })
 }
 
 /* ===========================================================================
@@ -459,6 +620,7 @@ export async function deleteMilestone(
  */
 export async function createDependency(
   prisma: PrismaClient,
+  events: GanttEventPort,
   actorUserId: string,
   projectId: string,
   input: TaskDependencyCreateInput,
@@ -486,8 +648,16 @@ export async function createDependency(
       throw conflictError('加入该依赖会形成 FS 环', 'successorTaskId', 'INVALID_VALUE')
     }
 
+    let row: {
+      id: string
+      projectId: string
+      predecessorTaskId: string
+      successorTaskId: string
+      type: string
+      createdAt: Date
+    }
     try {
-      return await tx.taskDependency.create({
+      row = await tx.taskDependency.create({
         data: {
           projectId,
           predecessorTaskId: input.predecessorTaskId,
@@ -511,6 +681,27 @@ export async function createDependency(
       }
       throw error
     }
+
+    // 同事务追加事件：敏感判定在同一事务内查两端任务（I-6）。
+    await events.publish(
+      dependencyEventDraft({
+        eventName: 'gantt.dependency.created',
+        projectId,
+        actorUserId,
+        occurredAt: new Date().toISOString(),
+        dependencyId: row.id,
+        predecessorTaskId: row.predecessorTaskId,
+        successorTaskId: row.successorTaskId,
+        type: row.type as TaskDependencyType,
+        sensitivity: await readDependencyTaskSensitivity(
+          tx,
+          row.predecessorTaskId,
+          row.successorTaskId,
+        ),
+      }),
+      tx,
+    )
+    return row
   })
   // P2034（写冲突 / 死锁）：并发事务争锁，重试即可 → 409，不是 500。
   // 不是字段级问题，故不带 `details`（仅靠顶层 code + message 区分）。
@@ -521,8 +712,6 @@ export async function createDependency(
     throw error
   })
 
-  // 【事件占位】本批不接线：将来在此发布 `gantt.dependency.created`
-  //   （payload：边 id / 项目 id / 前后驱任务 id / 类型）。
   return {
     id: created.id,
     projectId: created.projectId,
@@ -541,6 +730,7 @@ export async function createDependency(
  */
 export async function deleteDependency(
   prisma: PrismaClient,
+  events: GanttEventPort,
   actorUserId: string,
   dependencyId: string,
 ): Promise<void> {
@@ -551,12 +741,43 @@ export async function deleteDependency(
   if (!existing) throw notFound()
   await assertCanWrite(prisma, actorUserId, existing.projectId)
 
-  try {
-    await prisma.taskDependency.delete({ where: { id: dependencyId } })
-  } catch (error) {
-    // 并发删除竞态：后到者拿到 P2025 → 404（与「不存在」同一条文案）。
-    if (prismaErrorCode(error) === 'P2025') throw notFound()
-    throw error
-  }
-  // 【事件占位】本批不接线：将来在此发布 `gantt.dependency.deleted`。
+  // 删除与事件同事务：删除前先读两端任务做敏感判定。
+  await prisma.$transaction(async (tx) => {
+    try {
+      const row = await tx.taskDependency.findUnique({
+        where: { id: dependencyId },
+        select: { predecessorTaskId: true, successorTaskId: true, type: true },
+      })
+      if (!row) {
+        // 并发删除竞态：触发 P2025 → 404。
+        await tx.taskDependency.delete({ where: { id: dependencyId } })
+        return
+      }
+
+      const sensitivity = await readDependencyTaskSensitivity(
+        tx,
+        row.predecessorTaskId,
+        row.successorTaskId,
+      )
+      await tx.taskDependency.delete({ where: { id: dependencyId } })
+      await events.publish(
+        dependencyEventDraft({
+          eventName: 'gantt.dependency.deleted',
+          projectId: existing.projectId,
+          actorUserId,
+          occurredAt: new Date().toISOString(),
+          dependencyId,
+          predecessorTaskId: row.predecessorTaskId,
+          successorTaskId: row.successorTaskId,
+          type: row.type as TaskDependencyType,
+          sensitivity,
+        }),
+        tx,
+      )
+    } catch (error) {
+      // 并发删除竞态：后到者拿到 P2025 → 404（与「不存在」同一条文案）。
+      if (prismaErrorCode(error) === 'P2025') throw notFound()
+      throw error
+    }
+  })
 }

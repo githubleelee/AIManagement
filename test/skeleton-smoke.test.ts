@@ -116,6 +116,12 @@ const EXPECTED_ROUTES: ReadonlyArray<readonly [HTTPMethods, string]> = [
   ['PATCH', '/tasks/:taskId'],
   ['DELETE', '/tasks/:taskId'],
   ['PUT', '/tasks/:taskId/sensitivity'],
+  // #31 US-11 AI 建议（B 公共接入）：生成 / 列表 / 处置。
+  // 不在 Sprint 1 契约的 30 个端点内，属本阶段新增。
+  // `/review` 兼容别名已按 B 的裁定删除（PR #82 评审 M10：语义重复、无调用方）。
+  ['POST', '/projects/:projectId/stories/:storyId/ai-suggestions'],
+  ['GET', '/projects/:projectId/stories/:storyId/ai-suggestions'],
+  ['POST', '/projects/:projectId/stories/:storyId/ai-suggestions/:suggestionId/disposition'],
 ]
 
 describe('T0-06 ① 路由清单：模块接进 src/routes.ts 才算真的交付', () => {
@@ -128,8 +134,8 @@ describe('T0-06 ① 路由清单：模块接进 src/routes.ts 才算真的交付
     expect(missing).toEqual([])
   })
 
-  it('清单本身有 30 条（防止有人顺手删断言）', () => {
-    expect(EXPECTED_ROUTES).toHaveLength(30)
+  it('清单本身有 33 条（防止有人顺手删断言）', () => {
+    expect(EXPECTED_ROUTES).toHaveLength(33)
   })
 
   it('/health 无需登录即可访问', async () => {

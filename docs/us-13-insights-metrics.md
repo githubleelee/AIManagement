@@ -74,6 +74,10 @@
   敏感风险继承所关联任务的可见性（#30 批复第 7 项）；
 - **只读**：不写库、不写审计、不发事件；5 条查询放进**同一个事务**（评审 P3），
   使四类数字取自**一个读取窗口**，不会出现"互相矛盾的一组数"。
+  ⚠️ **前提（复审 P-3 补）**：这条"单一快照"保证来自**数据库的隔离级别**，不是 `$transaction`
+  本身 —— SQLite 事务可串行化（延迟 BEGIN、首读建快照），故成立；若迁到默认 READ COMMITTED
+  的库（Postgres / MySQL），事务内每条语句各取新快照，本条保证**失效**，须改用
+  REPEATABLE READ 或把相关读取合并成一条语句。
 
 上述四条都有用例：结果里搜不到任何标题 / 姓名 / 账号 / `taskId` / `riskId`，且有一条
 **递归白名单扫描**（遍历结果里每个字符串，只放行匿名键 / 常量 / 日期 / 口径文案）——
@@ -127,8 +131,26 @@
 
 ```
 npx vitest run src/modules/ai-insights/aggregate.test.ts src/modules/ai-insights/metrics.test.ts
-# → 2 files / 46 passed
+# → 2 files / 48 passed
 
-npx vitest run      # 全量：58 files / 1338 passed，0 skipped（2026-10-19）
+npx vitest run      # 全量：61 files / 1422 passed，0 skipped（2026-10-19 晚，含 main 上他人新批次）
 npx tsc -p tsconfig.json --noEmit && npx tsc -p web/tsconfig.json --noEmit   # 双端 exit 0
 ```
+
+> ⚠️ 合并含 `schema.prisma` 变更的 main 之后，**必须先 `npx prisma generate`** 再跑测试：
+> 生成物过期时 `prisma.<新模型>` 是 `undefined`，所有用例都会在 `resetDatabase` 第一行
+> 报同一句 `Cannot read properties of undefined (reading 'deleteMany')` —— 看起来像核心代码崩了，
+> 实际只是没重新生成（2026-10-19 实测踩过一次）。
+
+## 9. 尾巴批次（2026-10-19 复审后收尾）
+
+第二轮复审结论是"无阻断、可合并"，另留了 3 条**重点**（护栏/表述还差一层）与 1 条建议。本批次把它们做掉：
+
+| 项 | 级别 | 处置 |
+|---|---|---|
+| P-1 绝对值锚点**单侧**（阈值 10→11 仍全绿） | 重点 | 已修：新增两条**区间内**锚点 —— 偏差 **11pp ⇒ 预警**、**26pp ⇒ 风险**。阈值一旦上调，这两条必红（原两条"正好落在阈值上"只能抓下调与公式翻转） |
+| P-2 递归白名单对 `basis.*` **整段豁免** | 重点 | 已修：豁免改为**精确路径枚举**（`basis` 的 7 个标量字段 + `formulas` 4 段 + `thresholds` 2 项 + `sourceTables[i]`）。今后在 `basis` 下新增字段**默认被检查**，把动态内容拼进文案会被抓住 |
+| P-3 "单一读取窗口"只在 SQLite 成立 | 重点 | 已修：`metrics.ts` 注释与本文档 §4 均补上前提（隔离级别决定，迁库需 REPEATABLE READ）；库假设已登记 |
+| S-3 `aggregate.ts` 自留 `round4`，`-0` 归一未覆盖 4 位小数 | 建议 | 已修：改为 `caliber.roundTo(v, 4)`，取整只剩一处实现 |
+| （顺手）仪表盘 `ratio` 仍手写 `Math.round(...)` | — | 已修：`analytics/service.ts` 改用 `caliber.roundTo(rawRatio, 4)`，与甘特「故事进度」（C10 口径要求"同一实现"）真正共用一处；`ratio` 恒非负 ⇒ 现有数值零变化 |
+

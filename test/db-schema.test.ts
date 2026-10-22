@@ -89,8 +89,16 @@ describe('表结构与迁移', () => {
    *
    * 断言形式**未变**：仍是"不多不少"的等值比较 ⇒ 任何**未经授权**的新表依然会让本用例
    * 失败，原保护意图（防止有人顺手往库里加表）完整保留。
+   *
+   * #37 领域事件（工单 #37）经 `DECISIONS.md` `arch.shared-ports-and-assembly` 授权再新增
+   * 第 22 张表 `DomainEvent`（事件持久化落点，见 `docs/role-d/ROLE-D-EVENTS-public-integration-request.md`）。
+   *
+   * #31 US-11（工单 #31）经 `DECISIONS.md` `ai.suggestion-store-shared` /
+   * `permissions.ai-suggestion-disposal` 授权再新增 3 张表 `AiSuggestion` / `AiDisposition` /
+   * `AiApplication`（共享「建议 + 处置 + 应用」存储，见
+   * `docs/role-d/ROLE-D-US11-public-integration-request.md`）。
    */
-  it('表集合 = 契约 I-7 的 9 张 + 本阶段经授权新增的 12 张（不多不少）', async () => {
+  it('表集合 = 契约 I-7 的 9 张 + 本阶段经授权新增的 16 张（不多不少）', async () => {
     const rows = await db.prisma.$queryRawUnsafe<Array<{ name: string }>>(
       `SELECT name FROM sqlite_master
        WHERE type = 'table'
@@ -100,8 +108,13 @@ describe('表结构与迁移', () => {
     )
     expect(rows.map((row) => row.name)).toEqual([
       'AcceptanceRecord', // ← 本阶段经 #24 授权新增（US-09 / #29），不属于契约 I-7
+      // ↓ #31 US-11：3 张 AI 建议表。ASCII 序（'c' < 'i' < 'u'）⇒ 落在 AcceptanceRecord 与 AuditLog 之间
+      'AiApplication',
+      'AiDisposition',
+      'AiSuggestion',
       'AuditLog',
       'BusinessGoal',
+      'DomainEvent', // ← 本阶段经 #37 授权新增（领域事件），不属于契约 I-7；ASCII 序落在 BusinessGoal 与 Milestone 之间
       'Milestone', // ← 本阶段经项目负责人 2026-10-18 授权新增（US-06 / #26），不属于契约 I-7
       'ObjectVisibility',
       'Project',

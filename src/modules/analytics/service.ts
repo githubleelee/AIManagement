@@ -44,6 +44,7 @@ import {
   healthOf,
   isoToday,
   planTimeDaysOf,
+  roundTo,
 } from './caliber.js'
 import type { AggregationScope, DashboardBasis, ProjectDashboardView } from './types.js'
 
@@ -152,8 +153,11 @@ export async function buildDashboard(
     progress: {
       closed,
       total,
-      // 比例保留 4 位小数，仅为展示稳定；健康度判定用的是未舍入的 rawRatio
-      ratio: rawRatio === null ? null : Math.round(rawRatio * 10_000) / 10_000,
+      // 比例保留 4 位小数，仅为展示稳定；健康度判定用的是未舍入的 rawRatio。
+      // ★ 2026-10-19：改用 `caliber.roundTo`，与甘特「故事进度」（C10 口径，DECISIONS
+      //   `analytics.story-progress-aggregation` 要求"同一实现"）真正共用一处取整；
+      //   `roundTo` 会把 `-0` 归一为 `0`，而 ratio 恒非负 ⇒ 现有数值零变化。
+      ratio: rawRatio === null ? null : roundTo(rawRatio, 4),
     },
     health,
     byStatus,

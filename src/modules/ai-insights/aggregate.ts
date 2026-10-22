@@ -29,7 +29,7 @@ import { createHash } from 'node:crypto'
 //   2026-10-19 #33 评审 P1：原先从这里 import 的是 `analytics/service.js` —— 实质不越界
 //   （无环、只取纯函数），但字面违反契约 I-9「模块之间不导出可被调用的 service 函数」。
 //   口径已上提为纯口径文件，因此既不必复制公式（会把 H2 缺陷一起搬走），也不违纪。
-import { healthOf, planTimeDaysOf } from '../analytics/caliber.js'
+import { healthOf, planTimeDaysOf, roundTo } from '../analytics/caliber.js'
 import type {
   AcceptanceCountFact,
   EfficiencyMetrics,
@@ -47,10 +47,9 @@ import type {
 } from './types.js'
 import { UNRESOLVED_RISK_STATUSES } from './types.js'
 
-/** 保留 4 位小数（仅用于**展示**比率；判定不复用这个值）。 */
-function round4(value: number): number {
-  return Math.round(value * 10_000) / 10_000
-}
+// ★ 取整统一走 `analytics/caliber.ts` 的 `roundTo`（2026-10-19 复审 S-3）。
+//   原先本文件自写一个 `round4`，于是 `-0` 归一化只覆盖了 1 位小数的 `deviationPp`、
+//   没覆盖 4 位小数的 `ratio` / `rejectionRate`。现在取整只有一处实现。
 
 /**
  * 成员**匿名键**。
@@ -106,7 +105,7 @@ export function progressOf(tasks: TaskFacts, asOf: string): ProgressMetrics {
     closed,
     total,
     // 与 #30 的 `progress.ratio` 同精度（4 位小数）；total = 0 时是 null，不是 0
-    ratio: total === 0 ? null : round4(closed / total),
+    ratio: total === 0 ? null : roundTo(closed / total, 4),
     planTimeProgress:
       planDays === null ? null : planDays.elapsedDays / planDays.totalDays,
     deviationPp: health.deviationPp,
@@ -161,7 +160,7 @@ export function qualityOf(
     rejections,
     rejectedTasks: rejectedTasks.size,
     reverifications,
-    rejectionRate: acceptanceRounds === 0 ? null : round4(rejections / acceptanceRounds),
+    rejectionRate: acceptanceRounds === 0 ? null : roundTo(rejections / acceptanceRounds, 4),
     blockedTasks,
     avgAcceptanceDays: null, // 无数据源，原因见 unavailableMetrics()
   }
