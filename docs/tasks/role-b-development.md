@@ -224,70 +224,73 @@ Done when: 新授权、权限排除、业务文件具体授权、优先级非硬
 Dependencies: none
 
 ## #24 按能力接收最小 AI / 事件端口提案
-Status: not started
+Status: done
+Note: D 的 `#31`（AI 框架）与 `#37`（领域事件）两份最小契约提案已到（#31 评论 2026-10-21 01:02、#37 评论 01:03），并各自附 PR；B 已按「接收 → 独立评审 → 合入 D 自有模块 → 公共接入另批」处理。
 Outcome: D 的 AI 与事件提案分别留存签名、输入输出、实现工厂、注入和最小测试示例的接收结论。
+Evidence: PR #82（AI，30 文件）与 PR #83（事件，15 文件）均经 B 的独立 reviewer 评审（结论「有条件合入」，0 阻断）+ B 实跑复核，**已合入 main**（`c9f4255` / `9a1ee31`）。评审结论与 B 裁定见 #82 评论 6315805522、#83 评论 6315750257（含 H1–H3 接线前必修项与 M/L 项）。
 Done when: 两类提案分别记录已确认/待补充、证据链接与后续分批字段申请；任一提案先就绪即可独立推进其已授权公共实现，不要求本任务整体完成，也不要求字段迁移或四模块一次交齐；不代 D 写业务实现。
 Dependencies: none
-Blocker: 待 D 提交最小 AI / 事件端口提案；两类独立接收，不以另一类缺件阻塞已就绪部分。
-
 ## #25 落地事件 schema 与迁移
-Status: not started
+Status: done
+Note: 事件表与迁移已落地（`DomainEvent`，16 字段 + 唯一索引 `(projectId, eventName, idempotencyKey)` + 索引 `(projectId, occurredAt)` / `(projectId, eventName)` + FK `projectId` **RESTRICT**；时间列为 `DateTime` 以支持原生比较）。
 Outcome: B 单写的最小事件存储模型、索引与顺序迁移。
+Evidence: PR #86 → main `7ea0332`：迁移 `20261021130000_add_domain_event`（空库 `migrate deploy` 实测通过）；`src/db/test-support.ts` 重置顺序补 `domainEvent.deleteMany()`；两处表集合快照 21 → 22（`DomainEvent` 落在 ASCII 序 `BusinessGoal` 与 `Milestone` 之间）。
 Done when: 依据 D 本能力字段提案完成幂等/查询所需最小数据结构，核对现有数据影响和迁移验证；不等 AI/附件/通知模型，不写入未决业务规则。
 Dependencies: none
-Blocker: 待 D 的事件字段/迁移提案及本批编码授权。
-
 ## #26 组装事件运行时与必要路由
-Status: not started
+Status: done
+Note: 事件运行时已组装并注入：`src/app.ts` 用 `createDomainEventInfrastructure({ repository, authorization })` 显式组装，`app.decorate('events', …)` 暴露 publisher / subscriber / query / replay，`onReady` / `onClose` 调用 `start()` / `stop()`。**本域无需 HTTP 路由**（事件为内部端口，D 的模块不注册端点），故 `src/routes.ts` 未改。
 Outcome: `src/app.ts` 构造 D 的独立事件实现并注入端口；有明确查询路由需求时由 `src/routes.ts` 集中注册。
+Evidence: PR #86 → main `7ea0332`；`src/shared/events.ts` 为端口唯一权威定义（`src/modules/events/contracts.ts` 只 re-export，方向 `modules → shared`）；`src/db/event-repository.ts` 提供 DB 仓储（接受调用方事务上下文、不自行提交）+ 权限适配器（只用 `can()`）。
 Done when: 生命周期/依赖注入和错误处理有证据，无跨业务 service 调用；所需事件迁移可用；不扩展业务生产者，不代写 A/C 逻辑；不等待其他能力。
 Dependencies: #28 [FS], #25 [FF]
-Blocker: 待 D 事件实现工厂、注册/生命周期补丁与本批编码授权。
-
 ## #27 验证事件公共集成
-Status: not started
+Status: done
+Note: 事件公共集成已验证：幂等（P2002 → `DUPLICATE`）、重复 publish 只去重不重投、**查询层对象级可见性过滤**（成员看不到敏感 task/story 的事件与 `payload.references` 引用；PM 全量；不可见与不存在同一条 404）、时间范围 UTC 归一化后原生比较、事务回滚不落库、app 组装与生命周期。
 Outcome: 事件公共层的定向集成证据和未完成验收项清单。
+Evidence: PR #86 → main `7ea0332`：`src/db/event-repository.test.ts` 11 例；B 独立复核 `typecheck` exit 0、定点 5 文件 / 57 例、**全量 64 文件 / 1440 例全绿**、空库 deploy 通过。**业务域的事件生产（甘特 / 风险 / 看板 / 通知）属各域自己的批次**，本任务不含。
 Done when: 相关模块测试、typecheck 与真实存储/订阅/幂等接入检查通过；模拟生产者与真实业务生产者明确分开；真实生产方未就绪则登记未验证，不声称业务端到端完成；真实外部 AI API 对本能力不适用，不作为本任务阻塞。
 Dependencies: #25 [FS], #26 [FS]
 
 ## #28 实现已确认的最小公共事件端口
-Status: not started
+Status: done
+Note: 最小公共事件端口已实现并上提 `src/shared/`：信封（`DomainEventEnvelope` / `PublishEventInput` / `EventQuery` / `EventObjectRef` / `EventActor`）+ Publisher / Subscriber / Query / Replay / Lifecycle / Infrastructure 端口 + **`EventRepositoryPort` / `EventAuthorizationPort`**（避免反向 import D 模块）；注释冻结「ISO 8601 UTC 带毫秒」「幂等三元组」「重复 publish 只去重不重投」「无 outbox / 不承诺 exactly-once」「消费方按 `event.id` 自保幂等」。
 Outcome: `src/shared/` 的事件信封、发布/订阅端口与必要校验。
+Evidence: PR #86 → main `7ea0332`（`src/shared/events.ts`，215 行）；与 D 契约的唯一偏差 `EventQuery.actorUserId?`（组装层注入、调用方传入会被覆盖）已登记并请 D 评估改为显式形参。
 Done when: 仅依据已接收的事件提案实现；记录事件名、项目/操作者/对象引用、发生时间、载荷、幂等语义与敏感边界；独立可编译并提供给各域，不等待 AI 提案或数据库迁移。
 Dependencies: none
-Blocker: 待 D 最小事件提案确认与本批编码授权；不要求 #24 两类提案全部接收完成。
-
 ## #29 实现已确认的最小公共 AI 端口
-Status: not started
+Status: done
+Note: 公共 AI 端口已上提 `src/shared/ai.ts`（唯一权威定义，495 行）：供应商无关的输入范围 / 快照 / 生成请求与结果 / 模型端口 / 建议记录 / 查询 / 统计 / **仓储端口** + **域内 AI 失败码联合**（`AI_TIMEOUT` / `AI_GENERATION_FAILED` / `AI_INVALID_RESPONSE` / `AI_SERVICE_UNAVAILABLE`，与顶层 `ErrorCode` 明确区分）+ 规范 JSON 规则（`SHA256_CANONICAL_JSON_V1`，码元比较）。`src/modules/ai/contracts.ts` 只 re-export（方向 `modules → shared`）。
 Outcome: `src/shared/` 的供应商无关 AI 输入/建议输出/错误与显式运行模式端口。
+Evidence: PR #88 → main `e773b01`；头部冻结 B 的 8 条裁定（两个 Action 均仅 PM、read 复用 `project.read`、应用路径只走共享仓储端口、`updateApplication` 规范形状、唯一最终处置 + CAS、理由规则、应用失败可重试、外部模式仅合成数据）。typecheck exit 0；全量 69 文件 / 1483 例全绿。
 Done when: 独立可编译；不绑定 SDK，不含 key，区分本地桩与真实 API；遵守演示数据和敏感对象边界；无需等待事件、AI 存储或供应商选型；供 C #32 复用。
 Dependencies: none
-Blocker: 待 D 最小 AI 提案确认与本批编码授权；不要求 #24 两类提案全部接收完成。
-
 ## #30 落地 AI 建议记录 schema 与迁移
-Status: not started
+Status: done
+Note: AI 建议存储已落地 3 表：`AiSuggestion`（归属 / 场景 / 源对象 / **`status` 唯一真源** / 生成追溯 / 模型标识与模式 / 输入范围 / 快照 + 指纹 / 生成人）、`AiDisposition`（**`suggestionId` 为主键 → 1:1 → DB 级唯一最终处置**；结论 / 处置人 / 时间 / `requestId` / `contentDigest` / 理由 / 最终内容）、`AiApplication`（**不存 `status`**，派生视图）。`projectId` **RESTRICT**、`suggestionId` **CASCADE**；时间列 `DateTime`。
 Outcome: B 单写的 AI 建议/确认/审计记录最小模型与迁移。
+Evidence: PR #88 → main `e773b01`：迁移 `20261021150000_add_ai_suggestion_store`（纯新增，无 DROP/ALTER；空库 `migrate deploy` 实测通过）；`test-support.ts` 重置顺序（子表先删）；两处表集合 13 → 16。**未用 `AuditLog` 当建议存储**（决策禁止），冒烟实测 `AuditLog` 零写入。索引与历史数据影响已在 PR 内核对。
 Done when: 按 D 字段提案覆盖建议、审核与最终应用追溯需求，核对索引和历史数据影响；不代替 PM 确认建议，不自行扩张写权限。
 Dependencies: none
-Blocker: 待 D 本能力字段/迁移提案与本批编码授权。
-
 ## #31 组装本地 AI 桩与路由
-Status: not started
+Status: done
+Note: 本地 AI 桩与路由已组装：`src/app.ts` 显式 `createAiBreakdownService({ ai:{mode:'LOCAL_STUB'}, authorization, repository, storySource })`（**失败不静默退回桩**，模式为显式配置）；`src/routes.ts` 以 `RouteContext.aiService?` + `registerAiRoutes(app, { service })` 集中注册 **3 个端点**（生成 / 列表 / 处置）；`/review` 同义别名按 B 裁定删除。前端无 key，模型配置仅后端。
 Outcome: app 中显式构造/注入 D 本地桩及 AI 插件，集中注册已确认路由。
+Evidence: PR #88 → main `e773b01`（含我的收口提交 `b2e133e`）；`test/skeleton-smoke.test.ts` 的 `EXPECTED_ROUTES` 30 → 33（单向断言）。**未实现供应商 adapter**，桩记录不被当作真实 API 接入（`model.mode=STUB` 落库可辨）。
 Done when: 所需模型可用，开发模式可识别，失败不静默退回桩；前端无 key，后续 API 配置仅后端 env；不实现供应商 adapter，不把桩记录为真实 API 接入。
 Dependencies: #29 [FS], #30 [FF]
-Blocker: 待 D 独立实现/插件与组装补丁、相关最小端点契约及本批编码授权。
-
 ## #32 最小挂载需求详情 AI 组件
 Status: not started
 Outcome: `RequirementDetailPage.tsx` 接入 D 独立 AI 组件与必要路由文档说明。
 Done when: 仅增加已确认 Props/上下文与刷新回调，保留原业务行为；D 负责组件和应用逻辑；后端未就绪的模拟页面标开发态，不用作最终验收；不等其他组件。
 Dependencies: none
-Blocker: 待 D AI 组件/Props/挂载补丁和本批编码授权。
-
+Blocker: D 的组件与 Props 已就绪（`web/src/pages/ai/AiBreakdownPanel.tsx`），后端 3 端点已注册并冒烟通过；**等待 A 的需求页单写窗口**（B 已于 #20 评论 6316002400 发出登记请求：不新增 URL、能力位 `canRead`=项目成员、`canGenerate`/`canReview` 仅 PM）。A 若授权 B 代落，需给出最小范围（文件 + 行数）。
 ## #33 验证 AI 公共接入
 Status: not started
+Note: **后端链路已验证**：真实 HTTP 冒烟 26/26（PM 生成/列表/处置、幂等重放、唯一最终处置 409、MEMBER 只读与 403、敏感故事 404 逐字一致、VIEWER/outsider、DB 落库未写 `AuditLog`、重启后仍在）+ 模块/DB 20 例 + 全量 1483 例。**剩余部分**：`#32` 面板挂载后的浏览器走查（组件渲染、四角色可见性、处置后刷新），故本任务按 FS 依赖继续等待 `#32`。
 Outcome: 本地桩链路、模块测试、真实 API 与真实业务联调的分栏证据。
+Evidence: 后端部分：PR #88 → main `e773b01`；`docs/ai-records/B/issue-31/evidence/B-I31-20261021-ai-public-integration-smoke.md`（夹具同目录）。面板部分待 `#32` 完成后补。
 Done when: 相关测试/typecheck 和本地桩浏览器链路通过；真实 API 未接时明确未验证而非阻塞所有本地验证；不得宣称原 AC13 或真实模型验收通过；不替 D 完成本域 AC。
 Dependencies: #30 [FS], #31 [FS], #32 [FS]
 

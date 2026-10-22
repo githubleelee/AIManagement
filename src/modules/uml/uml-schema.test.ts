@@ -204,7 +204,7 @@ async function seedProjectTree(pmId: string): Promise<{
 // ---------------------------------------------------------------------------
 
 describe('UML 新表逐列结构（PRAGMA table_info）', () => {
-  it('UmlDiagram：8 列，主键 id，createdAt/updatedAt 为 DATETIME', async () => {
+  it('UmlDiagram：9 列（含 everRestricted guard），主键 id，createdAt/updatedAt 为 DATETIME', async () => {
     expect(await getColumns('UmlDiagram')).toEqual([
       { name: 'id', type: 'TEXT', notNull: true, def: null, pk: 1 },
       { name: 'projectId', type: 'TEXT', notNull: true, def: null, pk: 0 },
@@ -214,6 +214,9 @@ describe('UML 新表逐列结构（PRAGMA table_info）', () => {
       { name: 'ownerUserId', type: 'TEXT', notNull: true, def: null, pk: 0 },
       { name: 'createdAt', type: 'DATETIME', notNull: true, def: 'CURRENT_TIMESTAMP', pk: 0 },
       { name: 'updatedAt', type: 'DATETIME', notNull: true, def: null, pk: 0 },
+      // ★ 持久「曾经受限」guard（DECISIONS `uml.no-auto-declassification-guard`，2026-10-21 裁定 A）：
+      //   默认 false、非空；一旦置位永不自动清除，非 PM 读一律 404。
+      { name: 'everRestricted', type: 'BOOLEAN', notNull: true, def: 'false', pk: 0 },
     ])
   })
 
@@ -274,11 +277,11 @@ describe('UML 新表逐列结构（PRAGMA table_info）', () => {
     )
   })
 
-  it('UmlDiagram 有 @@index([projectId, kind]) 与 @@index([ownerUserId])', async () => {
+  it('UmlDiagram 有 @@index([projectId, kind])、@@index([ownerUserId]) 与 guard 索引', async () => {
     const indexes = await getIndexes('UmlDiagram')
     const plain = indexes.filter((i) => !i.unique && i.origin === 'c')
     expect(plain.map((i) => i.columns.join(',')).sort()).toEqual(
-      ['ownerUserId', 'projectId,kind'].sort(),
+      ['ownerUserId', 'projectId,kind', 'projectId,kind,everRestricted'].sort(),
     )
   })
 

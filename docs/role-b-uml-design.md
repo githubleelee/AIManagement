@@ -101,7 +101,8 @@
 | `kind` | `String` | `'USECASE' \| 'SEQUENCE'`；DB 不约束枚举，写入层拒绝其他值（§4.2）。**创建后不可变**（改 `kind` 等于换一张图，本期不提供） |
 | `title` | `String` | 必填；长度上限见 §4.6 |
 | `description` | `String?` | 可选说明；上限同 `title` |
-| `ownerUserId` | `String` | FK `User`，**`onDelete: Restrict`**（✅ 口径：人不该被删掉而留下无主图）。创建时取当前 PM；是否可转移 → §8 待决 4 |
+| `ownerUserId` | `String` | FK `User`，**`onDelete: Restrict`**（✅ 口径：人不该被删掉而留下无主图）。创建时取当前 PM；PM 可转移（§Z 已裁定） |
+| `everRestricted` | `Boolean @default(false)` | **持久「曾经受限」guard**（`DECISIONS.md` `uml.no-auto-declassification-guard`，2026-10-21 项目负责人裁定 A）：曾关联敏感对象即置 `true` 且**永不自动清除**；非 PM 读一律 404。迁移对已存在图按当前关联回填 |
 | `createdAt` | `DateTime @default(now())` | 既有惯例 |
 | `updatedAt` | `DateTime @updatedAt` | 既有惯例（`Risk` 同款），供列表排序与将来乐观锁用 |
 
@@ -289,7 +290,9 @@ model UmlDiagramStory {   // 结构同上，story ↔ UserStory
 
 ---
 
-## 5. 可见性（✅ 交集口径，本文给出精确查询形状）
+## 5. 可见性（★ 2026-10-21 追加 guard）
+
+> **非 PM 可见 = 当前关联交集可见 **且** `everRestricted = false`**；`everRestricted = true` 的图对非 PM 一律 404（与「不存在」逐字一致），**解除关联或目标被删都不恢复**。列表 / `total` / 详情共用同一条件。显式降密属另案（PM 动作 + 审计），本期不做。详见 `DECISIONS.md` `uml.no-auto-declassification-guard`。（✅ 交集口径，本文给出精确查询形状）
 
 ### 5.1 原则
 
@@ -681,3 +684,13 @@ ProjectMember, Risk, Task, TaskDependency, TaskMilestone, User, UserActivity, Us
 | 权限 | `Action 'uml.write'` + `WRITE_ACTIONS`（紧跟 `gantt.write`），判定顺序注释补 5.7，**无新分支** |
 | 测试 | `typecheck` exit 0；`uml` + `db-schema*` 3 文件 / 62 例；**全量 61 文件 / 1420 例全绿** |
 | 已知抖动 | `test/db-schema-contract.test.ts` 的「`User.account` 有唯一约束」在满载并行下偶发 5s 超时（单独跑 1.09s、复跑全绿）——既有用例的时限抖动，未改断言 / 超时，另行登记 |
+
+### Z3. 2026-10-21 追加：持久 guard（裁定 A）
+
+| 项 | 内容 |
+|---|---|
+| 触发 | ROLE-C 在 #24 给出真实反例：解除最后一个受限关联 / 删目标（关联行 Cascade）后 `every(empty)=true` → 图正文对成员自动公开，**实际降密** |
+| 裁定 | 项目负责人 **A**：持久「曾经受限」标记，一旦受限非 PM **永久 404** |
+| 落地 | `UmlDiagram.everRestricted Boolean @default(false)` + 迁移 `20261021120000_add_uml_ever_restricted`（含**回填**：仍关联敏感任务 / 故事的图置 `true`）+ 索引 `(projectId, kind, everRestricted)`；非 PM 读条件并入 `everRestricted = false` |
+| 置位责任 | `uml` 服务在**建立关联的同一事务**内：目标 `isSensitive = true` → 置位（B 提供字段与约束，C 实现写入与查询） |
+| 不做 | 显式降密动作（另案）；用 `AuditLog` / 内存状态冒充主权限存储 |

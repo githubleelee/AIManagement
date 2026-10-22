@@ -227,6 +227,8 @@ export type Action =
   | 'project.close' // 关闭 / 重开项目（仅 PM；关闭前的阻断校验由风险 / 仪表盘模块实现）
   | 'gantt.write' // 甘特图写：里程碑 / 任务依赖（仅 FS）的增删改（仅 PM；MEMBER / VIEWER 只读）
   | 'uml.write' // UML 图与关联的增删改（仅 PM；MEMBER / VIEWER 只读）
+  | 'ai.suggestion.generate' // 生成 AI 建议（**仅 PM**；MEMBER / VIEWER 403；read 复用 project.read）
+  | 'ai.suggestion.dispose' // 处置 AI 建议（**仅 PM**；MEMBER / VIEWER 只读；见 DECISIONS.md permissions.ai-suggestion-disposal）
 
 /**
  * `can()` 的目标引用（决策 I-5）。
