@@ -4,9 +4,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { registerErrorHandler } from '../../error-handler.js'
 import type {
   AiAuthorizationPort,
+  AiModelPort,
   AiStorySource,
   RequirementBreakdownSuggestion,
 } from './contracts.js'
+import { AiPortError } from './errors.js'
 import { InMemoryAiSuggestionRepository } from './in-memory-repository.js'
 import { LocalStubAiProvider } from './local-stub-provider.js'
 import { registerAiRoutes } from './plugin.js'
@@ -164,4 +166,47 @@ describe('US-11 AI routes', () => {
     expect(response.status).toBe(422)
     expect(response.body.error.message).toContain('敏感需求默认不进入 AI 上下文')
   })
+
+  it.each(['AI_INVALID_RESPONSE', 'AI_DATA_POLICY_VIOLATION'] as const)(
+    '模型端口错误 %s 经真实 HTTP 返回 422 统一错误信封',
+    async code => {
+      const errorApp = Fastify({ logger: false })
+      registerErrorHandler(errorApp)
+      errorApp.decorateRequest('actorUserId', undefined)
+      errorApp.addHook('onRequest', async requestValue => {
+        const actor = requestValue.headers['x-test-actor']
+        requestValue.actorUserId = typeof actor === 'string' ? actor : undefined
+      })
+      const provider: AiModelPort = {
+        descriptor: new LocalStubAiProvider().descriptor,
+        async generate() {
+          throw new AiPortError(code, 'provider detail must not escape', false)
+        },
+      }
+      registerAiRoutes(errorApp, {
+        service: new AiBreakdownService({
+          authorization: { async decide() { return { allow: true } } },
+          provider,
+          repository: new InMemoryAiSuggestionRepository(),
+          storySource: { async find() { return source } },
+        }),
+      })
+      await errorApp.ready()
+
+      try {
+        const response = await asUser(errorApp, 'pm').post(
+          `/projects/${projectId}/stories/${storyId}/ai-suggestions`,
+        )
+        expect(response.status).toBe(422)
+        expect(response.body).toEqual({
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'AI 返回内容未通过结构或数据策略校验',
+          },
+        })
+      } finally {
+        await errorApp.close()
+      }
+    },
+  )
 })
