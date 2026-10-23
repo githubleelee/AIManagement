@@ -37,6 +37,7 @@ import { prisma as defaultPrisma } from './db/client.js'
 import { PrismaEventRepository, createEventAuthorizationPort } from './db/event-repository.js'
 import { createGanttEventPort } from './modules/gantt/event-port.js'
 import { createRequirementEventPort } from './modules/requirement/event-port.js'
+import { createRiskEventPort } from './modules/risk/event-port.js'
 import { PrismaAiSuggestionRepository, createAiAuthorizationPort } from './db/ai-repository.js'
 import { createDomainEventInfrastructure } from './modules/events/factory.js'
 import { createAiBreakdownService } from './modules/ai/factory.js'
@@ -126,6 +127,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // 与 D 的基础设施共用同一个仓储实例（见上）。
   context.ganttEvents = createGanttEventPort({ repository: eventRepository })
   context.requirementEvents = createRequirementEventPort({ repository: eventRepository })
+  context.riskEvents = createRiskEventPort({ repository: eventRepository })
   // 生命周期：Fastify 启动完成 / 关闭时驱动 D 的事件基础设施。
   app.addHook('onReady', async () => {
     await infrastructure.start()
