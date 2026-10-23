@@ -1,6 +1,6 @@
 # ROLE-D 接口协议提案：站内通知（#34）
 
-> 版本：`role-d.notifications.v0.1-draft`
+> 版本：`role-d.notifications.v0.2-review`
 > 日期：2026-10-21（展示时区 `Asia/Shanghai`；存储时间使用 ISO 8601 UTC）
 > 代码基线：`origin/main@37287c2`
 > 实现分支：`feat/US14-notifications`
@@ -47,13 +47,15 @@ type NotificationSourceEvent = {
 }
 
 eventSource.subscribe(eventName, subscriberId, handler): () => void
+// handler returns Promise<ConsumeNotificationEventResult>, never void.
+eventSource.health(): NotificationSourceHealth
 recipientResolver.resolve(event, type): Promise<
   | { state: 'AVAILABLE'; recipients: NotificationRecipient[]; dedupeDiscriminator?: string }
   | { state: 'UNAVAILABLE'; note: string }
 >
 ```
 
-上述订阅签名与 #37 的最小订阅端口兼容。解析依赖未就绪时必须返回 `UNAVAILABLE + note`，不能返回空接收者列表冒充“没有接收者”。
+由 B 对 #37 作显式适配，真实订阅与提交后桥接转发同一个返回消费结果的处理器，不能用裸类型断言冒充兼容。UNAVAILABLE 或抛错不得记为消费成功。health() 同步读取动态健康状态和九个精确事件的 sourceCapabilities；读源异常、未启动、停止或未就绪均返回 UNAVAILABLE，部分来源未接入不清空其他已接来源记录。部分注册失败会释放已取得的回调，stop 可重复调用。
 
 ## 4. 写入与去重
 
@@ -63,6 +65,7 @@ recipientResolver.resolve(event, type): Promise<
 - 同一事件中的重复接收者先在服务层折叠，再调用仓储。
 - 仓储必须提供原子的 `appendIfAbsent()`；数据库实现需为 `dedupeKey` 建唯一约束。
 - 每条记录保存 `occurredAt`、`storedAt`、`latencyMs` 和 `withinDeliveryTarget`，目标为 60 秒内可查询。
+- latencyMs 保留原始差值，仅 `0 <= latencyMs <= 60_000` 达标，未来时间不归零。
 
 ## 5. 敏感信息
 
@@ -70,6 +73,8 @@ recipientResolver.resolve(event, type): Promise<
 - 即使接收者解析器返回了文案，敏感事件也会由通知服务丢弃文案。
 - 通知记录只保留对象类型和对象 ID；对象详情继续由目标模块按原权限校验读取。
 - 非本人访问通知详情或标记已读，与不存在通知返回相同的 404。
+- 列表/详情/已读均透传 actor；DB 仓储在条件读写中检查 recipient 与当前权限，含原事件受限引用和当前业务关联。内存实现仅验证端口语义。
+- 对外仅 NotificationView：id/projectId/type/reference/content/sensitive/storedAt/isRead/readAt；不含 recipientUserId/sourceEventId/dedupeKey 或内部派发诊断。
 
 ## 6. HTTP 接口
 
@@ -83,9 +88,13 @@ PATCH /notifications/:notificationId/read
 
 ```ts
 type NotificationListResult =
-  | { state: 'AVAILABLE'; total: number; unreadCount: number; items: NotificationRecord[]; note: null }
-  | { state: 'UNAVAILABLE'; total: null; unreadCount: null; items: []; note: string }
+  | { state: 'AVAILABLE'; total: number; unreadCount: number; items: NotificationView[]; note: null;
+      limit: number; truncated: boolean; sourceCapabilities: NotificationSourceCapability[] }
+  | { state: 'UNAVAILABLE'; total: null; unreadCount: null; items: []; note: string;
+      limit: 200; truncated: false; sourceCapabilities: NotificationSourceCapability[] }
 ```
+
+仓储一次快照：`listByRecipient(actorUserId, unreadOnly, limit)` 返回 items/total/unreadCount/limit/truncated；上限200。total 是 unreadOnly 条件下的真实可见总数；unreadCount 是全部当前可见未读数。`findAccessMetadata(id,actorUserId)`、`findById(id,actorUserId)` 和 `markRead(id,actorUserId,readAt)` 的 actor 必填。已读条件更新保留首次 readAt，不使用先鉴权再无条件写。
 
 公共事件源未接入或订阅已停止时返回 `UNAVAILABLE`，不得返回 `total=0` 或把空列表解释成真实无通知。
 
@@ -98,12 +107,14 @@ type NotificationListResult =
 
 ## 8. ROLE-B 公共接入清单
 
-1. 将 #37 公共订阅端口注入 `createNotificationModule()` 并调用 `start/stop`；
+1. 显式适配 #37 订阅与已提交事件消费桥接，注入动态 health()/sourceCapabilities，调用 start/stop；失败可重试，唯一键保证重复投递不重置已读；
 2. 在 schema/迁移中新增通知表和 `dedupeKey` 唯一约束，并实现 `NotificationRepositoryPort`；
 3. 为任务、成员、验收、风险、里程碑权威数据实现 `NotificationRecipientResolverPort`；
 4. 在 `src/app.ts` 注入依赖，在 `src/routes.ts` 注册 `registerNotificationRoutes()`；
 5. 在 `web/src/layouts/AppLayout.tsx` 最小挂载 `NotificationBell`；
 6. 后交付方使用真实业务写路径完成一次单向联调取证；@提及真数据证据按契约作为后置联调项。
+
+B 负责首次启用的持久化激活基线与 SKIPPED_BASELINE 历史登记、持久消费账本及定时源；九个精确事件名作为局部目录例外。D 不改 publish/DUPLICATE 语义或公共文件。UI 明示未接来源和截断信息。
 
 ## 9. 当前实现与未完成项
 
