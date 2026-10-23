@@ -9,6 +9,8 @@
  *
  * 为什么不放进 `src/shared/types.ts`：冻结文件（技术负责人单写），本模块只新增。
  */
+import type { Prisma } from '@prisma/client'
+import type { EventActor, EventObjectRef, JsonObject } from '../../shared/events.js'
 import type { TaskView, UserBrief } from '../../shared/types.js'
 
 /* ===========================================================================
@@ -129,4 +131,59 @@ export type RiskView = {
   resolution: string | null
   createdAt: string
   updatedAt: string
+}
+
+/* ===========================================================================
+ * ③ 域事件端口（#37 公共事件基础设施已合入，本批接线）
+ * =========================================================================== */
+
+/**
+ * 风险域事件名（命名规范 `<domain>.<object>.<action>`）。
+ *
+ * ★ 为什么只有两个：风险的写路径只有「创建」与「修改」两条
+ *   （见 `./plugin.ts` 的端点清单 —— **没有 DELETE 端点**）。
+ *   「已解决 / 已关闭」是 `RiskStatus` 的两个取值、经 `PATCH` 流转，
+ *   所以它们落在 `risk.updated` 里（载荷带 `status` 与 `changedFields`），
+ *   不需要另立事件名，也不存在 `risk.deleted`。
+ *
+ * ★ 事件目录的登记（`src/shared/events.ts` 的事件表）由技术负责人单写，
+ *   本票**不修改**该文件；接线方按本文件的两个事件名消费。
+ */
+export type RiskEventName = 'risk.created' | 'risk.updated'
+
+/**
+ * 域内事件草稿：**不含** `id` / `schemaVersion` / `storedAt` / `idempotencyKey`。
+ *
+ * 后四者由模块内适配器（`./event-port.ts`）补齐：`id` / `storedAt` 由适配器的
+ * `newId` / `now` 注入（可被测试覆盖），`idempotencyKey` 按确定性规则计算。
+ *
+ * 判别联合要求：**敏感分支的载荷只能是 `references`**，不得含风险标题 / 描述正文
+ * （契约 I-6）。`sensitive` 的判定在写路径的**同一事务内**查关联任务 `isSensitive`
+ * 得出（见 `./service.ts`）。
+ */
+type RiskEventDraftBase = {
+  eventName: RiskEventName
+  projectId: string
+  object: EventObjectRef
+  actor: EventActor
+  /** ISO 8601 UTC（带毫秒，`…Z`）。 */
+  occurredAt: string
+}
+
+export type RiskEventDraft =
+  | (RiskEventDraftBase & { sensitive: false; payload: JsonObject })
+  | (RiskEventDraftBase & { sensitive: true; payload: { references: EventObjectRef[] } })
+
+/**
+ * 风险域业务事件的发布端口。
+ *
+ * 接线方式：由 `./plugin.ts` 从 `RouteContext.riskEvents` 取得（`src/app.ts` 用
+ * `createRiskEventPort` 显式组装），缺失即 fail-fast；**不 new no-op 实现、不静默跳过**。
+ *
+ * 语义：必须在业务写入的**同一个 `$transaction` 内**调用，`transaction` 即该事务的
+ * `tx`；适配器把事件追加到该事务（`appendIfAbsent(event, tx)`），**不自行提交、不派发
+ * 订阅者**。发布失败 = 同一事务回滚业务写入（刻意：宁可业务失败，不丢事件）。
+ */
+export type RiskEventPort = {
+  publish(event: RiskEventDraft, transaction: Prisma.TransactionClient): Promise<void>
 }

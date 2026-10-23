@@ -281,16 +281,17 @@ Evidence: PR #88 → main `e773b01`（含我的收口提交 `b2e133e`）；`test
 Done when: 所需模型可用，开发模式可识别，失败不静默退回桩；前端无 key，后续 API 配置仅后端 env；不实现供应商 adapter，不把桩记录为真实 API 接入。
 Dependencies: #29 [FS], #30 [FF]
 ## #32 最小挂载需求详情 AI 组件
-Status: not started
+Status: done
+Note: 需求页最小挂载已由 **A（需求页 owner）** 在登记窗口内完成：`web/src/pages/RequirementDetailPage.tsx`（+21 行，仅此一个前端文件），挂 `<AiBreakdownPanel projectId storyId canRead canGenerate={isPM} canReview={isPM} />`；不新增 URL、不改路由表、不加依赖。B 未代落（A 明确「不授权代劳」）。
 Outcome: `RequirementDetailPage.tsx` 接入 D 独立 AI 组件与必要路由文档说明。
+Evidence: PR #95 → main `cef7ac6`（A 的 `feat/risk-events-and-ai-panel-mount`，B 复核后合入）。B 的浏览器走查证据：`docs/ai-records/B/issue-31/evidence/B-I31-20261023-ai-panel-browser-walkthrough.md` + PM/MEMBER 两张截图。`npm run build:web` 通过。
 Done when: 仅增加已确认 Props/上下文与刷新回调，保留原业务行为；D 负责组件和应用逻辑；后端未就绪的模拟页面标开发态，不用作最终验收；不等其他组件。
 Dependencies: none
-Blocker: D 的组件与 Props 已就绪（`web/src/pages/ai/AiBreakdownPanel.tsx`），后端 3 端点已注册并冒烟通过；**等待 A 的需求页单写窗口**（B 已于 #20 评论 6316002400 发出登记请求：不新增 URL、能力位 `canRead`=项目成员、`canGenerate`/`canReview` 仅 PM）。A 若授权 B 代落，需给出最小范围（文件 + 行数）。
 ## #33 验证 AI 公共接入
-Status: not started
-Note: **后端链路已验证**：真实 HTTP 冒烟 26/26（PM 生成/列表/处置、幂等重放、唯一最终处置 409、MEMBER 只读与 403、敏感故事 404 逐字一致、VIEWER/outsider、DB 落库未写 `AuditLog`、重启后仍在）+ 模块/DB 20 例 + 全量 1483 例。**剩余部分**：`#32` 面板挂载后的浏览器走查（组件渲染、四角色可见性、处置后刷新），故本任务按 FS 依赖继续等待 `#32`。
+Status: done
+Note: AI 公共接入验证已完成：**后端链路** 26/26 HTTP 冒烟（PM 生成/列表/处置、幂等重放、唯一最终处置 409、MEMBER 只读与 403、敏感故事 404 逐字一致、VIEWER/outsider、DB 落库未写 `AuditLog`、重启后仍在）+ 模块与 DB 层 20 例；**面板链路**（本任务剩余部分）已由 B 亲自走查：PM 面板出现「生成拆解建议」→ 点击产出 `PENDING` 建议（DB 实测 `AiDisposition=0`、未写正式任务）→ 面板出现仅 PM 的三个处置动作；MEMBER 面板可见、建议可读、**按钮数为 0**；控制台无 error。
 Outcome: 本地桩链路、模块测试、真实 API 与真实业务联调的分栏证据。
-Evidence: 后端部分：PR #88 → main `e773b01`；`docs/ai-records/B/issue-31/evidence/B-I31-20261021-ai-public-integration-smoke.md`（夹具同目录）。面板部分待 `#32` 完成后补。
+Evidence: 后端：`docs/ai-records/B/issue-31/evidence/B-I31-20261021-ai-public-integration-smoke.md`（夹具同目录）；面板：同目录 `B-I31-20261023-ai-panel-browser-walkthrough.md` + 两张截图；代码 PR #88/#95 → main `e773b01`/`cef7ac6`；全量 71 文件 / 1508 例全绿。**真实外部模型 API 未接**（`LOCAL_STUB`），故不宣称原 AC13 或真实模型验收通过。
 Done when: 相关测试/typecheck 和本地桩浏览器链路通过；真实 API 未接时明确未验证而非阻塞所有本地验证；不得宣称原 AC13 或真实模型验收通过；不替 D 完成本域 AC。
 Dependencies: #30 [FS], #31 [FS], #32 [FS]
 

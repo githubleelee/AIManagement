@@ -6,7 +6,7 @@ import type {
   AiStorySourcePort,
   RequirementBreakdownSuggestion,
 } from './contracts.js'
-import { AiServiceError } from './errors.js'
+import { AiPortError, AiServiceError } from './errors.js'
 import { InMemoryAiSuggestionRepository } from './in-memory-repository.js'
 import { LocalStubAiProvider } from './local-stub-provider.js'
 import { AiBreakdownService } from './service.js'
@@ -147,6 +147,60 @@ describe('AiBreakdownService', () => {
     expect(calls).toBe(0)
   })
 
+  it.each(['AI_INVALID_RESPONSE', 'AI_DATA_POLICY_VIOLATION'] as const)(
+    '模型端口错误 %s 在服务边界转换为 422',
+    async code => {
+      const repository = new InMemoryAiSuggestionRepository()
+      const provider: AiModelPort = {
+        descriptor: new LocalStubAiProvider().descriptor,
+        async generate() {
+          throw new AiPortError(code, 'provider detail must not escape', false)
+        },
+      }
+      const service = new AiBreakdownService({
+        authorization: allowAll,
+        provider,
+        repository,
+        storySource: sourcePort(),
+      })
+
+      await expect(service.generate('pm-1', 'project-1', 'story-1')).rejects.toMatchObject({
+        status: 422,
+        kind: 'VALIDATION_FAILED',
+      })
+      await expect(
+        repository.list({ projectId: 'project-1', scenario: 'REQUIREMENT_BREAKDOWN' }),
+      ).resolves.toHaveLength(1)
+    },
+  )
+
+  it('模型返回后权限被撤销时不保存成功或失败记录', async () => {
+    let authorizationCalls = 0
+    const repository = new InMemoryAiSuggestionRepository()
+    const service = new AiBreakdownService({
+      authorization: {
+        async decide() {
+          authorizationCalls += 1
+          return authorizationCalls === 1
+            ? { allow: true as const }
+            : { allow: false as const, status: 404 as const, code: 'NOT_FOUND' as const }
+        },
+      },
+      provider: new LocalStubAiProvider(),
+      repository,
+      storySource: sourcePort(),
+    })
+
+    await expect(service.generate('pm-1', 'project-1', 'story-1')).rejects.toMatchObject({
+      status: 404,
+      kind: 'NOT_FOUND',
+    })
+    expect(authorizationCalls).toBe(2)
+    await expect(
+      repository.list({ projectId: 'project-1', scenario: 'REQUIREMENT_BREAKDOWN' }),
+    ).resolves.toEqual([])
+  })
+
   it.each(['ACCEPTED', 'MODIFIED', 'REJECTED'] as const)(
     '审核结论 %s 被完整记录，但不自动写正式数据',
     async decision => {
@@ -202,6 +256,22 @@ describe('AiBreakdownService', () => {
         note: '拒绝原因',
       }),
     ).rejects.toBeInstanceOf(AiServiceError)
+  })
+
+  it('服务入口拒绝缺少修改内容的 MODIFIED，且不写入空 finalContent', async () => {
+    const service = createService()
+    const generated = await service.generate('pm-1', 'project-1', 'story-1')
+
+    await expect(
+      service.review('pm-1', 'project-1', 'story-1', generated.id, {
+        requestId: 'dispose-invalid',
+        decision: 'MODIFIED',
+        note: '声称修改但未提交内容',
+      } as never),
+    ).rejects.toMatchObject({ status: 422, kind: 'VALIDATION_FAILED' })
+
+    const records = await service.list('pm-1', 'project-1', 'story-1')
+    expect(records[0]?.disposition).toMatchObject({ status: 'PENDING', finalContent: null })
   })
 
   it('并发审核只允许一个结论成功', async () => {

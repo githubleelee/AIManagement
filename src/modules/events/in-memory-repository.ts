@@ -45,12 +45,14 @@ export class InMemoryEventRepository implements EventRepositoryPort {
   }
 
   async query(query: EventQuery): Promise<DomainEventEnvelope[]> {
+    const storedFrom = query.storedFrom ? Date.parse(query.storedFrom) : null
+    const storedTo = query.storedTo ? Date.parse(query.storedTo) : null
     return [...this.events.values()]
       .filter(event => event.projectId === query.projectId)
       .filter(event => !query.eventName || event.eventName === query.eventName)
-      .filter(event => !query.storedFrom || event.storedAt >= query.storedFrom)
-      .filter(event => !query.storedTo || event.storedAt <= query.storedTo)
-      .sort((left, right) => left.storedAt.localeCompare(right.storedAt))
+      .filter(event => storedFrom === null || Date.parse(event.storedAt) >= storedFrom)
+      .filter(event => storedTo === null || Date.parse(event.storedAt) <= storedTo)
+      .sort((left, right) => Date.parse(left.storedAt) - Date.parse(right.storedAt))
       .map(copy)
   }
 }

@@ -38,6 +38,7 @@ import type {
 import { useAuth } from '../auth/AuthContext'
 import { ApiError, listMembers } from '../api'
 import PageHeader from '../components/PageHeader'
+import AiBreakdownPanel from './ai/AiBreakdownPanel'
 import { ConfirmDialog } from './requirement/Editor'
 import {
   deleteStory,
@@ -771,6 +772,26 @@ export default function RequirementDetailPage() {
           projectId={project.id}
           isPm={isPM}
           onCountChange={setTaskCount}
+        />
+      </section>
+
+      {/* ---------------- AI 需求拆解（US-11 最小挂载） ----------------
+          挂载点依据 `docs/frontend-routes.md:14` 点名的三个接入点之一：本页即「需求详情」，
+          故不新增 URL、不改路由表。
+
+          三个能力位按技术负责人裁定（GitHub #20 评论 6316002400）：
+            canRead      —— 项目成员即可（`project.read` 语义）；能读到本页就说明已过这道门。
+            canGenerate  —— 仅 PM（`ai.suggestion.generate` 是 PM-only）。
+            canReview    —— 仅 PM（`ai.suggestion.dispose` 是 PM-only）。
+
+          ★ 前端只做体验层：隐藏按钮**不替代**服务端校验，越权请求照样由服务端拒绝。 */}
+      <section className="req-task-panel">
+        <AiBreakdownPanel
+          projectId={project.id}
+          storyId={storyId}
+          canRead
+          canGenerate={isPM}
+          canReview={isPM}
         />
       </section>
 

@@ -12,7 +12,11 @@ import type {
 } from './contracts.js'
 import { AiPortError, AiServiceError } from './errors.js'
 import { canonicalJsonDigest } from './integrity.js'
-import { breakdownSuggestionSchema, type ReviewSuggestionInput } from './schemas.js'
+import {
+  breakdownSuggestionSchema,
+  reviewSuggestionSchema,
+  type ReviewSuggestionInput,
+} from './schemas.js'
 
 export type AiServiceDependencies = {
   authorization: AiAuthorizationPort
@@ -87,6 +91,13 @@ function generationFailure(error: unknown) {
     status: 'FAILED' as const,
     error: { code: 'AI_GENERATION_FAILED', message: 'AI 生成失败', retryable: false },
   }
+}
+
+function translateAiPortError(error: AiPortError): never {
+  if (error.code === 'AI_INVALID_RESPONSE' || error.code === 'AI_DATA_POLICY_VIOLATION') {
+    throw new AiServiceError(422, 'VALIDATION_FAILED', 'AI 返回内容未通过结构或数据策略校验')
+  }
+  throw error
 }
 
 export class AiBreakdownService {
@@ -172,8 +183,10 @@ export class AiBreakdownService {
       },
     }
 
+    let generated: Awaited<ReturnType<AiModelPort['generate']>>
+    let suggestion: RequirementBreakdownSuggestion
     try {
-      const generated = await this.deps.provider.generate({
+      generated = await this.deps.provider.generate({
         requestId: suggestionId,
         scenario: 'REQUIREMENT_BREAKDOWN',
         context: {
@@ -190,20 +203,15 @@ export class AiBreakdownService {
         throw new AiServiceError(422, 'VALIDATION_FAILED', 'AI 返回的请求标识与调用不一致')
       }
 
-      const suggestion = breakdownSuggestionSchema.parse(generated.output)
-      return this.deps.repository.create({
-        ...base,
-        status: 'PENDING',
-        model: generated.descriptor,
-        generation: {
-          requestId: suggestionId,
-          status: 'SUCCEEDED',
-          generatedAt,
-          error: null,
-        },
-        suggestion,
-      })
+      suggestion = breakdownSuggestionSchema.parse(generated.output)
     } catch (error) {
+      // 模型调用可能耗时较长。任何结果（包括失败记录）落库前都重新读取权限，
+      // 避免调用期间权限被撤销后仍写入项目数据。
+      await this.authorize(actorUserId, 'ai.suggestion.generate', {
+        projectId,
+        scenario: 'REQUIREMENT_BREAKDOWN',
+        sourceObject,
+      })
       const failed = generationFailure(error)
       await this.deps.repository.create({
         ...base,
@@ -220,8 +228,28 @@ export class AiBreakdownService {
       if (error instanceof ZodError) {
         throw new AiServiceError(422, 'VALIDATION_FAILED', 'AI 输出不符合需求拆解结构')
       }
+      if (error instanceof AiPortError) translateAiPortError(error)
       throw error
     }
+
+    // L14：模型返回与结构校验完成后、保存成功记录前再次鉴权。
+    await this.authorize(actorUserId, 'ai.suggestion.generate', {
+      projectId,
+      scenario: 'REQUIREMENT_BREAKDOWN',
+      sourceObject,
+    })
+    return this.deps.repository.create({
+      ...base,
+      status: 'PENDING',
+      model: generated.descriptor,
+      generation: {
+        requestId: suggestionId,
+        status: 'SUCCEEDED',
+        generatedAt,
+        error: null,
+      },
+      suggestion,
+    })
   }
 
   async list(actorUserId: string, projectId: string, storyId: string): Promise<RequirementBreakdownRecord[]> {
@@ -245,6 +273,13 @@ export class AiBreakdownService {
     suggestionId: string,
     input: ReviewSuggestionInput,
   ): Promise<RequirementBreakdownRecord> {
+    // HTTP 插件会先校验一次，但服务也可能被组装层或测试直接调用。
+    // 服务边界必须独立保证 MODIFIED 一定带有合法的 modifiedSuggestion。
+    const parsed = reviewSuggestionSchema.safeParse(input)
+    if (!parsed.success) {
+      throw new AiServiceError(422, 'VALIDATION_FAILED', 'AI 建议处置参数不合法')
+    }
+    const parsedInput = parsed.data
     const metadata = await this.deps.repository.findAccessMetadata(suggestionId)
     if (
       !metadata ||
@@ -268,24 +303,26 @@ export class AiBreakdownService {
     }
 
     const finalContent =
-      input.decision === 'REJECTED'
+      parsedInput.decision === 'REJECTED'
         ? null
-        : input.decision === 'MODIFIED'
-          ? input.modifiedSuggestion ?? null
+        : parsedInput.decision === 'MODIFIED'
+          ? parsedInput.modifiedSuggestion
           : record.suggestion
     const dispositionPayload = {
-      decision: input.decision,
-      reason: input.note?.trim() || null,
-      modification: input.decision === 'MODIFIED' ? input.modifiedSuggestion ?? null : null,
+      decision: parsedInput.decision,
+      reason: parsedInput.note?.trim() || null,
+      modification:
+        parsedInput.decision === 'MODIFIED' ? parsedInput.modifiedSuggestion : null,
     }
     const result = await this.deps.repository.finalizeDisposition({
       suggestionId,
       actorUserId,
-      requestId: input.requestId,
+      requestId: parsedInput.requestId,
       contentDigest: canonicalJsonDigest(dispositionPayload),
-      status: input.decision,
-      reason: input.note?.trim() || null,
-      modification: input.decision === 'MODIFIED' ? input.modifiedSuggestion ?? null : null,
+      status: parsedInput.decision,
+      reason: parsedInput.note?.trim() || null,
+      modification:
+        parsedInput.decision === 'MODIFIED' ? parsedInput.modifiedSuggestion : null,
       finalContent,
       disposedAt: this.now().toISOString(),
     })
