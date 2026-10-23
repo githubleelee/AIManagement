@@ -1,0 +1,14 @@
+hasRoute(POST) before ready = true
+after ready hasRoute POST = true
+  hasRoute POST /tasks/:taskId/attachments = true
+  hasRoute GET /tasks/:taskId/attachments = false
+  hasRoute GET /attachments/:attachmentId/download = false
+  hasRoute DELETE /attachments/:attachmentId = false
+POST /tasks/:taskId/attachments -> 200 {"stub":true,"mountedBy":"attacker"}
+GET  /tasks/:taskId/attachments -> 404 {"error":{"code":"NOT_FOUND","message":"资源不存在"}}
+GET  /attachments/:id/download -> 404 {"error":{"code":"NOT_FOUND","message":"资源不存在"}}
+DEL  /attachments/:id         -> 404 {"error":{"code":"NOT_FOUND","message":"资源不存在"}}
+Attachment rows written by production service = 0
+hasRoute(POST) before ready = false (guard checks POST only)
+hasRoute(GET) before ready  = true
+ready() rejected -> FastifyError FST_ERR_DUPLICATED_ROUTE Method 'GET' already declared for route '/tasks/:taskId/attachments'

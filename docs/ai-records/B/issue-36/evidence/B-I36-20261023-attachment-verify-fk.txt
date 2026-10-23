@@ -1,0 +1,27 @@
+PRAGMA foreign_key_list(Attachment):
+  projectId -> Project(id) onDelete=RESTRICT onUpdate=CASCADE
+  taskId -> Task(id) onDelete=SET NULL onUpdate=CASCADE
+  uploaderUserId -> User(id) onDelete=RESTRICT onUpdate=CASCADE
+indexes: [{"name":"Attachment_projectId_state_idx","isuniq":0},{"name":"Attachment_taskId_state_createdAt_idx","isuniq":0},{"name":"Attachment_storagePath_key","isuniq":1},{"name":"sqlite_autoindex_Attachment_1","isuniq":1}]
+columns:
+  id TEXT notnull=1 def=null pk=1
+  projectId TEXT notnull=1 def=null pk=0
+  taskId TEXT notnull=0 def=null pk=0
+  uploaderUserId TEXT notnull=1 def=null pk=0
+  originalName TEXT notnull=1 def=null pk=0
+  extension TEXT notnull=1 def=null pk=0
+  mimeType TEXT notnull=1 def=null pk=0
+  sizeBytes INTEGER notnull=1 def=null pk=0
+  storagePath TEXT notnull=1 def=null pk=0
+  state TEXT notnull=1 def='ACTIVE' pk=0
+  createdAt DATETIME notnull=1 def=CURRENT_TIMESTAMP pk=0
+  deleteRequestedAt DATETIME notnull=0 def=null pk=0
+  cleanupAttempts INTEGER notnull=1 def=0 pk=0
+  cleanupLastError TEXT notnull=0 def=null pk=0
+  deletedAt DATETIME notnull=0 def=null pk=0
+task id=64f5ab94-8500-4211-b6f3-600ec12b842e
+attachment id=7d77dc3e-4032-441a-9a79-9616cab18ef5 taskId=64f5ab94-8500-4211-b6f3-600ec12b842e
+[SetNull] after task delete: rowExists=true taskId=null state=ACTIVE
+[Restrict project] delete project (has attachment): REJECTED: Foreign key constraint violated on the foreign key
+[Restrict uploader] delete user (uploader): REJECTED: Foreign key constraint violated on the foreign key
+[unique storagePath] duplicate: REJECTED: Unique constraint failed on the fields: (`storagePath`)
