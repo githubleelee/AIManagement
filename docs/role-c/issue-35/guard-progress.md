@@ -56,8 +56,8 @@
 ## 本轮交付状态
 
 - 实现本地提交 `cefe96c`；分支 `feat/US15-uml` 已包含 main `0998f62`。
-- 使用用户确认的 `brucelyce-ux` 已发布并回读核对两条评论：[#24 保密边界确认](https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6359691655)、[#35 正式接线/锚点请求](https://github.com/githubleelee/AIManagement/issues/35#issuecomment-6359699302)。正文均明确代码尚未推送，不能让 B 误以为远端已有 SHA。
-- 分支 push 的工具自动审核持续失败，包括用户再次明确授权后的重试；**命令未执行，远端没有本轮代码交付**。没有绕过审核、改传输或强推。后续恢复工具审核后可正常 `git -c credential.username=brucelyce-ux push origin HEAD:refs/heads/feat/US15-uml`。
+- 使用用户确认的 `brucelyce-ux` 已发布并回读核对两条评论：[#24 保密边界确认](https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6359691655)、[#35 正式接线/锚点请求](https://github.com/githubleelee/AIManagement/issues/35#issuecomment-6359699302)。两条评论发布时正文均如实注明尚未推送；后续重试已成功（见下）。
+- 先前 push 被工具自动审核错误阻断，Git 命令并未执行，不是 GitHub 权限/网络/代码拒绝。用户要求修复后，使用同一账号和同一正常 push 命令成功：`7e226db..a4a8a4d HEAD -> feat/US15-uml`。随后 `ls-remote` 独立确认远端 SHA 为 `a4a8a4d4cd5f874d7b0beabbc4e51c78fdbd2fb0`，与当时本地 HEAD 一致，已包含 `cefe96c` 实现。未改凭据、全局配置或传输方式，未强推。
 - 两条已发评论的原文和 `guard-publication.json` 记录技术请求及实际发布结果，不导出任何凭据或排除归档的前次交互。
 
 关联对象仍为真实 ID 输入，不是对象选择器。补充图片上传/高级 UML/事件接线未新增。未合 PR、未关 Issue、未勾整票 AC。
