@@ -11,6 +11,8 @@
  *
  * 字段名与语义与提取前逐字一致；新增项为**向后兼容的纯增量**：
  *   - `AttachmentRecord` / `AttachmentView` 的注释补充了 SetNull 后的清理中行语义；
- *   - 增量：`ATTACHMENT_LIST_LIMIT`（列表行数上限，DB 适配器落地）。
+ *   - 增量：`AttachmentCleanupBatchResult`（B 的全局清理批次结果）与
+ *     `TaskAttachmentLifecyclePort`（业务域删除路径的窄生命周期端口）。
+ *   - D 的列表契约为**完整数组**，故不引入列表行数上限常量。
  */
 export * from '../../shared/attachments.js'

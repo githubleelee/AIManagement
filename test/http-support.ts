@@ -62,11 +62,24 @@ export type HttpTestContext = {
 /** 测试用统一密码（明文）。工厂函数会用真实 scrypt 哈希写入。 */
 export const TEST_PASSWORD = 'Test@12345'
 
-export async function createHttpTestContext(): Promise<HttpTestContext> {
+/** `createHttpTestContext` 的可选注入（仅透传必要接口，避免测试全局 env 偷改）。 */
+export type HttpTestContextOptions = {
+  /**
+   * 附件实体文件存储根。
+   *
+   * 传 `mkdtemp` 独占临时目录可使附件测试与真实 `var/uploads/` 隔离；
+   * 不传时生产默认仍为项目根 `var/uploads/`。
+   */
+  uploadRoot?: string
+}
+
+export async function createHttpTestContext(
+  options: HttpTestContextOptions = {},
+): Promise<HttpTestContext> {
   const tempDb = createTempDatabase()
 
   // 关键：把临时库注入 app，使其不读 dev.db 单例
-  const app = buildApp({ logger: false, prisma: tempDb.prisma })
+  const app = buildApp({ logger: false, prisma: tempDb.prisma, uploadRoot: options.uploadRoot })
 
   // 同步写会话表：契约 I-8 要求令牌「存库校验」，而 `loginAs` 必须保持同步签名
   // （200+ 调用点直接 `ctx.asUser(ctx.loginAs(x))`）。Prisma 无同步 API，故用

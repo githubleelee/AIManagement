@@ -21,6 +21,8 @@ import { registerAiRoutes } from './modules/ai/plugin.js'
 import { registerAttachmentRoutes } from './modules/attachment/plugin.js'
 import type { AiBreakdownService } from './modules/ai/service.js'
 import type { AttachmentService } from './modules/attachment/service.js'
+import type { AttachmentDb } from './db/attachment-repository.js'
+import type { TaskAttachmentLifecyclePort } from './shared/attachments.js'
 import type { GanttEventPort } from './modules/gantt/types.js'
 import type { RequirementEventPort } from './modules/requirement/service.js'
 import type { RiskEventPort } from './modules/risk/types.js'
@@ -61,6 +63,14 @@ export type RouteContext = {
    * `src/app.ts`，路由总表只负责注册。**可选但不得静默跳过**：缺省时注册期 fail-fast。
    */
   attachmentService?: AttachmentService
+  /**
+   * #36 附件窄生命周期端口（由 `src/app.ts` 用同一个 prisma 仓储 + 本地存储显式组装注入）。
+   *
+   * 业务域（ROLE-C 的任务删除路径）只调 `markForTaskDeletion(tx, taskId)`（事务内）/ `run()`
+   * （提交后），**不得** import / new 任何附件实现。宿主为 `AttachmentDb` 窄 `Pick`，
+   * 使 `Prisma.TransactionClient` 可直接作为事务形参传入。
+   */
+  attachmentCleanup?: TaskAttachmentLifecyclePort<AttachmentDb>
 }
 
 export function registerRoutes(app: FastifyInstance, context: RouteContext): void {
@@ -127,18 +137,12 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
 
   // #36 任务附件（B 公共接入）：POST/GET /tasks/:taskId/attachments、
   // GET /attachments/:attachmentId/download、DELETE /attachments/:attachmentId。
-  // 服务由 `src/app.ts` 组装后经 context 注入；缺失即 fail-fast（不得静默跳过注册）。
+  // 服务由 `src/app.ts` 组装后经 context 注入；**同步显式注册**，缺失即 fail-fast
+  //（不得静默跳过；不得用 hasRoute 守卫 / skip 开关 / 默认回退掩盖装配缺失）。
   if (!context.attachmentService) {
     throw new Error(
       '附件路由需要 attachmentService：请由 src/app.ts 显式组装注入（缺失即 fail-fast，不得静默跳过）',
     )
   }
-  // 注册延到 boot 阶段（队列插件）而非同步进行：D 的模块测试（`plugin.test.ts`）会先用
-  // 自带的内存 service 在同一 app 上注册同一组路由；此处用 `hasRoute` 守卫，已有则跳过，
-  // 避免 FST_ERR_DUPLICATED_ROUTE。生产 app 无预注册时，本插件在 ready 时补齐注册。
-  const attachmentService = context.attachmentService
-  app.register(async (instance) => {
-    if (app.hasRoute({ method: 'POST', url: '/tasks/:taskId/attachments' })) return
-    registerAttachmentRoutes(instance, attachmentService)
-  })
+  registerAttachmentRoutes(app, context.attachmentService)
 }

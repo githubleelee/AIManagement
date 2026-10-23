@@ -40,6 +40,7 @@ import { createRequirementEventPort } from './modules/requirement/event-port.js'
 import { createRiskEventPort } from './modules/risk/event-port.js'
 import { PrismaAiSuggestionRepository, createAiAuthorizationPort } from './db/ai-repository.js'
 import { PrismaAttachmentRepository, createAttachmentAuthorizationPort } from './db/attachment-repository.js'
+import { createAttachmentLifecycle } from './db/attachment-cleanup.js'
 import { LocalAttachmentStorage } from './modules/attachment/local-storage.js'
 import { AttachmentService } from './modules/attachment/service.js'
 import { createDomainEventInfrastructure } from './modules/events/factory.js'
@@ -83,6 +84,13 @@ export type BuildAppOptions = {
    * 测试传入 `createTempDatabase().prisma` 以使用独立临时库，避免污染 dev.db。
    */
   prisma?: PrismaClient
+  /**
+   * 附件实体文件存储根（显式注入点）。
+   *
+   * 生产 / 不传时用项目根 `var/uploads/`（`LocalAttachmentStorage` 默认）；
+   * 测试传入 `mkdtemp` 独占临时目录，仅清理自己的目录，**绝不**清理真实 `var/uploads/`。
+   */
+  uploadRoot?: string
 }
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
@@ -103,13 +111,22 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     storySource: createPrismaAiStorySource(context.prisma),
   })
 
-  // #36 任务附件（B 公共接入）：显式组装 prisma 仓储 + 本地文件存储（var/uploads/）+ 统一鉴权
-  // 适配器，注入路由总表。组装点唯一（`DECISIONS.md` `arch.shared-ports-and-assembly`）。
+  // #36 任务附件（B 公共接入）：显式组装 prisma 仓储 + 本地文件存储 + 统一鉴权适配器，
+  // 注入路由总表与生命周期端口。组装点唯一（`DECISIONS.md` `arch.shared-ports-and-assembly`）。
   // 下载不注册静态目录：物理文件只经带鉴权与 Content-Disposition 的下载端点读取。
+  // ★ 同一个仓储 / 存储实例同时供 service 与清理生命周期使用（避免两套连接语义）。
+  const attachmentRepository = new PrismaAttachmentRepository(context.prisma)
+  const attachmentStorage = new LocalAttachmentStorage(options.uploadRoot)
   context.attachmentService = new AttachmentService({
-    repository: new PrismaAttachmentRepository(context.prisma),
-    storage: new LocalAttachmentStorage(),
+    repository: attachmentRepository,
+    storage: attachmentStorage,
     authorization: createAttachmentAuthorizationPort(context.prisma),
+  })
+  // 窄生命周期端口：业务域（任务删除路径）只调 `markForTaskDeletion(tx, taskId)` / `run()`，
+  // 不 import / new 任何附件实现。
+  context.attachmentCleanup = createAttachmentLifecycle({
+    repository: attachmentRepository,
+    storage: attachmentStorage,
   })
 
   // #37 领域事件：显式注入 DB 仓储 + 统一鉴权适配器，组装 D 的事件实现。
@@ -146,6 +163,47 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   })
   app.addHook('onClose', async () => {
     await infrastructure.stop()
+  })
+
+  // #36 附件清理生命周期：启动补扫 + 每 30 秒重试（同实例不重叠），关闭时停止并排空 in-flight。
+  // 整体候选查询 / 执行异常一律记 `app.log.error`（**不得** `catch(() => undefined)` 静默吞掉）；
+  // 逐行失败已在 run() 内落 `CLEANUP_FAILED` 供下次重试。
+  const ATTACHMENT_CLEANUP_INTERVAL_MS = 30_000
+  let cleanupTimer: NodeJS.Timeout | null = null
+  let cleanupInFlight: Promise<void> | null = null
+  let cleanupStopped = false
+  const runAttachmentCleanupTick = async (): Promise<void> => {
+    if (cleanupStopped || cleanupInFlight) return
+    cleanupInFlight = (async () => {
+      try {
+        const result = await context.attachmentCleanup!.run()
+        if (result.failed.length > 0) {
+          app.log.warn(
+            { failed: result.failed },
+            '附件清理存在逐行失败，已保留 CLEANUP_FAILED 供下次重试',
+          )
+        }
+      } catch (error) {
+        // 整体异常（候选查询 / 数据库不可用）不得吞掉，必须留下日志。
+        app.log.error({ err: error }, '附件清理执行失败')
+      } finally {
+        cleanupInFlight = null
+      }
+    })()
+    await cleanupInFlight
+  }
+  app.addHook('onReady', async () => {
+    await runAttachmentCleanupTick()
+    cleanupTimer = setInterval(() => {
+      void runAttachmentCleanupTick()
+    }, ATTACHMENT_CLEANUP_INTERVAL_MS)
+    cleanupTimer.unref?.()
+  })
+  app.addHook('onClose', async () => {
+    cleanupStopped = true
+    if (cleanupTimer) clearInterval(cleanupTimer)
+    cleanupTimer = null
+    if (cleanupInFlight) await cleanupInFlight
   })
 
   registerErrorHandler(app)

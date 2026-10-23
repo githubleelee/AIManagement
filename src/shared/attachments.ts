@@ -118,14 +118,11 @@ export type AttachmentAccessMetadata = {
   state: AttachmentState
 }
 
-/** 列表行数上限（超出即截断；D 的 `list` 以返回条数作为 `total`）。 */
-export const ATTACHMENT_LIST_LIMIT = 200
-
 /**
  * 共享附件仓储端口（DB 适配器实现）。
  *
  * - **查询层过滤**：`listActiveByTask` 直接使用 `WHERE taskId = ? AND state = 'ACTIVE'`，
- *   计数与列表同源，**禁止**取全量后内存过滤。
+ *   返回**全部** ACTIVE 行（D 的列表契约为完整数组，**不做截断、不建分页 API**）。
  * - 全部写方法接受可选调用方事务上下文（`transaction`），传入时**不自行提交**。
  */
 export interface AttachmentRepositoryPort {
@@ -161,9 +158,33 @@ export type AttachmentDownload = {
   content: Buffer
 }
 
-/** 清理结果汇总（单附件删除失败 / 任务删除后批量清理共用）。 */
+/** 清理结果汇总（D 的 `cleanupAfterTaskDeleted` 契约保留；B 的全局清理用 `AttachmentCleanupBatchResult`）。 */
 export type TaskAttachmentCleanupResult = {
   taskId: string
   removed: number
   failed: Array<{ attachmentId: string; reason: string }>
+}
+
+/**
+ * B 的全局清理批次结果（不绑定单一 `taskId`）：
+ * 任务行删除后 `taskId` 已被 SetNull，候选按 `state` 跨任务扫描，故绝不用 `taskId: ''` 造假。
+ */
+export type AttachmentCleanupBatchResult = {
+  removed: number
+  failed: Array<{ attachmentId: string; reason: string }>
+}
+
+/**
+ * 窄生命周期端口（业务域删除路径接入附件的唯一入口）。
+ *
+ * - `markForTaskDeletion(transaction, taskId)`：在**调用方事务**内把该任务 `ACTIVE` 附件标为
+ *   `DELETING`（不自行提交；调用方回滚时标记一并回滚）—— **绝不允许先删实体**；
+ * - `run()`：在任务删除事务**提交后**清理待清理行（删除实体文件 → 删行；失败保留 `CLEANUP_FAILED`）。
+ *
+ * `TTransaction` 刻意泛型：`src/shared/**` **不得** import 业务模块 / Prisma；业务域传自己的事务上下文。
+ * 组装与实现由 `src/app.ts` 用同一个 prisma 仓储 + 本地存储显式注入，业务域只调端口。
+ */
+export interface TaskAttachmentLifecyclePort<TTransaction = unknown> {
+  markForTaskDeletion(transaction: TTransaction, taskId: string): Promise<number>
+  run(): Promise<AttachmentCleanupBatchResult>
 }

@@ -21,7 +21,8 @@
  *    任务删除联动在**同一事务**内标记 `DELETING`（见 `attachment-cleanup.ts`）。
  * 2. **查询层可见性 / 404 同一条（裁定 2）**：单对象鉴权交给统一入口 `can()` 现查任务、
  *    项目成员、角色与 `objectVisibility` 白名单，**不做全量读取后内存过滤**；不可见与不存在
- *    返回逐字一致的 404。列表直接 `WHERE taskId = ? AND state = 'ACTIVE'`，计数与列表同源。
+ *    返回逐字一致的 404。列表直接 `WHERE taskId = ? AND state = 'ACTIVE'`，返回**完整数组**，
+ *    **不做隐形截断**（D 的列表契约为完整数组）。
  * 3. **只读 ACTIVE**：所有对外读取只取 `state = 'ACTIVE'`；`DELETING` / `CLEANUP_FAILED`
  *    对用户不可见（经 B 的清理存储单独访问）。
  *
@@ -30,10 +31,9 @@
  * ===========================================================================
  *
  * `Attachment.taskId` 外键为 `onDelete: SetNull`（裁定 1）：任务删除后该列变 NULL，
- * 但清理状态保留在 `state` 列。这类「清理中」行**不**经本 `AttachmentRepositoryPort`
- * 对外暴露 —— 只经 `AttachmentCleanupStore`（`listCleanupCandidates`）访问，因此
- * 端口记录始终带 `taskId`。`toRecord` 对 NULL 做 `?? ''` 兜底仅用于保持适配器整体性，
- * 不会被 D 的 `service.ts` 用于业务路径（非 `ACTIVE` 行在 service 里先被判成 404）。
+ * 但清理状态保留在 `state` 列。这类「清理中」行**不**经业务 `AttachmentRecord` 暴露：
+ * 业务读取方法遇到 NULL 行直接返回 `null`（用户路径一律 404），清理执行器改用专用
+ * nullable 清理类型（`AttachmentCleanupCandidate.taskId: string | null`）。**绝不用 `?? ''` 伪造 taskId**。
  */
 import type { Prisma, PrismaClient } from '@prisma/client'
 import { createAuthorization } from '../modules/authz/permissions.js'
@@ -42,7 +42,6 @@ import type {
   AttachmentCleanupStore,
 } from './attachment-cleanup.js'
 import {
-  ATTACHMENT_LIST_LIMIT,
   type AttachmentAccessMetadata,
   type AttachmentAccessOperation,
   type AttachmentAuthorizationPort,
@@ -81,12 +80,12 @@ type AttachmentRow = {
   deletedAt: Date | null
 }
 
-/** 行 → 域记录（`storagePath` ⇄ `storageKey`、`cleanupLastError` ⇄ `cleanupError`、时间 → ISO）。 */
-function toRecord(row: AttachmentRow): AttachmentRecord {
+/** 行 → 业务域记录；`taskId` 为 NULL（任务已 SetNull 的「清理中」行）时返回 `null`。 */
+function toUserRecord(row: AttachmentRow): AttachmentRecord | null {
+  if (row.taskId === null) return null
   return {
     id: row.id,
-    // 见文件头：NULL 只出现在「清理中」行，不经端口对外暴露。
-    taskId: row.taskId ?? '',
+    taskId: row.taskId,
     projectId: row.projectId,
     originalName: row.originalName,
     extension: row.extension as AttachmentExtension,
@@ -99,6 +98,13 @@ function toRecord(row: AttachmentRow): AttachmentRecord {
     cleanupAttempts: row.cleanupAttempts,
     cleanupError: row.cleanupLastError,
   }
+}
+
+/** 行 → 域记录（`insert` 后回读；插入时 `taskId` 必非 NULL）。 */
+function toRecord(row: AttachmentRow): AttachmentRecord {
+  const record = toUserRecord(row)
+  if (record === null) throw new Error('附件行 taskId 为 NULL，不能作为业务记录返回')
+  return record
 }
 
 /** 域记录 → 插入数据（原始文件名只作元数据，绝不用来拼接磁盘路径）。 */
@@ -133,27 +139,27 @@ export class PrismaAttachmentRepository implements AttachmentRepositoryPort, Att
   }
 
   /**
-   * 查询层过滤：`WHERE taskId = ? AND state = 'ACTIVE'`。
-   * D 的 `service.list` 以返回条数作为 `total`，故对结果加行数上限（`ATTACHMENT_LIST_LIMIT`）。
+   * 查询层过滤：`WHERE taskId = ? AND state = 'ACTIVE'`；D 的列表是**完整数组**，
+   * 故返回**全部** ACTIVE 行（无 `take`、无隐形截断、不新建分页 API）。
    */
   async listActiveByTask(taskId: string, transaction?: AttachmentDb): Promise<AttachmentRecord[]> {
     const rows = await this.client(transaction).attachment.findMany({
       where: { taskId, state: 'ACTIVE' },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      take: ATTACHMENT_LIST_LIMIT,
     })
     return rows.map(toRecord)
   }
 
-  /** 全状态（含清理中）：仅供任务删除后的批量清理 / 内部核对，**不**用于对外列表。 */
+  /** 全状态（含清理中）：仅供内部核对，**不**用于对外列表；NULL `taskId` 行不返回业务记录。 */
   async listAllByTask(taskId: string, transaction?: AttachmentDb): Promise<AttachmentRecord[]> {
     const rows = await this.client(transaction).attachment.findMany({
       where: { taskId },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     })
-    return rows.map(toRecord)
+    return rows.map(toUserRecord).filter((row): row is AttachmentRecord => row !== null)
   }
 
+  /** 鉴权前最小元数据；`taskId` 为 NULL（清理中）的行返回 `null`（用户路径一律 404）。 */
   async findAccessMetadata(
     id: string,
     transaction?: AttachmentDb,
@@ -162,13 +168,13 @@ export class PrismaAttachmentRepository implements AttachmentRepositoryPort, Att
       where: { id },
       select: { id: true, taskId: true, state: true },
     })
-    if (!row) return null
-    return { id: row.id, taskId: row.taskId ?? '', state: row.state as AttachmentState }
+    if (!row || row.taskId === null) return null
+    return { id: row.id, taskId: row.taskId, state: row.state as AttachmentState }
   }
 
   async findById(id: string, transaction?: AttachmentDb): Promise<AttachmentRecord | null> {
     const row = await this.client(transaction).attachment.findUnique({ where: { id } })
-    return row ? toRecord(row) : null
+    return row ? toUserRecord(row) : null
   }
 
   /** `ACTIVE → DELETING`，累加尝试次数并清空错误（与 D 的内存桩语义一致）。 */
@@ -185,7 +191,7 @@ export class PrismaAttachmentRepository implements AttachmentRepositoryPort, Att
     })
     if (updated.count === 0) return null
     const row = await client.attachment.findUnique({ where: { id } })
-    return row ? toRecord(row) : null
+    return row ? toUserRecord(row) : null
   }
 
   /** 置 `CLEANUP_FAILED` + 安全错误码，保留可重试证据。 */
@@ -201,7 +207,7 @@ export class PrismaAttachmentRepository implements AttachmentRepositoryPort, Att
     })
     if (updated.count === 0) return null
     const row = await client.attachment.findUnique({ where: { id } })
-    return row ? toRecord(row) : null
+    return row ? toUserRecord(row) : null
   }
 
   /** 物理文件删除成功后删行；返回是否真的删掉一行。 */
@@ -212,7 +218,8 @@ export class PrismaAttachmentRepository implements AttachmentRepositoryPort, Att
 
   /**
    * 清理执行器：按 `state`（`DELETING` / `CLEANUP_FAILED`）列待清理候选。
-   * 用 `state` 而非 `taskId`：任务行删除后 `taskId` 已被 SetNull（见文件头说明）。
+   * 用 `state` 而非 `taskId`：任务行删除后 `taskId` 已被 SetNull；`taskId` 用专用 nullable
+   * 清理类型返回，**不**经业务 `AttachmentRecord`。
    */
   async listCleanupCandidates(
     limit: number,
@@ -222,13 +229,43 @@ export class PrismaAttachmentRepository implements AttachmentRepositoryPort, Att
       where: { state: { in: ['DELETING', 'CLEANUP_FAILED'] } },
       orderBy: [{ deleteRequestedAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
       take: limit,
-      select: { id: true, storagePath: true, state: true },
+      select: { id: true, storagePath: true, taskId: true, state: true },
     })
     return rows.map((row) => ({
       id: row.id,
       storageKey: row.storagePath,
+      taskId: row.taskId,
       state: row.state as AttachmentCleanupCandidate['state'],
     }))
+  }
+
+  /** 清理尝试：置 `DELETING` + 累加 attempts + 清空错误；行不存在返回 `false`。 */
+  async beginCleanupAttempt(id: string, transaction?: AttachmentDb): Promise<boolean> {
+    const result = await this.client(transaction).attachment.updateMany({
+      where: { id },
+      data: {
+        state: 'DELETING',
+        deleteRequestedAt: new Date(),
+        cleanupAttempts: { increment: 1 },
+        cleanupLastError: null,
+      },
+    })
+    return result.count > 0
+  }
+
+  /** 清理完成：删行。 */
+  async completeCleanup(id: string, transaction?: AttachmentDb): Promise<boolean> {
+    const result = await this.client(transaction).attachment.deleteMany({ where: { id } })
+    return result.count > 0
+  }
+
+  /** 清理失败：置 `CLEANUP_FAILED` + 安全错误码，保留重试证据。 */
+  async failCleanup(id: string, safeReason: string, transaction?: AttachmentDb): Promise<boolean> {
+    const result = await this.client(transaction).attachment.updateMany({
+      where: { id },
+      data: { state: 'CLEANUP_FAILED', cleanupLastError: safeReason },
+    })
+    return result.count > 0
   }
 }
 
