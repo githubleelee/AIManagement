@@ -1,0 +1,11 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/临时项目/US12-validation-20261018-163716/candidate[39m
+
+ [32m✓[39m src/modules/ai-scheduling/policy.http.test.ts [2m([22m[2m49 tests[22m[2m)[22m[90m 76[2mms[22m[39m
+ [2m[90m↓[39m[22m src/modules/ai-scheduling/integration.pending.test.ts [2m([22m[2m12 tests[22m[2m | [22m[33m12 skipped[39m[2m)[22m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (2)[39m
+[2m      Tests [22m [1m[32m49 passed[39m[22m[2m | [22m[90m12 todo[39m[90m (61)[39m
+[2m   Start at [22m 16:39:11
+[2m   Duration [22m 1.04s[2m (transform 70ms, setup 0ms, collect 312ms, tests 76ms, environment 0ms, prepare 188ms)[22m
+

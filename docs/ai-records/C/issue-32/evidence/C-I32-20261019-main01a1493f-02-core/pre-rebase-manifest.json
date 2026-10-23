@@ -1,0 +1,82 @@
+﻿[
+    {
+        "path":  "src/modules/ai-scheduling/policy.http.test.ts",
+        "sha256":  "85D44AC3CB74CAF74B204B57D0FD035BA0AB593B45AC1CA83691F1982E5B2098"
+    },
+    {
+        "path":  "src/modules/ai-scheduling/policy.ts",
+        "sha256":  "BDB8577EAC92D54820973C60DC126FB03C1EF930897130AF316C499E4385BC87"
+    },
+    {
+        "path":  "src/modules/ai-scheduling/schemas.ts",
+        "sha256":  "8D13FDC9A47146A18FE4EED21B2D4ABC44A733A9BC370AFCB40402FC1A6AE90C"
+    },
+    {
+        "path":  "src/modules/task/routes.ts",
+        "sha256":  "D7DFEDA90379D7315D0D03BE955BA2A94493AA394E0F9B5922066285BAE141CB"
+    },
+    {
+        "path":  "src/modules/task/rules.ts",
+        "sha256":  "338A73EA6840DD0CACDA5E885628BF8B6D9586E704C2226383EECC8E27C469D7"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/C-I32-20261019-main01a1493f-02.md",
+        "sha256":  "2B6EAA12F630C82BF46DC5A7DBA2C4E3F86ABEA46E00FDC6643DFC3FBDECF5DD"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/evidence/C-I32-20261019-main01a1493f-02-core/build.txt",
+        "sha256":  "141CA67D76F4096C1C07A1634DBA9CB675A94E6083C5688AB97F3EE6312EB011"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/evidence/C-I32-20261019-main01a1493f-02-core/core-first.txt",
+        "sha256":  "2C9C198CA0D05AFE4109BD1DE0B8518A6C6BBA43F1D44066B2AE31B04C6F2DFA"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/evidence/C-I32-20261019-main01a1493f-02-core/exit-codes.txt",
+        "sha256":  "AD027A26A0F47B662E2493AEAEA3D7C706DC315E7E4881C6FCF9C9EC33448B9C"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/evidence/C-I32-20261019-main01a1493f-02-core/full.txt",
+        "sha256":  "E5C21ABAFEA2302397531FFC2F7707E89645AA7D95E7738860AE3BBDE8B6136C"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/evidence/C-I32-20261019-main01a1493f-02-core/generate.txt",
+        "sha256":  "B9B307210EF5181BD30DFBAD428BEB4592D104D6645B281D00C9D3787F8FD34F"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/evidence/C-I32-20261019-main01a1493f-02-core/install.txt",
+        "sha256":  "B24828082B0E635ABF21D16333DAC6B0194AD6DFDB267A74B87EA71FCA7020FC"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/evidence/C-I32-20261019-main01a1493f-02-core/typecheck-first.txt",
+        "sha256":  "6859EBE3F1578A68B79C15FBC474A6686C85D39840A9E14E41B34C37907D92D1"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/evidence/C-I32-20261019-main01a1493f-02-core/typecheck.txt",
+        "sha256":  "6859EBE3F1578A68B79C15FBC474A6686C85D39840A9E14E41B34C37907D92D1"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/evidence/C-I32-20261019-main01a1493f-02-core/verification-targeted.txt",
+        "sha256":  "2B484B40A048438C97347E179943EEB90CAAFCB74C5D16D992DB03BED40B7982"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/evidence/C-I32-20261019-main01a1493f-02-core/verification-typecheck.txt",
+        "sha256":  "6859EBE3F1578A68B79C15FBC474A6686C85D39840A9E14E41B34C37907D92D1"
+    },
+    {
+        "path":  "docs/ai-records/C/issue-32/raw/C-I32-20261019-main01a1493f-02-visible.md",
+        "sha256":  "00442CC35D07A0C532A443232CEFD082BB1B00DCF4ABD687D2071BE7C08DEB35"
+    },
+    {
+        "path":  "src/modules/ai-scheduling/core.http.test.ts",
+        "sha256":  "4B44DA4EF981ED20560D27049276AB4F5DD8C08B2376D3A9B7E0A42C4891FF57"
+    },
+    {
+        "path":  "src/modules/ai-scheduling/source.ts",
+        "sha256":  "591A02057318E7C1B91E58BC9281A1B1CD16A727EED65B815A694991FF0D7FD4"
+    },
+    {
+        "path":  "src/modules/ai-scheduling/verification.ts",
+        "sha256":  "A38FA1B576DDE2F949EABAE238D2D2A823AA5867CE4613F55DAD1E487626695C"
+    }
+]

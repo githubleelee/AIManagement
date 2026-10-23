@@ -1,0 +1,44 @@
+└── /
+    ├── health (GET, HEAD)
+    ├── a
+    │   ├── uth/
+    │   │   ├── login (POST)
+    │   │   └── me (GET, HEAD)
+    │   └── ctivities/
+    │       └── :activityId (PATCH, DELETE)
+    │           └── /stories (POST)
+    ├── projects (POST, GET, HEAD)
+    │   └── /
+    │       └── :projectId (GET, HEAD)
+    │           └── /
+    │               ├── member
+    │               │   ├── s (POST, GET, HEAD)
+    │               │   │   └── /
+    │               │   │       └── :userId (PATCH, DELETE)
+    │               │   └── -candidates (GET, HEAD)
+    │               ├── g
+    │               │   ├── oals (POST, GET, HEAD)
+    │               │   │   └── /order (PUT)
+    │               │   └── antt (GET, HEAD)
+    │               ├── tasks (GET, HEAD)
+    │               ├── acceptance-queue (GET, HEAD)
+    │               ├── workload (GET, HEAD)
+    │               │   └── /
+    │               │       └── :userId (GET, HEAD)
+    │               └── board (GET, HEAD)
+    ├── stories/
+    │   └── :storyId (DELETE, GET, HEAD, PATCH)
+    │       └── /
+    │           ├── sensitivity (PUT)
+    │           └── tasks (GET, HEAD, POST)
+    ├── tasks/
+    │   └── :taskId (GET, HEAD, PATCH, DELETE)
+    │       └── /
+    │           ├── sensitivity (PUT)
+    │           └── acceptance (POST)
+    │               └── s (GET, HEAD)
+    ├── goals/
+    │   └── :goalId (PATCH, DELETE)
+    │       └── /activities (POST)
+    │           └── /order (PUT)
+    └── me/workbench (GET, HEAD)
