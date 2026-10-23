@@ -1,0 +1,13 @@
+
+ RUN  v2.1.9 /home/lee/aim-wt/fs-verify-20261023
+
+(node:19506) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ src/modules/task/task-fs-start-guard.test.ts (24 tests) 5780ms
+
+ Test Files  1 passed (1)
+      Tests  24 passed (24)
+   Start at  22:38:09
+   Duration  6.44s (transform 255ms, setup 0ms, collect 421ms, tests 5.78s, environment 0ms, prepare 55ms)
+
+EXIT=0

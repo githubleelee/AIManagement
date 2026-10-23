@@ -1,0 +1,13 @@
+
+ RUN  v2.1.9 /home/lee/aim-wt/fs-verify-20261023
+
+(node:24649) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ src/modules/acceptance/acceptance.test.ts (37 tests) 9623ms
+
+ Test Files  1 passed (1)
+      Tests  37 passed (37)
+   Start at  22:39:39
+   Duration  10.25s (transform 250ms, setup 0ms, collect 404ms, tests 9.62s, environment 0ms, prepare 49ms)
+
+EXIT=0
