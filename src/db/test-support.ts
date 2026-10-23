@@ -54,6 +54,12 @@ export async function resetDatabase(prisma: PrismaClient): Promise<void> {
   await prisma.aiDisposition.deleteMany()
   await prisma.aiApplication.deleteMany()
   await prisma.aiSuggestion.deleteMany()
+  // #34 站内通知：通知行与消费账本都以 `DomainEvent` 为 Restrict 来源、以 Project / User 为
+  // Restrict 目标；账本还引用 `NotificationConsumer`。必须先删通知 / 账本，再删激活记录，
+  // 最后才能删 `DomainEvent` / project / user。
+  await prisma.notification.deleteMany()
+  await prisma.notificationConsumption.deleteMany()
+  await prisma.notificationConsumer.deleteMany()
   // #37 领域事件：`DomainEvent.projectId` 是 Restrict，必须先于 `project` 删除。
   // 只在 projectId 上有外键，actor 列是字符串快照、不建外键，故与 User 无先后约束。
   await prisma.domainEvent.deleteMany()

@@ -283,8 +283,12 @@ describe('决策 I-7 表集合与字段逐列比对', () => {
    *
    * #31 US-11（工单 #31）经 `DECISIONS.md` `ai.suggestion-store-shared` 授权再新增 3 张表
    * `AiSuggestion` / `AiDisposition` / `AiApplication`（共享「建议 + 处置 + 应用」存储）。
+   *
+   * #34 站内通知经 `DECISIONS.md` `notifications.public-integration-and-scheduling` /
+   * `notifications.committed-consumption-and-query-contract` 授权再新增 3 张表 `Notification` /
+   * `NotificationConsumer` / `NotificationConsumption`（通知存储 + 激活记录 + 持久消费账本）。
    */
-  it('表集合 = 契约规定的 9 张 + 本阶段经授权新增的 16 张（不多不少）', async () => {
+  it('表集合 = 契约规定的 9 张 + 本阶段经授权新增的 19 张（不多不少）', async () => {
     expect(await getTableNames()).toEqual([
       'AcceptanceRecord', // ← 本阶段经 #24 授权新增（US-09 / #29），不属于契约 I-7
       // ↓ #31 US-11：3 张 AI 建议表。ASCII 序（'c' < 'i' < 'u'）⇒ 落在 AcceptanceRecord 与 AuditLog 之间
@@ -295,6 +299,10 @@ describe('决策 I-7 表集合与字段逐列比对', () => {
       'BusinessGoal',
       'DomainEvent', // ← 本阶段经 #37 授权新增（领域事件）；ASCII 序落在 BusinessGoal 与 Milestone 之间
       'Milestone', // ← 本阶段经项目负责人 2026-10-18 授权新增（US-06 / #26），不属于契约 I-7
+      // ↓ #34 站内通知：3 张表。ASCII 序（'M' < 'N' < 'O'）⇒ 落在 Milestone 与 ObjectVisibility 之间
+      'Notification',
+      'NotificationConsumer',
+      'NotificationConsumption',
       'ObjectVisibility',
       'Project',
       'ProjectMember',

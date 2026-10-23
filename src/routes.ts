@@ -18,6 +18,8 @@ import { registerBoardRoutes } from './modules/board/plugin.js'
 import { registerWorkbenchRoutes } from './modules/workbench/plugin.js'
 import { registerRequirementRoutes } from './modules/requirement/plugin.js'
 import { registerAiRoutes } from './modules/ai/plugin.js'
+import { registerNotificationRoutes } from './modules/notification/plugin.js'
+import type { NotificationService } from './modules/notification/service.js'
 import type { AiBreakdownService } from './modules/ai/service.js'
 import type { GanttEventPort } from './modules/gantt/types.js'
 import type { RequirementEventPort } from './modules/requirement/service.js'
@@ -52,6 +54,13 @@ export type RouteContext = {
    * （不得静默跳过发布）。事件名见 `src/modules/risk/types.ts` 的 `RiskEventName`。
    */
   riskEvents?: RiskEventPort
+  /**
+   * #34 站内通知服务（由 `src/app.ts` 用真实仓储 / 接收者解析器 / #37 适配器显式组装）。
+   *
+   * 组装（仓储 / 解析器 / 事件源）留在唯一组装点 `src/app.ts`；路由总表只负责注册。
+   * 缺失即 fail-fast —— **禁止** hasRoute 跳过、默认 no-op 或内存仓储回退（本批任务约束）。
+   */
+  notificationService?: NotificationService
 }
 
 export function registerRoutes(app: FastifyInstance, context: RouteContext): void {
@@ -115,4 +124,15 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
   // 不在 Sprint 1 契约的 30 个端点内，属本阶段新增；服务由 `src/app.ts` 组装后经 context 注入。
   // 三个入口均 `requireAuth`，服务端逐次走 `can()`（read 复用 project.read；生成 / 处置仅 PM）。
   if (context.aiService) registerAiRoutes(app, { service: context.aiService })
+
+  // #34 站内通知（B 公共接入）：GET /me/notifications、GET /notifications/:id、
+  // PATCH /notifications/:id/read。不在 Sprint 1 契约的 30 个端点内，属本阶段新增。
+  // 服务（真实 DB 仓储 / 权威接收者解析器 / #37 适配器）由 `src/app.ts` 组装后经 context 注入；
+  // **缺失即 fail-fast**：不得 hasRoute 跳过、不得默认 no-op、不得回退内存仓储（本批约束）。
+  if (!context.notificationService) {
+    throw new Error(
+      '通知服务未组装：src/app.ts 必须注入真实 notificationService（禁止 hasRoute 跳过 / 默认 no-op / 内存仓储回退）',
+    )
+  }
+  registerNotificationRoutes(app, context.notificationService)
 }
