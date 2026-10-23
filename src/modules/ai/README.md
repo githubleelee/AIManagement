@@ -14,21 +14,15 @@
 - 同 actor + requestId + digest 的重放、异请求冲突及最小采纳质量统计；
 - 独立 Fastify 路由插件和接口测试；
 - 敏感需求默认拒绝进入 AI 上下文；
-- 仅显式 `SYNTHETIC_DEMO` 数据允许外部 API；持久化项目数据默认拒绝外发。
+- 仅显式 `SYNTHETIC_DEMO` 数据允许外部 API；持久化项目数据默认拒绝外发；
+- 模型返回后、写入建议记录前重新鉴权；服务入口独立校验人工处置输入；
+- 外部端口的结构无效/数据策略错误映射为 422，其余服务异常继续由统一出口脱敏。
 
 ## 当前真实状态
 
-本模块尚未注册到 `src/routes.ts`，`InMemoryAiSuggestionRepository` 也不是正式持久化。
-这是遵守公共冻结区归属的结果，不代表功能已经完成端到端验收。
-
-技术负责人完成 `docs/role-d/US11-integration-request.md` 中的公共改动后：
-
-1. 用数据库仓储替换内存仓储；
-2. 由权限模块实现 `AiAuthorizationPort`；
-3. 在 app 组装根注入 `AiBreakdownService`；
-4. 注册 `registerAiRoutes`；
-5. 由需求页 owner 挂载 `AiBreakdownPanel`；
-6. 再执行真实浏览器走查和正式数据应用验收。
+ROLE-B 已完成公共数据库仓储、权限适配、app 组装和正式路由注册；当前运行模式仍是
+`LOCAL_STUB`。外部模型供应商尚未确定，未配置显式外部适配器时禁止静默切换。
+`InMemoryAiSuggestionRepository` 仅保留为模块测试夹具，不是正式持久化实现。
 
 首批给 ROLE-B 的最小端口提案见
 `docs/role-d/US11-minimal-ai-port-proposal.md`。该提案只覆盖 #31；#37 事件端口不在
@@ -42,7 +36,7 @@
 | GET | `/projects/:projectId/stories/:storyId/ai-suggestions` | 查询建议与处置记录 |
 | POST | `/projects/:projectId/stories/:storyId/ai-suggestions/:suggestionId/disposition` | 采纳、修改后采纳或拒绝 |
 
-旧 `/review` 路径暂保留为兼容别名，执行完全相同的权限与存储逻辑；新消费者使用 `/disposition`。
+旧 `/review` 别名已经删除，唯一人工处置入口为 `/disposition`。
 
 “正式应用”没有公开 HTTP 端点。原因是负责人尚未确认应用目标是任务、故事还是验收标准；
 服务只预留 `recordApplicationResult()`，避免角色 D 自行拍定业务规则。

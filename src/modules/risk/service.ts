@@ -26,6 +26,7 @@
  */
 import type { Prisma, PrismaClient } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
+import type { EventObjectRef } from '../../shared/events.js'
 import { createAuthorization } from '../authz/permissions.js'
 import {
   RISK_INCLUDE,
@@ -37,7 +38,7 @@ import {
   type RiskRow,
 } from './closure.js'
 import { sortRisksByPriority } from './ordering.js'
-import type { RiskLevel, RiskStatus, RiskView } from './types.js'
+import type { RiskEventDraft, RiskEventPort, RiskLevel, RiskStatus, RiskView } from './types.js'
 
 export const RISK_TITLE_MAX_LENGTH = 200
 export const RISK_RESOLUTION_MAX_LENGTH = 200
@@ -201,6 +202,117 @@ function riskAuditFields(risk: {
 }
 
 /* ===========================================================================
+ * 领域事件（#37 公共基础设施，本批接线；口径见 `src/shared/events.ts` 事件目录）
+ * =========================================================================== */
+
+/** 事件主体对象类型常量（与事件目录 `object` 列一致）。 */
+const RISK_OBJECT_TYPE = 'risk'
+
+/**
+ * 事务内查「这些任务里有没有敏感的」（契约 I-6）。
+ *
+ * 风险的敏感性是**继承**关联任务的可见性（批复第 6 项，不新建 risk 敏感类型），
+ * 所以判定只能落到任务上；必须在**同一事务内**读，否则并发改敏感标记会让事件的
+ * 敏感度与实际不符。
+ *
+ * 返回的 `references` 只含**真实存在**的任务 id：关联任务若已被删除（`taskId` 存在
+ * 但任务行已不在），事件里不引用一个不存在的对象。
+ *
+ * `references` 按**入参顺序**归一：数据库 `IN` 查询不保证返回顺序，若直接映射会把
+ * 载荷顺序变成不可复现的随机值。归一后「改绑前 → 改绑后」的读法也稳定。
+ */
+async function readTaskSensitivity(
+  tx: Prisma.TransactionClient,
+  taskIds: readonly (string | null)[],
+): Promise<{ anySensitive: boolean; references: EventObjectRef[] }> {
+  const ids = [...new Set(taskIds.filter((id): id is string => id !== null))]
+  if (ids.length === 0) return { anySensitive: false, references: [] }
+
+  const tasks = await tx.task.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, isSensitive: true },
+  })
+
+  const byId = new Map(tasks.map((task) => [task.id, task]))
+  const ordered = ids
+    .map((id) => byId.get(id))
+    .filter((task): task is { id: string; isSensitive: boolean } => task !== undefined)
+
+  return {
+    anySensitive: ordered.some((task) => task.isSensitive),
+    references: ordered.map((task) => ({ objectType: 'task', objectId: task.id })),
+  }
+}
+
+/** 审计快照的前后差异 → 变更字段名列表（**只给字段名，不给字段值**）。 */
+function changedFieldsOf(
+  before: ReturnType<typeof riskAuditFields>,
+  after: ReturnType<typeof riskAuditFields>,
+): string[] {
+  const keys = Object.keys(after) as Array<keyof typeof after>
+  return keys.filter((key) => before[key] !== after[key])
+}
+
+/**
+ * 构造风险事件草稿（非敏感 / 敏感两个分支都只在这里产生）。
+ *
+ * 敏感规则（契约 I-6）：只要事件**涉及**的任务里有敏感项，整条事件必须以敏感事件
+ * 发布，且载荷**只能是** `{references}` —— 标题 / 描述正文 / 解决说明一律不进载荷
+ * （前后值已在 `AuditLog` 里）。否则查询层过滤看不到它，会泄漏给非授权成员。
+ */
+function riskEventDraft(args: {
+  eventName: RiskEventDraft['eventName']
+  projectId: string
+  actorUserId: string
+  occurredAt: string
+  risk: {
+    id: string
+    status: string
+    level: string
+    ownerUserId: string
+    taskId: string | null
+  }
+  /** 仅更新事件提供；创建事件不带。 */
+  changedFields?: string[]
+  sensitivity: { anySensitive: boolean; references: EventObjectRef[] }
+}): RiskEventDraft {
+  const base = {
+    eventName: args.eventName,
+    projectId: args.projectId,
+    object: { objectType: RISK_OBJECT_TYPE, objectId: args.risk.id },
+    actor: { kind: 'USER' as const, userId: args.actorUserId },
+    occurredAt: args.occurredAt,
+  }
+
+  if (args.sensitivity.anySensitive) {
+    return {
+      ...base,
+      sensitive: true,
+      payload: {
+        references: [
+          { objectType: RISK_OBJECT_TYPE, objectId: args.risk.id },
+          ...args.sensitivity.references,
+        ],
+      },
+    }
+  }
+
+  return {
+    ...base,
+    sensitive: false,
+    // 只放**结构与标识**：状态 / 等级 / 负责人 id / 关联任务 id / 变更字段名。
+    // 不放风险标题、描述正文、解决说明 —— 那是受保护内容。
+    payload: {
+      status: args.risk.status,
+      level: args.risk.level,
+      ownerUserId: args.risk.ownerUserId,
+      taskId: args.risk.taskId,
+      ...(args.changedFields ? { changedFields: args.changedFields } : {}),
+    },
+  }
+}
+
+/* ===========================================================================
  * 读
  * =========================================================================== */
 
@@ -271,6 +383,7 @@ export async function getRisk(
 /** 新建风险（`risk.write`：PM + MEMBER；VIEWER 403）。 */
 export async function createRisk(
   prisma: PrismaClient,
+  events: RiskEventPort,
   actorUserId: string,
   projectId: string,
   input: RiskInput,
@@ -312,6 +425,20 @@ export async function createRisk(
     await tx.auditLog.create({
       data: auditData(projectId, actorUserId, 'risk.create', 'risk', risk.id, null, riskAuditFields(risk)),
     })
+
+    // 同事务追加事件：风险行与审计此时已落库，敏感判定在同一事务内查（契约 I-6）。
+    // 发布失败会把整笔创建一起回滚 —— 宁可业务失败，也不留「创建成功但事件丢失」。
+    await events.publish(
+      riskEventDraft({
+        eventName: 'risk.created',
+        projectId,
+        actorUserId,
+        occurredAt: new Date().toISOString(),
+        risk,
+        sensitivity: await readTaskSensitivity(tx, [risk.taskId]),
+      }),
+      tx,
+    )
     return risk
   })
 
@@ -326,6 +453,7 @@ export async function createRisk(
  */
 export async function patchRisk(
   prisma: PrismaClient,
+  events: RiskEventPort,
   actorUserId: string,
   riskId: string,
   patch: RiskPatch,
@@ -416,6 +544,23 @@ export async function patchRisk(
         riskAuditFields(risk),
       ),
     })
+
+    // 同事务追加事件（口径同创建）：状态流转（含「已解决 / 已关闭」）与归属变更
+    // 都是 `risk.updated`，差别体现在载荷的 `status` / `changedFields` 上。
+    // 敏感判定要覆盖**改绑前后**两个任务：旧任务敏感则会泄漏旧关联、新任务敏感则会
+    // 泄漏新关联，任一为真即按敏感事件处理。
+    await events.publish(
+      riskEventDraft({
+        eventName: 'risk.updated',
+        projectId: existing.projectId,
+        actorUserId,
+        occurredAt: new Date().toISOString(),
+        risk,
+        changedFields: changedFieldsOf(riskAuditFields(existing), riskAuditFields(risk)),
+        sensitivity: await readTaskSensitivity(tx, [existing.taskId, risk.taskId]),
+      }),
+      tx,
+    )
     return risk
   })
 

@@ -14,7 +14,7 @@ import type {
   RedeliverEventResult,
 } from './contracts.js'
 import { EventServiceError } from './errors.js'
-import { validatePublishEvent } from './validation.js'
+import { normalizeEventQuery, validatePublishEvent } from './validation.js'
 
 export type DomainEventServiceDependencies = {
   repository: EventRepositoryPort
@@ -86,7 +86,7 @@ export class DomainEventService implements DomainEventInfrastructurePort {
   async query(actorUserId: string, query: EventQuery): Promise<DomainEventEnvelope[]> {
     this.assertStarted()
     await this.authorizeRead(actorUserId, query.projectId)
-    return this.deps.repository.query(query)
+    return this.deps.repository.query(normalizeEventQuery(query))
   }
 
   async redeliver(actorUserId: string, eventId: string): Promise<RedeliverEventResult> {
@@ -102,7 +102,7 @@ export class DomainEventService implements DomainEventInfrastructurePort {
   async replay(actorUserId: string, query: EventQuery): Promise<RedeliverEventResult[]> {
     this.assertStarted()
     await this.authorizeRead(actorUserId, query.projectId)
-    const events = await this.deps.repository.query(query)
+    const events = await this.deps.repository.query(normalizeEventQuery(query))
     const results: RedeliverEventResult[] = []
     for (const event of events) {
       results.push({ event, deliveries: await this.dispatch(event, 'REPLAY') })

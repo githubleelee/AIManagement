@@ -33,7 +33,7 @@ import {
   patchRisk,
   reopenProject,
 } from './service.js'
-import { RISK_LEVELS, RISK_STATUSES } from './types.js'
+import { RISK_LEVELS, RISK_STATUSES, type RiskEventPort } from './types.js'
 
 /**
  * 新建风险。`level` / `status` 用线上常量数组校验 —— 传中文或未定义取值一律
@@ -84,6 +84,15 @@ function assertQueryValuesAreStrings(
 export function registerRiskRoutes(app: FastifyInstance, context: RouteContext): void {
   const prisma = context.prisma
 
+  // 事件端口由 `src/app.ts` 显式组装注入；缺失即 fail-fast，**不得**静默跳过发布。
+  const events: RiskEventPort | undefined = context.riskEvents
+  if (!events) {
+    throw new Error(
+      '风险路由组装缺失：RouteContext.riskEvents 未注入。请在 src/app.ts 用 ' +
+        'createRiskEventPort({ repository }) 组装后传入。',
+    )
+  }
+
   // -------------------------------------------------------------------------
   // 风险台账：列表 / 新建
   // -------------------------------------------------------------------------
@@ -107,7 +116,7 @@ export function registerRiskRoutes(app: FastifyInstance, context: RouteContext):
     const parsed = riskCreateSchema.safeParse(request.body)
     if (!parsed.success) throw validationFailed(parsed.error)
 
-    const risk = await createRisk(prisma, actorUserId, projectId, parsed.data)
+    const risk = await createRisk(prisma, events, actorUserId, projectId, parsed.data)
     return reply.status(201).send(risk)
   })
 
@@ -129,7 +138,7 @@ export function registerRiskRoutes(app: FastifyInstance, context: RouteContext):
     const parsed = riskPatchSchema.safeParse(request.body)
     if (!parsed.success) throw validationFailed(parsed.error)
 
-    const risk = await patchRisk(prisma, actorUserId, riskId, parsed.data)
+    const risk = await patchRisk(prisma, events, actorUserId, riskId, parsed.data)
     return reply.status(200).send(risk)
   })
 
