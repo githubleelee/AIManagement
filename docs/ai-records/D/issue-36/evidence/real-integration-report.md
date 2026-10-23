@@ -39,8 +39,9 @@
 | screenshots/05-outsider-hidden.png | 真实 API 404，不显示文件名 |
 | screenshots/06-single-delete.png | 浏览器删除后列表清空 |
 | screenshots/07-production-task-section-not-mounted.png | 正式故事详情没有附件入口，作为阻断证据 |
+| screenshots/08-sensitive-viewer-hidden.png | PM经正式敏感设置接口标敏后，原可见VIEWER收到404且看不到文件名 |
 
-前六张使用**额外的独立组件验证页**，页面显著标注环境与限制，直接复用原 TaskAttachmentPanel，不改正式 TaskSection 或路由表。它们证明组件对真实接口的交互，不证明产品入口已挂载。下载截图自身不证明文件字节，脚本另有字节断言。现有组件在加载失败后还会保留“正在加载”提示，此显示问题如实保留在截图中。
+前六张及第八张使用**额外的独立组件验证页**，页面显著标注环境与限制，直接复用原 TaskAttachmentPanel，不改正式 TaskSection 或路由表。它们证明组件对真实接口的交互，不证明产品入口已挂载。下载截图自身不证明文件字节，脚本另有字节断言。现有组件在加载失败后还会保留“正在加载”提示，此显示问题如实保留在截图中。
 
 ## 测试与构建
 

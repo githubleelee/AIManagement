@@ -68,7 +68,7 @@ await call('actual task DELETE','pm','DELETE',`/tasks/${deleteTaskId}`,204)
 await new Promise(r=>setTimeout(r,31_000))
 const leftover=await ctx.db.attachment.findUnique({where:{id:orphan.data.id}})
 const lifecycle={name:'task deletion lifecycle after automatic 30s retry',pass:leftover===null,observed:leftover?{state:leftover.state,taskId:leftover.taskId,fileStillExists:existsSync(resolve(uploadRoot,leftover.storagePath))}:null}
-const result={scope:'B candidate + latest main + D attachment module; NOT merged production',generatedAt:new Date().toISOString(),cases,lifecycle,ui:{projectId,storyId,taskId:uiTaskId,accounts:Object.keys(users).map(x=>`evidence.${x}`)}}
+const result={scope:'B candidate + latest main + D attachment module; NOT merged production',generatedAt:new Date().toISOString(),cases,lifecycle,ui:{projectId,storyId,taskId:uiTaskId,ownerUserId:users.owner.id,accounts:Object.keys(users).map(x=>`evidence.${x}`)}}
 writeFileSync(new URL('./real-http-results.json',import.meta.url),JSON.stringify(result,null,2)+'\n')
 writeFileSync(new URL('./runtime-ui-fixture.json',import.meta.url),JSON.stringify(result.ui,null,2)+'\n')
 console.log(JSON.stringify({ready:true,port:3136,httpCases:cases.length,lifecycle},null,2))
