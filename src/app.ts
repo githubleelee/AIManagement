@@ -29,7 +29,7 @@
  * ---------------------------------------------------------------------------
  */
 import Fastify, { type FastifyInstance } from 'fastify'
-import type { PrismaClient } from '@prisma/client'
+import type { Prisma, PrismaClient } from '@prisma/client'
 import { registerErrorHandler } from './error-handler.js'
 import { registerRoutes, type RouteContext } from './routes.js'
 import { registerActorResolver } from './auth/actor.js'
@@ -42,6 +42,7 @@ import { PrismaAiSuggestionRepository, createAiAuthorizationPort } from './db/ai
 import { createDomainEventInfrastructure } from './modules/events/factory.js'
 import { createAiBreakdownService } from './modules/ai/factory.js'
 import { createPrismaAiStorySource } from './modules/ai/story-source.js'
+import { createTaskStartGuardPort } from './modules/task/rules.js'
 import type { RequirementBreakdownRecord } from './shared/ai.js'
 import type {
   DomainEventPublisherPort,
@@ -135,6 +136,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.addHook('onClose', async () => {
     await infrastructure.stop()
   })
+
+  // FS 开工守卫窄端口（#13）：显式装配 `src/modules/task/rules.ts` 的**同一**守卫实现，
+  // 供需要“进入 DOING”的其他域（当前为验收 REJECT）在同一事务内调用。不是第二套复制，
+  // 也没有 no-op / 默认放行；引用方缺省时应 fail-fast。
+  context.taskStartGuard = createTaskStartGuardPort<Prisma.TransactionClient>()
 
   registerErrorHandler(app)
   // Actor 解析：只把「当前是谁」注入 request，不做权限判定（权限一律由 can() 现查库）。
