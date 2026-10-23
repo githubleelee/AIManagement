@@ -1,0 +1,146 @@
+{
+  "scope": "Real isolated component, NOT production mounting",
+  "generatedAt": "2026-10-23T13:48:31.592Z",
+  "passed": [
+    "real login",
+    "upload listed",
+    "download event",
+    "viewer read-only",
+    "outsider API 404 and no filenames",
+    "single attachment deletion"
+  ],
+  "blocked": [
+    "production TaskSection has no attachment mount",
+    "task DELETE lifecycle orphan"
+  ],
+  "responses": [
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/tasks/85610a88-5e80-4393-85a9-8e5d7aae4431/attachments",
+      "status": 200
+    },
+    {
+      "url": "/api/tasks/85610a88-5e80-4393-85a9-8e5d7aae4431/attachments",
+      "status": 201
+    },
+    {
+      "url": "/api/tasks/85610a88-5e80-4393-85a9-8e5d7aae4431/attachments",
+      "status": 200
+    },
+    {
+      "url": "/api/attachments/eab24c72-a0dc-4b64-8c5e-f10f262a6ae4/download",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/tasks/85610a88-5e80-4393-85a9-8e5d7aae4431/attachments",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/tasks/85610a88-5e80-4393-85a9-8e5d7aae4431/attachments",
+      "status": 404
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/tasks/85610a88-5e80-4393-85a9-8e5d7aae4431/attachments",
+      "status": 200
+    },
+    {
+      "url": "/api/attachments/eab24c72-a0dc-4b64-8c5e-f10f262a6ae4",
+      "status": 204
+    },
+    {
+      "url": "/api/tasks/85610a88-5e80-4393-85a9-8e5d7aae4431/attachments",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/projects/00c0fab1-209b-4f75-a4a7-220de1819c60",
+      "status": 200
+    },
+    {
+      "url": "/api/projects/00c0fab1-209b-4f75-a4a7-220de1819c60",
+      "status": 200
+    },
+    {
+      "url": "/api/stories/24e396fa-1fef-43f5-a401-3823f53d77ba",
+      "status": 200
+    },
+    {
+      "url": "/api/projects/00c0fab1-209b-4f75-a4a7-220de1819c60/goals",
+      "status": 200
+    },
+    {
+      "url": "/api/stories/24e396fa-1fef-43f5-a401-3823f53d77ba",
+      "status": 200
+    },
+    {
+      "url": "/api/projects/00c0fab1-209b-4f75-a4a7-220de1819c60/goals",
+      "status": 200
+    },
+    {
+      "url": "/api/projects/00c0fab1-209b-4f75-a4a7-220de1819c60/members",
+      "status": 200
+    },
+    {
+      "url": "/api/projects/00c0fab1-209b-4f75-a4a7-220de1819c60/stories/24e396fa-1fef-43f5-a401-3823f53d77ba/ai-suggestions",
+      "status": 200
+    },
+    {
+      "url": "/api/stories/24e396fa-1fef-43f5-a401-3823f53d77ba/tasks",
+      "status": 200
+    },
+    {
+      "url": "/api/projects/00c0fab1-209b-4f75-a4a7-220de1819c60/members",
+      "status": 200
+    },
+    {
+      "url": "/api/projects/00c0fab1-209b-4f75-a4a7-220de1819c60/stories/24e396fa-1fef-43f5-a401-3823f53d77ba/ai-suggestions",
+      "status": 200
+    },
+    {
+      "url": "/api/stories/24e396fa-1fef-43f5-a401-3823f53d77ba/tasks",
+      "status": 200
+    }
+  ]
+}
