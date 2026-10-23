@@ -16,8 +16,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import request from 'supertest'
 import { buildApp } from '../src/app.js'
 import { AppError } from '../src/shared/errors.js'
+import { createTempDatabase } from '../src/db/test-support.js'
 
-const app = buildApp({ logger: false })
+// 本文件只验证统一错误处理器，但 `buildApp()` 现在会在 `onReady` 启动通知运行时并写
+// 首次激活记录（需要可用数据库）。与仓库既有约定一致：用临时 SQLite 库注入，
+// **不**依赖全局单例 / `DATABASE_URL`（保持测试自包含）。
+const tempDb = createTempDatabase()
+const app = buildApp({ logger: false, prisma: tempDb.prisma })
 
 /** 模拟后续中间件（如 T0-04 的 requireAuth）以 `throw errorWithStatus(...)` 报错。 */
 function errorWithStatus(statusCode: number, message: string): Error {
@@ -84,6 +89,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await app.close()
+  await tempDb.dispose()
 })
 
 describe('健康检查', () => {
