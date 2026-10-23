@@ -165,14 +165,24 @@ describe('FS 开工守卫：TODO→DOING 的前置放行', () => {
     expect((await patch(successor.id, { status: 'DOING' }, pm.id)).status).toBe(200)
   })
 
-  it('BLOCKED→DOING 同属开工：前置未关闭仍阻断', async () => {
-    const predecessor = await seedTask({ status: 'DONE', planEnd: PRED_END })
-    const successor = await seedTask({ status: 'BLOCKED', blockedReason: '等外部接口' })
-    await addFs(predecessor.id, successor.id)
+  it.each(['TODO', 'BLOCKED', 'SUSPENDED', 'DONE', 'CLOSED'])(
+    '合法非 DOING 状态 %s→DOING 同属开工：前置未 CLOSED 阻断、CLOSED 放行',
+    async (from) => {
+      const blockedBy = await seedTask({ status: 'DONE', planEnd: PRED_END })
+      const successor = await seedTask({ status: from, planStart: NEXT_DAY, planEnd: '2026-11-20' })
+      await addFs(blockedBy.id, successor.id)
 
-    expect((await patch(successor.id, { status: 'DOING' }, pm.id)).status).toBe(422)
-    expect((await ctx.db.task.findUniqueOrThrow({ where: { id: successor.id } })).status).toBe('BLOCKED')
-  })
+      const denied = await patch(successor.id, { status: 'DOING' }, pm.id)
+      expect(denied.status).toBe(422)
+      expect(invalidValueFields(denied)).toContain('status')
+      expect((await ctx.db.task.findUniqueOrThrow({ where: { id: successor.id } })).status).toBe(from)
+
+      await ctx.db.task.update({ where: { id: blockedBy.id }, data: { status: 'CLOSED' } })
+      const allowed = await patch(successor.id, { status: 'DOING' }, pm.id)
+      expect(allowed.status).toBe(200)
+      expect((await ctx.db.task.findUniqueOrThrow({ where: { id: successor.id } })).status).toBe('DOING')
+    },
+  )
 })
 
 describe('FS 计划边界：自然日含首尾（Asia/Shanghai，日期不落时区）', () => {
@@ -186,7 +196,7 @@ describe('FS 计划边界：自然日含首尾（Asia/Shanghai，日期不落时
     expect(res.body).toEqual({
       error: {
         code: 'VALIDATION_FAILED',
-        message: '后继计划开始不得早于前置计划结束的次日',
+        message: '当前条件不允许开始执行',
         details: [{ field: 'planStart', code: 'INVALID_VALUE' }],
       },
     })
@@ -311,7 +321,7 @@ describe('权限先于守卫、隐藏前置不泄露', () => {
     expect(res.body).toEqual({
       error: {
         code: 'VALIDATION_FAILED',
-        message: '存在未关闭（CLOSED）的前置任务，不能开工',
+        message: '当前条件不允许开始执行',
         details: [{ field: 'status', code: 'INVALID_VALUE' }],
       },
     })
