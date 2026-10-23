@@ -247,3 +247,9 @@
 - **timestamp:** 2026-10-21T22:10:00+08:00
 - **rationale:** 事件基础设施（PR #86）就绪后，业务域若不接线则 `DomainEvent` 表永远为空、查询 / 重投端口无实际语义；本口径把「同事务、可回滚、按可见性过滤、幂等、可登记」固化为所有域复用的一套规则，避免各域自拼信封、自定命名与幂等键而彼此漂移。
 
+
+## `attachments.storage-and-cleanup`
+
+- **value:** 任务附件（#36 公共接入）的落地口径。**存储**：元数据落 `Attachment` 表（迁移 `20261023050228_add_attachment`），实体文件落项目根 `var/uploads/`（加入 `.gitignore`，**不注册为公开静态目录**）；磁盘存储键 = 服务端 UUID + 已验证扩展名（`storagePath` **唯一**，不覆盖写入），原始文件名只作元数据、**绝不参与路径拼接**；`LocalAttachmentStorage` 必须校验解析后仍在存储根内（防目录穿越）。**公共类型**：`src/shared/attachments.ts` 为唯一权威定义，`src/modules/attachment/contracts.ts` 只 re-export。**删除语义（裁定 1，明确不用 `Cascade`）**：`Attachment.taskId` **可空** + 外键 `onDelete: SetNull` —— 任务删除**不得**被附件关系阻塞；任务删除在**同一事务**内把该任务 `ACTIVE` 附件标为 `DELETING`（记录 `deleteRequestedAt`），事务提交后由清理执行器 `runAttachmentCleanup` 扫描 `DELETING` / `CLEANUP_FAILED`（按 `state` 而非 `taskId`，因任务行删除后 `taskId` 已 SetNull）删除物理文件：成功 → 删行；失败 → 置 `CLEANUP_FAILED` + 累加 `cleanupAttempts` + 记录 `cleanupLastError`（安全错误码 `FILE_DELETE_FAILED`），可重试。**绝不允许先删实体**；`Cascade` 会让清理状态随行消失、失败无法重试，故排除。**可见性**：列表 / 详情只返回 `state = 'ACTIVE'`（`DELETING` / `CLEANUP_FAILED` 对用户不可见），过滤在**查询层**（`WHERE taskId = ? AND state = 'ACTIVE'`），不取全量后内存剔除；单对象鉴权走统一 `can()` 现查任务 / 成员 / 角色 / `objectVisibility`，敏感任务未授权成员读 / 写 / 下载与「不存在」同一条 404。**权限**：读 / 下载复用 `project.read`，写复用 `task.progress`（均为既有 `Action`，**不新增 Action、不写角色名字面判断**）；下载响应必须带 `Content-Disposition: attachment`。**组装**：`src/app.ts` 显式注入 prisma 仓储 + 本地存储 + 权限适配器 + service；`src/routes.ts` 注册 `registerAttachmentRoutes`，`RouteContext.attachmentService` 缺失即 fail-fast（注册延到 boot 阶段并用 `hasRoute` 守卫，以兼容 D 模块测试的预注册）。
+- **timestamp:** 2026-10-23T13:20:00+08:00
+- **rationale:** 落实 `attachments.policy` 的「元数据入库、实体 `var/uploads/`、任务成功删除时清理且失败可追踪重试、删除失败不先删文件」，并固定 B 的数据库删除方案（SetNull + 清理状态机 + 查询层可见性 + 既有 Action 复用），避免清理状态丢失、任务删除被附件阻塞与敏感附件泄漏。
