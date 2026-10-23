@@ -139,10 +139,18 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
   // GET /attachments/:attachmentId/download、DELETE /attachments/:attachmentId。
   // 服务由 `src/app.ts` 组装后经 context 注入；**同步显式注册**，缺失即 fail-fast
   //（不得静默跳过；不得用 hasRoute 守卫 / skip 开关 / 默认回退掩盖装配缺失）。
-  if (!context.attachmentService) {
+  const attachmentService = context.attachmentService
+  if (!attachmentService) {
     throw new Error(
       '附件路由需要 attachmentService：请由 src/app.ts 显式组装注入（缺失即 fail-fast，不得静默跳过）',
     )
   }
-  registerAttachmentRoutes(app, context.attachmentService)
+  // 上传 MIME 解析器（`plugin.ts` 的 `addContentTypeParser`）必须限制在附件插件的**封装子上下文**内：
+  // 直接注册在根 app 会让 8 种附件 MIME 在**所有**路由上生效 —— 例如 `POST /projects`
+  // 携带 `Content-Type: application/pdf` 不再由框架返回 415，而进入业务校验变 422，
+  // 违反 I-4「401/403/413/415/429 保持原状」。这里是**同步 fail-fast 之后的封装注册**，
+  // 不是 hasRoute 守卫 / skip 开关 / 默认回退：缺 service 仍然立即抛错，只是路由随 boot 装载。
+  app.register(async instance => {
+    registerAttachmentRoutes(instance, attachmentService)
+  })
 }

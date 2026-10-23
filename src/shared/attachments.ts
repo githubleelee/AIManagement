@@ -158,7 +158,7 @@ export type AttachmentDownload = {
   content: Buffer
 }
 
-/** 清理结果汇总（D 的 `cleanupAfterTaskDeleted` 契约保留；B 的全局清理用 `AttachmentCleanupBatchResult`）。 */
+/** 清理结果汇总（按任务汇总的清理视图；D 已删除旧 `cleanupAfterTaskDeleted` API，B 的全局清理用 `AttachmentCleanupBatchResult`）。 */
 export type TaskAttachmentCleanupResult = {
   taskId: string
   removed: number
