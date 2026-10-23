@@ -247,3 +247,21 @@
 - **timestamp:** 2026-10-21T22:10:00+08:00
 - **rationale:** 事件基础设施（PR #86）就绪后，业务域若不接线则 `DomainEvent` 表永远为空、查询 / 重投端口无实际语义；本口径把「同事务、可回滚、按可见性过滤、幂等、可登记」固化为所有域复用的一套规则，避免各域自拼信封、自定命名与幂等键而彼此漂移。
 
+## `notifications.public-integration-and-scheduling`
+
+- **value:** 沿用 `notifications.events-timing-timezone` 的六类站内通知、接收者、60 秒与上海时区，不重新扩权。B 负责通知公共存储、权威接收者适配器、提交后消费桥接、调度和骨架挂载；D 负责消费模块；普通生产点由原域在登记窗口内接线（C 的 task/：分配 `task.assigned`、真实进入 DONE 时 `acceptance.submitted`；A 的验收域：`acceptance.approved/rejected`；A 的风险域：`risk.created/level-raised`）。`task.mentioned` 维持明确未接入的后置单向联调项，不擅自新增 Mention 模型。B 定时生产 `task.overdue`（planEnd 次日 00:00 Asia/Shanghai 仍非 CLOSED，含 DONE）与 `milestone.due`（dueDate 当日 09:00）；启动补扫、每 10 秒扫描、同实例不重叠、关闭停止。逾期启动补扫覆盖当前非 CLOSED 的已逾期任务；节点首次只补启用当日已到点的节点，之后补启用日及之后已到点的节点，不自动提醒启用日前的旧里程碑。定时事件 occurredAt 必须为条件成立时间；普通事件按业务成功时间计时（同事务事件时间可作保守起点），停机补投不重置起点，未在 60 秒内可查须如实记超时。接收者只由权威 Task.ownerUserId/acceptorUserId、Risk.ownerUserId、Milestone.ownerUserId? 与项目 PM 解析并去重，且筛选当前成员及对象权限；节点无负责人只发 PM，有负责人发 PM+该负责人，不推断他人。
+- **timestamp:** 2026-10-23T13:24:04+08:00
+- **rationale:** 项目负责人授权 B 裁定，细化既有冻结口径的执行归属、09:00 节点规则及启动恢复边界，不将模块模拟事件冒充六类真实送达。
+
+## `notifications.committed-consumption-and-query-contract`
+
+- **value:** 域内同事务 append 不会触发 live 订阅，通知接入必须补已提交 DomainEvent 的通知专用消费桥接：显式适配 #37 订阅端口并真实注册处理器，提交后读取器复用同一处理器；不改变 publish 对 DUPLICATE 不自动派发的语义，不在业务事务内调用订阅者。内部扫描限定支持的事件名并分批读取，不复用带 projectId/actor 限制的用户 query 端口。以 `(consumerId,eventId)` 的持久消费账本判断是否完成，不以单纯 storedAt/id 水位防重；首次启用在同一事务持久化激活记录并将当时可见历史支持事件记为 SKIPPED_BASELINE，不自动群发旧风险，重启不重置基线。处理器必须返回 ConsumeNotificationEventResult；仅 DELIVERED 才确认成功，UNAVAILABLE/异常不确认、保留诊断并可重试，部分投递成功靠通知唯一键安全重放，单条失败不得阻塞后续事件。属于至少一次尝试+幂等，不新增 outbox/外部队列、不承诺 exactly-once。订阅源须有动态健康状态和逐事件 sourceCapabilities；仅注册回调成功不能宣称 AVAILABLE，停机/读源故障须诚实降级。接受通知域的 AVAILABLE/UNAVAILABLE/DELIVERED 词汇，不强改其他域枚举。列表、详情、未读统计与已读条件更新均以必填 actorUserId 应用当前成员/对象可见性（含原敏感引用与当前业务关联），在查询层过滤，撤权后旧通知不可见，越权与不存在同一 404；敏感通知只存必要引用，禁止因解绑/删除原关联自动暴露。已读保持首次 readAt。仓储同一快照返回 items/total/unreadCount/limit/truncated，上限 200；total 为 unreadOnly 条件下的真实可见总数，unreadCount 为全部当前可见未读数。三个 HTTP 端点统一投影前端必要字段，不外发收件人、dedupeKey、sourceEventId 或内部投递诊断。latencyMs 保留原始差值，只有 0 <= latencyMs <= 60000 才 withinDeliveryTarget；不把负延迟归零伪装达标。订阅中途失败须回收已注册 disposer，stop 幂等。六类真实生产证据未齐不勾最终 AC1/AC2，不随模块 PR 自动关闭 #34。
+- **timestamp:** 2026-10-23T13:24:04+08:00
+- **rationale:** 独立评审发现事务内事件不派发、UNAVAILABLE 被 void 回调吞掉、撤权后的通知泄漏和列表统计缺口；定点测试实测了负延迟伪达标、吞返回值与部分订阅泄漏三反例，冻结真实接入必须满足的边界而非假可用。
+
+## `events.notification-catalog-exceptions`
+
+- **value:** 通知显式目录采用九个精确名字：task.assigned、task.mentioned、task.overdue、acceptance.submitted、acceptance.approved、acceptance.rejected、risk.created、risk.level-raised、milestone.due；这些已提案名字作为事件三段命名规范的局部例外，需在 shared 事件目录登记，不全仓重命名。其他新事件仍遵循原规范；`events.business-domain-production` 的同事务追加、敏感载荷、适配器分层和失败回滚规则继续完整生效。不得把普通 risk.updated 当等级提升，也不得把里程碑 CRUD 当到期提醒；风险等级提升仅为 LOW < MEDIUM < HIGH 的真实上升，幂等键按更新类包含本次变化标识/时间，不能仅按 riskId 永久去重。通知新增生产方归属遵循 notifications.public-integration-and-scheduling，不越 A/C 现有写窗。
+- **supersedes:** events.business-domain-production@2026-10-21T22:10:00+08:00（仅通知目录九个名字的三段命名要求；其余值继续有效）
+- **timestamp:** 2026-10-23T13:24:04+08:00
+- **rationale:** D 的通知订阅及已合入的 risk.created 均使用两段名字，保留明确目录比改写全部消费方更小，且不将不同业务触发混为同义事件。
