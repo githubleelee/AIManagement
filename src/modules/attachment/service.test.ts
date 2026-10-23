@@ -41,7 +41,7 @@ function createHarness() {
         if (actorUserId === 'outsider' || actorUserId === 'hidden-member') {
           return { allow: false as const, status: 404 as const, code: 'NOT_FOUND' as const }
         }
-        if (actorUserId === 'viewer' && operation === 'WRITE') {
+        if ((actorUserId === 'viewer' || actorUserId === 'other-member') && operation === 'WRITE') {
           return { allow: false as const, status: 403 as const, code: 'FORBIDDEN' as const }
         }
         return { allow: true as const, projectId: 'project-1' }
@@ -155,13 +155,15 @@ describe('ATTACH #36 白名单、大小与元数据', () => {
 })
 
 describe('ATTACH #36 权限、列表、下载与删除', () => {
-  it('PM/MEMBER 可写，VIEWER 只读，outsider 与敏感未授权成员 404', async () => {
+  it('任务负责人可写，VIEWER/其他成员只读，outsider 与敏感未授权成员 404', async () => {
     const h = createHarness()
     const item = await uploadPdf(h, 'member')
     expect((await h.service.list('viewer', 'task-1')).total).toBe(1)
     expect((await h.service.download('viewer', item.id)).content.toString()).toBe('%PDF-test')
     await expect(uploadPdf(h, 'viewer')).rejects.toMatchObject({ status: 403, kind: 'FORBIDDEN' })
     await expect(h.service.delete('viewer', item.id)).rejects.toMatchObject({ status: 403 })
+    await expect(uploadPdf(h, 'other-member')).rejects.toMatchObject({ status: 403 })
+    await expect(h.service.delete('other-member', item.id)).rejects.toMatchObject({ status: 403 })
     await expect(h.service.list('outsider', 'task-1')).rejects.toMatchObject({ status: 404 })
     await expect(h.service.list('hidden-member', 'task-1')).rejects.toMatchObject({ status: 404 })
   })
@@ -206,37 +208,35 @@ describe('ATTACH #36 权限、列表、下载与删除', () => {
   })
 })
 
-describe('ATTACH #36 任务删除后的清理回调', () => {
-  it('任务成功删除后的回调清理该任务全部附件', async () => {
-    const h = createHarness()
-    await uploadPdf(h)
-    await h.service.upload({
-      actorUserId: 'member',
-      taskId: 'task-1',
-      originalName: 'second.png',
-      mimeType: 'image/png',
-      content: Buffer.from('png'),
-    })
-    const result = await h.service.cleanupAfterTaskDeleted('task-1')
-    expect(result).toEqual({ taskId: 'task-1', removed: 2, failed: [] })
-    expect(await h.repository.listAllByTask('task-1')).toEqual([])
-    expect(h.storage.files.size).toBe(0)
-  })
-
-  it('部分清理失败会保留重试记录，不冒充无孤儿', async () => {
+describe('ATTACH #36 单附件删除的失败恢复', () => {
+  it('单附件清理失败保留重试记录', async () => {
     const h = createHarness()
     const item = await uploadPdf(h)
     h.storage.failDelete = true
-    const result = await h.service.cleanupAfterTaskDeleted('task-1')
-    expect(result).toEqual({
-      taskId: 'task-1',
-      removed: 0,
-      failed: [{ attachmentId: item.id, reason: 'FILE_DELETE_FAILED' }],
-    })
+    await expect(h.service.delete('member', item.id)).rejects.toMatchObject({ status: 409 })
     expect(await h.repository.findById(item.id)).toMatchObject({ state: 'CLEANUP_FAILED' })
     h.storage.failDelete = false
     await expect(h.service.retryCleanup(item.id)).resolves.toBe(true)
     expect(await h.repository.findById(item.id)).toBeNull()
+  })
+
+  it('不可见与不存在的下载/删除返回完全一致的404错误', async () => {
+    const h = createHarness()
+    const item = await uploadPdf(h)
+    for (const operation of ['download', 'delete'] as const) {
+      const hidden = await h.service[operation]('hidden-member', item.id).catch(error => error)
+      const missing = await h.service[operation]('hidden-member', 'missing').catch(error => error)
+      expect([hidden.status, hidden.kind, hidden.message, hidden.details])
+        .toEqual([missing.status, missing.kind, missing.message, missing.details])
+    }
+  })
+
+  it('完整列表250条不截断或虚报总数', async () => {
+    const h = createHarness()
+    for (let i = 0; i < 250; i++) await uploadPdf(h)
+    const result = await h.service.list('member', 'task-1')
+    expect(result.total).toBe(250)
+    expect(result.items).toHaveLength(250)
   })
 
   it('记录中的存储细节不暴露给 API 视图', async () => {

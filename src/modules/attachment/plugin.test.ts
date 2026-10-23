@@ -1,10 +1,8 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import {
-  createHttpTestContext,
-  makeUser,
-  type HttpTestContext,
-} from '../../../test/http-support.js'
-import type { AttachmentAccessOperation, AttachmentStoragePort } from './contracts.js'
+import Fastify, { type FastifyInstance } from 'fastify'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { registerErrorHandler } from '../../error-handler.js'
+import type { AttachmentStoragePort } from './contracts.js'
+import { MAX_ATTACHMENT_BYTES } from './contracts.js'
 import { InMemoryAttachmentRepository } from './in-memory-repository.js'
 import { registerAttachmentRoutes } from './plugin.js'
 import { AttachmentService } from './service.js'
@@ -20,111 +18,90 @@ class MemoryStorage implements AttachmentStoragePort {
   async delete(key: string) { this.files.delete(key) }
 }
 
-let ctx: HttpTestContext
-let memberId: string
-let viewerId: string
-let outsiderId: string
+let app: FastifyInstance
 let sequence = 0
-
-beforeAll(async () => {
-  ctx = await createHttpTestContext()
+beforeEach(async () => {
+  // Isolated plugin seam: no buildApp, production route or real upload directory.
+  app = Fastify({ logger: false })
+  registerErrorHandler(app)
+  app.decorateRequest('actorUserId', undefined)
+  app.addHook('onRequest', async request => {
+    const actor = request.headers['x-test-actor']
+    request.actorUserId = typeof actor === 'string' ? actor : undefined
+  })
   const service = new AttachmentService({
-    repository: new InMemoryAttachmentRepository(),
-    storage: new MemoryStorage(),
+    repository: new InMemoryAttachmentRepository(), storage: new MemoryStorage(),
     authorization: {
-      async decide(actorUserId: string, _taskId: string, operation: AttachmentAccessOperation) {
-        if (actorUserId === outsiderId) {
-          return { allow: false as const, status: 404 as const, code: 'NOT_FOUND' as const }
+      async decide(actor, taskId, operation) {
+        if (actor === 'outsider' || taskId === 'hidden-task') {
+          return { allow: false, status: 404, code: 'NOT_FOUND' }
         }
-        if (actorUserId === viewerId && operation === 'WRITE') {
-          return { allow: false as const, status: 403 as const, code: 'FORBIDDEN' as const }
+        if (operation === 'WRITE' && actor !== 'owner' && actor !== 'pm') {
+          return { allow: false, status: 403, code: 'FORBIDDEN' }
         }
-        return { allow: true as const, projectId: 'project-http' }
+        return { allow: true, projectId: 'project-http' }
       },
     },
-    now: () => new Date('2026-10-21T08:00:00.000Z'),
     createId: () => `10000000-0000-4000-8000-${String(++sequence).padStart(12, '0')}`,
   })
-  registerAttachmentRoutes(ctx.app, service)
-  await ctx.app.ready()
+  registerAttachmentRoutes(app, service)
+  await app.ready()
 })
+afterEach(async () => app.close())
 
-afterAll(async () => ctx.dispose())
-
-beforeEach(async () => {
-  await ctx.reset()
-  memberId = await makeUser(ctx.db, `attach-member-${sequence}`, '附件成员')
-  viewerId = await makeUser(ctx.db, `attach-viewer-${sequence}`, '只读成员')
-  outsiderId = await makeUser(ctx.db, `attach-outsider-${sequence}`, '外部用户')
-})
-
-async function upload(actorId = memberId, fileName = '报告.pdf', mimeType = 'application/pdf') {
-  return ctx
-    .asUser(ctx.loginAs(actorId))
-    .post('/tasks/task-http/attachments')
-    .set('Content-Type', mimeType)
-    .set('X-File-Name', encodeURIComponent(fileName))
-    .send(Buffer.from('%PDF-http'))
+function upload(actor = 'owner', mime = 'application/pdf', name = '报告.pdf', payload = Buffer.from('%PDF-http')) {
+  return app.inject({ method: 'POST', url: '/tasks/task-http/attachments',
+    headers: { 'x-test-actor': actor, 'content-type': mime, 'x-file-name': encodeURIComponent(name) }, payload })
 }
-
-describe('ATTACH #36 HTTP 插件', () => {
-  it('未登录上传返回 401', async () => {
-    const response = await ctx
-      .asUser(null)
-      .post('/tasks/task-http/attachments')
-      .set('Content-Type', 'application/pdf')
-      .set('X-File-Name', 'a.pdf')
-      .send(Buffer.from('x'))
-    expect(response.status).toBe(401)
+function request(method: 'GET' | 'DELETE', url: string, actor = 'owner') {
+  return app.inject({ method, url, headers: { 'x-test-actor': actor } })
+}
+describe('ATTACH isolated HTTP plugin', () => {
+  it('unauthenticated upload remains 401', async () => {
+    const response = await app.inject({ method: 'POST', url: '/tasks/task-http/attachments',
+      headers: { 'content-type': 'application/pdf', 'x-file-name': 'a.pdf' }, payload: Buffer.from('x') })
+    expect(response.statusCode).toBe(401)
+    expect(response.json().error.code).toBe('UNAUTHENTICATED')
   })
-
-  it('上传、列表、下载、删除形成闭环', async () => {
+  it('upload/list/download/delete round trip, viewer read-only', async () => {
     const created = await upload()
-    expect(created.status).toBe(201)
-    expect(created.body).toMatchObject({ originalName: '报告.pdf', sizeBytes: 9 })
-
-    const list = await ctx
-      .asUser(ctx.loginAs(memberId))
-      .get('/tasks/task-http/attachments')
-    expect(list.status).toBe(200)
-    expect(list.body).toMatchObject({ total: 1 })
-
-    const downloaded = await ctx
-      .asUser(ctx.loginAs(viewerId))
-      .get(`/attachments/${created.body.id}/download`)
-    expect(downloaded.status).toBe(200)
-    expect(downloaded.headers['content-type']).toContain('application/pdf')
-    expect(Buffer.from(downloaded.body).toString()).toBe('%PDF-http')
-
-    const deleted = await ctx
-      .asUser(ctx.loginAs(memberId))
-      .delete(`/attachments/${created.body.id}`)
-    expect(deleted.status).toBe(204)
+    expect(created.statusCode).toBe(201)
+    const id = created.json().id
+    expect((await request('GET', '/tasks/task-http/attachments', 'viewer')).json().total).toBe(1)
+    const downloaded = await request('GET', `/attachments/${id}/download`, 'viewer')
+    expect(downloaded.statusCode).toBe(200)
+    expect(downloaded.body).toBe('%PDF-http')
+    expect((await request('DELETE', `/attachments/${id}`)).statusCode).toBe(204)
   })
-
-  it('VIEWER 可列表但上传和删除为 403', async () => {
-    const created = await upload()
-    const list = await ctx
-      .asUser(ctx.loginAs(viewerId))
-      .get('/tasks/task-http/attachments')
-    expect(list.status).toBe(200)
-    expect((await upload(viewerId)).status).toBe(403)
-    const deleted = await ctx
-      .asUser(ctx.loginAs(viewerId))
-      .delete(`/attachments/${created.body.id}`)
-    expect(deleted.status).toBe(403)
+  it.each(['viewer', 'other-member'])('%s cannot upload or delete visible attachments', async actor => {
+    const id = (await upload()).json().id
+    expect((await upload(actor)).statusCode).toBe(403)
+    expect((await request('DELETE', `/attachments/${id}`, actor)).statusCode).toBe(403)
+    expect((await request('GET', `/attachments/${id}/download`, actor)).statusCode).toBe(200)
   })
-
-  it('outsider 列表返回不泄漏的 404', async () => {
-    const response = await ctx
-      .asUser(ctx.loginAs(outsiderId))
-      .get('/tasks/task-http/attachments')
-    expect(response.status).toBe(404)
+  it('outsider and unknown attachment have byte-identical 404 envelopes', async () => {
+    const id = (await upload()).json().id
+    for (const method of ['GET', 'DELETE'] as const) {
+      const suffix = method === 'GET' ? '/download' : ''
+      const hidden = await request(method, `/attachments/${id}${suffix}`, 'outsider')
+      const missing = await request(method, `/attachments/unknown${suffix}`, 'outsider')
+      expect(hidden.statusCode).toBe(404)
+      expect(hidden.body).toBe(missing.body)
+    }
   })
-
-  it('扩展名与 MIME 不匹配返回字段级 422', async () => {
-    const response = await upload(memberId, 'fake.pdf', 'image/png')
-    expect(response.status).toBe(422)
-    expect(response.body.error.details).toEqual([{ field: 'mimeType', code: 'INVALID_VALUE' }])
+  it.each(['image/svg+xml', 'application/x-executable', 'application/octet-stream'])(
+    'unsupported MIME %s returns unified 422', async mime => {
+      const response = await upload('owner', mime)
+      expect(response.statusCode).toBe(422)
+      expect(response.json().error).toMatchObject({ code: 'VALIDATION_FAILED',
+        details: [{ field: 'mimeType', code: 'INVALID_VALUE' }] })
+    })
+  it('extension/MIME mismatch returns 422', async () => {
+    expect((await upload('owner', 'image/png')).statusCode).toBe(422)
+  })
+  it('oversize parser failure also uses 422, not 413', async () => {
+    const response = await upload('owner', 'application/zip', 'a.zip', Buffer.alloc(MAX_ATTACHMENT_BYTES + 2))
+    expect(response.statusCode).toBe(422)
+    expect(response.json().error.code).toBe('VALIDATION_FAILED')
   })
 })

@@ -46,7 +46,20 @@ export function registerAttachmentRoutes(app: FastifyInstance, service: Attachme
 
   app.post(
     '/tasks/:taskId/attachments',
-    { preHandler: requireAuth, bodyLimit: MAX_ATTACHMENT_BYTES + 1 },
+    {
+      preHandler: requireAuth, bodyLimit: MAX_ATTACHMENT_BYTES + 1,
+      // Scope the I-4 translation to this upload endpoint, leaving shared handling unchanged.
+      errorHandler(error) {
+        if (error.code === 'FST_ERR_CTP_INVALID_MEDIA_TYPE' || error.code === 'FST_ERR_CTP_BODY_TOO_LARGE') {
+          throw new AppError(422, 'VALIDATION_FAILED',
+            error.code === 'FST_ERR_CTP_INVALID_MEDIA_TYPE' ? '附件 MIME 不在白名单中' : '单个附件不能超过 10MB',
+            [{ field: error.code === 'FST_ERR_CTP_INVALID_MEDIA_TYPE' ? 'mimeType' : 'file',
+              code: error.code === 'FST_ERR_CTP_INVALID_MEDIA_TYPE' ? 'INVALID_VALUE' : 'TOO_LONG' }],
+          )
+        }
+        throw error
+      },
+    },
     async (request, reply) => {
       const { taskId } = request.params as { taskId: string }
       if (!Buffer.isBuffer(request.body)) {

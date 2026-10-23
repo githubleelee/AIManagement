@@ -9,7 +9,6 @@ import {
   type AttachmentRepositoryPort,
   type AttachmentStoragePort,
   type AttachmentView,
-  type TaskAttachmentCleanupResult,
   type UploadAttachmentInput,
 } from './contracts.js'
 import { AttachmentServiceError } from './errors.js'
@@ -143,25 +142,6 @@ export class AttachmentService {
     }
   }
 
-  /** 只能由任务删除成功后的集成回调调用；任务删除失败时不得调用。 */
-  async cleanupAfterTaskDeleted(taskId: string): Promise<TaskAttachmentCleanupResult> {
-    const rows = await this.deps.repository.listAllByTask(taskId)
-    const result: TaskAttachmentCleanupResult = { taskId, removed: 0, failed: [] }
-    for (const row of rows) {
-      const deleting = await this.deps.repository.markDeleting(row.id)
-      if (!deleting) continue
-      try {
-        await this.deps.storage.delete(deleting.storageKey)
-        await this.deps.repository.remove(deleting.id)
-        result.removed += 1
-      } catch {
-        await this.deps.repository.markCleanupFailed(deleting.id, safeCleanupReason())
-        result.failed.push({ attachmentId: deleting.id, reason: safeCleanupReason() })
-      }
-    }
-    return result
-  }
-
   async retryCleanup(attachmentId: string): Promise<boolean> {
     const row = await this.deps.repository.findById(attachmentId)
     if (!row || row.state !== 'CLEANUP_FAILED') return false
@@ -183,10 +163,11 @@ export class AttachmentService {
   ): Promise<string> {
     const decision = await this.deps.authorization.decide(actorUserId, taskId, operation)
     if (!decision.allow) {
+      if (decision.status === 404) throw notFound()
       throw new AttachmentServiceError(
         decision.status,
         decision.code,
-        decision.status === 404 ? '附件或任务不存在' : '无权执行附件操作',
+        '无权执行附件操作',
       )
     }
     return decision.projectId

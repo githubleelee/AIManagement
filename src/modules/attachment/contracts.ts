@@ -44,7 +44,8 @@ export type AttachmentAccessDecision =
 
 /**
  * 正式适配器必须现查任务、项目成员、角色与敏感白名单。
- * WRITE 规则：PM/MEMBER 可写，VIEWER 只读；不可见对象和 outsider 返回 404。
+ * WRITE 复用 task.progress：PM / 具备该能力的任务负责人可写；其他成员只读。
+ * 不可见对象和 outsider 返回 404，不在模块内新增 Action 或角色判断。
  */
 export interface AttachmentAuthorizationPort {
   decide(
