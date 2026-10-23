@@ -183,7 +183,13 @@ describe('FS 计划边界：自然日含首尾（Asia/Shanghai，日期不落时
 
     const res = await patch(successor.id, { status: 'DOING' }, pm.id)
     expect(res.status).toBe(422)
-    expect(invalidValueFields(res)).toContain('planStart')
+    expect(res.body).toEqual({
+      error: {
+        code: 'VALIDATION_FAILED',
+        message: '后继计划开始不得早于前置计划结束的次日',
+        details: [{ field: 'planStart', code: 'INVALID_VALUE' }],
+      },
+    })
   })
 
   it('planStart 为前置次日 → 放行', async () => {
