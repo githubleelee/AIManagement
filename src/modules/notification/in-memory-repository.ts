@@ -13,6 +13,13 @@ export class InMemoryNotificationRepository implements NotificationRepositoryPor
   private readonly records = new Map<string, NotificationRecord>()
   private readonly idsByDedupeKey = new Map<string, string>()
 
+  /** Test fixture only. Production scope filtering belongs in ROLE-B's DB adapter. */
+  constructor(private readonly canView: (actor: string, record: NotificationRecord) => boolean = () => true) {}
+
+  private visible(actor: string, record: NotificationRecord): boolean {
+    return record.recipientUserId === actor && this.canView(actor, copy(record))
+  }
+
   async appendIfAbsent(record: NotificationRecord): Promise<AppendNotificationResult> {
     const existingId = this.idsByDedupeKey.get(record.dedupeKey)
     if (existingId) {
@@ -28,26 +35,30 @@ export class InMemoryNotificationRepository implements NotificationRepositoryPor
   async listByRecipient(
     recipientUserId: string,
     unreadOnly: boolean,
-  ): Promise<NotificationRecord[]> {
-    return [...this.records.values()]
-      .filter((row) => row.recipientUserId === recipientUserId && (!unreadOnly || !row.isRead))
+    limit: number,
+  ) {
+    const boundedLimit = Math.max(1, Math.min(200, Math.trunc(limit)))
+    const visible = [...this.records.values()].filter(row => this.visible(recipientUserId, row))
+    const matching = visible.filter(row => !unreadOnly || !row.isRead)
       .sort((left, right) => right.storedAt.localeCompare(left.storedAt) || right.id.localeCompare(left.id))
-      .map(copy)
+    return { items: matching.slice(0, boundedLimit).map(copy), total: matching.length,
+      unreadCount: visible.filter(row => !row.isRead).length, limit: boundedLimit,
+      truncated: matching.length > boundedLimit }
   }
 
-  async findAccessMetadata(id: string): Promise<NotificationAccessMetadata | null> {
+  async findAccessMetadata(id: string, actorUserId: string): Promise<NotificationAccessMetadata | null> {
     const record = this.records.get(id)
-    return record ? { id: record.id, recipientUserId: record.recipientUserId } : null
+    return record && this.visible(actorUserId, record) ? { id: record.id, recipientUserId: record.recipientUserId } : null
   }
 
-  async findById(id: string): Promise<NotificationRecord | null> {
+  async findById(id: string, actorUserId: string): Promise<NotificationRecord | null> {
     const record = this.records.get(id)
-    return record ? copy(record) : null
+    return record && this.visible(actorUserId, record) ? copy(record) : null
   }
 
-  async markRead(id: string, readAt: string): Promise<NotificationRecord | null> {
+  async markRead(id: string, actorUserId: string, readAt: string): Promise<NotificationRecord | null> {
     const record = this.records.get(id)
-    if (!record) return null
+    if (!record || !this.visible(actorUserId, record)) return null
     if (!record.isRead) {
       record.isRead = true
       record.readAt = readAt

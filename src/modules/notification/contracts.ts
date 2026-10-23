@@ -78,12 +78,38 @@ export type NotificationSourceState =
   | { state: 'AVAILABLE'; note: null }
   | { state: 'UNAVAILABLE'; note: string }
 
+export type NotificationSourceCapability = {
+  eventName: NotificationEventName
+  state: 'AVAILABLE' | 'UNAVAILABLE'
+  note: string | null
+}
+
+export type NotificationSourceHealth = NotificationSourceState & {
+  sourceCapabilities: NotificationSourceCapability[]
+}
+
+export type NotificationView = Pick<NotificationRecord,
+  'id' | 'projectId' | 'type' | 'reference' | 'content' | 'sensitive' | 'storedAt' | 'isRead' | 'readAt'>
+
+export const NOTIFICATION_LIST_LIMIT = 200
+
+export type NotificationSnapshot = {
+  items: NotificationRecord[]
+  total: number
+  unreadCount: number
+  limit: number
+  truncated: boolean
+}
+
 export type NotificationListResult =
   | {
       state: 'AVAILABLE'
       total: number
       unreadCount: number
-      items: NotificationRecord[]
+      items: NotificationView[]
+      limit: number
+      truncated: boolean
+      sourceCapabilities: NotificationSourceCapability[]
       note: null
     }
   | {
@@ -91,6 +117,9 @@ export type NotificationListResult =
       total: null
       unreadCount: null
       items: []
+      limit: number
+      truncated: false
+      sourceCapabilities: NotificationSourceCapability[]
       note: string
     }
 
@@ -114,10 +143,11 @@ export type NotificationAccessMetadata = {
 
 export interface NotificationRepositoryPort {
   appendIfAbsent(record: NotificationRecord): Promise<AppendNotificationResult>
-  listByRecipient(recipientUserId: string, unreadOnly: boolean): Promise<NotificationRecord[]>
-  findAccessMetadata(id: string): Promise<NotificationAccessMetadata | null>
-  findById(id: string): Promise<NotificationRecord | null>
-  markRead(id: string, readAt: string): Promise<NotificationRecord | null>
+  /** One snapshot, with recipient AND current object visibility applied in the DB query. */
+  listByRecipient(actorUserId: string, unreadOnly: boolean, limit: number): Promise<NotificationSnapshot>
+  findAccessMetadata(id: string, actorUserId: string): Promise<NotificationAccessMetadata | null>
+  findById(id: string, actorUserId: string): Promise<NotificationRecord | null>
+  markRead(id: string, actorUserId: string, readAt: string): Promise<NotificationRecord | null>
 }
 
 export interface NotificationRecipientResolverPort {
@@ -131,10 +161,11 @@ export interface NotificationRecipientResolverPort {
   ): Promise<RecipientResolution>
 }
 
-export type NotificationEventHandler = (event: NotificationSourceEvent) => Promise<void>
+export type NotificationEventHandler = (event: NotificationSourceEvent) => Promise<ConsumeNotificationEventResult>
 
-/** 与 #37 `subscribe(eventName, subscriberId, handler)` 的最小兼容端口。 */
+/** ROLE-B explicitly adapts #37 and the committed-event bridge to this result-bearing port. */
 export interface NotificationEventSubscriptionPort {
+  health(): NotificationSourceHealth
   subscribe(
     eventName: NotificationEventName,
     subscriberId: string,

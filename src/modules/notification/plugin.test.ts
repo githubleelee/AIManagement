@@ -31,7 +31,7 @@ beforeAll(async () => {
         ],
       }),
     },
-    sourceState: () => ({ state: 'AVAILABLE', note: null }),
+    sourceState: () => ({ state: 'AVAILABLE', note: null, sourceCapabilities: [] }),
     now: () => new Date('2026-10-21T10:00:30.000Z'),
     createId: () => `http-notification-${++idSequence}`,
   })

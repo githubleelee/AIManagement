@@ -8,6 +8,11 @@ import type {
 import { createNotificationModule } from './factory.js'
 import { InMemoryNotificationRepository } from './in-memory-repository.js'
 import { NotificationService } from './service.js'
+import { NOTIFICATION_EVENT_NAMES } from './contracts.js'
+
+const sourceCapabilities = NOTIFICATION_EVENT_NAMES.map(eventName => ({
+  eventName, state: 'AVAILABLE' as const, note: null,
+}))
 
 const baseEvent: NotificationSourceEvent = {
   id: 'event-1',
@@ -41,8 +46,8 @@ function createHarness(options: {
     recipientResolver: { resolve: async () => resolution },
     sourceState: () =>
       options.sourceAvailable === false
-        ? { state: 'UNAVAILABLE', note: '事件端口未接入' }
-        : { state: 'AVAILABLE', note: null },
+        ? { state: 'UNAVAILABLE', note: '事件端口未接入', sourceCapabilities }
+        : { state: 'AVAILABLE', note: null, sourceCapabilities },
     now: () => new Date(now),
     createId: () => `notification-${++sequence}`,
   })
@@ -206,6 +211,9 @@ describe('US-14 时延、敏感与降级', () => {
       total: null,
       unreadCount: null,
       items: [],
+      limit: 200,
+      truncated: false,
+      sourceCapabilities,
       note: '事件端口未接入',
     })
   })
@@ -268,13 +276,14 @@ describe('US-14 #37 订阅生命周期', () => {
       repository: new InMemoryNotificationRepository(),
       recipientResolver: { resolve: async () => ({ state: 'AVAILABLE', recipients: [] }) },
       eventSource: {
+        health: () => ({ state: 'AVAILABLE', note: null, sourceCapabilities }),
         subscribe(eventName, _subscriberId, handler) {
           handlers.set(eventName, handler)
           return () => disposed.push(eventName)
         },
       },
     })
-    expect(module.start()).toEqual({ state: 'AVAILABLE', note: null })
+    expect(module.start()).toEqual({ state: 'AVAILABLE', note: null, sourceCapabilities })
     expect(handlers.size).toBe(9)
     module.stop()
     expect(disposed).toHaveLength(9)

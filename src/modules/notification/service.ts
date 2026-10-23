@@ -7,10 +7,12 @@ import type {
   NotificationRecipientResolverPort,
   NotificationRepositoryPort,
   NotificationSourceEvent,
-  NotificationSourceState,
+  NotificationSourceHealth,
+  NotificationView,
   NotificationType,
 } from './contracts.js'
 import { NotificationServiceError } from './errors.js'
+import { NOTIFICATION_LIST_LIMIT } from './contracts.js'
 
 export const DELIVERY_TARGET_MS = 60_000
 
@@ -29,7 +31,7 @@ const EVENT_TYPE: Record<NotificationSourceEvent['eventName'], NotificationType>
 export type NotificationServiceDependencies = {
   repository: NotificationRepositoryPort
   recipientResolver: NotificationRecipientResolverPort
-  sourceState: () => NotificationSourceState
+  sourceState: () => NotificationSourceHealth
   now?: () => Date
   createId?: () => string
 }
@@ -56,6 +58,13 @@ function contentFor(
 ): NotificationContent {
   if (sensitive) return { kind: 'REFERENCE_ONLY', title: null, summary: null }
   return content ?? { kind: 'REFERENCE_ONLY', title: null, summary: null }
+}
+
+/** Explicit allow-list: delivery/recipient diagnostics never cross the HTTP boundary. */
+function toView(record: NotificationRecord): NotificationView {
+  const { id, projectId, type, reference, content, sensitive, storedAt, isRead, readAt } = record
+  return { id, projectId, type, reference: structuredClone(reference),
+    content: structuredClone(content), sensitive, storedAt, isRead, readAt }
 }
 
 export class NotificationService {
@@ -99,7 +108,7 @@ export class NotificationService {
 
     for (const recipient of recipients.values()) {
       const storedAt = this.now().toISOString()
-      const latencyMs = Math.max(0, Date.parse(storedAt) - Date.parse(event.occurredAt))
+      const latencyMs = Date.parse(storedAt) - Date.parse(event.occurredAt)
       const dedupeBasis =
         type === 'TASK_OVERDUE'
           ? `${event.projectId}:${type}:${event.object.objectId}:${resolution.dedupeDiscriminator}`
@@ -118,7 +127,7 @@ export class NotificationService {
         occurredAt: event.occurredAt,
         storedAt,
         latencyMs,
-        withinDeliveryTarget: latencyMs <= DELIVERY_TARGET_MS,
+        withinDeliveryTarget: latencyMs >= 0 && latencyMs <= DELIVERY_TARGET_MS,
         isRead: false,
         readAt: null,
       }
@@ -139,36 +148,48 @@ export class NotificationService {
         total: null,
         unreadCount: null,
         items: [],
+        limit: NOTIFICATION_LIST_LIMIT,
+        truncated: false,
+        sourceCapabilities: sourceState.sourceCapabilities,
         note: sourceState.note,
       }
     }
-    const items = await this.deps.repository.listByRecipient(actorUserId, unreadOnly)
-    const all = unreadOnly ? await this.deps.repository.listByRecipient(actorUserId, false) : items
+    let snapshot
+    try {
+      snapshot = await this.deps.repository.listByRecipient(actorUserId, unreadOnly, NOTIFICATION_LIST_LIMIT)
+    } catch {
+      return { state: 'UNAVAILABLE', total: null, unreadCount: null, items: [],
+        limit: NOTIFICATION_LIST_LIMIT, truncated: false,
+        sourceCapabilities: sourceState.sourceCapabilities, note: '通知记录暂不可查询，请稍后重试' }
+    }
     return {
       state: 'AVAILABLE',
-      total: items.length,
-      unreadCount: all.filter((row) => !row.isRead).length,
-      items,
+      total: snapshot.total,
+      unreadCount: snapshot.unreadCount,
+      items: snapshot.items.map(toView),
+      limit: snapshot.limit,
+      truncated: snapshot.truncated,
+      sourceCapabilities: sourceState.sourceCapabilities,
       note: null,
     }
   }
 
-  async get(actorUserId: string, notificationId: string): Promise<NotificationRecord> {
+  async get(actorUserId: string, notificationId: string): Promise<NotificationView> {
     await this.assertRecipient(actorUserId, notificationId)
-    const record = await this.deps.repository.findById(notificationId)
+    const record = await this.deps.repository.findById(notificationId, actorUserId)
     if (!record) throw notFound()
-    return record
+    return toView(record)
   }
 
-  async markRead(actorUserId: string, notificationId: string): Promise<NotificationRecord> {
-    await this.assertRecipient(actorUserId, notificationId)
-    const record = await this.deps.repository.markRead(notificationId, this.now().toISOString())
+  async markRead(actorUserId: string, notificationId: string): Promise<NotificationView> {
+    // The conditional write itself checks actor/current scope; no unchecked write after preflight.
+    const record = await this.deps.repository.markRead(notificationId, actorUserId, this.now().toISOString())
     if (!record) throw notFound()
-    return record
+    return toView(record)
   }
 
   private async assertRecipient(actorUserId: string, notificationId: string): Promise<void> {
-    const metadata = await this.deps.repository.findAccessMetadata(notificationId)
+    const metadata = await this.deps.repository.findAccessMetadata(notificationId, actorUserId)
     if (!metadata || metadata.recipientUserId !== actorUserId) throw notFound()
   }
 }

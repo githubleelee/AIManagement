@@ -25,3 +25,9 @@
 逾期通知以 `projectId + taskId + planEnd + recipientUserId` 去重；其余类别以
 `sourceEventId + recipientUserId` 去重。所有通知记录保存事件发生时间、入库时间、时延以及是否满足
 60 秒目标。
+
+2026-10-23 评审修正：消费处理器返回真实结果；动态 health 与逐事件来源能力由 B 显式适配。
+列表在仓储一次快照中计算真实 total/unreadCount，上限200并返回 limit/truncated。
+详情与条件已读写均透传 actor，正式当前权限过滤由 DB 适配器完成；对外仅返回 NotificationView。
+保留负延迟且不计达标；部分订阅失败回滚此前注册；重复投递不重置首次 readAt。
+本地内存权限钩子仅为回归夹具，不代表真实业务权限或六类最终联调验收。
