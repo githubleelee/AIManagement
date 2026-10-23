@@ -38,9 +38,12 @@ import { createNotificationBridge, type NotificationBridge } from './notificatio
 import { createNotificationScheduler, type NotificationScheduler, type ScheduledEventRepository } from './notification-scheduler.js'
 
 /**
- * 未接入生产方的说明（按本批约束：仅 B 自己实现的 `task.overdue` / `milestone.due`
- * 声明为 AVAILABLE；task.assigned/mentioned、acceptance.*、risk.* 保守声明为 UNAVAILABLE，
- * 不伪造可用）。
+ * 未接入生产方的说明。已接入 = 真实生产方存在且本运行时已端到端验证：
+ *   - `task.overdue` / `milestone.due`：B 自己的定时生产（调度未运行时降级 UNAVAILABLE）；
+ *   - `risk.created`：A 的风险域真实生产（PR #95，同事务追加），已用真实事件 → 桥接 → 通知行
+ *     → 顶栏面板端到端验证，故**不再保守声明**。
+ * 其余（task.assigned/mentioned、acceptance.*、risk.level-raised）生产方尚未接入，保持 UNAVAILABLE，
+ * 不伪造可用。
  */
 const NOT_CONNECTED_NOTES: Record<string, string> = {
   'task.assigned': '任务域分配事件生产方尚未接入通知公共运行时',
@@ -48,7 +51,6 @@ const NOT_CONNECTED_NOTES: Record<string, string> = {
   'acceptance.submitted': '验收域事件生产方尚未接入通知公共运行时',
   'acceptance.approved': '验收域事件生产方尚未接入通知公共运行时',
   'acceptance.rejected': '验收域事件生产方尚未接入通知公共运行时',
-  'risk.created': '风险域通知来源未纳入本批已接入清单（保守声明）',
   'risk.level-raised': '风险等级提升事件生产方尚未接入通知公共运行时',
 }
 
@@ -61,6 +63,11 @@ export function notificationSourceCapabilities(
       return schedulerRunning
         ? { eventName, state: 'AVAILABLE' as const, note: null }
         : { eventName, state: 'UNAVAILABLE' as const, note: '通知定时生产尚未启动' }
+    }
+    if (eventName === 'risk.created') {
+      // 真实生产方已在（A 的风险域，见 `events.notification-catalog-exceptions`）；
+      // 本运行时已用真实事件跑通「已提交事件 → 桥接 → 通知行 → 顶栏面板」。
+      return { eventName, state: 'AVAILABLE' as const, note: null }
     }
     return {
       eventName,

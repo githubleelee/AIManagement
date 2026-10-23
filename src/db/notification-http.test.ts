@@ -168,11 +168,22 @@ describe('#34 通知 HTTP 端点', () => {
     assertNoInternalFields(detail.body)
   })
 
-  it('列表 sourceCapabilities 诚实：仅 B 自产的定时事件在调度中，其余未接入', async () => {
+  it('列表 sourceCapabilities 诚实：risk.created 已接；未接来源与未启动调度如实 UNAVAILABLE', async () => {
     const list = await ctx.asUser(ctx.loginAs(recipientUserId)).get('/me/notifications')
     const capabilities = list.body.sourceCapabilities as Array<{ eventName: string; state: string }>
     expect(capabilities).toHaveLength(9)
-    // 测试环境（NODE_ENV === 'test'）不自动启调度：B 自产的两类也如实降级。
-    for (const cap of capabilities) expect(cap.state).toBe('UNAVAILABLE')
+    const stateOf = (name: string) => capabilities.find((cap) => cap.eventName === name)?.state
+    // 真实生产方已在（A 风险域），核心事实不因测试环境降级。
+    expect(stateOf('risk.created')).toBe('AVAILABLE')
+    // 测试环境（NODE_ENV === 'test'）不自动启调度：B 自产的两类如实降级。
+    expect(stateOf('task.overdue')).toBe('UNAVAILABLE')
+    expect(stateOf('milestone.due')).toBe('UNAVAILABLE')
+    // 未接来源不伪造可用。
+    for (const name of [
+      'task.assigned', 'task.mentioned', 'acceptance.submitted',
+      'acceptance.approved', 'acceptance.rejected', 'risk.level-raised',
+    ]) {
+      expect(stateOf(name)).toBe('UNAVAILABLE')
+    }
   })
 })
