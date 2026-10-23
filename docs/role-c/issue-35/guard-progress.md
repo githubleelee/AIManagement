@@ -34,7 +34,7 @@
 - `guard-final-server-typecheck.txt` / `guard-final-web-typecheck.txt`：分别 exit 0，5.83 / 10.70 秒。
 - `guard-final-server-build.txt` / `guard-final-web-build.txt`：分别 exit 0，7.70 / 2.52 秒。
 - `guard-final-browser.txt`：9 项实际 API Chromium 检查通过，exit 0，23.60 秒；已更新对应 JSON/截图。
-- 后置敏感诊断的实测证据仍来自 `7447a5f` 基线；最终基线追加诊断因工具自动审核超时未执行，不伪称复跑成功。两基线间没有修改 UML / authz / task 敏感写点，缺口需向 #24 请求确认（发布结果另见后续链接）。
+- 后置敏感诊断的实测证据仍来自 `7447a5f` 基线；最终基线追加诊断因工具自动审核超时未执行，不伪称复跑成功。两基线间没有修改 UML / authz / task 敏感写点，缺口已向 [#24 comment-6359691655](https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6359691655) 请求确认。
 
 每条验证独立限时并实时写日志，超时只终止该命令拥有的子进程树。全量测试历史异常未重跑、未声称修复；独立绘图逻辑未改，未重复跑旧 34 项编辑器检查。
 
@@ -52,5 +52,12 @@
 2. P5：ProjectLayout 下 `/projects/:projectId/uml`，`?diagram=<id>` 详情；导航和路由文档。
 3. AC4：TaskSection 可见行 hash 定位/聚焦，按已给最小 diff 或等价方案实施后给 SHA。
 4. C 接到 SHA 后验证正式路由、精确任务行点击、刷新深链、同页 hash 和历史导航。
+
+## 本轮交付状态
+
+- 实现本地提交 `cefe96c`；分支 `feat/US15-uml` 已包含 main `0998f62`。
+- 使用用户确认的 `brucelyce-ux` 已发布并回读核对两条评论：[#24 保密边界确认](https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6359691655)、[#35 正式接线/锚点请求](https://github.com/githubleelee/AIManagement/issues/35#issuecomment-6359699302)。正文均明确代码尚未推送，不能让 B 误以为远端已有 SHA。
+- 分支 push 的工具自动审核持续失败，包括用户再次明确授权后的重试；**命令未执行，远端没有本轮代码交付**。没有绕过审核、改传输或强推。后续恢复工具审核后可正常 `git -c credential.username=brucelyce-ux push origin HEAD:refs/heads/feat/US15-uml`。
+- 两条已发评论的原文和 `guard-publication.json` 记录技术请求及实际发布结果，不导出任何凭据或排除归档的前次交互。
 
 关联对象仍为真实 ID 输入，不是对象选择器。补充图片上传/高级 UML/事件接线未新增。未合 PR、未关 Issue、未勾整票 AC。
