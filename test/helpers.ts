@@ -18,7 +18,7 @@
  * 使契约点名的两个名字落到同一套实现上：
  *
  *   - 已有 14 个测试文件 `import ... from '../../../test/http-support.js'` 的写法
- *     **一字不用改**（本文件不改动 `http-support.ts`，零破坏）；
+ *     **一字不用改**（`http-support.ts` 仅新增可选 `options` 透传，默认行为不变）；
  *   - 新代码从 `test/helpers.js` / `test/factories.js` 引入，符合契约命名；
  *   - 仓库里**始终只有一套** app 实例与临时库机制。
  *
