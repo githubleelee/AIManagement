@@ -39,6 +39,9 @@ import { createGanttEventPort } from './modules/gantt/event-port.js'
 import { createRequirementEventPort } from './modules/requirement/event-port.js'
 import { createRiskEventPort } from './modules/risk/event-port.js'
 import { PrismaAiSuggestionRepository, createAiAuthorizationPort } from './db/ai-repository.js'
+import { PrismaAttachmentRepository, createAttachmentAuthorizationPort } from './db/attachment-repository.js'
+import { LocalAttachmentStorage } from './modules/attachment/local-storage.js'
+import { AttachmentService } from './modules/attachment/service.js'
 import { createDomainEventInfrastructure } from './modules/events/factory.js'
 import { createAiBreakdownService } from './modules/ai/factory.js'
 import { createPrismaAiStorySource } from './modules/ai/story-source.js'
@@ -98,6 +101,15 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     authorization: createAiAuthorizationPort(context.prisma),
     repository: new PrismaAiSuggestionRepository<RequirementBreakdownRecord>(context.prisma),
     storySource: createPrismaAiStorySource(context.prisma),
+  })
+
+  // #36 任务附件（B 公共接入）：显式组装 prisma 仓储 + 本地文件存储（var/uploads/）+ 统一鉴权
+  // 适配器，注入路由总表。组装点唯一（`DECISIONS.md` `arch.shared-ports-and-assembly`）。
+  // 下载不注册静态目录：物理文件只经带鉴权与 Content-Disposition 的下载端点读取。
+  context.attachmentService = new AttachmentService({
+    repository: new PrismaAttachmentRepository(context.prisma),
+    storage: new LocalAttachmentStorage(),
+    authorization: createAttachmentAuthorizationPort(context.prisma),
   })
 
   // #37 领域事件：显式注入 DB 仓储 + 统一鉴权适配器，组装 D 的事件实现。

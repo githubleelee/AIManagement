@@ -18,7 +18,9 @@ import { registerBoardRoutes } from './modules/board/plugin.js'
 import { registerWorkbenchRoutes } from './modules/workbench/plugin.js'
 import { registerRequirementRoutes } from './modules/requirement/plugin.js'
 import { registerAiRoutes } from './modules/ai/plugin.js'
+import { registerAttachmentRoutes } from './modules/attachment/plugin.js'
 import type { AiBreakdownService } from './modules/ai/service.js'
+import type { AttachmentService } from './modules/attachment/service.js'
 import type { GanttEventPort } from './modules/gantt/types.js'
 import type { RequirementEventPort } from './modules/requirement/service.js'
 import type { RiskEventPort } from './modules/risk/types.js'
@@ -52,6 +54,13 @@ export type RouteContext = {
    * （不得静默跳过发布）。事件名见 `src/modules/risk/types.ts` 的 `RiskEventName`。
    */
   riskEvents?: RiskEventPort
+  /**
+   * #36 任务附件服务（由 `src/app.ts` 显式组装注入）。
+   *
+   * 与 `aiService` 同款：组装（prisma 仓储 + 本地存储 + 权限适配器）留在唯一组装点
+   * `src/app.ts`，路由总表只负责注册。**可选但不得静默跳过**：缺省时注册期 fail-fast。
+   */
+  attachmentService?: AttachmentService
 }
 
 export function registerRoutes(app: FastifyInstance, context: RouteContext): void {
@@ -115,4 +124,14 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
   // 不在 Sprint 1 契约的 30 个端点内，属本阶段新增；服务由 `src/app.ts` 组装后经 context 注入。
   // 三个入口均 `requireAuth`，服务端逐次走 `can()`（read 复用 project.read；生成 / 处置仅 PM）。
   if (context.aiService) registerAiRoutes(app, { service: context.aiService })
+
+  // #36 任务附件（B 公共接入）：POST/GET /tasks/:taskId/attachments、
+  // GET /attachments/:attachmentId/download、DELETE /attachments/:attachmentId。
+  // 服务由 `src/app.ts` 组装后经 context 注入；缺失即 fail-fast（不得静默跳过注册）。
+  if (!context.attachmentService) {
+    throw new Error(
+      '附件路由需要 attachmentService：请由 src/app.ts 显式组装注入（缺失即 fail-fast，不得静默跳过）',
+    )
+  }
+  registerAttachmentRoutes(app, context.attachmentService)
 }

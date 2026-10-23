@@ -122,6 +122,11 @@ const EXPECTED_ROUTES: ReadonlyArray<readonly [HTTPMethods, string]> = [
   ['POST', '/projects/:projectId/stories/:storyId/ai-suggestions'],
   ['GET', '/projects/:projectId/stories/:storyId/ai-suggestions'],
   ['POST', '/projects/:projectId/stories/:storyId/ai-suggestions/:suggestionId/disposition'],
+  // #36 任务附件（B 公共接入）：上传 / 列表 / 下载 / 删除。
+  ['POST', '/tasks/:taskId/attachments'],
+  ['GET', '/tasks/:taskId/attachments'],
+  ['GET', '/attachments/:attachmentId/download'],
+  ['DELETE', '/attachments/:attachmentId'],
 ]
 
 describe('T0-06 ① 路由清单：模块接进 src/routes.ts 才算真的交付', () => {
@@ -134,8 +139,8 @@ describe('T0-06 ① 路由清单：模块接进 src/routes.ts 才算真的交付
     expect(missing).toEqual([])
   })
 
-  it('清单本身有 33 条（防止有人顺手删断言）', () => {
-    expect(EXPECTED_ROUTES).toHaveLength(33)
+  it('清单本身有 37 条（防止有人顺手删断言）', () => {
+    expect(EXPECTED_ROUTES).toHaveLength(37)
   })
 
   it('/health 无需登录即可访问', async () => {

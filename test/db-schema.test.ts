@@ -98,7 +98,7 @@ describe('表结构与迁移', () => {
    * `AiApplication`（共享「建议 + 处置 + 应用」存储，见
    * `docs/role-d/ROLE-D-US11-public-integration-request.md`）。
    */
-  it('表集合 = 契约 I-7 的 9 张 + 本阶段经授权新增的 16 张（不多不少）', async () => {
+  it('表集合 = 契约 I-7 的 9 张 + 本阶段经授权新增的 17 张（不多不少）', async () => {
     const rows = await db.prisma.$queryRawUnsafe<Array<{ name: string }>>(
       `SELECT name FROM sqlite_master
        WHERE type = 'table'
@@ -112,6 +112,8 @@ describe('表结构与迁移', () => {
       'AiApplication',
       'AiDisposition',
       'AiSuggestion',
+      // ↓ #36 任务附件：ASCII 序（'i' < 't'）⇒ 落在 AiSuggestion 与 AuditLog 之间
+      'Attachment',
       'AuditLog',
       'BusinessGoal',
       'DomainEvent', // ← 本阶段经 #37 授权新增（领域事件），不属于契约 I-7；ASCII 序落在 BusinessGoal 与 Milestone 之间

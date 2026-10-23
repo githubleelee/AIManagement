@@ -48,6 +48,10 @@ const PRISMA_CLI = join(REPO_ROOT, 'node_modules', 'prisma', 'build', 'index.js'
  * #31 US-11：`AiDisposition` / `AiApplication` 是 `AiSuggestion` 的 1:1 子表（`suggestionId`
  * 主键 + `Cascade`）；`AiSuggestion.projectId` 是 `Restrict`，故必须先删子表、再删建议表，
  * 且都在 `project.deleteMany()` 之前。
+ *
+ * #36 任务附件：`Attachment.projectId` / `Attachment.uploaderUserId` 是 `Restrict`，
+ * 必须早于 `Project` / `User` 删除；`Attachment.taskId` 是 `SetNull`（不阻塞任务删除），
+ * 但清理行仍需显式清空，故与 `AuditLog` / `ObjectVisibility` 同批删。
  */
 export async function resetDatabase(prisma: PrismaClient): Promise<void> {
   // #31 US-11 AI 建议：先删 1:1 子表，再删建议主表（`projectId` 为 Restrict，必须早于 project）。
@@ -60,6 +64,8 @@ export async function resetDatabase(prisma: PrismaClient): Promise<void> {
   // 多态表 / 审计表：引用 Project 与 User，最先删除
   await prisma.auditLog.deleteMany()
   await prisma.objectVisibility.deleteMany()
+  // #36 任务附件：引用 Project / User（Restrict）与 Task（SetNull），必须在 project / user 之前清空
+  await prisma.attachment.deleteMany()
   // 风险台账：引用 Project / User / Task（project 为 Restrict，必须先删）
   await prisma.risk.deleteMany()
   // US-06 甘特图：先删任务—里程碑关联，再删依赖边，最后删里程碑

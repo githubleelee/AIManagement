@@ -43,6 +43,8 @@ model User {
   ownedMilestones Milestone[]      @relation("MilestoneOwner")
   // US-15（工单 #35）：这个人负责的 UML 图（反向关系，见文件末尾 UmlDiagram）
   ownedUmlDiagrams UmlDiagram[]    @relation("UmlDiagramOwner")
+  // #36 任务附件：这个人上传的附件（反向关系，见文件末尾 Attachment）
+  uploadedAttachments Attachment[] @relation("AttachmentUploader")
 }
 
 model Project {
@@ -76,6 +78,8 @@ model Project {
   domainEvents     DomainEvent[]
   // #31 US-11：本项目的 AI 建议（反向关系，见文件末尾 AiSuggestion）
   aiSuggestions    AiSuggestion[]
+  // #36 任务附件：本项目的附件元数据（反向关系，见文件末尾 Attachment）
+  attachments      Attachment[]
 }
 
 model ProjectMember {
@@ -174,6 +178,9 @@ model Task {
   // US-15（工单 #35）：引用本任务的 UML 图。**Cascade**（见文件末尾说明）：任务删除时
   // 关联行随库级联清理，故既有端点 29（DELETE /tasks/:taskId）语义不变。
   umlDiagramLinks         UmlDiagramTask[]
+  // #36 任务附件：本任务的附件。**SetNull** 而非 Cascade（见文件末尾 Attachment 说明）：
+  // 任务删除**不得**被附件关系阻塞，且附件行要保留清理状态直到物理文件删除成功。
+  attachments             Attachment[]
 }
 
 // US-09 任务验收（工单 #29）—— 验收记录。
@@ -639,4 +646,58 @@ model AiApplication {
   targetReferences Json // AiSourceObjectRef[]
 
   suggestion AiSuggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+}
+
+// #36 任务附件（ROLE-D 的附件能力公共接入，公共表由 ROLE-B 落地）。
+//
+// 为什么需要：D 的进程内实现只把附件元数据放在内存里（模块测试用）；AC 要求元数据入库、
+// 实体文件落 `var/uploads/`，且任务删除后**失败可追踪重试**。
+// 依据：`DECISIONS.md` `attachments.policy`（白名单 / 10MB / 扩展名+MIME 联合校验 /
+//   元数据入库 / 实体文件 var/uploads / 任务删除联动可追踪重试）、
+//   `attachments.storage-and-cleanup`（B 的删除语义裁定）、
+//   `docs/role-d/ROLE-D-ATTACH-interface-protocol.md` §5 / §6。
+//
+// 删除语义（B 的裁定 1，**不用 Cascade**）：
+//   - `taskId` 可空 + 外键 `onDelete: SetNull`：任务删除**不得**被附件关系阻塞；
+//   - 任务删除在**同一事务**内把该任务 `ACTIVE` 附件标为 `DELETING`（记录 `deleteRequestedAt`），
+//     事务提交后由清理执行器删除物理文件：成功 → 删行；失败 → `CLEANUP_FAILED` +
+//     累加 `cleanupAttempts` + 记录 `cleanupLastError`，可重试；
+//   - 绝不允许「先删实体」；列表 / 详情只返回 `state = 'ACTIVE'`。
+//   - 用 Cascade 会让清理状态随行消失、失败无法重试，故明确排除。
+//
+// 删除语义（其余外键）：`projectId → Project` 用 **Restrict**（与 Task / Risk / DomainEvent /
+//   AiSuggestion 一致，项目不应被删掉而留下孤儿附件）；`uploaderUserId → User` 用 **Restrict**
+//   （与 Task.ownerUserId 一致，人不应被删掉而留下无主附件）。
+//
+// 时间列用 `DateTime`（DATETIME）而非 String：清理扫描 / 排序走**原生时间比较**（与
+//   `DomainEvent` / `AiSuggestion` 同款理由）。
+//
+// `storagePath` 唯一：磁盘存储键 = 服务端 UUID + 已验证扩展名，同一键绝不覆盖写入；
+//   原始文件名只作元数据（`originalName`），**不参与磁盘路径拼接**。
+model Attachment {
+  id                String    @id @default(uuid())
+  projectId         String
+  // 可空：任务删除时 SetNull，使任务删除不被附件关系阻塞（清理状态保留在 state 列）
+  taskId            String?
+  uploaderUserId    String
+  originalName      String // 原始文件名，仅元数据
+  extension         String // AttachmentExtension
+  mimeType          String // AttachmentMime（与 extension 联合校验后落库）
+  sizeBytes         Int
+  storagePath       String    @unique // 磁盘存储键（UUID + 扩展名）
+  state             String    @default("ACTIVE") // AttachmentState: ACTIVE | DELETING | CLEANUP_FAILED
+  createdAt         DateTime  @default(now())
+  deleteRequestedAt DateTime? // 任务删除联动标记 DELETING 的时间戳
+  cleanupAttempts   Int       @default(0) // 物理删除失败次数
+  cleanupLastError  String? // 安全错误码（如 FILE_DELETE_FAILED），不含敏感细节
+  deletedAt         DateTime? // 清理完成时间（预留：行删除前的时间戳语义）
+
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  task     Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  uploader User    @relation("AttachmentUploader", fields: [uploaderUserId], references: [id], onDelete: Restrict)
+
+  // 清理扫描 / 按任务读 ACTIVE 列表
+  @@index([taskId, state, createdAt])
+  // 按项目 + 状态（项目级清理 / 审计读路径）
+  @@index([projectId, state])
 }
