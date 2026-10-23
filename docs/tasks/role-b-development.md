@@ -5,6 +5,16 @@
 
 依据：`docs/plans/role-b-development.md`、`docs/role-c-issue-32-confirmation.md`、`DECISIONS.md` 最新适用条目。
 
+## 本轮状态刷新（2026-10-24）
+
+> 依据已完成并留证的交付与独立验证，只更新 Status / Evidence / Blocker，不改业务规则、不新增授权。原始状态历史保留在各任务行内。
+
+- **已完成**：#20（故事看板最终验收，main `9160587` 上的真实登录/改状态/审计+事件/详情同步/权限矩阵/敏感计数 + 16 文件 578 例）、#45（共享 AI 三表，PR #88）、新增 **#59**（UML 后置标敏粘性置位，PR #103）。
+- **进行中**：#13（FS 共享端口与装配已就绪、独立复验 45+412；**等 A 在验收 REJECT 同事务接入**后整体合入）、#34/#35（附件候选 `902cfa1`，含上传解析器封装修正；等 D #94 与 C 的真实接线后合入）、#38/#39（通知公共运行时实现中）。
+- **仍待外部**：#36/#37（C 的真实任务删除接线与 TaskSection 挂载）、#40/#41（依赖 #38/#39）、#44/#47/#49/#50（等 C 推送本域实现与接口事实，B 已于 #32 发出 6 项事实请求）、#57/#58（等 C 的 UML P2/P3 读侧服务）。
+- **已解除的旧阻塞**：D 的 #31 字段/端口提案、共享 AI 存储、D 的通知模块、C 的审阅入口、C 的 task 写窗口（PR #99）。**不再**作为当前阻塞。
+- **main 基线（独立 tester）**：`9160587` 上 `npm run typecheck` exit 0、`npx vitest run` **81 文件通过 + 1 跳过 / 1709 通过 + 12 todo / 0 失败**。
+
 ## 执行规则
 
 - 本文 `#01–#50` 是本地任务编号，不是 GitHub Issue 编号；GitHub 工单在正文明确标注。`#01–#41` 保留原编号与执行状态，后续新增任务继续递增。
@@ -141,11 +151,12 @@ Dependencies: #11 [FS]
 Note: **事件接入待 D 的 #37**（本批只留 `GanttEventPort` 占位、未接线）；写操作授权（`gantt.write`）与模型 / 迁移已交付。
 
 ## #13 落实真实任务入口的 FS 放行校验
-Status: not started
+Status: in progress
 Outcome: 按 C2 批准规则执行、不能绕过的任务开工约束。
+Evidence: 共享守卫端口候选 `feat/fs-start-guard`：`8290349`（独立 tester 复验 45=28+17、task 412=367+45、typecheck 0；真实 REJECT 探针 HTTP200 进 DOING 证明旁路）→ 注释收口 `2e0d2f8`（typecheck 0、task 18 文件 412 例）。裁定文档已合入 main `f1ee977`（`scheduling.fs-enter-doing-all-paths`、`contract.fs-start-validation`）。
 Done when: 按已确认 C2 实施：前置必须 `CLOSED`、`DONE` 不算，后继建议开始不早于前置计划结束次日，自然日含起止；明确真实任务开工路径的 owner 与实施范围；必要旧模块授权留痕；验证直接调用真实入口也拒绝未放行的后置开工，不仅依赖甘特按钮禁用，不新增镜像任务写路径；该甘特旧模块写入口仍按 B 既有授权 / 既定流程，不由 C 的 #32 写窗口例外覆盖。
 Dependencies: #12 [FS]
-Blocker: main 398aa76 已有六态/CLOSED；仍缺 TaskDependency 与真实开工入口的 FS 守卫，且需该旧入口具体授权/写窗口。C2 结论已确认，C #32 日期应用许可不覆盖此状态守卫。
+Blocker: **A 验收 REJECT 仍未接**：全仓无业务调用 `taskStartGuard`，`submitAcceptance` 的 DONE→DOING 直接 `updateMany`，真实 HTTP 探针实测前置仅 DONE 仍 200 进 DOING。B 侧端口/装配/装配缺失 fail-fast 已就绪（未合 main，等 A 在同事务接入后整体合入）；`src/modules/acceptance/**` 属 A，B 不代改。合并前需两端真实入口覆盖并独立复验。
 
 ## #14 实现甘特时间轴页面
 Status: done
@@ -159,7 +170,7 @@ Status: not started
 Outcome: GitHub #26 AC1–AC7 证据包及交付 C 域 GitHub #32 的数据契约。
 Done when: 公共层（B 单写授权）完成必要路由与页面挂载；本模块测试与 `npm run typecheck` 通过；浏览器验证展开、汇总、里程碑；覆盖 FS、环、跨项目、敏感过滤及真实任务开工路径；C2 已确认口径留证；事件联调保留真实证据，不能只用模拟替代；未决或外部不可验证项不勾完成，不建立对 GitHub #32 的反向依赖。
 Dependencies: #12 [FS], #13 [FS], #14 [FS]
-Blocker: 部分解除：路由与页面挂载已完成（PR #52）。**仍缺**：#12 写路径（里程碑/依赖写入、FS 环/自依赖/跨项目校验、事件）待 D 的 #37 公共事件端口；#13 真实开工守卫待旧入口写窗口。故本任务不勾 AC、不标完成。
+Blocker: **部分解除**：D 的 #37 公共事件端口已合入（PR #90），#12 写路径已合入（PR #68）。**仍缺** #13 真实开工守卫（见 #13：验收 REJECT 未接，FS 整体不可合）；故本任务不勾 AC、不标完成。
 
 ## #16 提前完成故事看板方案与授权细化
 Status: done
@@ -191,8 +202,9 @@ Evidence: PR #75 → main `6638004`：`web/src/pages/board/**`（卡片三态选
 Done when: 公共层（B 单写授权）完成必要挂载；交互按已确认角色授权展示，服务端仍判权；成功与失败反馈正确；同账号同授权视角下多视图一致；涉及他人业务页面文件须先获具体授权，不擅自修改。
 Dependencies: #18 [FS]
 ## #20 验收并交付故事看板
-Status: not started
+Status: done
 Outcome: GitHub #25 AC1–AC6 的模块、浏览器与审计事件证据包。
+Evidence: `docs/ai-records/B/issue-25/B-I25-20261024-board-acceptance-01.md`：main `9160587` 隔离库（迁移 + seed、API 3210 / Vite 5280 / headless Chromium）真实登录 pm 改状态 → 列计数变化、同事务 `AuditLog story.status` + `DomainEvent requirement.story.status-changed`、详情页同步；member1/viewer1 只读且直连 PATCH 403、outsider 演示项目 404 / 自己项目 200；敏感故事对 member1 隐藏（2 条、详情 404）对白名单 member2 可见（3 条、详情 200）；`npm run typecheck` 0、`npx vitest run src/modules/board src/modules/requirement` 16 文件/578 例全绿。
 Done when: 本模块测试与 `npm run typecheck` 通过；浏览器验证看板改状态后地图/详情同步；覆盖 PM/member/viewer/outsider、跨项目、越权和敏感计数；审计及事件来自真实状态写路径；逐条 AC 留证，不自动合并或关闭工单。
 Dependencies: #19 [FS]
 
@@ -296,52 +308,54 @@ Done when: 相关测试/typecheck 和本地桩浏览器链路通过；真实 API
 Dependencies: #30 [FS], #31 [FS], #32 [FS]
 
 ## #34 落地附件 schema 与迁移
-Status: not started
+Status: in progress
 Outcome: B 单写的附件元数据模型、索引及迁移。
+Evidence: 候选 `feat/attach-public-integration` 最新 `902cfa1`：`Attachment` 模型 + 迁移 `20261023050228_add_attachment`、`src/shared/attachments.ts`、`src/db/attachment-repository.ts`、`src/db/attachment-cleanup.ts`。独立验证曾通过 fresh 迁移/`prisma migrate diff` 无漂移/14 FK 探针与定点测试 5 文件 50 例。
 Done when: D 本能力字段/删除关联策略明确；迁移顺序和数据影响已验证；下载/清理规则遵循确认稿，旧任务后端扩展另走具体授权。
 Dependencies: none
-Blocker: 待 D 附件字段/迁移提案与本批编码授权。
+Blocker: **未合 main**：按用户裁定与 C 的真实任务删除接线、D 的 #94 一起合入；`taskId: null` 孤儿与 `TaskSection` 未挂载是硬阻断（见 #36）。
 
 ## #35 接入附件路由及上传目录忽略
-Status: not started
+Status: in progress
 Outcome: 附件插件集中注册，项目根 `/var/uploads/` 纳入 `.gitignore`，按需完成 app 依赖组装。
+Evidence: 候选 `902cfa1`：`src/routes.ts` 同步 fail-fast + 已按复审把上传 MIME 解析器收回附件插件封装子上下文（`app.register`，避免 8 种 MIME 在全部路由生效）；`.gitignore` 含 `var/uploads/`；临时探针实测 `POST /projects` + `application/pdf` 恢复 415、附件路由仍消费该 MIME（未登录 401）；5 文件 50 例 + skeleton-smoke 6 例通过。
 Done when: 所需迁移可用；服务端策略按白名单、扩展名+MIME、10,000,000 B 执行；上传目录不公开静态暴露；任务删除失败不先删文件；不越权修改旧任务服务。
 Dependencies: #34 [FF]
-Blocker: 待 D 附件插件/注册补丁与本批编码授权；本任务不代写 D 上传/下载/清理实现。
+Blocker: **未合 main**：等 D #94 先合（其 `plugin.test.ts` 已改 bare Fastify；main 版与本封装注册重复注册是已知组合冲突，B 未改 D 文件）。B 不代写 D 的上传/下载/清理实现。
 
 ## #36 最小挂载现有任务区附件组件
 Status: not started
 Outcome: `TaskSection.tsx` 嵌入 D 附件组件及必要路由文档更新。
 Done when: 仅传入已确认任务上下文/刷新回调，不另造任务详情页，不改任务状态权限；组件可独立接入开发态，正式联调另留证据。
 Dependencies: none
-Blocker: 待 D 附件组件/Props/挂载补丁与本批编码授权。
+Blocker: D 的附件组件与协议在 PR #94（未合）；`web/src/pages/task/TaskSection.tsx` 未挂 `TaskAttachmentPanel`。**原分工变更需 C 落实**（用户明确 B 不接管），D #94 合入后由 C 挂载并给出浏览器证据。
 
 ## #37 验证附件公共接入
 Status: not started
 Outcome: 附件公共挂载、注册、存储边界的定向测试与浏览器证据。
 Done when: 相关测试/typecheck 与真实上传/列表/下载链路通过；校验体积、类型、敏感/非成员隔离、忽略规则和失败清理；仍需旧模块授权的删除链路明确未验证，不虚构端到端完成。
 Dependencies: #34 [FS], #35 [FS], #36 [FS]
-
+Blocker: 待 C 的真实任务 DELETE 接线（调用注入的 `TaskAttachmentLifecyclePort.markForTaskDeletion` + 提交后清理）与 `TaskSection` 挂载后，才能跑真实删除→重试→浏览器端到端，并据此做最终验收；组件验证页/模拟事务不替代正式入口证据。
 ## #38 落地通知 schema 与迁移
-Status: not started
+Status: in progress
 Outcome: B 单写的通知记录、接收者/去重等必要模型与迁移。
 Done when: 按 D 字段提案实现索引和约束并验证迁移；保留事件发生/条件成立时间，不能从消费时间重新计时；遵守全项目 Asia/Shanghai 口径，不自行决定尚未确认的六状态转换。
 Dependencies: none
-Blocker: 待 D 通知字段/迁移提案与本批编码授权。
+Blocker: B 公共运行时实现中（Notification 记录 + 消费账本 + 激活/基线，sourceEventId→DomainEvent Restrict 外键）。未合 main 前不算完成；D 的模块字段提案已合入（PR #93）。
 
 ## #39 组装通知订阅、定时生命周期与路由
-Status: not started
+Status: in progress
 Outcome: app 注入事件端口，注册 D 通知实现/生命周期与已确认列表/已读路由。
 Done when: 所需模型可用，启停可控；D 通知采用已确认的**全项目** `Asia/Shanghai` 时区与 `planEnd` 次日 00:00 未 `CLOSED` 即逾期口径；其他六状态转换未一并批准，不接受双最终口径；不代写业务生产事件。
 Dependencies: #28 [FS], #38 [FF]
-Blocker: 待 D 通知实现/生命周期/注册补丁与本批编码授权。
+Blocker: B 公共运行时实现中（真实 DB 仓储 + 权威接收者 + #37 订阅适配 + 提交后消费桥接 + 定时 overdue/节点 + app/routes 装配）。A/C 的生产方未接时必须诚实 UNAVAILABLE，不得 no-op 伪造；未合 main 前不算完成。
 
 ## #40 最小挂载顶栏通知入口
 Status: not started
 Outcome: `AppLayout.tsx` 接入 D 独立通知入口与必要路由文档说明。
 Done when: 仅按组件 Props 注入上下文，不重写公共布局或通知业务；在线刷新和错误态可验证；不等待 AI/附件组件全部完成。
 Dependencies: none
-Blocker: 待 D 通知组件/Props/挂载补丁与本批编码授权。
+Blocker: D 的 `NotificationBell` 组件与 api 已在 main（PR #93）；待 #39 公共运行时合入后由 B 在 `AppLayout.tsx` 挂载并做在线刷新/错误态浏览器验证。
 
 ## #41 验证通知公共接入
 Status: not started
@@ -350,7 +364,7 @@ Done when: 相关测试/typecheck 与基础订阅/入库/查询/页面链路通�
 Dependencies: #26 [FS], #38 [FS], #39 [FS], #40 [FS]
 
 ---
-
+Blocker: 待 #38/#39/#40 合入后做分栏证据：基础链路（订阅/入库/查询/页面）实测 + 六类生产方联调（A 的 risk/acceptance 事件、C 的 task.assigned/acceptance.submitted 仍缺）。B 自己的定时 overdue/节点可端到端验证，其余未接来源必须标 UNAVAILABLE，不勾最终 AC1/AC2。
 ## C #32 公共集成任务（本轮修订）
 
 本地 `#42–#50` 不是 GitHub 工单编号。这些是 B 侧为 C `#32` 提供的公共集成任务：C 负责业务 / 整份原子写 / 快照 / 幂等，B 只落公共声明 / 模型 / 权限 / 组装 / 挂载。**依赖只按真实接口 / 验收关系登记，不用优先级造边。** 历史修订时本节仅保存计划；随后本轮获准执行 `#43/#46` 的本地提案，其余按各项 Status / Evidence 为准。追加授权仅允许准备 `#03/#42` 本地待发布文本，不发布、不编码；当前进度见各项证据。
@@ -377,14 +391,15 @@ Status: not started
 Outcome: `src/modules/authz/permissions.ts` 与共享 `Action` / 对象 scope 的 #32 最小改动，统一走 `can()`/`visibilityScope()`。
 Done when: 仅覆盖 #32 生成 / 查看 / 采纳 / 修改后采纳 / 拒绝 / 审计**全部 PM-only**；未登录 401、外项目或不可见 404、可见无操作权 403；每次请求与重试重新鉴权，**撤权重试不可读历史结果**；**其他既有 `Action` 权限不变**；不把整个 authz 模块或其他票权限转给 B；如该文件存在其他写者，先登记排他窗口；具体 `Action` 命名待方案确认。
 Dependencies: none
-Blocker: 本批编码授权与 `Action`/scope 命名方案确认；#32 权限范围已由项目负责人确认，但不代表 C11/C12。
+Blocker: 待 C 推送其本域实现与接口事实（B 已于 #32 comment 6369353812 请求路由表/DTO 字段/scenario 映射/事务审计边界）；共享三表已就绪。B 不猜签名、不提前开放 MEMBER 可见性。
 
 ## #45 落地共享 AI 建议 / 处置记录 schema 与迁移（#32 + #33 复用）
-Status: not started
+Status: done
 Outcome: B 单写的**共享**「建议 + 处置」存储最小模型、索引与顺序迁移（ROLE-C #32 与 ROLE-A #33 复用同一套，不各建表）。
+Evidence: 共享 AI 建议/处置存储已合入 main `e773b01`（PR #88）：`AiSuggestion`/`AiDisposition`/`AiApplication` + 迁移 `20261021150000_add_ai_suggestion_store`、`src/shared/ai.ts`、`src/db/ai-repository.ts`；独立验证 typecheck 0、95 例定向、69 文件 1483 例全量、HTTP 26/26（含 replay 200 / conflict 409）。
 Done when: 字段以 D 的 #31 字段提案为源、并与 #43 数据契约及 A 的 #33 字段需求合并成一份后再落表（`DECISIONS.md` `ai.suggestion-store-shared`）；覆盖场景 / 分析类型、输入范围与 snapshot / fingerprint、生成时间、模型或桩标识与实际可得版本、建议内容、处置结论（采纳 / 修改后采纳 / 拒绝）、处置人、理由、最终应用结果；快照有效权限与唯一处置 / 冲突所需字段以 #46 提案为准；不用 `AuditLog` 承载建议；处置动作按 `permissions.ai-suggestion-disposal` 与 #32 共用**同一个** Action（#44 一并加入 `can()`）；不替 A / C 实现业务、不擅自扩张写权限；核对历史数据与迁移验证。
 Dependencies: #46 [FS]
-Blocker: 待 D 的 #31 字段 / 端口提案 + A 的 #33 字段需求汇总，以及 #46 事务 / 幂等 / 快照字段接口明确与本批编码授权。
+Note: 已交付。#32 的公共读 / 写与审计授权属 #44/#47，仍未开始（其阻塞见对应任务）。
 
 ## #46 确认公共读 / 写端口与事务 / 鉴权协议
 Status: done
@@ -399,7 +414,7 @@ Status: not started
 Outcome: 落实 #32 必要共享端口声明，`src/app.ts` 注入 C 域实现，`src/routes.ts` 集中注册已确认路由。
 Done when: 按 #46 已确认协议实现，不跨业务 service；受控确认路径的最终鉴权/约束复核在同一事务，允许事务前入口检查但不能仅靠它；模型迁移及公共 AI 端口最终可用。C 本域实现经约定端口接入，B 不代写业务或生产事件；不等待 D 的其他模块。
 Dependencies: #46 [FS], #45 [FF], #29 [FF]
-Blocker: 待 C 独立实现/注册与注入补丁及本批编码授权；AI 签名按已接收 AI 提案对齐，不等待事件或其他 D 能力。
+Blocker: 待 C 推送本域实现与 6 项接口事实（#32 comment 6369353812）；B 只落公共端口/装配，不猜 URL/字段、不新增 Action。
 
 ## #48 登记 task 写窗口并完成现写者交接
 Status: done
@@ -414,14 +429,14 @@ Status: not started
 Outcome: `web/src/pages/scheduling` 路由、导航入口与 `docs/frontend-routes.md` 更新。
 Done when: 路由 / 导航由 B 统一挂载，URL 与 C 在前端路由清单确认；不把 D 的三个入口文件当作 C 的修改许可；加载 / 空态 / 错误 / 无权限反馈可验证；不代写 C 业务页面逻辑。
 Dependencies: none
-Blocker: 待 URL 确认、C 组件 Props / 挂载点就绪与本批编码授权。
+Blocker: 待 C 推送页面与路由事实并确认 URL/导航位置；公共骨架行由 B 写，页面本体归 C。
 
 ## #50 验证 C #32 公共接入集成
 Status: not started
 Outcome: #32 公共权限、模型、端口与挂载的定向集成证据及未完成项清单。
 Done when: 覆盖 PM-only 生成 / 查看 / 采纳 / 修改后采纳 / 拒绝 / 审计、外项目 404、撤权重试不可读历史、其他既有 `Action` 不变；硬阻断 vs 仅提示；整份事务原子与失败回滚；幂等重放（含成功重放不误判自身日期更新、先鉴权后重放、异 payload / 并发冲突）、事件失败重试不重复改计划；本地桩与真实 API、真实业务联调分栏留证；未就绪项明确未验证，不以 fixture 冒充最终 AC；不宣称原 AC13。
 Dependencies: #44 [FS], #47 [FS], #48 [FS], #49 [FS]
-Blocker: 待 C 本域实现及本批公共接入的前置交付/真实任务数据就绪；外部 AI API 未接不阻塞本地桩与模块验证。真实模型/生产方联调另列未验证，不以 fixture 冒充相关最终 AC；不宣称原 AC13。
+Blocker: 待 C 本域实现合入与公共装配完成；`LocalStubAiProvider` 目前只支持 REQUIREMENT_BREAKDOWN，SCHEDULING 需要真实能力或诚实 UNAVAILABLE，不伪造结果；不宣称原 AC13。
 
 ---
 
@@ -487,11 +502,11 @@ Dependencies: #55 [FS]
 
 ## #57 US-15 UML P2/P3：本域类型与端点（C 实现，B 复核）
 Status: not started
-Note: P1 已就绪（`d8315c4`），等 ROLE-C 开 P2（`src/modules/uml/types.ts` + `validation.ts`/`schemas.ts`）与 P3（`service.ts` / `plugin.ts` / 测试）；B 复核其可见性交集查询、整图替换事务与错误映射（只用契约 I-4 表内 code）。
+Note: P1 已就绪（`d8315c4`）。**B 侧已补写侧缺口**：后置标敏粘性置位已合入 main `9160587`（PR #103，`setSensitivity` 同事务置 `everRestricted`）。仍等 ROLE-C 开 P2/P3（`src/modules/uml/*` 服务与 6 端点）。
 Outcome: C 域 UML 服务与 6 个端点实现，含可见性交集、整图替换、校验与错误映射。
 Done when: C 交付并给出测试证据；B 复核通过（不越权、不泄漏不可见关联、404 文案统一、无镜像写路径）。
 Dependencies: #56 [FS]
-
+Blocker: C 远端 `feat/US15-uml` 目前只到 P1 守卫（`ea81e4e`/`cefe96c`），选择器 `86b3b02` 本地未推送；UML 读侧 `everRestricted = false` guard 与端点均未落地，B 不代写 C 域。
 ## #58 US-15 UML P4/P5：注册行 + 骨架挂载 + 路由文档
 Status: not started
 Note: 等 P3 导出 `registerUmlRoutes` 后由 B 落笔（`src/routes.ts` 注册行、`web/src/routes.tsx` 路由行、`ProjectLayout.tsx` 左导航行、`docs/frontend-routes.md` 表行）；页面本体归 C（`web/src/pages/uml/**`）。
@@ -500,7 +515,7 @@ Done when: 注册行 / 路由行 / 导航行 / 文档行落笔并验证（`typec
 Dependencies: #57 [FS]
 
 ---
-
+Blocker: 等 C 的 P3 导出 `registerUmlRoutes` 后 B 才能落注册行/路由行/导航行/文档行；当前仅写侧粘性置位在 main，无读侧服务可挂载。
 ## 估算拆分（本轮修订口径）
 
 仅为 B 侧工作量初估，不是追加预算或整体延期批准，也不要求原 18 人日无条件吸收。新任务编号不是预算归属：文档/提案协调仍计原统筹项，原 B 票的模型/挂载/验证不重复收费。
@@ -522,3 +537,11 @@ Dependencies: #57 [FS]
 - 假设 D / C 提供可编译独立实现、最小补丁和模块验证；若需重做设计/修复业务实现，应先明确责任并重估，不自动转成 B 业务任务。
 - 每批范围变化须另报授权；本轮仅完成获准的本地复核 / 设计 / 提案与状态记录，未提交、未推送、未发布，后续实现任务均未启动。
 - 不宣称预算或整体延期已获批；原 18 人日不承诺无条件吸收新增项。
+
+## #59 UML 后置标敏粘性置位（B 侧）
+Status: done
+Outcome: 「先关联普通对象、之后该对象才被标为敏感」时，已关联的图在同一事务被粘性置位 `everRestricted = true`，且任何路径都不自动清除。
+Evidence: `feat/uml-sticky-late-sensitivity` @ `f6a980f` → main `9160587`（PR #103）；独立 tester 复验：2 文件无越界、typecheck 0、authz 2 文件/16 例、敏感相关 4 文件/96 例、自建探针 5/5（含删链行/删任务后仍为 true、幂等且 `updatedAt` 不变、无关联无写入、注入失败整事务回滚、全仓无清除路径）；记录 `docs/ai-records/B/issue-35/B-I35-20261024-uml-sticky-*.md`。
+Done when: 置位同事务、只增不减、幂等、可回滚，独立验证通过。
+Dependencies: #56 [FS]
+Note: 写侧已交付；**读侧 `everRestricted = false` guard 不存在**（UML 服务属 C 的 #57），该 flag 当前尚无权限消费方，「解除关联后非 PM 404」需在读侧落地后单独验证。显式降密仍属另案。
