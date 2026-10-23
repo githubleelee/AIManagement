@@ -325,3 +325,136 @@ describe('风险域领域事件（同事务追加 + 幂等键 + 敏感判定）'
     expect(memberView.map((event) => event.object.objectId)).toEqual([risk.id])
   })
 })
+
+/* ===========================================================================
+ * risk.level-raised（技术负责人 GitHub #20 评论 6357849262 / 6358121473）
+ * ===========================================================================
+ *
+ * 判据只有一条：`LOW < MEDIUM < HIGH` 的**真实上升**才发。
+ * 幂等键必须按更新类（带 occurredAt），否则同一风险的第二次真实提级会被永久去重。
+ */
+
+describe('risk.level-raised（仅真实提级才发 + 更新类幂等键）', () => {
+  it('中 → 高：在 risk.updated 之上**追加**一条 level-raised（不是替代）', async () => {
+    const risk = await createRiskOk(pm.id, { level: 'MEDIUM' })
+    expect((await patchRisk(pm.id, risk.id, { level: 'HIGH' })).status).toBe(200)
+
+    // ① 粗粒度的 updated 照发
+    expect(await eventsByName('risk.updated')).toHaveLength(1)
+    // ② 提级事件另外一条
+    const raised = await eventsByName('risk.level-raised')
+    expect(raised).toHaveLength(1)
+    expect(raised[0]).toMatchObject({
+      projectId,
+      objectType: 'risk',
+      objectId: risk.id,
+      actorKind: 'USER',
+      actorUserId: pm.id,
+      sensitive: false,
+      payload: {
+        fromLevel: 'MEDIUM',
+        toLevel: 'HIGH',
+        status: 'OPEN',
+        ownerUserId: member1.id,
+      },
+    })
+    expect(raised[0]!.idempotencyKey).toBe(
+      `risk.level-raised:${risk.id}:${raised[0]!.occurredAt.toISOString()}`,
+    )
+  })
+
+  it('低 → 高（跨级）：同样发', async () => {
+    const risk = await createRiskOk(pm.id, { level: 'LOW' })
+    expect((await patchRisk(pm.id, risk.id, { level: 'HIGH' })).status).toBe(200)
+
+    const raised = await eventsByName('risk.level-raised')
+    expect(raised).toHaveLength(1)
+    expect(raised[0]!.payload).toMatchObject({ fromLevel: 'LOW', toLevel: 'HIGH' })
+  })
+
+  it('降级（高 → 低）**不发**提级事件', async () => {
+    const risk = await createRiskOk(pm.id, { level: 'HIGH' })
+    expect((await patchRisk(pm.id, risk.id, { level: 'LOW' })).status).toBe(200)
+
+    expect(await eventsByName('risk.updated')).toHaveLength(1)
+    expect(await eventsByName('risk.level-raised')).toHaveLength(0)
+  })
+
+  it('降一级（高 → 中）也不发', async () => {
+    const risk = await createRiskOk(pm.id, { level: 'HIGH' })
+    expect((await patchRisk(pm.id, risk.id, { level: 'MEDIUM' })).status).toBe(200)
+
+    expect(await eventsByName('risk.level-raised')).toHaveLength(0)
+  })
+
+  it('同级（中 → 中）不发', async () => {
+    const risk = await createRiskOk(pm.id, { level: 'MEDIUM' })
+    expect((await patchRisk(pm.id, risk.id, { level: 'MEDIUM' })).status).toBe(200)
+
+    expect(await eventsByName('risk.updated')).toHaveLength(1)
+    expect(await eventsByName('risk.level-raised')).toHaveLength(0)
+  })
+
+  it('只改非等级字段（改负责人）不发提级事件', async () => {
+    const risk = await createRiskOk(pm.id, { level: 'MEDIUM' })
+    expect((await patchRisk(pm.id, risk.id, { ownerUserId: member2.id })).status).toBe(200)
+
+    expect(await eventsByName('risk.level-raised')).toHaveLength(0)
+  })
+
+  it('同一风险**两次**真实提级 → 两条事件，幂等键互不相同（不会被永久去重）', async () => {
+    const risk = await createRiskOk(pm.id, { level: 'LOW' })
+    expect((await patchRisk(pm.id, risk.id, { level: 'MEDIUM' })).status).toBe(200)
+    expect((await patchRisk(pm.id, risk.id, { level: 'HIGH' })).status).toBe(200)
+
+    const raised = await eventsByName('risk.level-raised')
+    expect(raised).toHaveLength(2)
+    expect(raised.map((event) => (event.payload as { toLevel: string }).toLevel)).toEqual([
+      'MEDIUM',
+      'HIGH',
+    ])
+    // 若按创建类 `<eventName>:<riskId>` 算，第二条会命中既有幂等记录被永久吞掉
+    expect(new Set(raised.map((event) => event.idempotencyKey)).size).toBe(2)
+  })
+
+  it('同一笔 PATCH 的 updated 与 level-raised 共用同一个 occurredAt', async () => {
+    const risk = await createRiskOk(pm.id, { level: 'LOW' })
+    expect((await patchRisk(pm.id, risk.id, { level: 'HIGH' })).status).toBe(200)
+
+    const updated = (await eventsByName('risk.updated'))[0]!
+    const raised = (await eventsByName('risk.level-raised'))[0]!
+    expect(raised.occurredAt.toISOString()).toBe(updated.occurredAt.toISOString())
+  })
+
+  it('敏感关联任务上提级 → 提级事件也按敏感发布（载荷只有 references）', async () => {
+    const taskId = await seedTask()
+    await makeSensitive('task', taskId, [])
+
+    const risk = await createRiskOk(pm.id, { level: 'LOW', taskId })
+    expect((await patchRisk(pm.id, risk.id, { level: 'HIGH' })).status).toBe(200)
+
+    const raised = await eventsByName('risk.level-raised')
+    expect(raised).toHaveLength(1)
+    expect(raised[0]!.sensitive).toBe(true)
+    expect(Object.keys(raised[0]!.payload as object)).toEqual(['references'])
+    expect(raised[0]!.payload).toEqual({
+      references: [
+        { objectType: 'risk', objectId: risk.id },
+        { objectType: 'task', objectId: taskId },
+      ],
+    })
+  })
+
+  it('提级事件载荷不含风险标题 / 描述正文', async () => {
+    const title = '绝密：核心链路抖动'
+    const description = '描述正文不应出现在提级事件里'
+    const risk = await createRiskOk(pm.id, { title, description, level: 'LOW' })
+    expect((await patchRisk(pm.id, risk.id, { level: 'HIGH' })).status).toBe(200)
+
+    const serialized = JSON.stringify((await eventsByName('risk.level-raised'))[0]!.payload)
+    expect(serialized).not.toContain(title)
+    expect(serialized).not.toContain(description)
+    expect(serialized).not.toContain('title')
+    expect(serialized).not.toContain('description')
+  })
+})

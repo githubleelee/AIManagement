@@ -22,6 +22,7 @@ import type { AiBreakdownService } from './modules/ai/service.js'
 import type { GanttEventPort } from './modules/gantt/types.js'
 import type { RequirementEventPort } from './modules/requirement/service.js'
 import type { RiskEventPort } from './modules/risk/types.js'
+import type { AcceptanceEventPort } from './modules/acceptance/types.js'
 
 export type RouteContext = {
   prisma: PrismaClient
@@ -52,6 +53,15 @@ export type RouteContext = {
    * （不得静默跳过发布）。事件名见 `src/modules/risk/types.ts` 的 `RiskEventName`。
    */
   riskEvents?: RiskEventPort
+  /**
+   * 验收域事件发布端口（由 `src/app.ts` 用 `createAcceptanceEventPort` 显式组装注入）。
+   *
+   * 与 `ganttEvents` / `requirementEvents` / `riskEvents` 同构：组装留在唯一组装点
+   * `src/app.ts`，路由总表只负责注册。可选；缺省时 `registerAcceptanceRoutes` 会
+   * fail-fast 报组装缺失（不得静默跳过发布）。
+   * 事件名见 `src/modules/acceptance/types.ts` 的 `AcceptanceEventName`。
+   */
+  acceptanceEvents?: AcceptanceEventPort
 }
 
 export function registerRoutes(app: FastifyInstance, context: RouteContext): void {

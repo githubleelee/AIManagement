@@ -211,15 +211,34 @@ TODO ⇄ DOING ──→ BLOCKED（必填原因）──→ DOING（清空原因
 
 ---
 
-## 10. 接口先行（#36 / #37）—— 只出类型，**未接线**
+## 10. 接口先行（#36 / #37）
 
-`src/modules/acceptance/types.ts` 里给出两个**明确标注未接线**的类型：
+- `AcceptanceEvidenceRef`（#36 验收证据附件）：**仍未接线**。请求体当前**不接受**附件字段。
 
-- `AcceptanceEvidenceRef`（#36 验收证据附件）：请求体当前**不接受**附件字段。
-- `AcceptanceEventPayload`（#37 验收结果事件）：本模块当前**不发布**任何事件，
-  不 import 任何事件模块（决策 I-9 禁止跨模块调 service；接入方式待 #24 第 3 点结论）。
+- **#37 验收结果事件：已接线**（`src/modules/acceptance/event-port.ts`）。原先这里是
+  标注「未接线」的占位类型 `AcceptanceEventPayload`，事件名写作 `task.accepted` /
+  `task.rejected`；该写法与 `DECISIONS.md` `notifications.event-catalog-exact-names`
+  冻结的精确名单不一致，已按决策改正为 **`acceptance.approved` / `acceptance.rejected`**
+  并落成正式的端口与适配器（占位从未有运行时依赖，替换无破坏）。
 
-**不为了让 AC6 好看而假装事件已通。**
+  落地口径：
+
+  | 项 | 取值 |
+  |---|---|
+  | 事件名 | `acceptance.approved`（PASS）/ `acceptance.rejected`（REJECT） |
+  | object | **任务**引用 `{objectType:'task', objectId: taskId}`（验收结果属于某个任务） |
+  | 非敏感载荷 | `{conclusion, statusBefore, statusAfter, recordId}` —— 只放结构与标识 |
+  | 不放什么 | `reason`（自由文本属受保护内容）、任何收件人字段（由权威适配器读 `Task.ownerUserId` / `acceptorUserId` 解析） |
+  | 敏感任务 | 契约 I-6：`Task.isSensitive` 为真时载荷**只能**是 `{references}`，且敏感标记在**同一事务内**读 |
+  | 幂等键 | `acceptance.<approved\|rejected>:<taskId>:<occurredAt ISO>` —— **更新类**，不是创建类 |
+  | 事务 | 与状态流转、`AcceptanceRecord` 写入同一个 `$transaction`；发布失败 = 整笔验收回滚 |
+
+  > 幂等键为什么必须带 `occurredAt`：同一任务可以被「驳回 → 重新提交 → 再驳回」反复验收。
+  > 若按创建类算成 `<eventName>:<taskId>`，**第二次**同结论验收会命中既有幂等记录被永久去重，
+  > 通知就再也发不出去。这与 `risk.level-raised` 是同一个坑（技术负责人 GitHub #20 评论 6358121473）。
+
+**不为了让 AC6 好看而假装事件已通** —— 上表是实跑验证过的，证据见
+`src/modules/acceptance/acceptance-events.test.ts`（10 例，含回滚 / 幂等 / 敏感可见性）。
 
 ---
 

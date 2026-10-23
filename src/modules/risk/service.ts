@@ -26,7 +26,7 @@
  */
 import type { Prisma, PrismaClient } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
-import type { EventObjectRef } from '../../shared/events.js'
+import type { EventObjectRef, JsonObject } from '../../shared/events.js'
 import { createAuthorization } from '../authz/permissions.js'
 import {
   RISK_INCLUDE,
@@ -209,6 +209,23 @@ function riskAuditFields(risk: {
 const RISK_OBJECT_TYPE = 'risk'
 
 /**
+ * 等级序：`LOW < MEDIUM < HIGH`（技术负责人 GitHub #20 评论 6357849262）。
+ *
+ * 只用于判定「是否真的提级」：**严格大于**才算上升，降级与同级都不发
+ * `risk.level-raised`。这是通知触发条件的唯一判据，不要改成"只要变了就发"。
+ */
+const RISK_LEVEL_RANK: Record<RiskLevel, number> = {
+  LOW: 0,
+  MEDIUM: 1,
+  HIGH: 2,
+}
+
+/** 等级是否**真的往上走了**（严格大于）。 */
+function isLevelRaised(from: string, to: string): boolean {
+  return RISK_LEVEL_RANK[to as RiskLevel] > RISK_LEVEL_RANK[from as RiskLevel]
+}
+
+/**
  * 事务内查「这些任务里有没有敏感的」（契约 I-6）。
  *
  * 风险的敏感性是**继承**关联任务的可见性（批复第 6 项，不新建 risk 敏感类型），
@@ -259,6 +276,9 @@ function changedFieldsOf(
  * 敏感规则（契约 I-6）：只要事件**涉及**的任务里有敏感项，整条事件必须以敏感事件
  * 发布，且载荷**只能是** `{references}` —— 标题 / 描述正文 / 解决说明一律不进载荷
  * （前后值已在 `AuditLog` 里）。否则查询层过滤看不到它，会泄漏给非授权成员。
+ *
+ * `payload` 由调用方按**事件语义**给（创建 / 更新 / 提级各不同），敏感分支会整体
+ * 丢弃它。调用方只许放**结构与标识**，不放风险标题、描述正文、解决说明。
  */
 function riskEventDraft(args: {
   eventName: RiskEventDraft['eventName']
@@ -272,8 +292,8 @@ function riskEventDraft(args: {
     ownerUserId: string
     taskId: string | null
   }
-  /** 仅更新事件提供；创建事件不带。 */
-  changedFields?: string[]
+  /** 非敏感载荷（敏感分支不使用）。 */
+  payload: JsonObject
   sensitivity: { anySensitive: boolean; references: EventObjectRef[] }
 }): RiskEventDraft {
   const base = {
@@ -297,19 +317,7 @@ function riskEventDraft(args: {
     }
   }
 
-  return {
-    ...base,
-    sensitive: false,
-    // 只放**结构与标识**：状态 / 等级 / 负责人 id / 关联任务 id / 变更字段名。
-    // 不放风险标题、描述正文、解决说明 —— 那是受保护内容。
-    payload: {
-      status: args.risk.status,
-      level: args.risk.level,
-      ownerUserId: args.risk.ownerUserId,
-      taskId: args.risk.taskId,
-      ...(args.changedFields ? { changedFields: args.changedFields } : {}),
-    },
-  }
+  return { ...base, sensitive: false, payload: args.payload }
 }
 
 /* ===========================================================================
@@ -435,6 +443,12 @@ export async function createRisk(
         actorUserId,
         occurredAt: new Date().toISOString(),
         risk,
+        payload: {
+          status: risk.status,
+          level: risk.level,
+          ownerUserId: risk.ownerUserId,
+          taskId: risk.taskId,
+        },
         sensitivity: await readTaskSensitivity(tx, [risk.taskId]),
       }),
       tx,
@@ -549,18 +563,51 @@ export async function patchRisk(
     // 都是 `risk.updated`，差别体现在载荷的 `status` / `changedFields` 上。
     // 敏感判定要覆盖**改绑前后**两个任务：旧任务敏感则会泄漏旧关联、新任务敏感则会
     // 泄漏新关联，任一为真即按敏感事件处理。
+    // `occurredAt` 取一次、两条事件共用：同一笔业务写入的两个事件时间戳必须一致。
+    const occurredAt = new Date().toISOString()
+    const sensitivity = await readTaskSensitivity(tx, [existing.taskId, risk.taskId])
+
     await events.publish(
       riskEventDraft({
         eventName: 'risk.updated',
         projectId: existing.projectId,
         actorUserId,
-        occurredAt: new Date().toISOString(),
+        occurredAt,
         risk,
-        changedFields: changedFieldsOf(riskAuditFields(existing), riskAuditFields(risk)),
-        sensitivity: await readTaskSensitivity(tx, [existing.taskId, risk.taskId]),
+        payload: {
+          status: risk.status,
+          level: risk.level,
+          ownerUserId: risk.ownerUserId,
+          taskId: risk.taskId,
+          changedFields: changedFieldsOf(riskAuditFields(existing), riskAuditFields(risk)),
+        },
+        sensitivity,
       }),
       tx,
     )
+
+    // ★ 等级**真的往上走**时，在 `risk.updated` 之上**追加**一条 `risk.level-raised`
+    //   （不是替代）：通知的触发条件是"提级"，不能被任意 `risk.updated` 冒充。
+    //   降级（HIGH → LOW）与同级都不发 —— 判据是 `isLevelRaised` 的严格大于。
+    if (isLevelRaised(existing.level, risk.level)) {
+      await events.publish(
+        riskEventDraft({
+          eventName: 'risk.level-raised',
+          projectId: existing.projectId,
+          actorUserId,
+          occurredAt,
+          risk,
+          payload: {
+            fromLevel: existing.level,
+            toLevel: risk.level,
+            status: risk.status,
+            ownerUserId: risk.ownerUserId,
+          },
+          sensitivity,
+        }),
+        tx,
+      )
+    }
     return risk
   })
 
