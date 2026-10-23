@@ -1,0 +1,42 @@
+{
+  "baseline": "main 014555ba7843863ef7230956b89081b8ccd2f461 + D module files only, no production mounting edits",
+  "generatedAt": "2026-10-23T13:45:39.027Z",
+  "realTaskCreateStatus": 201,
+  "taskAssignedEvents": 0,
+  "calls": [
+    {
+      "method": "GET",
+      "path": "/me/notifications",
+      "status": 404,
+      "body": {
+        "error": {
+          "code": "NOT_FOUND",
+          "message": "资源不存在"
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/notifications/unknown",
+      "status": 404,
+      "body": {
+        "error": {
+          "code": "NOT_FOUND",
+          "message": "资源不存在"
+        }
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/notifications/unknown/read",
+      "status": 404,
+      "body": {
+        "error": {
+          "code": "NOT_FOUND",
+          "message": "资源不存在"
+        }
+      }
+    }
+  ],
+  "verdict": "BLOCKED: production notification routes/DB/consumer bridge/mount not implemented; no six-class delivery or latency claim"
+}

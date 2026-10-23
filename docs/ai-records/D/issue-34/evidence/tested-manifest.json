@@ -1,0 +1,25 @@
+{
+  "main": "014555ba7843863ef7230956b89081b8ccd2f461",
+  "D_head": "90104eba098717e5505fcf4501a1fa13bcc06b49",
+  "B_candidate": null,
+  "files": {
+    "src/app.ts": "eda82046ae9f70789f9a7ca657800838833b99e1a9464f19e4dc3d9d3bb468f9",
+    "src/routes.ts": "d136824746620815839ff0019335d56d41bd8be1639d13fe5431d8765151a985",
+    "src/db/schema.prisma": "e09c67e39c3167e7659b79e45a57670217eb23f04002199c24600e2aa6504ffc",
+    "src/modules/task/routes.ts": "d7dfeda90379d7315d0d03be955ba2a94493aa394e0f9b5922066285bae141cb",
+    "web/src/pages/notification/NotificationBell.tsx": "9c5d6367de2bdfe0ae6b3eb15868375b94b62988548975a0ee792590c6fd1599",
+    "src/modules/notification/plugin.ts": "d1e844aa85e4b05229d966187d32eab1400f65da3330aaea8c7afeca3a3207fe",
+    "src/modules/notification/in-memory-repository.ts": "ca4a852f30506cfa354bc1c88e3b977ae55f8f99aab3d3f46d6c2b8ee78a0e59",
+    "src/modules/notification/service.test.ts": "e84d1ab0c77e4afcad18be694043c9680ee8e9e6ef33d6d3e682f8516bf837a6",
+    "src/modules/notification/errors.ts": "04217ee23645962d6837b3f8b338bf0248fb15fa8b694b83c64d5c829622964b",
+    "src/modules/notification/plugin.test.ts": "f355dbdb996ed6d5e6d202c513f89991965182805c1a6a30096e7c64e0d09eb0",
+    "src/modules/notification/review-regression.test.ts": "4bdb938442db2b328a295ceb4383956735c8a6223fb5ccb45b6ee4f62f203db3",
+    "src/modules/notification/contracts.ts": "77f3faef998bb916e5c13a2c99178d6b31a522421d70f4a7b35decd93c4edff9",
+    "src/modules/notification/service.ts": "c9736ad0611808728fe2d07c96a872ec2a5eb989b5c206d528249dbeab3c1eed",
+    "src/modules/notification/factory.ts": "1c3ae2db00c982908d1763af6d4104c37b2f0a7019be807aeb023493cc6fdb3d",
+    "src/modules/notification/index.ts": "acff897a22fa7efe23f5e2f3b6f47c73f50c4adb8fd0c1939f5000347717b9f0"
+  },
+  "node": "v24.19.0",
+  "browser": "@sparticuz/chromium 153.0.0 via npm; Playwright bundled runtime",
+  "database": "fresh temporary migrated SQLite; synthetic fixtures only; no database file in deliverable"
+}

@@ -1,0 +1,6 @@
+{
+  "actualProductionTopbar": "no notification mount",
+  "componentBackend": "real production HTTP 404",
+  "mockedRequests": 0,
+  "deliveryAcceptance": "NOT PASSED"
+}
