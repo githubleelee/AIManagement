@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { NotificationBell } from '../pages/notification'
 
 /** 应用外壳：顶栏（品牌 / 当前用户 / 退出）+ 内容区。 */
 export default function AppLayout() {
@@ -20,6 +21,9 @@ export default function AppLayout() {
           我的工作台
         </Link>
         <div className="app-topbar-right">
+          {/* US-14 站内通知（工单 #34）入口。组件本体归 D（`web/src/pages/notification`），
+              公共骨架挂载归 B；只嵌入组件，不新增 URL、不接管通知业务。 */}
+          <NotificationBell />
           {user ? (
             <span className="user-avatar" title={`${user.displayName}（${user.account}）`} aria-label={`当前用户：${user.displayName}`}>
               {user.displayName.slice(0, 1)}
