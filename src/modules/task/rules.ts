@@ -108,9 +108,10 @@ export type TaskWriteDb = Pick<Prisma.TransactionClient, 'task' | 'projectMember
 export type AssignedTaskWrite = TaskAssignmentInput & Partial<Pick<Task,
   'title' | 'description' | 'status' | 'progress' | 'blockedReason'>>
 
-/** FS 放行守卫的统一文案：不引用任何前置的 ID / 标题 / 正文 / 日期 / 条数或逐项状态，
- * 不区分“前置未关闭”与“计划过早”以免泄露逐项结论。顶层码与字段码均取自决策 I-4 冻结表，
- * 未新增任何错误码。
+/** FS 放行守卫的**静态通用消息**（`DECISIONS.md` `contract.fs-start-validation`）：前置未
+ * `CLOSED` 与计划边界未满足都复用这一条文案，仅用字段码 `status: INVALID_VALUE` /
+ * `planStart: INVALID_VALUE` 区分**条件类别**；只暴露类别，不返回任何前置的 ID / 标题 /
+ * 正文 / 日期 / 状态清单或数量。顶层码与字段码均取自决策 I-4 冻结表，未新增任何错误码。
  */
 const FS_START_NOT_ALLOWED = '当前条件不允许开始执行'
 
@@ -134,6 +135,10 @@ const FS_START_NOT_ALLOWED = '当前条件不允许开始执行'
  *      「晚于」等价于「不早于次日」（含首尾、Asia/Shanghai，日期不落时区）。
  *
  * 前置对调用者是否可见不影响服务端校验；失败只抛冻结码、不回传任何前置正文（契约 I-3）。
+ *
+ * 跨域调用只准经 `src/shared/task-execution.ts` 的 `TaskStartGuardPort`（由唯一组装点
+ * `src/app.ts` 注入），**不要直接 import 本函数**（契约 I-9「不跨模块调 service」）。
+ * 本导出仅供该组装点与同域（`task/`）调用。
  */
 export async function assertTaskCanEnterDoing(
   db: TaskWriteDb,

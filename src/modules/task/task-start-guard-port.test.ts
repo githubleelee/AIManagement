@@ -201,15 +201,18 @@ describe('TaskStartGuardPort：组装与误用', () => {
 })
 
 /**
- * 并发边界（记录当前 SQLite 环境下的**真实**结果，不宣称跨库保证）。
+ * 同一调用方事务内的**顺序约束**（非跨事务竞态）。
  *
- * 守卫是「同事务内检查后写入」：它只能看到自己读取那一刻的前置状态。以下用**确定性的读后注入**
- * 定点检验同一事务内、守卫读取之后的写入，证明窗口真实存在（不做“无锁所以一定出问题”的推断）。
- * 跨连接的真并发在当前 Prisma+SQLite（`journal_mode=delete`、`busy_timeout=5000`，同客户端连接
- * 串行）下无法稳定复现，因此不在此断言任何跨事务隔离结论，也不加数据库兼容支路 / 新隔离配置。
+ * 守卫是「同事务内检查后写入」：它只反映自己读取那一刻的前置状态。下面用确定性的读后注入，
+ * 验证同一事务内、守卫读取之后的写入仍会提交 —— 仅记录这一**顺序**边界存在。
+ *
+ * 不得据此宣称 SQLite 或跨事务并发不可靠：本用例不构成任何跨事务结论。跨事务结论需另有
+ * 本仓库可复现的用例。当前可复现的定性仅为：独立复验用两个 PrismaClient 直连同库时，第二个
+ * 连接**阻塞（约 550ms）后写入成功并持久**（即阻塞后串行持久）；**未观测到干净的冲突码**。
+ * 因此不加数据库兼容支路 / 新隔离配置，也不推断“无锁所以一定出错”。
  */
-describe('TaskStartGuardPort：读后写窗口（确定性注入，记录真实结果）', () => {
-  it('守卫读取后同事务再建一条 FS 边：窗口真实存在，写入仍提交', async () => {
+describe('TaskStartGuardPort：同一调用方事务内的顺序约束（非跨事务竞态）', () => {
+  it('守卫读取后同事务再建一条 FS 边：该顺序边界真实存在，写入仍提交', async () => {
     await seedBase()
     const late = await seedTask({ status: 'DONE', planEnd: PRED_END })
     const successor = await seedTask()
@@ -236,7 +239,7 @@ describe('TaskStartGuardPort：读后写窗口（确定性注入，记录真实�
     expect(await ctx.db.taskDependency.count({ where: { successorTaskId: successor.id } })).toBe(1)
   })
 
-  it('守卫读取后同事务重开前置：窗口真实存在，写入仍提交', async () => {
+  it('守卫读取后同事务重开前置：该顺序边界真实存在，写入仍提交', async () => {
     await seedBase()
     const predecessor = await seedTask({ status: 'CLOSED', planEnd: PRED_END })
     const successor = await seedTask()
