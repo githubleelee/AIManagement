@@ -1,0 +1,22 @@
+DOWNLOAD sensitive-existing  -> 404 {"error":{"code":"NOT_FOUND","message":"附件或任务不存在"}}
+DOWNLOAD nonexistent-id      -> 404 {"error":{"code":"NOT_FOUND","message":"附件不存在或不可见"}}
+DOWNLOAD identical body?     -> false
+DELETE  sensitive-existing   -> 404 {"error":{"code":"NOT_FOUND","message":"附件或任务不存在"}}
+DELETE  nonexistent-id       -> 404 {"error":{"code":"NOT_FOUND","message":"附件不存在或不可见"}}
+DELETE  identical body?      -> false
+LIST    sensitive-task       -> 404 {"error":{"code":"NOT_FOUND","message":"附件或任务不存在"}}
+LIST    nonexistent-task     -> 404 {"error":{"code":"NOT_FOUND","message":"附件或任务不存在"}}
+LIST    identical body?      -> true
+UPLOAD  sensitive-task       -> 404 {"error":{"code":"NOT_FOUND","message":"附件或任务不存在"}}
+UPLOAD  nonexistent-task     -> 404 {"error":{"code":"NOT_FOUND","message":"附件或任务不存在"}}
+UPLOAD  identical body?      -> true
+DB ACTIVE rows for task = 250
+HTTP list total=200 items.length=200
+total == true count? false ; total == items.length? true
+first storageKey leak? false
+before: state=ACTIVE taskId=686eaf2c-457f-415a-9fa2-64a0e31136fe fileExists=true
+DELETE /tasks/:taskId -> 204
+after task delete: rowExists=true state=ACTIVE taskId=null fileExists=true
+cleanup candidates seen by runAttachmentCleanup = []
+runAttachmentCleanup result = {"taskId":"","removed":0,"failed":[]}
+post-cleanup: rowExists=true state=ACTIVE fileExists=true
