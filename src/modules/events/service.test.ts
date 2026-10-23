@@ -160,4 +160,50 @@ describe('DomainEventService', () => {
       }),
     ).rejects.toMatchObject({ status: 422 })
   })
+
+  it.each([
+    '2026-10-18',
+    '2026-10-18T10:00:00Z',
+    '2026-10-18T18:00:00.000+08:00',
+    '2026-02-30T10:00:00.000Z',
+  ])('rejects occurredAt that is not an exact UTC millisecond timestamp: %s', async occurredAt => {
+    const { service } = createService()
+    await service.start()
+
+    await expect(service.publish({ ...baseEvent, occurredAt })).rejects.toMatchObject({
+      status: 422,
+      kind: 'VALIDATION_FAILED',
+    })
+  })
+
+  it('normalizes offset query bounds before repository filtering', async () => {
+    const { service } = createService()
+    await service.start()
+    await service.publish(baseEvent)
+
+    const queried = await service.query('member-1', {
+      projectId: 'project-1',
+      storedFrom: '2026-10-18T18:01:00+08:00',
+      storedTo: '2026-10-18T18:01:00.000+08:00',
+    })
+
+    expect(queried).toHaveLength(1)
+    expect(queried[0]?.storedAt).toBe('2026-10-18T10:01:00.000Z')
+  })
+
+  it('rejects invalid or reversed query time ranges with 422', async () => {
+    const { service } = createService()
+    await service.start()
+
+    await expect(
+      service.query('member-1', { projectId: 'project-1', storedFrom: '2026-10-18' }),
+    ).rejects.toMatchObject({ status: 422, kind: 'VALIDATION_FAILED' })
+    await expect(
+      service.query('member-1', {
+        projectId: 'project-1',
+        storedFrom: '2026-10-18T10:02:00.000Z',
+        storedTo: '2026-10-18T10:01:00.000Z',
+      }),
+    ).rejects.toMatchObject({ status: 422, kind: 'VALIDATION_FAILED' })
+  })
 })
