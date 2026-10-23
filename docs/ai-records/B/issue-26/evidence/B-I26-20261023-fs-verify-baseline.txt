@@ -1,0 +1,8 @@
+cwd=/home/lee/aim-wt/fs-verify-20261023
+HEAD=5635b37013358955416233d18d165497ec2d39eb
+main=014555ba7843863ef7230956b89081b8ccd2f461
+node=v24.9.0 npm=11.6.0
+5635b37 test(task): 钉住 FS 守卫错误响应信封（冻结码，无前置泄露）
+dbc825b refactor(task): PATCH 写入口在同一事务内做 FS 前置读取/校验/写入
+40fd47d feat(task): 真实写入口落地 FS 开工守卫（#13 / C2）
+014555b feat(US12): generate and persist protected scheduling suggestions

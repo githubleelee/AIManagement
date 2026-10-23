@@ -1,0 +1,19 @@
+
+ RUN  v2.1.9 /home/lee/aim-wt/fs-verify-20261023
+
+ ↓ src/modules/ai-scheduling/integration.pending.test.ts (12 tests | 12 skipped)
+ ✓ src/modules/ai-scheduling/generation.test.ts (20 tests) 32ms
+ ✓ src/modules/ai-scheduling/policy.http.test.ts (55 tests) 60ms
+(node:23542) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23550) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ src/modules/ai-scheduling/generation.db.test.ts (5 tests) 1742ms
+ ✓ src/modules/ai-scheduling/core.http.test.ts (62 tests) 12706ms
+
+ Test Files  4 passed | 1 skipped (5)
+      Tests  142 passed | 12 todo (154)
+   Start at  22:38:50
+   Duration  13.34s (transform 377ms, setup 0ms, collect 1.08s, tests 14.54s, environment 1ms, prepare 265ms)
+
+EXIT=0

@@ -265,3 +265,22 @@
 - **supersedes:** events.business-domain-production@2026-10-21T22:10:00+08:00（仅通知目录九个名字的三段命名要求；其余值继续有效）
 - **timestamp:** 2026-10-23T13:24:04+08:00
 - **rationale:** D 的通知订阅及已合入的 risk.created 均使用两段名字，保留明确目录比改写全部消费方更小，且不将不同业务触发混为同义事件。
+
+## `scheduling.fs-enter-doing-all-paths`
+
+- **value:** FS 的「开工」统一定义为**任务原状态非 DOING、写入结果为 DOING**，覆盖 TODO 首次执行、BLOCKED/SUSPENDED 恢复、DONE/CLOSED 重开及验收 REJECT→DOING；所有既有入口均须同事务校验全部前置 CLOSED（DONE 不算）与后继 planStart 不早于前置 planEnd 次日。重复写已经 DOING 的任务不是新进入；纯改期和不改状态的 applyTaskPlanDates 不属于开工，本规则不代替 #32 本域的完整计划验证。拒收会进入 DOING 时也必须校验，未满足条件则验收操作整体回滚，不写验收结果、成功审计或事件；PASS→CLOSED 不触发本门。仅增加这一已确认条件，不改变 Action、成员/敏感授权或其他合法状态边。保持原分工：B 在 task 共享写核心落实同一守卫，并声明 shared 的 TaskStartGuardPort、由 app 组装；A 在验收原事务内消费注入端口，禁止跨模块直接调 task service 或复制第二套规则。核心与验收两条真实 HTTP 写入口及其他进入 DOING 路径完成覆盖前不合入 FS、不标本地 #13 或相关最终 AC 完成。原 C task 写窗以 PR #99 合入结束，当前 B 只写已登记守卫范围；附件等 C/D 旧模块不被本次裁定接管。
+- **supersedes:** legacy.task-start-guard-authorization@2026-10-19T16:50:00+08:00（仅明确开工触发范围，并允许该条件作用于恢复/重开/验收返回；其他写窗、权限与不得镜像/不得强加AI规则的限制继续有效）
+- **timestamp:** 2026-10-23T23:01:48+08:00
+- **rationale:** 独立评审发现 PATCH 将重开视为开工而验收 REJECT 走另一入口，负责人明确选择“所有进入 DOING 都校验”，消除两个入口口径不一致而不接管原业务域。
+
+## `contract.fs-start-validation`
+
+- **value:** FS 开工条件不满足沿用 HTTP 422 / VALIDATION_FAILED：前置未 CLOSED 标 status: INVALID_VALUE，计划边界未满足标 planStart: INVALID_VALUE；由业务处理器/守卫主动抛 AppError，不把查库规则塞进 Zod。此为 I-2b 单字段枚举分类及端点 28 的**窄范围补充**，只复用 I-4 已有字面码，不新增顶层/字段码、不改统一信封与 401/403/404 优先顺序，也不改变其它 HTTP 传输错误的冻结规则。对有权操作的后继核验完整真实 FS 约束（含隐藏前置），失败只返回静态通用错误，不返回前置 ID、标题、正文、日期、状态清单或数量。保留 fail-closed，承认动作可行性本身可能形成粗粒度行为信号，不能把“响应不含对象字段”夸大为绝对零侧信道或扩大前置读取权限。未知数据库并发保证不靠无锁猜测宣称安全，须留实测和限制。
+- **timestamp:** 2026-10-23T23:01:48+08:00
+- **rationale:** 既有 I-4 没有 FS 专属字段码而禁止另造码，明确复用 INVALID_VALUE 的业务校验语义并登记端点契约，避免把合法代码字面量误当已冻结的全部业务语义。
+
+## `notifications.source-event-provenance`
+
+- **value:** 通知“原敏感引用”采用 B 的持久化 join 方案，不再要求 D 的 NotificationRecord 复制 references：生产 Notification.sourceEventId 必须外键关联已提交 DomainEvent.id，onDelete Restrict，消费账本的事件引用同样保留；通知/账本存续期间原事件不是可任意删除的缓存，未来留存清理另案。追加时核对原事件 projectId/eventName/object 与通知一致，拒绝缺失或伪造来源。列表、详情、计数、已读的查询条件同时校验原敏感 payload.references 中所有 task/story 引用和当前业务关联，不能只凭当前 Risk.taskId/TaskMilestone 已解绑就放行；原事件缺失、受限引用无效或来源归属不一致均 fail-closed 并留诊断，不降级为空引用。保持 D 消费端口签名，B 实施真实 DB 外键/过滤与解绑、删除、来源缺失回归；模块 PR #93 合入不表示该存储/桥接已经完成。
+- **timestamp:** 2026-10-23T23:01:48+08:00
+- **rationale:** PR #93 修正版已闭合消费模块问题，但风险/节点解绑后仍须保留原受限来源；复用既存不可悬空事件行可满足保护并避免重复存储第二份敏感引用。
