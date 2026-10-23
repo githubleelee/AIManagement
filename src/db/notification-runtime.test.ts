@@ -466,7 +466,7 @@ describe('首次启用基线、消费账本与提交后桥接', () => {
     expect(runtime.eventSource.health().state).toBe('UNAVAILABLE')
   })
 
-  it('sourceCapabilities：仅 B 自产的 task.overdue / milestone.due 在调度运行时 AVAILABLE', async () => {
+  it('sourceCapabilities：risk.created 与调度运行时的自产两类 AVAILABLE，其余诚实 UNAVAILABLE', async () => {
     const runtime = createNotificationRuntime({
       prisma,
       subscriber: fakeSubscriber,
@@ -475,9 +475,18 @@ describe('首次启用基线、消费账本与提交后桥接', () => {
     })
     const before = runtime.module.sourceState()
     const capability = (name: string) => before.sourceCapabilities.find((item) => item.eventName === name)
+    // 真实生产方已在（A 风险域，PR #95）：不因调度未启动而降级。
+    expect(capability('risk.created')).toMatchObject({ state: 'AVAILABLE', note: null })
+    // 调度未启动：B 自产的两类降级为 UNAVAILABLE。
     expect(capability('task.overdue')?.state).toBe('UNAVAILABLE')
-    expect(capability('task.mentioned')?.state).toBe('UNAVAILABLE')
-    expect(capability('risk.created')?.state).toBe('UNAVAILABLE')
+    expect(capability('milestone.due')?.state).toBe('UNAVAILABLE')
+    // 未接生产方保持 UNAVAILABLE，不用空数组/默认可用伪造。
+    for (const name of [
+      'task.assigned', 'task.mentioned', 'acceptance.submitted',
+      'acceptance.approved', 'acceptance.rejected', 'risk.level-raised',
+    ]) {
+      expect(capability(name)?.state).toBe('UNAVAILABLE')
+    }
     expect(before.sourceCapabilities).toHaveLength(9)
   })
 })
