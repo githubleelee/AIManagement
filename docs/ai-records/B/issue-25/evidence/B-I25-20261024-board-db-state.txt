@@ -1,0 +1,51 @@
+{
+ "stories": [
+  {
+   "title": "草稿故事",
+   "status": "DRAFT",
+   "isSensitive": 0
+  },
+  {
+   "title": "进行中故事",
+   "status": "PLANNING",
+   "isSensitive": 0
+  },
+  {
+   "title": "已完成故事",
+   "status": "DRAFT",
+   "isSensitive": 1
+  }
+ ],
+ "audit": [
+  {
+   "action": "story.status",
+   "objectType": "story",
+   "objectId": "192e2bda-6a67-4e32-bb96-f6b5cefe19d6",
+   "before": "{\"status\":\"DRAFT\"}",
+   "after": "{\"status\":\"PLANNING\"}"
+  },
+  {
+   "action": "sensitivity.update",
+   "objectType": "story",
+   "objectId": "5fd4d114-ba7e-486c-b74c-02855d77f348",
+   "before": "{\"objectType\":\"story\",\"objectId\":\"5fd4d114-ba7e-486c-b74c-02855d77f348\",\"isSensitive\":false,\"visibleMemberIds\":[]}",
+   "after": "{\"objectType\":\"story\",\"objectId\":\"5fd4d114-ba7e-486c-b74c-02855d77f348\",\"isSensitive\":true,\"visibleMemberIds\":[\"4b7e890a-4175-44e0-82ef-3047ea75e59a\"]}"
+  }
+ ],
+ "events": [
+  {
+   "eventName": "requirement.story.status-changed",
+   "objectType": "story",
+   "objectId": "192e2bda-6a67-4e32-bb96-f6b5cefe19d6",
+   "sensitive": 0,
+   "idempotencyKey": "requirement.story.status-changed:192e2bda-6a67-4e32-bb96-f6b5cefe19d6:2026-10-23T16:26:58.545Z"
+  }
+ ],
+ "visibility": [
+  {
+   "objectType": "story",
+   "objectId": "5fd4d114-ba7e-486c-b74c-02855d77f348",
+   "userId": "4b7e890a-4175-44e0-82ef-3047ea75e59a"
+  }
+ ]
+}

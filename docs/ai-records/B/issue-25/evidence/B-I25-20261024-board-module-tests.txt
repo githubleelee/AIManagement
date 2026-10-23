@@ -1,0 +1,263 @@
+
+ RUN  v2.1.9 /home/lee/aim-wt/b-board-accept
+
+(node:104433) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:104425) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:104451) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:104483) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:104519) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:104436) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:104427) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:104581) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:104445) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:104482) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:104489) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:104481) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:104426) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:104457) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:104528) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:104557) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ src/modules/requirement/story-status-event.test.ts (9 tests) 4222ms
+ ✓ src/modules/board/board.test.ts (10 tests) 5472ms
+   ✓ GET /projects/:projectId/board —— PM 三列与计数 > PM 得到固定三列与精确计数，basis=全项目 460ms
+   ✓ GET /projects/:projectId/board —— PM 三列与计数 > 列内排序 createdAt asc, id asc 360ms
+   ✓ GET /projects/:projectId/board —— PM 三列与计数 > 空项目三列都在，count=0 且 items 为空 325ms
+   ✓ GET /projects/:projectId/board —— MEMBER / VIEWER 可见范围 > 被指名的敏感故事对该成员可见并计数 302ms
+   ✓ GET /projects/:projectId/board —— MEMBER / VIEWER 可见范围 > VIEWER 与 MEMBER 同口径（未授权敏感不可见，被指名可见） 333ms
+   ✓ GET /projects/:projectId/board —— 上限截断 > 单列超过 200 行：items 截断至 200，truncated=true，count 仍精确 333ms
+   ✓ GET /projects/:projectId/board —— 隔离与 404 > outsider / 外项目成员 / 不存在的项目 → 404，且与「项目不存在」逐字一致 368ms
+   ✓ GET /projects/:projectId/board —— 隔离与 404 > 不混入他项目故事 408ms
+ ✓ src/modules/requirement/requirement.story-status-audit.test.ts (11 tests) 5864ms
+   ✓ 状态变更 → 写审计 > DRAFT → PLANNING：写一条 story.status 审计，who/when/what 与 before/after 均正确 464ms
+   ✓ 状态变更 → 写审计 > 连续两次变更 → 两条审计，前后值首尾相接（DRAFT→PLANNING→DONE） 416ms
+   ✓ 状态变更 → 写审计 > 状态变更 + 同时改其它字段 → 审计只记状态（不为全字段审计扩权） 361ms
+   ✓ 不该写审计的情形（三个反例） > 只改 title（非状态字段）→ 200，但不写审计 336ms
+   ✓ 不该写审计的情形（三个反例） > status 传相同值（DRAFT → DRAFT）→ 更新照旧 200，但不写审计 378ms
+   ✓ 不该写审计的情形（三个反例） > 空补丁 {} → 200 + 故事逐字段不变，且不写审计（只读分支） 302ms
+   ✓ 越权 / 跨项目：403 与 404 的零副作用（服务端才是权威，不靠前端隐藏控件） > 非项目成员改状态 → 404 NOT_FOUND，且故事与审计都不变 334ms
+   ✓ 越权 / 跨项目：403 与 404 的零副作用（服务端才是权威，不靠前端隐藏控件） > status 非法取值（ACTIVE，属 GoalStatus）→ 422，且不写审计 336ms
+ ✓ src/modules/requirement/requirement.sensitivity.test.ts (8 tests) 5994ms
+   ✓ 端点 10：敏感故事在层级列表中的可见性 > PM 与白名单成员可见敏感故事；未授权成员与 VIEWER 不可见，父级目标/活动仍在 608ms
+   ✓ 端点 10：敏感故事在层级列表中的可见性 > 未授权成员看到的 stories 数量不含敏感故事（计数不泄漏存在性） 412ms
+   ✓ 端点 10：敏感故事在层级列表中的可见性 > 非项目成员读取层级树 → 404，且响应体不含任何故事标题 314ms
+   ✓ 端点 23 × 端点 10：敏感范围变更即时生效且为全量覆盖 > 同一令牌无需重新登录：授权→取消→改授权对象，层级树随每次请求立即变化 667ms
+   ✓ 端点 23 × 端点 10：敏感范围变更即时生效且为全量覆盖 > 关闭敏感后全项目成员恢复可见，且保留原可见名单以便重新开启 495ms
+   ✓ 层级列表与详情两条读取路径对同一条敏感故事保持一致 > 未授权成员：列表隐藏、详情 404，且 404 响应与「不存在」完全一致 467ms
+   ✓ 层级列表与详情两条读取路径对同一条敏感故事保持一致 > 白名单只授予读权限：MEMBER 对白名单内敏感故事读 200、写与删仍 403 530ms
+   ✓ 层级列表与详情两条读取路径对同一条敏感故事保持一致 > VIEWER 被加入白名单后可见敏感故事，但写仍 403 454ms
+ ✓ src/modules/requirement/requirement.test.ts (22 tests) 8260ms
+   ✓ 端点 11 正例：创建业务目标 > PM 创建：201，返回完整 BusinessGoal，status 默认 ACTIVE 335ms
+   ✓ 端点 11 正例：创建业务目标 > 首条目标 sortOrder = 0（空集合最大值视作 -1，与端点 14 从 0 开始的下标同源） 305ms
+   ✓ 端点 11 正例：创建业务目标 > sortOrder = 当前项目内最大值 + 1（序号连续递增） 344ms
+   ✓ 端点 11 正例：创建业务目标 > sortOrder 只在**本项目内**递增，不受其它项目已有目标影响 344ms
+   ✓ 端点 11 正例：创建业务目标 > name 两端空白被 trim 后存储（避免"看起来相同"的重名） 339ms
+   ✓ 端点 11 正例：创建业务目标 > projectId 由 URL 父级推导：请求体里伪造 projectId 不被采信（决策 I-10） 327ms
+   ✓ 端点 11 反例：权限（403 / 404） > 非项目成员创建 → 404 NOT_FOUND，且响应体不含目标与项目的任何字段 310ms
+ ✓ src/modules/requirement/requirement.goal-tree.test.ts (27 tests) 10171ms
+   ✓ 端点 10 正例：层级树结构 > 没有任何目标的项目 → 200，items 为空数组 314ms
+   ✓ 端点 10 正例：层级树结构 > 单故事 → StoryNode 的键集合精确等于 UserStory 的 13 字段（不得多给任务相关字段） 321ms
+   ✓ 端点 10 正例：层级树结构 > 只返回本项目：另一个项目的目标与活动不出现在树里 345ms
+   ✓ 端点 10 正例：层级树结构 > 3 目标 × 3 活动 × 3 故事 → 计数与归属完整 596ms
+   ✓ 端点 10：排序口径 > goals 按 sortOrder 升序（与插入顺序无关） 306ms
+   ✓ 端点 10：排序口径 > sortOrder 有空洞或负数也按升序排列 302ms
+   ✓ 端点 10：排序口径 > stories 按 createdAt 升序（显式设为不同整秒，避开秒级精度的干扰） 325ms
+   ✓ 端点 10：排序口径 > ⚠️ createdAt 完全相同（SQLite CURRENT_TIMESTAMP 只有秒级精度）→ 顺序仍确定且可复现 365ms
+   ✓ 端点 10 可见性：与 T2.5 无关、永远成立的部分 > PM 读取的树里，被标为敏感的故事照常出现（PM 不受敏感白名单限制） 306ms
+ ✓ src/modules/requirement/requirement.activity.test.ts (35 tests) 12114ms
+   ✓ 端点 15 正例：创建用户活动 > PM 创建：201，返回完整 UserActivity，status 默认 ACTIVE，首条 sortOrder = 0 306ms
+   ✓ 端点 15 正例：创建用户活动 > 响应键集合精确等于 UserActivity 的 7 个字段（多给 createdAt 也是契约违规） 307ms
+   ✓ 端点 15 正例：创建用户活动 > 字段类型逐个断言：id/projectId/goalId/name 为 string，description 为 string|null，sortOrder 为整数 327ms
+   ✓ 端点 15 正例：创建用户活动 > description 缺省时必须为 null 而非 undefined（JSON 序列化后键必须存在） 307ms
+   ✓ 端点 15 正例：创建用户活动 > 新目标下首条活动的 sortOrder = 0（空集合最大值视作 -1，与端点 18 从 0 开始的下标同源） 301ms
+   ✓ 端点 15 正例：创建用户活动 > 连续创建 3 条 → sortOrder 为 [0,1,2]（序号连续递增） 419ms
+   ✓ 端点 15 正例：创建用户活动 > sortOrder 只在**该目标内**递增：同项目其它目标、其它项目的活动都不影响 430ms
+   ✓ 端点 15 正例：创建用户活动 > name 被换行符包裹 → 201，且换行被 trim 掉（不会写入孤立换行） 310ms
+   ✓ 端点 15 正例：创建用户活动 > projectId 只由 goalId 所属目标推导：请求体注入 projectId/goalId/status/sortOrder 全部被丢弃 387ms
+   ✓ 端点 15 正例：创建用户活动 > 并发创建 5 条 → sortOrder 必须是 0..4 且互不重复（读-改-写竞态的回归护栏） 378ms
+   ✓ 端点 15 正例：创建用户活动 > 并发落库的序号与响应一致，且数据库中无重复（竞态的最强证据） 325ms
+   ✓ 端点 15 反例：权限（401 / 403 / 404） > goalId 属于另一个项目的目标 → 404，且不得在另一个项目里落库（CROSS_PROJECT_REF 结构性消除） 311ms
+   ✓ 端点 15 反例：判定顺序与副作用隔离 > 401 / 403 / 404 / 422 四类失败之后活动行数一律不变，且失败不占用序号 413ms
+ ✓ src/modules/requirement/requirement.goal-update.test.ts (38 tests) 12506ms
+   ✓ 端点 12 正例：部分更新业务目标 > 只改 name → 200，name 更新，其余 5 个字段逐字段不变（含描述与 sortOrder） 419ms
+   ✓ 端点 12 正例：部分更新业务目标 > 只改 status → 200，status = DONE，name 与 description 不变 306ms
+   ✓ 端点 12 正例：部分更新业务目标 > status 可从 DONE 改回 ACTIVE（状态可逆） 337ms
+   ✓ 端点 12 正例：部分更新业务目标 > 三个字段一起改 → 200，三者全部生效 324ms
+   ✓ 端点 12 正例：部分更新业务目标 > 响应键集合精确等于 BusinessGoal 的 6 个字段（多给或漏给都是契约违规） 343ms
+   ✓ 端点 12 反例：权限（401 / 403 / 404） > goalId 属于另一个项目 → 404，且那个目标在数据库里逐字段未被修改（防跨项目改写） 304ms
+   ✓ 端点 12 反例：判定顺序与副作用隔离 > 403 / 404 之后目标逐字段完全未被修改 320ms
+ ✓ src/modules/requirement/requirement.goal-order.test.ts (35 tests) 13018ms
+   ✓ 端点 14 正例：全量替换业务目标顺序 > 把 [A,B,C,D] 换成 [D,C,B,A] → 200，响应的 items 按新顺序、sortOrder 为 0..3 471ms
+   ✓ 端点 14 正例：全量替换业务目标顺序 > 落库的序号与响应一致，且恰好是连续的 0..3（不重复、无空洞） 343ms
+   ✓ 端点 14 正例：全量替换业务目标顺序 > 只交换前两个的顺序 → 200，后面两个的序号不变 345ms
+   ✓ 端点 14 正例：全量替换业务目标顺序 > 幂等：同样的请求连发两次 → 两次都 200，结果完全相同 333ms
+   ✓ 端点 14 正例：全量替换业务目标顺序 > 原顺序原样提交 → 200 且序号不变（恒等替换是合法的） 313ms
+   ✓ 端点 14 正例：全量替换业务目标顺序 > 只有一个目标的项目：[A] → [A] → 200，sortOrder 为 0 371ms
+   ✓ 端点 14 正例：全量替换业务目标顺序 > 没有任何目标的项目 + orderedIds: [] → 200，items 为空数组 338ms
+   ✓ 端点 14 正例：全量替换业务目标顺序 > 10 个目标逆序 → 200，序号为 0..9 444ms
+   ✓ 端点 14 正例：全量替换业务目标顺序 > 与端点 11 协同：新建目标拿到末位序号后，可被全量替换排到最前 358ms
+   ✓ 端点 14 正例：全量替换业务目标顺序 > 每个 item 的键集合精确等于 BusinessGoal 的 6 个字段（多给 createdAt 也是契约违规） 312ms
+   ✓ 端点 14 正例：全量替换业务目标顺序 > 只重排目标，不影响目标下的活动（活动顺序与归属逐行不变） 376ms
+   ✓ 端点 14 正例：全量替换业务目标顺序 > 不越界到其它项目：另一个项目的目标序号逐行不变 358ms
+   ✓ 端点 14 反例：权限（401 / 403 / 404） > 非项目成员重排 → 404 NOT_FOUND，且响应体不含目标的任何字段 310ms
+   ✓ 端点 14 反例：orderedIds 集合与本项目目标集合不一致 → 422 > 多给一个 id（混入另一个项目的目标）→ 422 337ms
+   ✓ 端点 14 反例：orderedIds 集合与本项目目标集合不一致 → 422 > 集合不一致时**不得发生任何写入**：所有目标序号逐行不变 322ms
+   ✓ 端点 14 反例：判定顺序 > 非项目成员 + 集合非法 → 404（不泄漏现有集合，也不承认项目存在） 305ms
+   ✓ 端点 14 反例：判定顺序 > 403 / 404 之后所有目标序号逐行不变 393ms
+ ✓ src/modules/requirement/requirement.activity-update.test.ts (39 tests) 13297ms
+   ✓ 端点 16 正例：部分更新用户活动 > 只改 name → 200，name 更新，其余 6 个字段逐字段不变（含 goalId 与 sortOrder） 417ms
+   ✓ 端点 16 正例：部分更新用户活动 > 只改 status → 200，status = DONE，name 与 description 不变 310ms
+   ✓ 端点 16 正例：部分更新用户活动 > status 可从 DONE 改回 ACTIVE（状态可逆） 356ms
+   ✓ 端点 16 正例：部分更新用户活动 > description 改为空串 → 200，且为 ""（空串与"缺省"必须可区分） 323ms
+   ✓ 端点 16 正例：部分更新用户活动 > 三个字段一起改 → 200，三者全部生效 304ms
+   ✓ 端点 16 正例：部分更新用户活动 > 部分更新可累积：先改 name 再改 status，两次改动都留在库里 322ms
+   ✓ 端点 16 正例：部分更新用户活动 > 请求体注入 projectId/goalId/sortOrder/id → 全部被丢弃，库里归属与序号不变 301ms
+   ✓ 端点 16 反例：权限（401 / 403 / 404） > activityId 属于另一个项目 → 404，且那个活动在数据库里逐字段未被修改（防跨项目改写） 319ms
+   ✓ 端点 16 反例：判定顺序与副作用隔离 > 非项目成员 + 非法 body → 404（不泄漏字段规则，也不承认活动存在） 309ms
+   ✓ 端点 16 反例：判定顺序与副作用隔离 > 422 之后活动逐字段完全未被修改（失败的请求必须什么都没发生） 405ms
+ ✓ src/modules/requirement/requirement.activity-order.test.ts (38 tests) 14158ms
+   ✓ 端点 18 正例：全量替换用户活动顺序 > 把 [A,B,C,D] 换成 [D,C,B,A] → 200，响应的 items 按新顺序、sortOrder 为 0..3 440ms
+   ✓ 端点 18 正例：全量替换用户活动顺序 > 落库的序号与响应一致，且恰好是连续的 0..3（不重复、无空洞） 375ms
+   ✓ 端点 18 正例：全量替换用户活动顺序 > 只交换前两个的顺序 → 200，后面两个的序号不变（全量替换不等于整体重排） 361ms
+   ✓ 端点 18 正例：全量替换用户活动顺序 > 幂等：同样的请求连发两次 → 两次都 200，结果完全相同 336ms
+   ✓ 端点 18 正例：全量替换用户活动顺序 > 原顺序原样提交 → 200 且序号不变（恒等替换是合法的） 343ms
+   ✓ 端点 18 正例：全量替换用户活动顺序 > 单条活动的目标：[A] → [A] → 200，sortOrder 为 0 359ms
+   ✓ 端点 18 正例：全量替换用户活动顺序 > 空目标 + orderedIds: [] → 200，items 为空数组（空集合与空集合是一致的） 316ms
+   ✓ 端点 18 正例：全量替换用户活动顺序 > 10 条活动逆序 → 200，序号为 0..9（全量替换的可扩展性） 427ms
+   ✓ 端点 18 正例：全量替换用户活动顺序 > 与端点 15 协同：新活动拿到末位序号后，可被全量替换排到最前 466ms
+   ✓ 端点 18 正例：全量替换用户活动顺序 > 响应是契约 I-3 的 ListResponse 包装：键集合只有 items 345ms
+   ✓ 端点 18 正例：全量替换用户活动顺序 > 每个 item 的键集合精确等于 UserActivity 的 7 个字段（多给 createdAt 也是契约违规） 322ms
+   ✓ 端点 18 正例：全量替换用户活动顺序 > 只重排该目标：同项目另一个目标的活动序号逐行不变 327ms
+   ✓ 端点 18 正例：全量替换用户活动顺序 > 不越界到其它项目：另一个项目的活动序号逐行不变 369ms
+   ✓ 端点 18 反例：权限（401 / 403 / 404） > MEMBER 重排 → 403 FORBIDDEN（对象可见，但写类动作不允许） 323ms
+   ✓ 端点 18 反例：权限（401 / 403 / 404） > VIEWER 重排 → 403 FORBIDDEN（本轮 VIEWER 与 MEMBER 同待遇） 310ms
+   ✓ 端点 18 反例：权限（401 / 403 / 404） > goalId 属于另一个项目 → 404，且那个目标的活动序号逐行不变（防跨项目重排） 355ms
+   ✓ 端点 18 反例：权限（401 / 403 / 404） > 「目标不存在」与「存在但非成员」的响应结构完全相同（不可区分，防存在性探测） 323ms
+   ✓ 端点 18 反例：orderedIds 集合与该目标下活动集合不一致 → 422 > 混入另一个项目的活动 id → 422 343ms
+   ✓ 端点 18 反例：orderedIds 集合与该目标下活动集合不一致 → 422 > 目标下有活动但提交空数组 → 422 318ms
+   ✓ 端点 18 反例：orderedIds 集合与该目标下活动集合不一致 → 422 > 集合不一致时**不得发生任何写入**：所有活动序号逐行不变 336ms
+   ✓ 端点 18 反例：orderedIds 集合与该目标下活动集合不一致 → 422 > orderedIds 缺失 → 422，details 定位到 orderedIds 324ms
+ ✓ src/modules/requirement/requirement.delete.test.ts (41 tests) 15029ms
+   ✓ 端点 13 正例：删除业务目标 > PM 删除无下级的目标 → 204，响应体为空，库中已不存在 468ms
+   ✓ 端点 13 正例：删除业务目标 > 删除只作用于该目标：同项目其它目标逐行不变 382ms
+   ✓ 端点 13 反例：HAS_CHILDREN 与权限 > 目标下仍有用户活动 → 409 CONFLICT，details 含 HAS_CHILDREN 336ms
+   ✓ 端点 13 反例：HAS_CHILDREN 与权限 > HAS_CHILDREN 可解除：移除子活动后同一次删除成功（409 不是永久锁死） 471ms
+   ✓ 端点 13 反例：HAS_CHILDREN 与权限 > MEMBER 删除 → 403 FORBIDDEN 331ms
+   ✓ 端点 13 反例：HAS_CHILDREN 与权限 > VIEWER 删除 → 403 FORBIDDEN（本轮 VIEWER 与 MEMBER 同待遇） 316ms
+   ✓ 端点 13 反例：HAS_CHILDREN 与权限 > 非项目成员删除 → 404 NOT_FOUND，且目标仍在 324ms
+   ✓ 端点 13 反例：HAS_CHILDREN 与权限 > 未登录 → 401 UNAUTHENTICATED，且目标仍在 323ms
+   ✓ 端点 13 反例：HAS_CHILDREN 与权限 > goalId 不存在 → 404 NOT_FOUND（不是 409，也不产生 500） 307ms
+   ✓ 端点 13 反例：HAS_CHILDREN 与权限 > goalId 属于另一个项目 → 404，且那个目标仍在（防跨项目删除） 362ms
+   ✓ 端点 13 反例：HAS_CHILDREN 与权限 > 「目标不存在」与「存在但非成员」的响应结构完全相同（不可区分，防存在性探测） 330ms
+   ✓ 端点 17 正例：删除用户活动 > PM 删除无下级故事的活动 → 204，库中已不存在 314ms
+   ✓ 端点 17 正例：删除用户活动 > 删除活动不影响其父目标：目标的 6 个字段逐字段不变 329ms
+   ✓ 端点 17 反例：HAS_CHILDREN 与权限 > 活动下仍有用户故事 → 409 CONFLICT，details 含 HAS_CHILDREN 308ms
+   ✓ 端点 17 反例：HAS_CHILDREN 与权限 > HAS_CHILDREN 可解除：移除故事后同一次删除成功 317ms
+   ✓ 端点 17 反例：HAS_CHILDREN 与权限 > 非项目成员删除 → 404，且活动仍在 306ms
+   ✓ 端点 17 反例：HAS_CHILDREN 与权限 > 未登录 → 401，且活动仍在 323ms
+   ✓ 端点 17 反例：HAS_CHILDREN 与权限 > activityId 属于另一个项目 → 404，且那个活动仍在 337ms
+   ✓ 端点 17 反例：HAS_CHILDREN 与权限 > 403 / 404 / 409 之后活动逐字段完全未被修改 364ms
+   ✓ 端点 22 正例：删除用户故事 > PM 删除无任务的故事 → 204，库中已不存在 301ms
+   ✓ 端点 22 正例：删除用户故事 > 删除故事不影响其父活动与目标 306ms
+   ✓ 端点 22 正例：删除用户故事 > PM 可以删除敏感故事（PM 对自己项目内的敏感对象可见，不受敏感白名单限制） 333ms
+   ✓ 端点 22 副作用：同一事务内清理 ObjectVisibility > 删除故事后，该故事的可见性记录必须被清理为 0（决策 I-7 的多态列无外键） 319ms
+   ✓ 端点 22 副作用：同一事务内清理 ObjectVisibility > 清理只针对该故事的 story 记录：别的故事与 task 类型的记录逐行不变 386ms
+   ✓ 端点 22 副作用：同一事务内清理 ObjectVisibility > 故事仍有任务 → 409 时**可见性记录一条都不能少**（同事务回滚的直接证据） 318ms
+   ✓ 端点 22 副作用：同一事务内清理 ObjectVisibility > HAS_CHILDREN 可解除：移除任务后再删 → 204，且可见性一并被清理 348ms
+ ✓ src/modules/requirement/requirement.story-read-update.test.ts (55 tests) 17350ms
+   ✓ 端点 20 正例：读取用户故事详情 > PM 读取 → 200，返回完整 UserStory（13 字段，含 isSensitive 与 createdAt） 455ms
+   ✓ 端点 20 正例：读取用户故事详情 > MEMBER 读取非敏感故事 → 200（读动作允许；端点 20 的正确结果里没有 403） 343ms
+   ✓ 端点 20 正例：读取用户故事详情 > VIEWER 读取 → 200（本轮 VIEWER 为全项目只读） 325ms
+   ✓ 端点 20 反例：三种 404 必须完全一致 > 非项目成员读取 → 404 NOT_FOUND 300ms
+   ✓ 端点 20 反例：三种 404 必须完全一致 > 敏感故事对 PM 仍可见 → 200（PM 不受敏感白名单限制） 304ms
+   ✓ 端点 20 反例：三种 404 必须完全一致 > 三种 404（不存在 / 非成员 / 敏感未授权）的状态码、键集合与文案**完全一致** 339ms
+   ✓ 端点 20 反例：三种 404 必须完全一致 > 未登录 → 401 UNAUTHENTICATED（鉴权先于存在性） 319ms
+   ✓ 端点 20 反例：三种 404 必须完全一致 > storyId 属于另一个项目 → 404，且响应体不含那个故事的任何字段 422ms
+   ✓ 端点 21 正例：部分更新用户故事 > 只改 title → 200，其余 11 个字段逐字段不变 307ms
+   ✓ 端点 21 正例：部分更新用户故事 > status 可改为 PLANNING 与 DONE（StoryStatus 的三个取值都被接受） 352ms
+   ✓ 端点 21 正例：部分更新用户故事 > priority 可改为 P1 / P2，businessValue 可修改 318ms
+   ✓ 端点 21 正例：部分更新用户故事 > acceptanceCriteria 可填写、可改为空串（空串与"缺省"必须可区分） 317ms
+   ✓ 端点 21 正例：部分更新用户故事 > 部分更新可累积：多次 PATCH 各改一个字段，全部留在库里 348ms
+   ✓ 端点 21 正例：部分更新用户故事 > ⚠️ isSensitive 不得通过端点 21 修改：注入 isSensitive: true 被静默丢弃 321ms
+   ✓ 端点 21 正例：部分更新用户故事 > 请求体注入 projectId/activityId/createdAt → 全部被丢弃，归属与创建时间不变 301ms
+   ✓ 端点 21 反例：权限（401 / 403 / 404） > storyId 属于另一个项目 → 404，且那个故事逐字段未被修改 354ms
+   ✓ 端点 21 反例：字段校验（422 / 400） > ⚠️ status 传 GoalStatus 的取值 ACTIVE → 422，details 含 status: INVALID_VALUE 309ms
+   ✓ 端点 21 反例：字段校验（422 / 400） > priority 非法枚举值（P3）→ 422，priority: INVALID_VALUE 330ms
+   ✓ 端点 21 反例：判定顺序与副作用隔离 > 422 之后故事逐字段完全未被修改 307ms
+ ✓ src/modules/requirement/requirement.story-create.test.ts (60 tests) 17874ms
+   ✓ 端点 19 正例：创建用户故事 > PM 创建：201，返回完整 UserStory（13 字段），status 默认 DRAFT、isSensitive 默认 false 416ms
+   ✓ 端点 19 正例：创建用户故事 > 三段式必须**分字段**存储：roleText / capabilityText / valueText 是三个独立字段 347ms
+   ✓ 端点 19 正例：创建用户故事 > 响应键集合精确等于 UserStory 的 13 个字段（多给或漏给都是契约违规） 327ms
+   ✓ 端点 19 正例：创建用户故事 > acceptanceCriteria 可选：不传时为 null（不是 undefined，JSON 序列化后键必须存在） 313ms
+   ✓ 端点 19 正例：创建用户故事 > acceptanceCriteria 提供时原样存储；空串也接受且存为 ""（与缺省可区分） 360ms
+   ✓ 端点 19 正例：创建用户故事 > priority 三种取值 P0 / P1 / P2 都被接受并原样返回 371ms
+   ✓ 端点 19 正例：创建用户故事 > 五个文本字段两端空白被 trim 后存储 302ms
+   ✓ 端点 19 正例：创建用户故事 > 请求体注入 projectId/activityId/status/isSensitive/id/createdAt → 全部被丢弃 321ms
+   ✓ 端点 19 正例：创建用户故事 > 五个文本字段恰好为长度上限 → 201（边界正例，与 TOO_LONG 反例配对） 388ms
+   ✓ 端点 19 正例：创建用户故事 > 同一活动下可创建多条故事（契约未规定上限），各自独立 id 340ms
+   ✓ 端点 19 正例：创建用户故事 > 创建只写入 URL 指向的活动，不影响同项目其它活动与其它项目 367ms
+   ✓ 端点 19 反例：权限（401 / 403 / 404） > activityId 属于另一个项目 → 404，且不在那个项目里落库 317ms
+ ✓ src/modules/requirement/requirement.adversarial.test.ts (79 tests) 20427ms
+   ✓ 对抗 1：权限矩阵穷举 > PM → 201（唯一被允许的角色） 302ms
+   ✓ 对抗 1：权限矩阵穷举 > 令牌对应用户已被删除 → 401（actor 注入须现查用户存在性，决策 I-10 不做缓存） 303ms
+   ✓ 对抗 1：权限矩阵穷举 > PM 被降级为 VIEWER 后立即失去写权限（权限即时生效，无需重新登录） 305ms
+   ✓ 对抗 1：权限矩阵穷举 > 被移出项目的成员立即变成 404（成员关系实时读取，不做进程内缓存） 416ms
+   ✓ 对抗 6：sortOrder 的对抗场景 > 两个项目交叉创建：序号各自独立，互不影响 324ms
+   ✓ 对抗 6：sortOrder 的对抗场景 > 串行创建 8 条 → 序号为 0..7 且互不重复 362ms
+ ✓ src/modules/requirement/requirement.adversarial2.test.ts (71 tests) 23191ms
+   ✓ 对抗 1：并发创建时 sortOrder 必须唯一且连续 > 端点 11 并发 6 条 → 序号恰好是 [0..5]，无重复无空洞 574ms
+   ✓ 对抗 1：并发创建时 sortOrder 必须唯一且连续 > 端点 11 并发 10 条 → 落库 10 行，序号集合恰好 0..9 491ms
+   ✓ 对抗 1：并发创建时 sortOrder 必须唯一且连续 > 端点 15 并发 6 条 → 序号恰好是 [0..5]（与端点 11 同型，同属「最大值 + 1」） 410ms
+   ✓ 对抗 1：并发创建时 sortOrder 必须唯一且连续 > 端点 15 并发 8 条 → 序号集合恰好 0..7（活动与目标各自独立编号） 514ms
+   ✓ 对抗 1：并发创建时 sortOrder 必须唯一且连续 > 端点 11 与端点 15 交叉并发：目标序号与活动序号互不串号 418ms
+   ✓ 对抗 1：并发创建时 sortOrder 必须唯一且连续 > 并发混合：合法与 422 交错，只有合法的落库且序号无空洞 351ms
+   ✓ 对抗 2：PATCH 部分更新不得静默清空其它字段 > 端点 12 只传 status → 其余 5 个字段逐字段不变 339ms
+   ✓ 对抗 2：PATCH 部分更新不得静默清空其它字段 > 端点 12 只传 name → description 不被清空为 null 377ms
+   ✓ 对抗 2：PATCH 部分更新不得静默清空其它字段 > 端点 12 只传 description → name 与 status 不被重置 387ms
+   ✓ 对抗 2：PATCH 部分更新不得静默清空其它字段 > 端点 12 空 body → 200 幂等 no-op，整行完全不变 341ms
+   ✓ 对抗 2：PATCH 部分更新不得静默清空其它字段 > 端点 12 连续 3 次只改单字段 → 每步都只动那一个字段（累积不漂移） 367ms
+   ✓ 对抗 2：PATCH 部分更新不得静默清空其它字段 > 端点 16 只传 status → 活动的 goalId/projectId/sortOrder/name/description 全不变 333ms
+   ✓ 对抗 2：PATCH 部分更新不得静默清空其它字段 > 端点 16 只传 name → description 与 status 不被重置 364ms
+   ✓ 对抗 2：PATCH 部分更新不得静默清空其它字段 > 端点 12/16 的 PATCH 不接受 sortOrder 注入（排序只能走端点 14/18） 348ms
+   ✓ 对抗 3：跨项目引用必须被拒绝且不污染另一个项目 > 端点 12：PATCH B 项目的目标 → 404，且 B 的行逐字段不变 326ms
+   ✓ 对抗 3：跨项目引用必须被拒绝且不污染另一个项目 > 端点 13：DELETE B 项目的目标 → 404，且 B 的行仍在 307ms
+   ✓ 对抗 3：跨项目引用必须被拒绝且不污染另一个项目 > 端点 16：PATCH B 项目的活动 → 404，且 B 的行逐字段不变 306ms
+   ✓ 对抗 3：跨项目引用必须被拒绝且不污染另一个项目 > 端点 22：DELETE B 项目的故事 → 404，且 B 的故事仍在 303ms
+   ✓ 对抗 3：跨项目引用必须被拒绝且不污染另一个项目 > 端点 14：orderedIds 掺入 B 项目的目标 id → 422，且 A 的序号一个都不变 315ms
+   ✓ 对抗 3：跨项目引用必须被拒绝且不污染另一个项目 > 端点 14：orderedIds 用 B 项目的 id 替换掉 A 的一个 → 422，A 全部序号不变 318ms
+   ✓ 对抗 3：跨项目引用必须被拒绝且不污染另一个项目 > 端点 18：orderedIds 掺入其它目标的活动 id → 422，序号零变化 314ms
+   ✓ 对抗 3：跨项目引用必须被拒绝且不污染另一个项目 > 端点 18：orderedIds 掺入 B 项目的活动 id → 422，双方零变化 323ms
+   ✓ 对抗 3：跨项目引用必须被拒绝且不污染另一个项目 > 端点 14：orderedIds 长度正确但含重复 id → 422，零副作用 308ms
+   ✓ 对抗 3：跨项目引用必须被拒绝且不污染另一个项目 > 端点 18：orderedIds 缺一个 → 422，零副作用 313ms
+   ✓ 对抗 3：跨项目引用必须被拒绝且不污染另一个项目 > 端点 15：请求体注入 projectId 不被采信，归属仍取自父级目标 309ms
+   ✓ 对抗 4：越权拒绝与不可区分性 > 端点 12：MEMBER/VIEWER → 403；非成员 → 404；未登录 → 401 450ms
+   ✓ 对抗 4：越权拒绝与不可区分性 > 端点 15：MEMBER → 403；非成员 → 404；未登录 → 401，且零写入 342ms
+   ✓ 对抗 4：越权拒绝与不可区分性 > 端点 13/17/22：MEMBER/VIEWER → 403，非成员 → 404，未登录 → 401，且三行全在 590ms
+   ✓ 对抗 4：越权拒绝与不可区分性 > 端点 14/18：MEMBER → 403，非成员 → 404，未登录 → 401（先判定权限而非校验形状） 374ms
+   ✓ 对抗 4：越权拒绝与不可区分性 > 「id 不存在」与「存在但非本成员」的响应结构完全一致（防存在性探测） 339ms
+   ✓ 对抗 5：删除保护的完整生命周期 > 409 可解除（自下而上）：删故事 → 删活动 → 删目标，三步都 204 303ms
+   ✓ 对抗 5：删除保护的完整生命周期 > 每一层的 409 都先于删除发生：三次被拒后三行一条不少 311ms
+   ✓ 对抗 5：删除保护的完整生命周期 > 端点 22：故事有任务时 409；删掉任务后同一次删除变 204（409 可解除） 317ms
+   ✓ 对抗 5：删除保护的完整生命周期 > 端点 13/17：连删两次同样 204 → 404 315ms
+   ✓ 对抗 5：删除保护的完整生命周期 > 删除活动/目标不触碰任何 ObjectVisibility（清理只属于 story 删除） 333ms
+
+ Test Files  16 passed (16)
+      Tests  578 passed (578)
+   Start at  00:30:59
+   Duration  24.19s (transform 1.45s, setup 0ms, collect 11.73s, tests 198.95s, environment 3ms, prepare 1.17s)
+

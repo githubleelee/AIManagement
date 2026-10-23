@@ -1,0 +1,92 @@
+{
+ "events": [
+  {
+   "eventName": "risk.created",
+   "objectId": "40839424-8290-4bbd-afb6-d614ea6d410c",
+   "occurredAt": 1792774287927,
+   "idempotencyKey": "risk.created:40839424-8290-4bbd-afb6-d614ea6d410c",
+   "sensitive": 0,
+   "payload": "{\"status\":\"OPEN\",\"level\":\"MEDIUM\",\"ownerUserId\":\"fcd031a2-7b16-42a2-905e-c4657b193570\",\"taskId\":null}"
+  },
+  {
+   "eventName": "task.overdue",
+   "objectId": "5668f8ee-c84d-4fb5-82d1-8cade359c436",
+   "occurredAt": 1792598400000,
+   "idempotencyKey": "task.overdue:5668f8ee-c84d-4fb5-82d1-8cade359c436:2026-10-21",
+   "sensitive": 0,
+   "payload": "{\"planEnd\":\"2026-10-21\"}"
+  }
+ ],
+ "ledger": [
+  {
+   "consumerId": "notification-committed-events",
+   "eventId": "542f7d5d-b067-4e36-b6ac-76d6fc561201",
+   "status": "DELIVERED"
+  },
+  {
+   "consumerId": "notification-committed-events",
+   "eventId": "9326ef4c-9ccf-4f66-8b07-1deefe169c20",
+   "status": "DELIVERED"
+  }
+ ],
+ "notifications": [
+  {
+   "type": "RISK_ALERT",
+   "sourceEventName": "risk.created",
+   "recipientUserId": "fcd031a2-7b16-42a2-905e-c4657b193570",
+   "contentKind": "TEXT",
+   "contentTitle": "新增风险",
+   "contentSummary": "通知演示风险",
+   "sensitive": 0,
+   "latencyMs": 1423,
+   "withinDeliveryTarget": 1,
+   "isRead": 0,
+   "readAt": null
+  },
+  {
+   "type": "RISK_ALERT",
+   "sourceEventName": "risk.created",
+   "recipientUserId": "a55e4ac5-9cd5-4bf9-b29a-71c0e2fe7167",
+   "contentKind": "TEXT",
+   "contentTitle": "新增风险",
+   "contentSummary": "通知演示风险",
+   "sensitive": 0,
+   "latencyMs": 1428,
+   "withinDeliveryTarget": 1,
+   "isRead": 0,
+   "readAt": null
+  },
+  {
+   "type": "TASK_OVERDUE",
+   "sourceEventName": "task.overdue",
+   "recipientUserId": "fcd031a2-7b16-42a2-905e-c4657b193570",
+   "contentKind": "TEXT",
+   "contentTitle": "任务已逾期",
+   "contentSummary": "逾期演示任务",
+   "sensitive": 0,
+   "latencyMs": 175895352,
+   "withinDeliveryTarget": 0,
+   "isRead": 0,
+   "readAt": null
+  },
+  {
+   "type": "TASK_OVERDUE",
+   "sourceEventName": "task.overdue",
+   "recipientUserId": "a55e4ac5-9cd5-4bf9-b29a-71c0e2fe7167",
+   "contentKind": "TEXT",
+   "contentTitle": "任务已逾期",
+   "contentSummary": "逾期演示任务",
+   "sensitive": 0,
+   "latencyMs": 175895356,
+   "withinDeliveryTarget": 0,
+   "isRead": 1,
+   "readAt": 1792774397240
+  }
+ ],
+ "activation": [
+  {
+   "consumerId": "notification-committed-events",
+   "activatedDay": "2026-10-24"
+  }
+ ]
+}
