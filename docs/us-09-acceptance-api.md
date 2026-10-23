@@ -217,7 +217,7 @@ TODO ⇄ DOING ──→ BLOCKED（必填原因）──→ DOING（清空原因
 
 - **#37 验收结果事件：已接线**（`src/modules/acceptance/event-port.ts`）。原先这里是
   标注「未接线」的占位类型 `AcceptanceEventPayload`，事件名写作 `task.accepted` /
-  `task.rejected`；该写法与 `DECISIONS.md` `notifications.event-catalog-exact-names`
+  `task.rejected`；该写法与 `DECISIONS.md` `events.notification-catalog-exceptions`
   冻结的精确名单不一致，已按决策改正为 **`acceptance.approved` / `acceptance.rejected`**
   并落成正式的端口与适配器（占位从未有运行时依赖，替换无破坏）。
 

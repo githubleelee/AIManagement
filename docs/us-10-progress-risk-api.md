@@ -167,6 +167,14 @@ model Risk {
 2. **非 PM 看到的是自己可见范围内的阻断清单**（`basis.scope = 'visible'`）；
    关闭动作本身仅 PM 可执行，已在 `basis.closeActionNote` 写明，
    避免成员把"我看不到阻断项"误读成"项目能关"。
-3. **#37 事件未接线**：风险状态变化与项目关闭事件只做类型设计，不写运行时发布。
+3. **#37 事件已接线**（2026-10-23 更正：原文写「事件未接线，只做类型设计」，已不成立）。
+   现行状态：`risk.created` / `risk.updated` 随 PR #95 合入 main（同事务追加、失败即回滚、
+   敏感关联只发 `references`）；`risk.level-raised` 随 PR #100 交付（仅 `LOW < MEDIUM < HIGH`
+   的**真实上升**才发，幂等键按更新类带 `occurredAt`）。前值在**事务内**现读，
+   审计 `before` 与事件的 `fromLevel` 同源。
+   **仍未包含**：项目关闭 / 重开（`project.close` / `project.reopen`）不发布任何事件 ——
+   `DECISIONS.md` 的通知目录里没有这两项，本票不擅自新增。
+   另：`risk.updated` 虽存在，但**不是通知触发事件**（通知目录只取 `risk.created` 与
+   `risk.level-raised`）。
 4. **风险不提供删除**：四态里的 `CLOSED` 已能表达"不再跟进"；删除会让审计断链，故未做。
 5. `Risk.updatedAt` 由 Prisma `@updatedAt` 维护，与 `AuditLog` 并存（前者看当前值，后者看历史）。

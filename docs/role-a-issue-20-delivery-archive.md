@@ -234,7 +234,7 @@ context.acceptanceEvents = createAcceptanceEventPort({ repository: eventReposito
 
 - `risk.level-raised`：项目 PM + `Risk.ownerUserId`；本域只发事件，不判读收件人。
 - `acceptance.approved` / `acceptance.rejected`：`Task.ownerUserId` / `Task.acceptorUserId`
-  （按 `DECISIONS.md` `notifications.event-catalog-exact-names` 的口径），并做当前成员与对象权限筛选。
+  （按 `DECISIONS.md` `events.notification-catalog-exceptions` 的口径），并做当前成员与对象权限筛选。
 
 事件里 `object.objectId` 即回查主键：风险事件回查 `Risk.id`，验收事件回查 `Task.id`
 （载荷里的 `recordId` 可再定位到具体 `AcceptanceRecord`，其中含 `reason`）。
@@ -254,7 +254,7 @@ context.acceptanceEvents = createAcceptanceEventPort({ repository: eventReposito
 
 `src/modules/acceptance/types.ts` 原有标注"未接线"的占位类型 `AcceptanceEventPayload`，
 其事件名写作 `task.accepted` / `task.rejected`，与 `DECISIONS.md`
-`notifications.event-catalog-exact-names` 冻结的精确名单（`acceptance.approved` /
+`events.notification-catalog-exceptions` 冻结的精确名单（`acceptance.approved` /
 `acceptance.rejected`）不一致。A 按决策文件改正，并替换成正式的
 `AcceptanceEventName` / `AcceptanceEventDraft` / `AcceptanceEventPort`。
 该占位从未有运行时依赖，替换无破坏。
@@ -283,6 +283,36 @@ context.acceptanceEvents = createAcceptanceEventPort({ repository: eventReposito
 - 未新增 HTTP 端点、未新增依赖、未碰 `src/db/**`、
   未碰 `task.assigned` 与 `acceptance.submitted`（该两条划归 C，A 未越窗）
 
+### 6. 独立评审整改记录（PR #100 评审，`githubleelee` 2026-10-23）
+
+评审指出 `patchRisk` 的 `existing` 在**事务外**读取，提级判定与 `AuditLog.before` 可能陈旧。
+例：初始 LOW，两个请求都读到 LOW；第一个提交 HIGH，第二个提交 MEDIUM —— 第二次**实际是
+HIGH → MEDIUM 的降级**，却会按旧 LOW → MEDIUM 发出 `risk.level-raised`。
+
+**整改**（`src/modules/risk/service.ts`）：
+
+1. 事务内 `tx.risk.findUnique` 现读真实 `before`；写入集合、审计前值、`changedFields`、
+   提级判定、敏感判定**全部**改按该 `before` 重算（未保留任何旧前值）。
+2. 写入改为 `updateMany({ where: { id, updatedAt: before.updatedAt } })` 的**乐观 CAS**：
+   命中 0 行说明前值已被并发改过 → 409「风险已被其他请求修改，请刷新后重试」，
+   且**不写审计、不发任何事件**。与 US-09 验收、项目关闭 / 重开的 CAS 同一纪律。
+3. 事务内复算一次 `assertResolution`（多一道防线，不替代事务外那次早失败）。
+
+**新增回归**（`risk-events.test.ts`，共 5 例）：提级 → 降级 → 再提级（合法上升各恰好一条、
+降级不发）、事件 `fromLevel` 与审计 `before.level` 同源一致、并发同目标提级只产生一条、
+**确定性受控交错**（用"只对事务外读取返回陈旧快照"的客户端复现评审场景，断言审计前值为
+真实 HIGH 且无假提级）、并发提级 vs 降级（任何提级事件必须 `fromLevel` 严格小于 `toLevel`）。
+
+> 为什么还要"确定性"版本：SQLite 的写是串行的，`Promise.all` 很难稳定撞出交错，
+> 故除并发用例外，另用只污染事务外读取的客户端把评审场景确定性地复现一次。
+
+### 7. 文档更正（评审附带要求）
+
+- `notifications.event-catalog-exact-names` 不是真实 key，实际为
+  **`events.notification-catalog-exceptions`**；本文件与相关代码注释已全部更正。
+- `docs/us-10-progress-risk-api.md` §7 第 3 条原写「#37 事件未接线」，已改为真实状态
+  （保留历史表述并标注更正日期，不重写历史）。
+
 ---
 
 ## 第三部分 · 待接事项（未开工，仅登记）
@@ -300,7 +330,8 @@ A 的窄修改范围（已登记，**尚未实现**）：
 - 时机：在任务状态 CAS / 验收记录 / 审计 / 事件写入成功**之前**调用 B 的统一共享守卫
 - 失败语义：整次验收回滚，不落 `AcceptanceRecord`、不写成功审计、不发 `DomainEvent`
 - 不改动：现有 `task.accept` 判权
-- 预期接口（B 单写，**尚无就绪 SHA**）：
+- 预期接口（B 单写；**真实候选 SHA 已就绪**：`feat/fs-start-guard` @
+  `82903493e6e1ed745159cb263bfbde76256222be`，基于 main `4c347774`，尚未合 main）：
 
 ```ts
 // src/shared/task-execution.ts，B 单写
@@ -315,7 +346,10 @@ interface TaskStartGuardPort<TTransaction> {
 ```
 
 A 只消费注入端口，不 import `task/rules` 或 DB 实现、不复制前置判定。
-**当前阻塞**：B 端口未就绪，A 等真实 commit 后基于候选分支接入。
+**当前状态**：B 端口候选已就绪（见上），A 可在其候选分支上接入，**不需要**先合 main。
+接入时点：只在 `REJECT` 目标 `DOING` 时、在原 caller-tx 内、任务状态 CAS / `AcceptanceRecord` /
+审计 / 事件写入**之前**调用；失败整笔回滚；`PASS`（目标 `CLOSED`）不触发；
+守卫不是鉴权替代，每次请求仍先 `can('task.accept')`。
 
 ### 其他
 

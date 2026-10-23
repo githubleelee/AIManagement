@@ -88,7 +88,7 @@ const TASK_OBJECT_TYPE = 'task'
 /**
  * 结论 → 事件名。
  *
- * 名字取自 `DECISIONS.md` `notifications.event-catalog-exact-names` 冻结的精确名单
+ * 名字取自 `DECISIONS.md` `events.notification-catalog-exceptions` 冻结的精确名单
  * （`acceptance.approved` / `acceptance.rejected`），**不是**本模块自拟。
  */
 const EVENT_NAME: Record<AcceptanceConclusion, AcceptanceEventName> = {

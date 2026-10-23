@@ -1,7 +1,7 @@
 /**
  * US-09 验收域**领域事件生产**（#37 接线）测试。
  *
- * 口径来源：`DECISIONS.md` `notifications.event-catalog-exact-names`（冻结的九个精确
+ * 口径来源：`DECISIONS.md` `events.notification-catalog-exceptions`（冻结的九个精确
  * 事件名）与 `events.business-domain-production`（同事务 / 敏感 / 回滚规则），
  * 以及技术负责人 GitHub #20 评论 6358121473（收件人不进载荷）。
  *

@@ -126,7 +126,7 @@ export type AcceptanceHistoryResult = {
  * 验收结果事件（#37 公共事件基础设施已合入，本票接线）
  * ===========================================================================
  *
- * ★ 事件名以 `DECISIONS.md` 的 `notifications.event-catalog-exact-names` 为准：
+ * ★ 事件名以 `DECISIONS.md` 的 `events.notification-catalog-exceptions` 为准：
  *   **`acceptance.approved` / `acceptance.rejected`**。
  *
  *   本文件此前登记的占位形状用的是 `task.accepted` / `task.rejected`，与上述已冻结的

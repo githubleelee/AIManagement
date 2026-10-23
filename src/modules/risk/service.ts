@@ -484,7 +484,8 @@ export async function patchRisk(
   if (!decision.allow) throw denied(decision)
   await assertRiskVisible(prisma, actorUserId, existing.projectId, existing)
 
-  const nextLevel = patch.level ?? (existing.level as RiskLevel)
+  // 这里只算**用于判权**的派生值（流转 / 归属是否变化）；写入集合与审计/事件的前值
+  // 一律在事务内按真实 `before` 重算（见下方 `patchRisk` 事务体，PR #100 评审要求）。
   const nextStatus = patch.status ?? (existing.status as RiskStatus)
   const nextResolution = patch.resolution !== undefined ? patch.resolution : existing.resolution
   const nextOwner = patch.ownerUserId ?? existing.ownerUserId
@@ -530,31 +531,67 @@ export async function patchRisk(
   }
 
   const updated = await prisma.$transaction(async (tx) => {
-    const risk = await tx.risk.update({
-      where: { id: riskId },
+    // -------------------------------------------------------------------------
+    // ★ 事务内现读真实前值（2026-10-23 独立评审，PR #100）
+    // -------------------------------------------------------------------------
+    // 上面那次 `existing` 读取在**事务外**，并发下会陈旧。若沿用它会出三类错：
+    //   ① 实际是 HIGH → MEDIUM 的**降级**，却按旧的 LOW → MEDIUM 发 `risk.level-raised`
+    //      （往通知系统里灌一条"提级"，而业务事实是降级）；
+    //   ② 审计 `before` 与事件的 `fromLevel` 记错前值；
+    //   ③ 两个同目标并发 PATCH 各自发一次提级（同一次提级重复通知）。
+    // 故写入集合、审计前值、提级判定一律按**本事务内读到的 `before`** 重算。
+    // 评审明确要求：**不得**只把事件的 `toLevel` 改成最终值而保留旧 `before`。
+    const before = await tx.risk.findUnique({ where: { id: riskId }, include: RISK_INCLUDE })
+    if (!before) throw notFound()
+
+    const txLevel = patch.level ?? (before.level as RiskLevel)
+    const txStatus = patch.status ?? (before.status as RiskStatus)
+    const txResolution = patch.resolution !== undefined ? patch.resolution : before.resolution
+    const txOwner = patch.ownerUserId ?? before.ownerUserId
+    const txTaskId = patch.taskId !== undefined ? patch.taskId : before.taskId
+
+    // 事务内复算一次"进入已解决 / 已关闭必须有解决说明"：外面的判断基于 `existing`，
+    // 这里按真实前值再判一次（多一道防线，不替代外面那次早失败）。
+    assertResolution(txStatus, txResolution)
+    const statusChangedInTx = txStatus !== before.status
+
+    // -------------------------------------------------------------------------
+    // 乐观并发（CAS）：只在**前值仍是我读到的那个**时才写
+    // -------------------------------------------------------------------------
+    // `where` 带上 `updatedAt` 使"读 → 判 → 写"成为一次原子比较并交换：
+    // 并发的第二个请求会命中 0 行，于是 409、且**不写审计、不发任何事件**。
+    // 这与 US-09 验收、项目关闭 / 重开的 CAS 是同一条纪律（并发下宁可让一个请求失败）。
+    const cas = await tx.risk.updateMany({
+      where: { id: riskId, updatedAt: before.updatedAt },
       data: {
-        title: patch.title ?? existing.title,
-        description: patch.description !== undefined ? patch.description : existing.description,
-        level: nextLevel,
-        status: nextStatus,
-        ownerUserId: nextOwner,
-        taskId: nextTaskId,
+        title: patch.title ?? before.title,
+        description: patch.description !== undefined ? patch.description : before.description,
+        level: txLevel,
+        status: txStatus,
+        ownerUserId: txOwner,
+        taskId: txTaskId,
         // 状态回退到「未处理 / 处理中」时清空解决说明 ——
         // 否则界面会把上一条旧说明渲染成「解决说明：…」，看起来像已经解决了（审查 S7）。
-        resolution: RESOLVED_STATUSES.includes(nextStatus) ? (nextResolution ?? null) : null,
+        resolution: RESOLVED_STATUSES.includes(txStatus) ? (txResolution ?? null) : null,
       },
-      include: RISK_INCLUDE,
     })
+    if (cas.count === 0) {
+      throw conflict('风险已被其他请求修改，请刷新后重试')
+    }
+
+    const risk = await tx.risk.findUniqueOrThrow({ where: { id: riskId }, include: RISK_INCLUDE })
+
     await tx.auditLog.create({
       data: auditData(
-        existing.projectId,
+        before.projectId,
         actorUserId,
         // 动作名沿用既有两个取值（不新增审计动作）：归属变更走 `risk.update`，
         // 其痕迹体现在 before / after 的 `ownerUserId` / `taskId` 前后值上（评审 ③）。
-        statusChanged ? 'risk.status' : 'risk.update',
+        statusChangedInTx ? 'risk.status' : 'risk.update',
         'risk',
         risk.id,
-        riskAuditFields(existing),
+        // 前值取**事务内**的 `before`，与后面事件的 `fromLevel` 同源。
+        riskAuditFields(before),
         riskAuditFields(risk),
       ),
     })
@@ -565,12 +602,12 @@ export async function patchRisk(
     // 泄漏新关联，任一为真即按敏感事件处理。
     // `occurredAt` 取一次、两条事件共用：同一笔业务写入的两个事件时间戳必须一致。
     const occurredAt = new Date().toISOString()
-    const sensitivity = await readTaskSensitivity(tx, [existing.taskId, risk.taskId])
+    const sensitivity = await readTaskSensitivity(tx, [before.taskId, risk.taskId])
 
     await events.publish(
       riskEventDraft({
         eventName: 'risk.updated',
-        projectId: existing.projectId,
+        projectId: before.projectId,
         actorUserId,
         occurredAt,
         risk,
@@ -579,7 +616,7 @@ export async function patchRisk(
           level: risk.level,
           ownerUserId: risk.ownerUserId,
           taskId: risk.taskId,
-          changedFields: changedFieldsOf(riskAuditFields(existing), riskAuditFields(risk)),
+          changedFields: changedFieldsOf(riskAuditFields(before), riskAuditFields(risk)),
         },
         sensitivity,
       }),
@@ -589,16 +626,17 @@ export async function patchRisk(
     // ★ 等级**真的往上走**时，在 `risk.updated` 之上**追加**一条 `risk.level-raised`
     //   （不是替代）：通知的触发条件是"提级"，不能被任意 `risk.updated` 冒充。
     //   降级（HIGH → LOW）与同级都不发 —— 判据是 `isLevelRaised` 的严格大于。
-    if (isLevelRaised(existing.level, risk.level)) {
+    //   ★ 前值是**事务内**的 `before.level`，与审计 `before.level` 必然一致。
+    if (isLevelRaised(before.level, risk.level)) {
       await events.publish(
         riskEventDraft({
           eventName: 'risk.level-raised',
-          projectId: existing.projectId,
+          projectId: before.projectId,
           actorUserId,
           occurredAt,
           risk,
           payload: {
-            fromLevel: existing.level,
+            fromLevel: before.level,
             toLevel: risk.level,
             status: risk.status,
             ownerUserId: risk.ownerUserId,
