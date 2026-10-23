@@ -9,11 +9,11 @@
 
 > 依据已完成并留证的交付与独立验证，只更新 Status / Evidence / Blocker，不改业务规则、不新增授权。原始状态历史保留在各任务行内。
 
-- **已完成**：#20（故事看板最终验收，main `9160587` 上的真实登录/改状态/审计+事件/详情同步/权限矩阵/敏感计数 + 16 文件 578 例）、#45（共享 AI 三表，PR #88）、新增 **#59**（UML 后置标敏粘性置位，PR #103）。
-- **进行中**：#13（FS 共享端口与装配已就绪、独立复验 45+412；**等 A 在验收 REJECT 同事务接入**后整体合入）、#34/#35（附件候选 `902cfa1`，含上传解析器封装修正；等 D #94 与 C 的真实接线后合入）、#38/#39（通知公共运行时实现中）。
-- **仍待外部**：#36/#37（C 的真实任务删除接线与 TaskSection 挂载）、#40/#41（依赖 #38/#39）、#44/#47/#49/#50（等 C 推送本域实现与接口事实，B 已于 #32 发出 6 项事实请求）、#57/#58（等 C 的 UML P2/P3 读侧服务）。
+- **已完成**：#20（故事看板最终验收，main `9160587` 上的真实登录/改状态/审计+事件/详情同步/权限矩阵/敏感计数 + 16 文件 578 例）、#45（共享 AI 三表，PR #88）、**#59**（UML 后置标敏粘性置位，PR #103）、**#38/#39/#40**（通知存储与迁移、运行时组装、顶栏挂载：PR #104/#105/#106；`risk.created` 能力改判）。
+- **进行中**：#13（FS 共享端口与装配已就绪、独立复验 45+412；**等 A 在验收 REJECT 同事务接入**后整体合入）、#34/#35（附件候选 `902cfa1`，含上传解析器封装修正；等 D #94 与 C 的真实接线后合入）、#41（通知公共接入验证：基础链路与三个真实来源已端到端，六类未齐）。
+- **仍待外部**：#36/#37（C 的真实任务删除接线与 TaskSection 挂载）、#41（A/C 的真实生产方未接，最终 AC 不勾）、#44/#47/#49/#50（等 C 推送本域实现与接口事实，B 已于 #32 发出 6 项事实请求）、#57/#58（等 C 的 UML P2/P3 读侧服务）。
 - **已解除的旧阻塞**：D 的 #31 字段/端口提案、共享 AI 存储、D 的通知模块、C 的审阅入口、C 的 task 写窗口（PR #99）。**不再**作为当前阻塞。
-- **main 基线（独立 tester）**：`9160587` 上 `npm run typecheck` exit 0、`npx vitest run` **81 文件通过 + 1 跳过 / 1709 通过 + 12 todo / 0 失败**。
+- **main 基线（独立 tester）**：`9160587` 上 `npm run typecheck` exit 0、`npx vitest run` **81 文件通过 + 1 跳过 / 1709 通过 + 12 todo / 0 失败**；通知三批合入后（`295e694`）的最终全量在下一批记录。
 
 ## 执行规则
 
@@ -337,34 +337,35 @@ Done when: 相关测试/typecheck 与真实上传/列表/下载链路通过；�
 Dependencies: #34 [FS], #35 [FS], #36 [FS]
 Blocker: 待 C 的真实任务 DELETE 接线（调用注入的 `TaskAttachmentLifecyclePort.markForTaskDeletion` + 提交后清理）与 `TaskSection` 挂载后，才能跑真实删除→重试→浏览器端到端，并据此做最终验收；组件验证页/模拟事务不替代正式入口证据。
 ## #38 落地通知 schema 与迁移
-Status: in progress
+Status: done
 Outcome: B 单写的通知记录、接收者/去重等必要模型与迁移。
+Evidence: main `ec4e638`（PR #104）：迁移 `20261023180000_add_notification_runtime` 落 `Notification`（`dedupeKey @unique`、`sourceEventId → DomainEvent onDelete: Restrict`、`(recipientUserId,isRead,storedAt)` 索引）+ `NotificationConsumer`（`activatedDay`）+ `NotificationConsumption`（`(consumerId,eventId)` 唯一）。`npx prisma migrate diff` 无漂移；`test/db-schema*.test.ts` 表集合 16→19 等值断言同步；独立 tester 复验 migrate diff `No difference detected.`、typecheck 0、9 文件/129 例通过。记录 `docs/ai-records/B/issue-34/B-I34-20261024-notif-runtime-*.md`。
 Done when: 按 D 字段提案实现索引和约束并验证迁移；保留事件发生/条件成立时间，不能从消费时间重新计时；遵守全项目 Asia/Shanghai 口径，不自行决定尚未确认的六状态转换。
 Dependencies: none
-Blocker: B 公共运行时实现中（Notification 记录 + 消费账本 + 激活/基线，sourceEventId→DomainEvent Restrict 外键）。未合 main 前不算完成；D 的模块字段提案已合入（PR #93）。
 
 ## #39 组装通知订阅、定时生命周期与路由
-Status: in progress
+Status: done
 Outcome: app 注入事件端口，注册 D 通知实现/生命周期与已确认列表/已读路由。
+Evidence: main `ec4e638`（PR #104）：`src/app.ts` 与事件基础设施共用同一 `PrismaEventRepository` 组装运行时 + `onReady/onClose` start/stop（启动失败 log 后抛出，不吞）；`src/routes.ts` 注册 D 的 `registerNotificationRoutes`，缺 service 同步 fail-fast。真实 DB 仓储（查询层可见性含原事件 `payload.references`）、权威接收者、#37 订阅适配、提交后消费桥接（仅 DELIVERED 落账本）、B 自产 `task.overdue`/`milestone.due` 定时；独立 tester 真实 `app.listen` 探针 12/12 + 调度边界 2/2 + 可见性/账本/投影 10/10。顶栏挂载另见 #40。
 Done when: 所需模型可用，启停可控；D 通知采用已确认的**全项目** `Asia/Shanghai` 时区与 `planEnd` 次日 00:00 未 `CLOSED` 即逾期口径；其他六状态转换未一并批准，不接受双最终口径；不代写业务生产事件。
 Dependencies: #28 [FS], #38 [FF]
-Blocker: B 公共运行时实现中（真实 DB 仓储 + 权威接收者 + #37 订阅适配 + 提交后消费桥接 + 定时 overdue/节点 + app/routes 装配）。A/C 的生产方未接时必须诚实 UNAVAILABLE，不得 no-op 伪造；未合 main 前不算完成。
 
 ## #40 最小挂载顶栏通知入口
-Status: not started
+Status: done
 Outcome: `AppLayout.tsx` 接入 D 独立通知入口与必要路由文档说明。
+Evidence: main `cdb39d1`（PR #105）：`web/src/layouts/AppLayout.tsx` 顶栏渲染 `<NotificationBell/>`；`docs/frontend-routes.md` 同步入口与三个端点。浏览器走查（隔离库、API 3210 定时器开启、Vite 5280）：PM 未读 2 → 面板含真实「任务逾期」「风险提醒」与未接来源 UNAVAILABLE → 点第一条未读 2→1 且 DB `isRead/readAt` 落库；`npm run typecheck` 0、`npm run build:web` 0。截图/日志见 `docs/ai-records/B/issue-34/B-I34-20261024-notif-bell-and-capability-01.md`。
 Done when: 仅按组件 Props 注入上下文，不重写公共布局或通知业务；在线刷新和错误态可验证；不等待 AI/附件组件全部完成。
 Dependencies: none
-Blocker: D 的 `NotificationBell` 组件与 api 已在 main（PR #93）；待 #39 公共运行时合入后由 B 在 `AppLayout.tsx` 挂载并做在线刷新/错误态浏览器验证。
 
 ## #41 验证通知公共接入
-Status: not started
+Status: in progress
 Outcome: 通知基础真实接入、模块模拟与六类生产方联调的分栏证据。
+Evidence: 基础链路（真实订阅/入库/列表/未读计数/已读/页面）已实测：tester 探针（真实进程 12/12、可见性 10/10、投影与 404 同形）+ 主控浏览器走查（面板、未读 2→1）。真实生产方端到端：`task.overdue`、`milestone.due`（B 自产，由注入时钟探针覆盖 09:00 边界）、`risk.created`（A 风险域，面板可见）。
 Done when: 相关测试/typecheck 与基础订阅/入库/查询/页面链路通过；≤60 秒从业务成功或条件成立计量；模拟生产者不替代六类真实生产方联调；生产方未齐或其他六状态转换未确认时相关最终 AC 不通过，不阻塞已明确基础链路的验证记录。
 Dependencies: #26 [FS], #38 [FS], #39 [FS], #40 [FS]
 
 ---
-Blocker: 待 #38/#39/#40 合入后做分栏证据：基础链路（订阅/入库/查询/页面）实测 + 六类生产方联调（A 的 risk/acceptance 事件、C 的 task.assigned/acceptance.submitted 仍缺）。B 自己的定时 overdue/节点可端到端验证，其余未接来源必须标 UNAVAILABLE，不勾最终 AC1/AC2。
+Blocker: **六类真实生产方未齐**：`task.assigned`、`task.mentioned`（后置）、`acceptance.submitted/approved/rejected`、`risk.level-raised` 未接，能力如实 UNAVAILABLE；因此 **#34 最终 AC1/AC2 不勾**。里程碑的浏览器端到端受时间窗限制（09:00 上海），现仅有注入时钟探针证据。
 ## C #32 公共集成任务（本轮修订）
 
 本地 `#42–#50` 不是 GitHub 工单编号。这些是 B 侧为 C `#32` 提供的公共集成任务：C 负责业务 / 整份原子写 / 快照 / 幂等，B 只落公共声明 / 模型 / 权限 / 组装 / 挂载。**依赖只按真实接口 / 验收关系登记，不用优先级造边。** 历史修订时本节仅保存计划；随后本轮获准执行 `#43/#46` 的本地提案，其余按各项 Status / Evidence 为准。追加授权仅允许准备 `#03/#42` 本地待发布文本，不发布、不编码；当前进度见各项证据。

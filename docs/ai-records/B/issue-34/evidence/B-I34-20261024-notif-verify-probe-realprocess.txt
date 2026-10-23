@@ -1,0 +1,16 @@
+NODE_ENV=undefined (unset => production-like)
+server listening on { address: '127.0.0.1', family: 'IPv4', port: 58910 }
+PASS  real process auto-produced exactly 1 task.overdue event (got 1)
+PASS  overdue event points at the seeded task
+PASS  overdue occurredAt = planEnd next-day 00:00 Shanghai (got 2026-10-23T16:00:00.000Z)
+PASS  overdue idempotencyKey stable (got task.overdue:00cdf1ea-45bf-4abe-bc15-dd3c4cd7be01:2026-10-23)
+PASS  no milestone.due before 09:00 and no backfill of pre-activation-day node (got 0)
+PASS  repeated 10s scan did not duplicate overdue event
+PASS  overdue notifications delivered to owner+PM via auto bridge (got 2)
+PASS  DELIVERED recorded in ledger (got 1)
+PASS  restart did not reset baseline / duplicate overdue event
+PASS  activation day persisted on restart (got 2026-10-24)
+PASS  exactly one ledger row for the overdue event across restart (got 1)
+PASS  NODE_ENV=test disables auto scheduler (got 0 events; manual runOnce expected)
+
+ALL PROBE CHECKS PASSED
