@@ -10,8 +10,9 @@
  * 说明：本文件用真实生产装配（`createTestContext` → `buildApp` → `registerRoutes`）走 HTTP，
  * 因此同时验证了 `src/app.ts` 的依赖注入与 `src/routes.ts` 的路由注册。
  */
-import { existsSync, rmSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createTestContext, type HttpTestContext } from '../../test/helpers.js'
 import {
@@ -25,19 +26,18 @@ import {
   makeUser,
 } from '../../test/factories.js'
 
-const UPLOAD_ROOT = resolve(process.cwd(), 'var/uploads')
-
+/** 本文件独占的附件存储根（mkdtemp）：只清自己的目录，**绝不**清理真实 `var/uploads/`。 */
+let uploadRoot: string
 let ctx: HttpTestContext
 
 beforeAll(async () => {
-  ctx = await createTestContext()
+  uploadRoot = mkdtempSync(join(tmpdir(), 'aim-attach-http-'))
+  ctx = await createTestContext({ uploadRoot })
 }, 120_000)
 
 afterAll(async () => {
   await ctx.dispose()
-  // 生产装配的 LocalAttachmentStorage 落项目根 var/uploads/（已 gitignore）；
-  // 清掉本文件产生的实体文件，避免污染工作区。
-  rmSync(UPLOAD_ROOT, { recursive: true, force: true })
+  rmSync(uploadRoot, { recursive: true, force: true })
 })
 
 beforeEach(async () => {
@@ -47,26 +47,29 @@ beforeEach(async () => {
 type Seed = {
   pm: { id: string }
   member: { id: string }
+  otherMember: { id: string }
   viewer: { id: string }
   outsider: { id: string }
   projectId: string
   taskId: string
 }
 
-/** 造一个含 PM / MEMBER / VIEWER / outsider 的项目与任务（默认成员是任务负责人）。 */
+/** 造一个含 PM / MEMBER（负责人）/ MEMBER（非负责人）/ VIEWER / outsider 的项目与任务。 */
 async function seedTask(): Promise<Seed> {
   const pm = await makeUser('attach.pm', '项目经理')
   const member = await makeUser('attach.member', '项目成员')
+  const otherMember = await makeUser('attach.other-member', '非负责人成员')
   const viewer = await makeUser('attach.viewer', '只读成员')
   const outsider = await makeUser('attach.outsider', '外部用户')
   const { projectId } = await makeProject(pm.id)
   await makeMember(projectId, member.id, 'MEMBER')
+  await makeMember(projectId, otherMember.id, 'MEMBER')
   await makeMember(projectId, viewer.id, 'VIEWER')
   const goal = await makeGoal(projectId)
   const activity = await makeActivity(goal)
   const story = await makeStory(activity)
   const taskId = await makeTask(story, member.id, pm.id)
-  return { pm, member, viewer, outsider, projectId, taskId }
+  return { pm, member, otherMember, viewer, outsider, projectId, taskId }
 }
 
 function upload(
@@ -119,7 +122,7 @@ describe('① 上传 / 列表 / 下载 / 删除 happy path', () => {
     // 删除前记录真实磁盘路径，删除后断言文件已消失
     const row = await ctx.db.attachment.findUnique({ where: { id: created.body.id } })
     expect(row?.storagePath).toBeTruthy()
-    const physical = resolve(UPLOAD_ROOT, row!.storagePath)
+    const physical = resolve(uploadRoot, row!.storagePath)
     expect(existsSync(physical)).toBe(true)
 
     const deleted = await ctx.asUser(token).delete(`/attachments/${created.body.id}`)
@@ -141,6 +144,49 @@ describe('① 上传 / 列表 / 下载 / 删除 happy path', () => {
     expect((await ctx.asUser(viewer).get(`/attachments/${created.body.id}/download`)).status).toBe(200)
     expect((await upload(viewer, seed.taskId)).status).toBe(403)
     expect((await ctx.asUser(viewer).delete(`/attachments/${created.body.id}`)).status).toBe(403)
+  })
+
+  it('非负责人 MEMBER：可列表 / 下载，但上传 / 删除 403（写 = task.progress 仅负责人或 PM）', async () => {
+    const seed = await seedTask()
+    // 负责人先放一个附件
+    const created = await upload(ctx.loginAs(seed.member.id), seed.taskId)
+    expect(created.status).toBe(201)
+
+    const other = ctx.loginAs(seed.otherMember.id)
+    // 读类（project.read）：可见即允许
+    expect((await ctx.asUser(other).get(`/tasks/${seed.taskId}/attachments`)).status).toBe(200)
+    expect((await ctx.asUser(other).get(`/attachments/${created.body.id}/download`)).status).toBe(200)
+    // 写类（task.progress）：非负责人 → 403，不得扩权
+    expect((await upload(other, seed.taskId, 'other.pdf')).status).toBe(403)
+    expect((await ctx.asUser(other).delete(`/attachments/${created.body.id}`)).status).toBe(403)
+    // 确认未写入
+    expect((await ctx.asUser(ctx.loginAs(seed.member.id)).get(`/tasks/${seed.taskId}/attachments`)).body).toMatchObject({ total: 1 })
+  })
+
+  it('列表为完整数组：250 条 ACTIVE 行全部返回，total 为真实 250（无隐形截断）', async () => {
+    const seed = await seedTask()
+    const now = new Date('2026-10-23T00:00:00.000Z')
+    await ctx.db.attachment.createMany({
+      data: Array.from({ length: 250 }, (_unused, index) => ({
+        id: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
+        projectId: seed.projectId,
+        taskId: seed.taskId,
+        uploaderUserId: seed.member.id,
+        originalName: `材料-${index}.pdf`,
+        extension: 'pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 5,
+        storagePath: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}.pdf`,
+        state: 'ACTIVE',
+        createdAt: now,
+        cleanupAttempts: 0,
+      })),
+    })
+
+    const list = await ctx.asUser(ctx.loginAs(seed.member.id)).get(`/tasks/${seed.taskId}/attachments`)
+    expect(list.status).toBe(200)
+    expect(list.body.total).toBe(250)
+    expect(list.body.items).toHaveLength(250)
   })
 
   it('outsider 列表 → 404', async () => {
@@ -293,6 +339,6 @@ describe('⑥ 列表只返回 ACTIVE（DELETING / CLEANUP_FAILED 对用户不可
     const list = await ctx.asUser(token).get(`/tasks/${seed.taskId}/attachments`)
     expect(list.body).toMatchObject({ total: 0 })
     // 物理文件仍在（仅状态改变），但用户不可见
-    expect(existsSync(resolve(UPLOAD_ROOT, row!.storagePath))).toBe(true)
+    expect(existsSync(resolve(uploadRoot, row!.storagePath))).toBe(true)
   })
 })

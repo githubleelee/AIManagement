@@ -18,6 +18,7 @@ import { randomUUID } from 'node:crypto'
 import type { PrismaClient } from '@prisma/client'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import {
+  createAttachmentLifecycle,
   requestTaskAttachmentCleanup,
   runAttachmentCleanup,
   SAFE_CLEANUP_REASON,
@@ -211,6 +212,50 @@ describe('④ 任务删除联动与清理', () => {
     const result = await runAttachmentCleanup({ repository, storage, limit: 2 })
     expect(result.removed).toBe(2)
     expect(await db.prisma.attachment.count()).toBe(1)
+  })
+
+  it('窄生命周期端口：事务内 markForTaskDeletion（可回滚）、提交后 run() 清理', async () => {
+    const seed = await seedTask(db.prisma)
+    const storage = new FakeStorage()
+    const id = await seedAttachment(storage, seed)
+    const lifecycle = createAttachmentLifecycle({ repository, storage })
+
+    // 事务内标记；此处模拟端点 29：标记 + 清可见性 + 删任务（SetNull），同一事务提交
+    await db.prisma.$transaction(async (tx) => {
+      const marked = await lifecycle.markForTaskDeletion(tx, seed.taskId)
+      expect(marked).toBe(1)
+      await tx.objectVisibility.deleteMany({ where: { objectType: 'task', objectId: seed.taskId } })
+      await tx.task.delete({ where: { id: seed.taskId } })
+    })
+    expect(await db.prisma.attachment.findUnique({ where: { id } })).toMatchObject({
+      state: 'DELETING',
+      taskId: null,
+    })
+
+    // 提交后 run()：批次结果 {removed, failed}，不含 taskId
+    const result = await lifecycle.run()
+    expect(result).toEqual({ removed: 1, failed: [] })
+    expect(await db.prisma.attachment.findUnique({ where: { id } })).toBeNull()
+    expect(storage.files.size).toBe(0)
+  })
+
+  it('窄生命周期端口：markForTaskDeletion 回滚后不残留 DELETING', async () => {
+    const seed = await seedTask(db.prisma)
+    const storage = new FakeStorage()
+    const id = await seedAttachment(storage, seed)
+    const lifecycle = createAttachmentLifecycle({ repository, storage })
+
+    await expect(
+      db.prisma.$transaction(async (tx) => {
+        await lifecycle.markForTaskDeletion(tx, seed.taskId)
+        throw new Error('rollback')
+      }),
+    ).rejects.toThrow('rollback')
+
+    expect(await db.prisma.attachment.findUnique({ where: { id } })).toMatchObject({
+      state: 'ACTIVE',
+      taskId: seed.taskId,
+    })
   })
 })
 
