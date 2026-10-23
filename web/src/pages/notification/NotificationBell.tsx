@@ -18,6 +18,13 @@ const TYPE_LABEL: Record<NotificationType, string> = {
   MILESTONE_REMINDER: '关键节点',
 }
 
+const SOURCE_LABEL: Record<string, string> = {
+  'task.assigned': '任务分配', 'task.mentioned': '@提及', 'task.overdue': '任务逾期',
+  'acceptance.submitted': '提交验收', 'acceptance.approved': '验收通过',
+  'acceptance.rejected': '验收驳回', 'risk.created': '风险新建',
+  'risk.level-raised': '风险提级', 'milestone.due': '节点到期',
+}
+
 function titleOf(item: NotificationView): string {
   return item.content.kind === 'TEXT' ? item.content.title : `${TYPE_LABEL[item.type]}（受保护）`
 }
@@ -32,6 +39,7 @@ export default function NotificationBell() {
       setData(await listNotifications())
       setError(null)
     } catch (caught) {
+      setData(null)
       setError(caught instanceof ApiError ? caught.message : '通知加载失败')
     }
   }, [])
@@ -80,6 +88,14 @@ export default function NotificationBell() {
           {!data ? <p className="muted">正在加载…</p> : null}
           {data?.state === 'UNAVAILABLE' ? (
             <p className="notification-unavailable">{data.note}</p>
+          ) : null}
+          {data?.sourceCapabilities.filter(source => source.state === 'UNAVAILABLE').map(source => (
+            <p key={source.eventName} className="notification-unavailable">
+              {SOURCE_LABEL[source.eventName] ?? source.eventName}：{source.note ?? '真实来源尚未接入'}
+            </p>
+          ))}
+          {data?.state === 'AVAILABLE' && data.truncated ? (
+            <p className="muted">当前显示最近 {data.limit} 条，共 {data.total} 条通知。</p>
           ) : null}
           {data?.state === 'AVAILABLE' && data.items.length === 0 ? (
             <p className="muted">暂无通知</p>

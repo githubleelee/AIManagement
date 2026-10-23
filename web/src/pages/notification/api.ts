@@ -29,6 +29,9 @@ export type NotificationListResponse =
       unreadCount: number
       items: NotificationView[]
       note: null
+      limit: number
+      truncated: boolean
+      sourceCapabilities: NotificationSourceCapability[]
     }
   | {
       state: 'UNAVAILABLE'
@@ -36,7 +39,16 @@ export type NotificationListResponse =
       unreadCount: null
       items: []
       note: string
+      limit: number
+      truncated: false
+      sourceCapabilities: NotificationSourceCapability[]
     }
+
+export type NotificationSourceCapability = {
+  eventName: string
+  state: 'AVAILABLE' | 'UNAVAILABLE'
+  note: string | null
+}
 
 export function listNotifications(): Promise<NotificationListResponse> {
   return apiFetch<NotificationListResponse>('/me/notifications')
