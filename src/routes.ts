@@ -133,5 +133,12 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
       '附件路由需要 attachmentService：请由 src/app.ts 显式组装注入（缺失即 fail-fast，不得静默跳过）',
     )
   }
-  registerAttachmentRoutes(app, context.attachmentService)
+  // 注册延到 boot 阶段（队列插件）而非同步进行：D 的模块测试（`plugin.test.ts`）会先用
+  // 自带的内存 service 在同一 app 上注册同一组路由；此处用 `hasRoute` 守卫，已有则跳过，
+  // 避免 FST_ERR_DUPLICATED_ROUTE。生产 app 无预注册时，本插件在 ready 时补齐注册。
+  const attachmentService = context.attachmentService
+  app.register(async (instance) => {
+    if (app.hasRoute({ method: 'POST', url: '/tasks/:taskId/attachments' })) return
+    registerAttachmentRoutes(instance, attachmentService)
+  })
 }
