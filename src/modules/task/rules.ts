@@ -103,14 +103,71 @@ export async function assertTaskAssignment(
  * Caller owns authorization, input shape checks, and (for a batch) the transaction.
  * This does not add US12-only TODO/FS/snapshot rules to ordinary manual PATCH.
  */
-export type TaskWriteDb = Pick<Prisma.TransactionClient, 'task' | 'projectMember'>
+export type TaskWriteDb = Pick<Prisma.TransactionClient, 'task' | 'projectMember' | 'taskDependency'>
 export type AssignedTaskWrite = TaskAssignmentInput & Partial<Pick<Task,
   'title' | 'description' | 'status' | 'progress' | 'blockedReason'>>
+
+/** FS 放行守卫的固定文案：不引用任何前置的 ID / 标题 / 正文 / 列表（契约 I-3 不得泄露不可见对象）。
+ * 顶层码与字段码均取自决策 I-4 冻结表，未新增任何错误码。
+ */
+const FS_PREDECESSOR_NOT_CLOSED = '存在未关闭（CLOSED）的前置任务，不能开工'
+const FS_PLAN_START_BEFORE_RELEASE = '后继计划开始不得早于前置计划结束的次日'
+
+/**
+ * FS 开工守卫（`DECISIONS.md` `scheduling.fs-release-closed-natural-days` 与
+ * `legacy.task-start-guard-authorization`）。
+ *
+ * **触发点 = 本次写入把任务带入 `DOING` 且它当前不是 `DOING`**（真正「开工 / 重启开工」）。
+ * 已在 `DOING` 的任务再写标题 / 进度、或只改计划日期，都不会被重复校验：
+ *   - `applyTaskPlanDates` 只传 `taskId / planStart / planEnd`（`values.status === undefined`），
+ *     从不改变状态，因此**永远不属于开工**，不会被本守卫拦下；
+ *   - 普通 PATCH 只改 `title` / `planStart` 等字段时 `merged.status` 仍等于原状态，
+ *     既不要求前置已关闭，也不会把「TODO 计划编辑」误判为「前置关闭后才可规划」。
+ *
+ * 校验内容（只读**同一 `db`（即调用方事务）**内的真实 FS 前置）：
+ *   1. 每个 FS 前置必须 `CLOSED`（`DONE` 不算验收通过）；
+ *   2. 本次写入的 `planStart` 必须晚于前置 `planEnd` —— `YYYY-MM-DD` 字典序即自然日序，
+ *      「晚于」等价于「不早于次日」（含首尾、Asia/Shanghai，日期不落时区）。
+ *
+ * 守卫不自开事务、不提前提交：`assertTaskAssignment`、本守卫与真实 `update` 共用同一个
+ * `db`（根客户端或调用方事务客户端）。前置对调用者是否可见不影响服务端校验。
+ */
+async function assertFsStartRelease(
+  db: TaskWriteDb, projectId: string, taskId: string,
+  nextStatus: Task['status'] | undefined, nextPlanStart: string,
+): Promise<void> {
+  // 只有「开工」（写入结果为 DOING）才需要 FS 放行校验；日期 / 其它字段写入不算开工。
+  if (nextStatus !== 'DOING') return
+
+  const current = await db.task.findUnique({
+    where: { id: taskId, projectId },
+    select: { status: true },
+  })
+  // 任务不存在 / 并发已删除：交给随后的 update 抛 P2025，由处理器按契约 I-3 映射 404。
+  // 已经是 DOING：本次不是「开工」，不重复校验（不把守卫强加给已在进行的任务编辑）。
+  if (!current || current.status === 'DOING') return
+
+  const predecessors = await db.taskDependency.findMany({
+    where: { projectId, successorTaskId: taskId, type: 'FS' },
+    select: { predecessor: { select: { status: true, planEnd: true } } },
+  })
+  for (const edge of predecessors) {
+    if (edge.predecessor.status !== 'CLOSED') {
+      throw validationError(FS_PREDECESSOR_NOT_CLOSED, [{ field: 'status', code: 'INVALID_VALUE' }])
+    }
+    if (nextPlanStart <= edge.predecessor.planEnd) {
+      throw validationError(FS_PLAN_START_BEFORE_RELEASE, [
+        { field: 'planStart', code: 'INVALID_VALUE' },
+      ])
+    }
+  }
+}
 
 export async function writeAssignedTask(
   db: TaskWriteDb, projectId: string, taskId: string, values: AssignedTaskWrite,
 ): Promise<Task> {
   await assertTaskAssignment(db, projectId, values)
+  await assertFsStartRelease(db, projectId, taskId, values.status, values.planStart)
   return db.task.update({
     where: { id: taskId, projectId },
     data: {
