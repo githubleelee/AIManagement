@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { apiFetch } from '../../api'
+import { parseReferenceOptions, type ReferenceOptions } from './reference-options'
 import { umlDocumentSchema, type UmlDocument } from '../../../../src/modules/uml/document'
 import type { UmlContentInput, UmlCreateInput, UmlPatchInput } from '../../../../src/modules/uml/schemas'
 
@@ -81,3 +82,12 @@ export async function saveUmlContent(id: string, doc: UmlDocument): Promise<UmlV
   return umlViewSchema.parse(await apiFetch<unknown>(`${path(id)}/content`, { method: 'PUT', body: JSON.stringify(toWire(doc)) }))
 }
 export function deleteUml(id: string): Promise<void> { return apiFetch<void>(path(id), { method: 'DELETE' }) }
+
+/** Both sources are existing project-scoped, permission-filtered HTTP lists. */
+export async function loadReferenceOptions(projectId: string, signal: AbortSignal): Promise<ReferenceOptions> {
+  const base = `/projects/${encodeURIComponent(projectId)}`
+  const [tree, tasks] = await Promise.all([
+    apiFetch<unknown>(`${base}/goals`, { signal }), apiFetch<unknown>(`${base}/tasks`, { signal }),
+  ])
+  return parseReferenceOptions(projectId, tree, tasks)
+}

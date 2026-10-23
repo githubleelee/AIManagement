@@ -19,6 +19,11 @@ const activityId = await makeActivity(goalId, '合成活动')
 const storyId = await makeStory(activityId, { title: '合成故事' })
 const taskId = await makeTask(storyId, viewer.id, pm.id, { title: '合成任务' })
 const restrictedTaskId = await makeTask(storyId, pm.id, viewer.id, { title: '合成敏感任务', isSensitive: true })
+const extraGoalIds: string[] = []
+for (let i = 1; i <= 51; i++) extraGoalIds.push(await makeGoal(projectId, `上限测试目标${i}`))
+const emptyProjectId = (await makeProject(pm.id, '空候选合成项目')).projectId
+const otherProjectId = (await makeProject(pm.id, '跨项目候选合成项目')).projectId
+const foreignGoalId = await makeGoal(otherProjectId, '跨项目候选不应出现')
 if (!ctx.app.hasRoute({ method: 'POST', url: '/projects/:projectId/uml-diagrams' })) registerUmlRoutes(ctx.app, { prisma: ctx.db })
 const address = await ctx.app.listen({ host: '127.0.0.1', port: 0 })
 const vite = await createServer({ configFile: 'web/vite.config.ts', server: {
@@ -28,7 +33,7 @@ const vite = await createServer({ configFile: 'web/vite.config.ts', server: {
 await vite.listen()
 const webAddress = vite.httpServer!.address()
 if (!webAddress || typeof webAddress === 'string') throw new Error('No test web address')
-process.send({ type: 'ready', url: `http://127.0.0.1:${webAddress.port}`, projectId, goalId, activityId, storyId, taskId, restrictedTaskId,
+process.send({ type: 'ready', url: `http://127.0.0.1:${webAddress.port}`, projectId, goalId, activityId, storyId, taskId, restrictedTaskId, extraGoalIds, emptyProjectId, foreignGoalId,
   pmToken: ctx.loginAs(pm.id), viewerToken: ctx.loginAs(viewer.id) })
 let closing = false
 async function close() {

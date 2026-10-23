@@ -60,4 +60,4 @@
 - 先前 push 被工具自动审核错误阻断，Git 命令并未执行，不是 GitHub 权限/网络/代码拒绝。用户要求修复后，使用同一账号和同一正常 push 命令成功：`7e226db..a4a8a4d HEAD -> feat/US15-uml`。随后 `ls-remote` 独立确认远端 SHA 为 `a4a8a4d4cd5f874d7b0beabbc4e51c78fdbd2fb0`，与当时本地 HEAD 一致，已包含 `cefe96c` 实现。未改凭据、全局配置或传输方式，未强推。
 - 两条已发评论的原文和 `guard-publication.json` 记录技术请求及实际发布结果，不导出任何凭据或排除归档的前次交互。
 
-关联对象仍为真实 ID 输入，不是对象选择器。补充图片上传/高级 UML/事件接线未新增。未合 PR、未关 Issue、未勾整票 AC。
+**后续更新**：四类真实对象选择器及对应回归已完成，见 [picker-progress.md](picker-progress.md)；本页其余结果保留为 guard 阶段记录。补充图片上传/高级 UML/事件接线未新增。未合 PR、未关 Issue、未勾整票 AC。

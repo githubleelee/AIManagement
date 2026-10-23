@@ -1,0 +1,3 @@
+START 2026-10-23T13:56:11.454Z limit=60s
+web/src/pages/uml/reference-options.ts(2,26): error TS2835: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Did you mean '../../api.js'?
+END exit=2 signal=none elapsed=5.62s

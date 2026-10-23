@@ -6,14 +6,14 @@ import path from 'node:path'
 
 const require = createRequire(import.meta.url)
 const { chromium } = require(process.argv[2] || 'playwright-core')
-const evidence = path.resolve('docs/role-c/issue-35/evidence')
+const evidence = path.resolve('docs/role-c/issue-35/evidence/picker')
 await mkdir(evidence, { recursive: true })
 const server = fork(path.resolve('docs/role-c/issue-35/integration-server.ts'), [], {
   execArgv: ['--import', 'tsx'], stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
 })
 let serverErrors = ''
 server.stderr.on('data', value => { serverErrors += value.toString() })
-const checks = [], requests = [], pageErrors = []
+const checks = [], requests = [], pageErrors = [], requestFailures = []
 let browser, page
 try {
   const fixture = await new Promise((resolve, reject) => {
@@ -25,6 +25,10 @@ try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
   page = await context.newPage()
   page.on('pageerror', error => pageErrors.push(error.message))
+  page.on('requestfailed', request => {
+    const url = new URL(request.url())
+    if (url.pathname.startsWith('/api/')) requestFailures.push({ method: request.method(), path: url.pathname, error: request.failure()?.errorText })
+  })
   page.on('response', response => {
     const req = response.request()
     const url = new URL(req.url())
@@ -37,6 +41,7 @@ try {
   await page.getByText('可见图共 0 张', { exact: true }).waitFor()
   async function check(name, action) { await action(); checks.push({ name, passed: true }); console.log(`PASS ${name}`) }
   const currentId = () => page.evaluate(() => new URLSearchParams(location.search).get('diagram'))
+  const candidate = (label, id) => page.getByRole('checkbox', { name: new RegExp(`^选择${label}：.*（${id}）$`) })
   const saved = async () => page.evaluate(async () => {
     const id = new URLSearchParams(location.search).get('diagram')
     const api = await import('/src/pages/uml/api.ts')
@@ -46,7 +51,11 @@ try {
   await check('PM creates sequence and all four refs through real API, fresh server ids, correct persisted seq', async () => {
     await page.getByRole('button', { name: '新建时序图', exact: true }).click()
     await page.getByLabel('图标题', { exact: true }).fill('真实保存时序图')
-    for (const [label, key] of [['业务目标 ID', 'goalId'], ['用户活动 ID', 'activityId'], ['用户故事 ID', 'storyId'], ['任务 ID', 'taskId']]) await page.getByLabel(label, { exact: true }).fill(fixture[key])
+    for (const [label, key] of [['业务目标', 'goalId'], ['用户活动', 'activityId'], ['用户故事', 'storyId'], ['任务', 'taskId']]) {
+      await candidate(label, fixture[key]).check()
+      assert.equal(await page.getByLabel(`${label} ID`, { exact: true }).inputValue(), fixture[key])
+    }
+    assert.equal(await page.getByRole('checkbox', { name: new RegExp(fixture.foreignGoalId) }).count(), 0)
     await page.getByRole('button', { name: '添加生命线', exact: true }).click()
     await page.getByRole('button', { name: '添加生命线', exact: true }).click()
     await page.getByLabel('生命线 1', { exact: true }).fill('浏览器')
@@ -74,6 +83,47 @@ try {
     assert.equal(await page.getByLabel('生命线 1', { exact: true }).inputValue(), '浏览器')
     await page.screenshot({ path: path.join(evidence, 'integration-sequence.png'), fullPage: true })
   })
+  await check('picker search and selection edit only the draft, survive offline retry, and preserve unknown IDs', async () => {
+    await candidate('任务', fixture.taskId).waitFor()
+    await page.getByLabel('搜索业务目标', { exact: true }).fill('不存在的候选名称')
+    await page.getByRole('region', { name: '业务目标候选', exact: true }).getByText('没有匹配的候选', { exact: true }).waitFor()
+    assert.equal(await page.getByLabel('业务目标 ID', { exact: true }).inputValue(), fixture.goalId)
+    await page.getByLabel('搜索业务目标', { exact: true }).fill('')
+    await candidate('任务', fixture.taskId).uncheck()
+    assert.equal(await page.getByLabel('任务 ID', { exact: true }).inputValue(), '')
+    assert.equal((await saved()).taskRefs[0].id, fixture.taskId)
+    await page.getByLabel('任务 ID', { exact: true }).fill(`${fixture.taskId}, missing-draft-id`)
+    assert(await candidate('任务', fixture.taskId).isChecked())
+    await page.getByRole('button', { name: '移除任务 ID missing-draft-id', exact: true }).waitFor()
+    await context.setOffline(true)
+    try {
+      await page.getByRole('button', { name: '刷新关联候选', exact: true }).click()
+      await page.getByRole('alert').filter({ hasText: '关联候选加载失败' }).waitFor()
+      assert.equal(await page.getByRole('checkbox').count(), 0)
+      assert.equal(await page.getByLabel('任务 ID', { exact: true }).inputValue(), `${fixture.taskId}, missing-draft-id`)
+    } finally { await context.setOffline(false) }
+    await page.getByRole('button', { name: '刷新关联候选', exact: true }).click()
+    await candidate('任务', fixture.taskId).waitFor()
+    await page.getByRole('button', { name: '移除任务 ID missing-draft-id', exact: true }).click()
+    assert.equal(await page.getByLabel('任务 ID', { exact: true }).inputValue(), fixture.taskId)
+    assert.equal((await saved()).taskRefs[0].id, fixture.taskId)
+  })
+  await check('picker enforces the 50-selection boundary without discarding an existing draft', async () => {
+    await page.getByLabel('业务目标 ID', { exact: true }).fill(fixture.extraGoalIds.slice(0, 50).join('\n'))
+    assert(await candidate('业务目标', fixture.goalId).isDisabled())
+    assert(!(await candidate('业务目标', fixture.extraGoalIds[0]).isDisabled()))
+    await candidate('业务目标', fixture.extraGoalIds[0]).uncheck()
+    await candidate('业务目标', fixture.goalId).check()
+    assert.equal((await page.getByLabel('业务目标 ID', { exact: true }).inputValue()).split('\n').length, 50)
+    await page.getByLabel('业务目标 ID', { exact: true }).fill(fixture.extraGoalIds.join('\n'))
+    await page.getByRole('alert').filter({ hasText: '业务目标超过 50 个' }).waitFor()
+    assert.equal((await saved()).goalRefs.length, 1)
+    await page.getByLabel('业务目标 ID', { exact: true }).fill(fixture.goalId)
+    await page.setViewportSize({ width: 390, height: 844 })
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+    await page.screenshot({ path: path.join(evidence, 'picker-mobile.png'), fullPage: true })
+    await page.setViewportSize({ width: 1440, height: 1000 })
+  })
   await check('metadata save preserves unsubmitted content draft; content save preserves other metadata draft', async () => {
     await page.getByLabel('消息 1 内容', { exact: true }).fill('尚未提交的图内容')
     await page.getByLabel('图标题', { exact: true }).fill('元数据已保存')
@@ -87,6 +137,12 @@ try {
     assert.equal((await saved()).edges[0].label, '尚未提交的图内容')
     assert.equal((await saved()).title, '元数据已保存')
     assert.equal(await page.getByLabel('图标题', { exact: true }).inputValue(), '未保存标题')
+    await candidate('任务', fixture.taskId).uncheck()
+    await page.getByRole('button', { name: '保存图内容', exact: true }).click()
+    await page.getByRole('status').filter({ hasText: '图内容已保存' }).waitFor()
+    assert.equal(await page.getByLabel('任务 ID', { exact: true }).inputValue(), '')
+    assert.equal((await saved()).taskRefs[0].id, fixture.taskId)
+    await candidate('任务', fixture.taskId).check()
   })
   await check('invalid association returns real 422 without replacing draft or saved metadata', async () => {
     await page.getByLabel('任务 ID', { exact: true }).fill('missing-synthetic-task')
@@ -95,6 +151,32 @@ try {
     assert.equal(await page.getByLabel('任务 ID', { exact: true }).inputValue(), 'missing-synthetic-task')
     assert.equal((await saved()).taskRefs[0].id, fixture.taskId)
     assert.equal((await saved()).title, '元数据已保存')
+  })
+  await check('picker removals and additions persist only after metadata save and survive refresh', async () => {
+    await page.getByLabel('任务 ID', { exact: true }).fill(fixture.taskId)
+    await page.getByLabel('图标题', { exact: true }).fill('元数据已保存')
+    await candidate('任务', fixture.taskId).uncheck()
+    await candidate('用户活动', fixture.activityId).uncheck()
+    assert.equal((await saved()).taskRefs[0].id, fixture.taskId)
+    await page.getByRole('button', { name: '保存基本信息与关联', exact: true }).click()
+    await page.getByRole('status').filter({ hasText: '基本信息与关联已保存' }).waitFor()
+    const without = await saved()
+    assert.deepEqual(without.taskRefs, []); assert.deepEqual(without.activityRefs, [])
+    assert.equal(without.edges[0].label, '尚未提交的图内容')
+    await candidate('任务', fixture.taskId).check()
+    await candidate('用户活动', fixture.activityId).check()
+    await page.getByRole('button', { name: '保存基本信息与关联', exact: true }).click()
+    await page.getByRole('status').filter({ hasText: '基本信息与关联已保存' }).waitFor()
+    const restored = await saved()
+    assert.equal(restored.taskRefs[0].id, fixture.taskId)
+    assert.equal(restored.activityRefs[0].id, fixture.activityId)
+    await page.reload()
+    await page.getByRole('heading', { name: '编辑图：元数据已保存', exact: true }).waitFor()
+    for (const [label, key] of [['业务目标', 'goalId'], ['用户活动', 'activityId'], ['用户故事', 'storyId'], ['任务', 'taskId']]) {
+      await candidate(label, fixture[key]).waitFor()
+      assert(await candidate(label, fixture[key]).isChecked())
+    }
+    await page.screenshot({ path: path.join(evidence, 'picker-desktop.png'), fullPage: true })
   })
   await check('wire adapters preserve reverse associations, custom labels, null labels and both directed association tuples', async () => {
     const result = await page.evaluate(async projectId => {
@@ -133,6 +215,7 @@ try {
     assert(await page.getByLabel('图标题', { exact: true }).isDisabled())
     assert.equal(await page.getByRole('button', { name: '保存图内容', exact: true }).count(), 0)
     assert.equal(await page.getByRole('button', { name: '新建时序图', exact: true }).count(), 0)
+    assert.equal(await page.getByRole('region', { name: '关联对象选择器', exact: true }).count(), 0)
     assert.equal(await page.getByRole('link', { name: '任务：合成任务', exact: true }).count(), 1)
     assert.equal((await saved()).id, firstId)
     await page.screenshot({ path: path.join(evidence, 'integration-viewer-readonly.png'), fullPage: true })
@@ -149,9 +232,19 @@ try {
       await api.patchUml(id, { taskIds: [] })
     }, { id: firstId, taskId: fixture.restrictedTaskId })
     await page.evaluate(token => localStorage.setItem('aim.token', token), fixture.viewerToken)
+    const deniedStatus = await page.evaluate(async id => {
+      const response = await fetch(`/api/uml-diagrams/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('aim.token')}` } })
+      await response.text()
+      return response.status
+    }, firstId)
+    assert.equal(deniedStatus, 404, 'Restricted diagram must be hidden by the actual API before focus revalidation')
+    const revalidation = page.waitForResponse(response => new URL(response.url()).pathname === `/api/uml-diagrams/${firstId}` && response.request().method() === 'GET')
     await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+    assert.equal((await revalidation).status(), 404)
     await page.getByRole('alert').filter({ hasText: '图不存在' }).waitFor()
     assert.equal(await page.getByLabel('图标题', { exact: true }).count(), 0)
+    assert.equal(await page.getByRole('region', { name: '关联对象选择器', exact: true }).count(), 0)
+    assert.equal(await page.getByText('合成敏感任务', { exact: true }).count(), 0)
     assert.equal(await page.getByRole('img', { name: '时序图预览', exact: true }).count(), 0)
     assert.equal(await page.getByRole('link', { name: '任务：合成任务', exact: true }).count(), 0)
     await page.reload()
@@ -196,12 +289,28 @@ try {
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
     await page.setViewportSize({ width: 1440, height: 1000 })
   })
+  await check('a real empty project shows all four empty picker states without borrowing other project candidates', async () => {
+    const before = page.url()
+    await page.goto(`${fixture.url}/src/pages/uml/integration.html?projectId=${encodeURIComponent(fixture.emptyProjectId)}`)
+    await page.getByText('可见图共 0 张', { exact: true }).waitFor()
+    await page.getByRole('button', { name: '新建用例图', exact: true }).click()
+    for (const label of ['业务目标', '用户活动', '用户故事', '任务']) {
+      await page.getByText(`暂无可选${label}`, { exact: true }).waitFor()
+    }
+    assert.equal(await page.getByRole('checkbox').count(), 0)
+    await page.goto(before)
+    await page.getByRole('heading', { name: '编辑图：真实保存用例图', exact: true }).waitFor()
+  })
   assert.equal(pageErrors.length, 0, JSON.stringify(pageErrors))
   assert(requests.filter(r => r.method !== 'GET').every(r => r.hasAuthorization))
   await writeFile(path.join(evidence, 'integration-browser-results.json'), JSON.stringify({ checks, requests, pageErrors,
     limitations: ['Synthetic isolated migrated DB and explicit test registration, not production mounting', 'Association-time sticky guard and ordinary VIEWER reads exercised; later target sensitivity propagation still requires B confirmation', 'Task href only, target anchor not exercised', 'No real project data or credentials archived'] }, null, 2))
   console.log(`PASS ${checks.length} real-API browser checks; no full-ticket acceptance claimed`)
 } catch (error) {
+  const alerts = page ? await page.getByRole('alert').allTextContents().catch(() => []) : []
+  const diagnostics = { error: String(error), checks, alerts, requests, requestFailures, pageErrors }
+  await writeFile(path.join(evidence, 'integration-failure.json'), JSON.stringify(diagnostics, null, 2))
+  console.error(JSON.stringify({ alerts, recentRequests: requests.slice(-12), requestFailures, pageErrors }))
   if (page) await page.screenshot({ path: path.join(evidence, 'integration-failure.png'), fullPage: true }).catch(() => {})
   throw error
 } finally {

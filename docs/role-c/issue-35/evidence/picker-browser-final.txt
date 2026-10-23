@@ -1,0 +1,22 @@
+START 2026-10-23T13:18:42.953Z limit=90s
+PASS PM creates sequence and all four refs through real API, fresh server ids, correct persisted seq
+PASS refresh restores actual server document and editable content
+PASS picker search and selection edit only the draft, survive offline retry, and preserve unknown IDs
+PASS picker enforces the 50-selection boundary without discarding an existing draft
+{"alerts":["操作未完成，请检查图稿格式或稍后重试。 草稿未被替换。"],"recentRequests":[{"method":"GET","path":"/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/uml-diagrams","status":200,"hasAuthorization":true},{"method":"GET","path":"/api/uml-diagrams/5db7e137-89ae-461d-b87e-50e03561fce1","status":200,"hasAuthorization":true},{"method":"GET","path":"/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/goals","status":200,"hasAuthorization":true},{"method":"GET","path":"/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/tasks","status":200,"hasAuthorization":true},{"method":"GET","path":"/api/uml-diagrams/5db7e137-89ae-461d-b87e-50e03561fce1","status":200,"hasAuthorization":true},{"method":"GET","path":"/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/tasks","status":200,"hasAuthorization":true},{"method":"GET","path":"/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/goals","status":200,"hasAuthorization":true},{"method":"GET","path":"/api/uml-diagrams/5db7e137-89ae-461d-b87e-50e03561fce1","status":200,"hasAuthorization":true},{"method":"GET","path":"/api/uml-diagrams/5db7e137-89ae-461d-b87e-50e03561fce1","status":200,"hasAuthorization":true},{"method":"PATCH","path":"/api/uml-diagrams/5db7e137-89ae-461d-b87e-50e03561fce1","status":200,"hasAuthorization":true},{"method":"GET","path":"/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/uml-diagrams","status":200,"hasAuthorization":true},{"method":"GET","path":"/api/uml-diagrams/5db7e137-89ae-461d-b87e-50e03561fce1","status":200,"hasAuthorization":true}],"pageErrors":[]}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('status').filter({ hasText: '图内容已保存' }) to be visible[22m
+
+    at D:\临时项目\AIManagement-US15\docs\role-c\issue-35\verify-integration.mjs:132:66
+    at async check (D:\临时项目\AIManagement-US15\docs\role-c\issue-35\verify-integration.mjs:38:40)
+    at async file:///D:/%E4%B8%B4%E6%97%B6%E9%A1%B9%E7%9B%AE/AIManagement-US15/docs/role-c/issue-35/verify-integration.mjs:123:3 {
+  name: 'TimeoutError'
+}
+
+Node.js v24.15.0
+END exit=1 signal=none elapsed=40.60s

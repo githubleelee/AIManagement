@@ -5,6 +5,8 @@ import { emptyUmlDocument, type UmlDocument } from '../../../../src/modules/uml/
 import { umlCreateSchema, umlPatchSchema } from '../../../../src/modules/uml/schemas'
 import { ApiError } from '../../api'
 import UmlEditor from './UmlEditor'
+import ReferencePicker from './ReferencePicker'
+import { referenceIds as ids } from './reference-options'
 import { createUml, deleteUml, fromWire, getUml, listUml, patchUml, saveUmlContent, toWire, type UmlList, type UmlView } from './api'
 import './uml.css'
 
@@ -12,7 +14,6 @@ const message = (error: unknown) => error instanceof ApiError
   ? `${error.message}${error.details?.map(d => `（${d.field}: ${d.code}）`).join('') ?? ''}`
   : '操作未完成，请检查图稿格式或稍后重试。'
 const denied = (error: unknown) => error instanceof ApiError && [401, 403, 404].includes(error.status)
-const ids = (text: string) => [...new Set(text.split(/[\s,，]+/).filter(Boolean))]
 
 /** B mounts only this component at /projects/:projectId/uml, under ProjectLayout. */
 export default function UmlPage() {
@@ -146,7 +147,9 @@ function DiagramForm({ initial, newKind, isPM, projectId, base, onDenied, isCurr
       <label>图标题<input aria-label="图标题" value={title} maxLength={100} onChange={e => setTitle(e.target.value)} /></label>
       <label>图说明<textarea aria-label="图说明" value={description} maxLength={200} onChange={e => setDescription(e.target.value)} /></label>
       <label>负责人用户 ID（新建时可留空，默认当前 PM）<input aria-label="负责人用户 ID" value={owner} onChange={e => setOwner(e.target.value)} /></label>
-      <p>关联输入为真实对象 ID，每行一个或逗号分隔，每类最多 50 个。这里不是对象选择器；跨项目及不存在对象由服务端统一拒绝。清空表示解除该类全部关联。</p>
+      {isPM && <ReferencePicker projectId={projectId} values={refs}
+        onChange={(field, text) => setRefs(previous => ({ ...previous, [field]: text }))} onDenied={onDenied} />}
+      <p>高级真实 ID 输入：与选择器共享同一草稿，每行一个或逗号分隔，每类最多 50 个。跨项目及不存在对象由服务端统一拒绝；清空表示解除该类全部关联。</p>
       {(['goalIds', 'activityIds', 'storyIds', 'taskIds'] as const).map((key, index) => <label key={key}>{['业务目标 ID', '用户活动 ID', '用户故事 ID', '任务 ID'][index]}
         <textarea aria-label={['业务目标 ID', '用户活动 ID', '用户故事 ID', '任务 ID'][index]} value={refs[key]} onChange={e => setRefs({ ...refs, [key]: e.target.value })} />
       </label>)}
@@ -159,7 +162,7 @@ function DiagramForm({ initial, newKind, isPM, projectId, base, onDenied, isCurr
         {confirmDelete && <><span>删除图稿及全部关联？</span><button type="button" disabled={busy} onClick={() => void act('delete')}>确认删除</button></>}</>}
     </div>}
     {saved && <section aria-label="已保存的对象关联"><h3>已保存的对象关联</h3>
-      <p>以下名称和链接仅来自最近一次成功的鉴权响应，不代表尚未保存的 ID 输入。</p>
+      <p>以下名称和链接仅来自最近一次成功的鉴权响应，不代表尚未保存的选择或 ID 草稿。</p>
       <p><Link to={base}>所属项目</Link></p>
       <ul>{saved.goalRefs.map(x => <li key={`g-${x.id}`}>业务目标：{x.name}</li>)}
         {saved.activityRefs.map(x => <li key={`a-${x.id}`}>用户活动：{x.name}</li>)}
