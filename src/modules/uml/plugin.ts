@@ -1,6 +1,6 @@
 /** US-15 own-domain plugin. B alone owns production registration in src/routes.ts.
- * IMPORTANT: non-PM reads currently fail closed pending durable visibility guard.
- * Do not mount as an accepted feature or claim AC5 completion; see service.ts.
+ * Non-PM reads use current association visibility AND the sticky everRestricted guard.
+ * Production routing and full-ticket acceptance remain separate integration work.
  */
 import type { FastifyInstance } from 'fastify'
 import type { ZodType, ZodTypeDef } from 'zod'

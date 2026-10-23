@@ -19,13 +19,9 @@ async function diagramProject(db: Db, id: string): Promise<string> {
   return diagram.projectId
 }
 
-/**
- * TEMPORARY FAIL-CLOSED: the frozen model has no durable guard after unlink/Cascade.
- * Live every(...) alone would automatically disclose previously protected diagram text.
- * Until #24 comment-6282420799 is resolved, non-global read scopes see no UML rows.
- * This intentionally does NOT satisfy MEMBER/VIEWER read acceptance. Do not remove
- * the final deny without a persistent, approved no-declassification implementation.
- * No role checks, new ObjectRef, new Action, public toggle or audit-as-ACL workaround.
+/** Current visibility intersection plus the approved persistent no-declassification guard.
+ * Only central PM scopes bypass the guard. Even whitelisted non-PMs cannot read a
+ * diagram once everRestricted is true; unlink/Cascade never resets that history.
  */
 async function readWhere(db: Db, actor: string, projectId: string): Promise<Prisma.UmlDiagramWhereInput> {
   const auth = createAuthorization(db)
@@ -39,7 +35,7 @@ async function readWhere(db: Db, actor: string, projectId: string): Promise<Pris
   return { projectId, AND: [
     { tasks: { every: { task: { id: { in: tasks.mode === 'all' ? undefined : tasks.ids } } } } },
     { stories: { every: { story: { id: { in: stories.mode === 'all' ? undefined : stories.ids } } } } },
-    { id: { in: [] } }, // pending durable guard; NOT a completed intersection policy
+    { everRestricted: false },
   ] }
 }
 
@@ -160,10 +156,17 @@ async function replaceRefs(db: Db, diagramId: string, projectId: string, input: 
     if (values === undefined) continue
     const ids = [...new Set(values)]
     const where = { projectId, id: { in: ids } }
-    const count = spec.model === 'businessGoal' ? await db.businessGoal.count({ where })
-      : spec.model === 'userActivity' ? await db.userActivity.count({ where })
-      : spec.model === 'userStory' ? await db.userStory.count({ where }) : await db.task.count({ where })
+    // Read sensitivity from the real same-project targets, never from request data.
+    const restrictedTargets = spec.model === 'userStory'
+      ? await db.userStory.findMany({ where, select: { isSensitive: true } })
+      : spec.model === 'task' ? await db.task.findMany({ where, select: { isSensitive: true } }) : null
+    const count = restrictedTargets !== null ? restrictedTargets.length
+      : spec.model === 'businessGoal' ? await db.businessGoal.count({ where }) : await db.userActivity.count({ where })
     if (count !== ids.length) throw new AppError(422, 'VALIDATION_FAILED', '关联对象不属于本项目', [{ field: spec.field, code: 'CROSS_PROJECT_REF' }])
+    if (restrictedTargets?.some(target => target.isSensitive)) {
+      // Same transaction as the join replacement. Never write false, including [].
+      await db.umlDiagram.update({ where: { id: diagramId }, data: { everRestricted: true } })
+    }
     if (spec.links === 'umlDiagramGoal') {
       await db.umlDiagramGoal.deleteMany({ where: { diagramId } })
       if (ids.length) await db.umlDiagramGoal.createMany({ data: ids.map(goalId => ({ diagramId, goalId })) })

@@ -75,7 +75,7 @@ export function UmlPageContent({ projectId, project }: { projectId: string; proj
   const base = `/projects/${encodeURIComponent(projectId)}`
   return <main className="uml-project-page">
     <h1>在线 UML 图</h1>
-    <p role="note">当前为集成开发版本：非 PM 读取暂时安全关闭，等待“不自动降密”方案；不能据此验收 AC5。补充图片上传未实现。</p>
+    <p role="note">当前为集成开发版本：普通图按关联可见性只读开放；建立敏感任务或故事关联后，仅 PM 可读，解绑不会自动恢复。补充图片上传未实现。</p>
     {error && <p role="alert">{error}</p>}
     <button type="button" onClick={() => { setNewKind(null); setReload(n => n + 1) }}>重新加载（放弃当前草稿）</button>
     {!blocked && <>

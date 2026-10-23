@@ -18,6 +18,7 @@ const goalId = await makeGoal(projectId, '合成目标')
 const activityId = await makeActivity(goalId, '合成活动')
 const storyId = await makeStory(activityId, { title: '合成故事' })
 const taskId = await makeTask(storyId, viewer.id, pm.id, { title: '合成任务' })
+const restrictedTaskId = await makeTask(storyId, pm.id, viewer.id, { title: '合成敏感任务', isSensitive: true })
 if (!ctx.app.hasRoute({ method: 'POST', url: '/projects/:projectId/uml-diagrams' })) registerUmlRoutes(ctx.app, { prisma: ctx.db })
 const address = await ctx.app.listen({ host: '127.0.0.1', port: 0 })
 const vite = await createServer({ configFile: 'web/vite.config.ts', server: {
@@ -27,7 +28,7 @@ const vite = await createServer({ configFile: 'web/vite.config.ts', server: {
 await vite.listen()
 const webAddress = vite.httpServer!.address()
 if (!webAddress || typeof webAddress === 'string') throw new Error('No test web address')
-process.send({ type: 'ready', url: `http://127.0.0.1:${webAddress.port}`, projectId, goalId, activityId, storyId, taskId,
+process.send({ type: 'ready', url: `http://127.0.0.1:${webAddress.port}`, projectId, goalId, activityId, storyId, taskId, restrictedTaskId,
   pmToken: ctx.loginAs(pm.id), viewerToken: ctx.loginAs(viewer.id) })
 let closing = false
 async function close() {

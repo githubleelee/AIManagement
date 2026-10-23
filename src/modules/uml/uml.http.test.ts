@@ -1,9 +1,9 @@
 /** HTTP seam only; real isolated migrated SQLite, actual can()/sessions/transactions.
- * These tests explicitly DO NOT claim completed non-PM reads; see pending tests below.
+ * Covers the approved association-time sticky guard, not production route mounting.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createHttpTestContext, setActiveDatabase, type HttpTestContext } from '../../../test/helpers.js'
-import { makeActivity, makeGoal, makeMember, makeProject, makeStory, makeTask, makeUser } from '../../../test/factories.js'
+import { makeActivity, makeGoal, makeMember, makeProject, makeSensitive, makeStory, makeTask, makeUser } from '../../../test/factories.js'
 import { registerUmlRoutes } from './plugin.js'
 
 let ctx: HttpTestContext
@@ -115,7 +115,7 @@ describe('US-15 PM persistence, wire format and transaction semantics', () => {
   })
   it('rejects unknown PATCH fields and changing kind; metadata cannot masquerade as content replacement', async () => {
     const saved = await create()
-    for (const patch of [{ kind: 'SEQUENCE' }, { projectId: 'other' }, { nodes: [] }, { isSensitive: false }]) {
+    for (const patch of [{ kind: 'SEQUENCE' }, { projectId: 'other' }, { nodes: [] }, { isSensitive: false }, { everRestricted: false }]) {
       expect((await clients.pm.patch(detail(saved.id)).send(patch)).status).toBe(422)
     }
     expect((await clients.pm.get(detail(saved.id))).body).toEqual(saved)
@@ -230,7 +230,7 @@ describe('US-15 rejected writes leave the prior saved graph intact', () => {
   })
 })
 
-describe('US-15 real authorization seam; pending reader policy explicitly fail-closed', () => {
+describe('US-15 real authorization seam and sticky no-declassification guard', () => {
   it.each(['member', 'viewer', 'outsider', 'anonymous'] as const)('%s cannot write through any UML endpoint', async identity => {
     const saved = await create('USECASE', usecase())
     const c = clients[identity]
@@ -244,7 +244,7 @@ describe('US-15 real authorization seam; pending reader policy explicitly fail-c
     const saved = await create()
     expect((await clients.anonymous.get(collection())).status).toBe(401)
     expect((await clients.anonymous.get(detail(saved.id))).status).toBe(401)
-    for (const identity of ['outsider', 'member', 'viewer'] as const) {
+    for (const identity of ['outsider'] as const) {
       const hidden = await clients[identity].get(detail(saved.id)), missing = await clients[identity].get(detail('missing'))
       expect(hidden.status).toBe(404)
       expect(hidden.body).toEqual(missing.body)
@@ -256,28 +256,109 @@ describe('US-15 real authorization seam; pending reader policy explicitly fail-c
       await clients.outsider.put(`${detail('missing')}/content`).send({ nodes: [], edges: [] }), await clients.outsider.delete(detail('missing'))]
     existingWrites.forEach((res, i) => { expect(res.status).toBe(404); expect(res.body).toEqual(absentWrites[i]!.body) })
   })
-  it('TEMPORARY fail-closed reader scope is empty with total=0 even for ordinary/unassociated diagrams', async () => {
-    await create()
-    for (const identity of ['member', 'viewer'] as const) {
-      const res = await clients[identity].get(collection())
+  it.each(['member', 'viewer'] as const)('%s reads ordinary empty and associated graphs without receiving the internal guard', async identity => {
+    const empty = await create()
+    const associated = await create('SEQUENCE', { ...sequence(), goalIds: [goalId], activityIds: [activityId], storyIds: [storyId], taskIds: [taskId] })
+    for (const saved of [empty, associated]) {
+      const res = await clients[identity].get(detail(saved.id))
       expect(res.status).toBe(200)
-      expect(res.body).toEqual({ items: [], total: 0, truncated: false })
+      expect(res.body).toEqual(saved)
+      expect(res.body).not.toHaveProperty('everRestricted')
     }
+    const list = await clients[identity].get(collection())
+    expect(list.body).toMatchObject({ total: 2, truncated: false })
+    expect(list.body.items.map((row: { id: string }) => row.id).sort()).toEqual([empty.id, associated.id].sort())
   })
-  it('does not automatically disclose old sensitive diagram text after real task delete Cascade or unlink', async () => {
-    const secretTask = await makeTask(storyId, pm, member, { isSensitive: true, title: '测试敏感任务' })
-    const saved = await create('USECASE', { title: '保留敏感内容', taskIds: [secretTask] })
-    expect((await clients.viewer.get(detail(saved.id))).status).toBe(404)
-    const deleted = await clients.pm.delete(`/tasks/${secretTask}`)
+  it.each(['task', 'story'] as const)('sensitive %s association hides all content even from whitelist members', async kind => {
+    const id = kind === 'task' ? taskId : storyId
+    await makeSensitive(kind, id, [member, viewer])
+    const saved = await create('USECASE', { title: '不应泄漏', ...usecase(), [kind === 'task' ? 'taskIds' : 'storyIds']: [id] })
+    for (const identity of ['member', 'viewer'] as const) {
+      const hidden = await clients[identity].get(detail(saved.id))
+      const missing = await clients[identity].get(detail('missing'))
+      expect(hidden.status).toBe(404)
+      expect(hidden.body).toEqual(missing.body)
+      expect((await clients[identity].get(collection())).body).toEqual({ items: [], total: 0, truncated: false })
+    }
+    expect((await clients.pm.get(detail(saved.id))).body).toEqual(saved)
+  })
+  it.each(['task', 'story'] as const)('real %s DELETE Cascade does not disclose historical diagram content', async kind => {
+    // Story deletion requires no child tasks; use a separate childless story.
+    const id = kind === 'task' ? taskId : await makeStory(activityId)
+    await makeSensitive(kind, id, [])
+    const saved = await create('USECASE', { [kind === 'task' ? 'taskIds' : 'storyIds']: [id] })
+    const deleted = await clients.pm.delete(`/${kind === 'task' ? 'tasks' : 'stories'}/${id}`)
     expect(deleted.status, JSON.stringify(deleted.body)).toBe(204)
-    expect((await clients.pm.get(detail(saved.id))).body.taskRefs).toEqual([])
-    expect((await clients.viewer.get(detail(saved.id))).status).toBe(404)
-    expect((await clients.member.get(detail(saved.id))).status).toBe(404)
-    const saved2 = await create('USECASE', { taskIds: [taskId] })
-    expect((await clients.pm.patch(detail(saved2.id)).send({ taskIds: [] })).status).toBe(200)
-    expect((await clients.viewer.get(detail(saved2.id))).status).toBe(404)
+    const loaded = await clients.pm.get(detail(saved.id))
+    expect(loaded.status).toBe(200)
+    expect(loaded.body[kind === 'task' ? 'taskRefs' : 'storyRefs']).toEqual([])
+    for (const identity of ['member', 'viewer'] as const) expect((await clients[identity].get(detail(saved.id))).status).toBe(404)
   })
-  it.todo('AC5 MEMBER/VIEWER may read ordinary visible diagrams (blocked by durable guard design, not accepted)')
-  it.todo('AC5 whitelist member can read sensitive-associated diagrams, intersection rejects any hidden ref')
-  it.todo('AC5 preserve durable historical restrictions after Cascade/unlink while ordinary diagrams remain readable')
+  it.each(['task', 'story'] as const)('PATCH establishes sticky %s restriction; unlink, metadata, owner and content changes never clear it', async kind => {
+    const saved = await create()
+    expect((await clients.viewer.get(detail(saved.id))).status).toBe(200)
+    const id = kind === 'task' ? taskId : storyId
+    const field = kind === 'task' ? 'taskIds' : 'storyIds'
+    await makeSensitive(kind, id, [member])
+    expect((await clients.pm.patch(detail(saved.id)).send({ [field]: [id] })).status).toBe(200)
+    const ordinary = await makeStory(activityId)
+    for (const patch of [{ [field]: [] }, { title: '更名' }, { ownerUserId: viewer }, { storyIds: [ordinary], taskIds: [] }]) {
+      expect((await clients.pm.patch(detail(saved.id)).send(patch)).status).toBe(200)
+      for (const identity of ['member', 'viewer'] as const) expect((await clients[identity].get(detail(saved.id))).status).toBe(404)
+    }
+    expect((await clients.pm.put(`${detail(saved.id)}/content`).send(usecase())).status).toBe(200)
+    expect((await clients.pm.get(detail(saved.id))).status).toBe(200)
+    expect((await clients.viewer.get(detail(saved.id))).status).toBe(404)
+    const newEmpty = await create()
+    expect((await clients.viewer.get(detail(newEmpty.id))).status).toBe(200)
+  })
+  it('non-PM list, kind filter, total and truncation exclude restricted rows before taking 200', async () => {
+    await ctx.db.umlDiagram.createMany({ data: [
+      ...Array.from({ length: 201 }, (_, i) => ({ projectId, ownerUserId: pm, kind: 'USECASE', title: `普通${i}` })),
+      ...Array.from({ length: 3 }, (_, i) => ({ projectId, ownerUserId: pm, kind: 'SEQUENCE', title: `受限${i}`, everRestricted: true })),
+    ] })
+    for (const identity of ['member', 'viewer'] as const) {
+      const all = await clients[identity].get(collection())
+      expect(all.status).toBe(200)
+      expect(all.body).toMatchObject({ total: 201, truncated: true })
+      expect(all.body.items).toHaveLength(200)
+      expect(all.body.items.every((row: { kind: string }) => row.kind === 'USECASE')).toBe(true)
+      expect((await clients[identity].get(`${collection()}?kind=SEQUENCE`)).body).toEqual({ items: [], total: 0, truncated: false })
+      expect((await clients[identity].get(`${collection()}?kind=USECASE`)).body).toMatchObject({ total: 201, truncated: true })
+    }
+    expect((await clients.pm.get(collection())).body.total).toBe(204)
+  })
+  it('current task/story intersection still hides a graph if any associated target becomes invisible', async () => {
+    const saved = await create('USECASE', { storyIds: [storyId], taskIds: [taskId] })
+    // Association was ordinary. Post-association sticky propagation is a separate B decision.
+    await makeSensitive('story', storyId, [member])
+    await makeSensitive('task', taskId, [])
+    for (const identity of ['member', 'viewer'] as const) {
+      expect((await clients[identity].get(detail(saved.id))).status).toBe(404)
+      expect((await clients[identity].get(collection())).body.total).toBe(0)
+    }
+    expect((await clients.pm.get(detail(saved.id))).status).toBe(200)
+  })
+  it('failed PATCH rolls back sensitive guard, earlier join changes and metadata together', async () => {
+    await makeSensitive('story', storyId, [])
+    const saved = await create('USECASE', { goalIds: [goalId], taskIds: [taskId] })
+    const otherProject = (await makeProject(outsider)).projectId
+    const g = await makeGoal(otherProject), a = await makeActivity(g), s = await makeStory(a)
+    await makeMember(otherProject, pm, 'MEMBER')
+    const crossTask = await makeTask(s, outsider, pm, { isSensitive: true })
+    const cross = await clients.pm.patch(detail(saved.id)).send({ title: '必须回滚', goalIds: [], storyIds: [storyId], taskIds: [crossTask] })
+    const missing = await clients.pm.patch(detail(saved.id)).send({ title: '必须回滚', goalIds: [], storyIds: [storyId], taskIds: ['missing'] })
+    expect(cross.status).toBe(422)
+    expect(cross.body).toEqual(missing.body)
+    expect((await clients.pm.get(detail(saved.id))).body).toEqual(saved)
+    expect((await clients.viewer.get(detail(saved.id))).body).toEqual(saved)
+  })
+  it('invalid content after sensitive refs rolls back the entire new diagram and guard', async () => {
+    await makeSensitive('task', taskId, [])
+    const res = await clients.pm.post(collection()).send({ title: '不能留下半图', kind: 'USECASE', taskIds: [taskId],
+      nodes: [{ id: 'wrong', nodeType: 'LIFELINE', name: '错误' }], edges: [] })
+    expect(res.status).toBe(422)
+    expect((await clients.pm.get(collection())).body.total).toBe(0)
+    expect((await clients.viewer.get(collection())).body.total).toBe(0)
+  })
 })

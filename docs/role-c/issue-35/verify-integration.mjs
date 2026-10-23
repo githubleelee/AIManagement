@@ -125,7 +125,29 @@ try {
     }, firstId)
     assert.equal(nullMessage.edges[0].label, null)
   })
-  await check('real permission denial clears existing graph, drafts and saved association titles', async () => {
+  await check('ordinary VIEWER reads persisted graph and refs without edit or create controls', async () => {
+    await page.evaluate(token => localStorage.setItem('aim.token', token), fixture.viewerToken)
+    await page.reload()
+    await page.getByRole('heading', { name: '编辑图：元数据已保存', exact: true }).waitFor()
+    assert.equal(await page.getByRole('img', { name: '时序图预览', exact: true }).count(), 1)
+    assert(await page.getByLabel('图标题', { exact: true }).isDisabled())
+    assert.equal(await page.getByRole('button', { name: '保存图内容', exact: true }).count(), 0)
+    assert.equal(await page.getByRole('button', { name: '新建时序图', exact: true }).count(), 0)
+    assert.equal(await page.getByRole('link', { name: '任务：合成任务', exact: true }).count(), 1)
+    assert.equal((await saved()).id, firstId)
+    await page.screenshot({ path: path.join(evidence, 'integration-viewer-readonly.png'), fullPage: true })
+    await page.evaluate(token => localStorage.setItem('aim.token', token), fixture.pmToken)
+    await page.reload()
+    await page.getByRole('heading', { name: '编辑图：元数据已保存', exact: true }).waitFor()
+    await page.getByLabel('图标题', { exact: true }).fill('必须清除的草稿')
+  })
+  await check('real restricted-graph denial clears existing graph, drafts and saved association titles', async () => {
+    await page.evaluate(async ({ id, taskId }) => {
+      const api = await import('/src/pages/uml/api.ts')
+      await api.patchUml(id, { taskIds: [taskId] })
+      // Removing the last sensitive association must NOT make it readable again.
+      await api.patchUml(id, { taskIds: [] })
+    }, { id: firstId, taskId: fixture.restrictedTaskId })
     await page.evaluate(token => localStorage.setItem('aim.token', token), fixture.viewerToken)
     await page.evaluate(() => window.dispatchEvent(new Event('focus')))
     await page.getByRole('alert').filter({ hasText: '图不存在' }).waitFor()
@@ -177,7 +199,7 @@ try {
   assert.equal(pageErrors.length, 0, JSON.stringify(pageErrors))
   assert(requests.filter(r => r.method !== 'GET').every(r => r.hasAuthorization))
   await writeFile(path.join(evidence, 'integration-browser-results.json'), JSON.stringify({ checks, requests, pageErrors,
-    limitations: ['Synthetic isolated migrated DB and explicit test registration, not production mounting', 'Non-PM read currently fail-closed, not AC5 complete', 'Task href only, target anchor not exercised', 'No real project data or credentials archived'] }, null, 2))
+    limitations: ['Synthetic isolated migrated DB and explicit test registration, not production mounting', 'Association-time sticky guard and ordinary VIEWER reads exercised; later target sensitivity propagation still requires B confirmation', 'Task href only, target anchor not exercised', 'No real project data or credentials archived'] }, null, 2))
   console.log(`PASS ${checks.length} real-API browser checks; no full-ticket acceptance claimed`)
 } catch (error) {
   if (page) await page.screenshot({ path: path.join(evidence, 'integration-failure.png'), fullPage: true }).catch(() => {})

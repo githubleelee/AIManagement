@@ -1,0 +1,27 @@
+{
+  "diagnosticOnly": true,
+  "acceptancePassed": false,
+  "limitation": "Association-time guard does not propagate from later sensitivity writes. 200 after unlink/delete is an observed unresolved disclosure boundary, NOT an accepted policy.",
+  "observations": [
+    {
+      "kind": "task",
+      "initial": 200,
+      "currentHidden": 404,
+      "whitelistAfterSensitivity": 200,
+      "afterUnlink": 200,
+      "afterTargetOrdinary": 200,
+      "beforeDelete": 404,
+      "afterDelete": 200
+    },
+    {
+      "kind": "story",
+      "initial": 200,
+      "currentHidden": 404,
+      "whitelistAfterSensitivity": 200,
+      "afterUnlink": 200,
+      "afterTargetOrdinary": 200,
+      "beforeDelete": 404,
+      "afterDelete": 200
+    }
+  ]
+}
