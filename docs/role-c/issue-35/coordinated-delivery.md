@@ -40,4 +40,11 @@ B setter的回滚/幂等/类型隔离7项测试与C真实读取4项在同一轮1
 
 本轮发现另一会话正在同一core工作树新增六项交接及指纹回归；用户已确认由该会话负责排程提交/推送与#32回复。本会话未提交core、未抢其文件、未代发重复#32交付。后续排程交付SHA以该会话实际回执为准，不把本会话UML测试当排程最终验收。
 
+## 实际远端交付与 B 回复
+
+- 代码/验证提交 `f8456268525729b4687e6475f73f93b8fb501fed` 已正常推送，并用 `ls-remote` 核对远端与本地一致，包含先前未推的86b3b02/7b2f27e。
+- 已用确认账号 brucelyce-ux 发布并回读核验 [#35：C读侧消费已到、正式集成待B](https://github.com/githubleelee/AIManagement/issues/35#issuecomment-6381959861)。
+- 已发布并回读核验 [#36：D新修正已到、公共冲突与精确窗口待B](https://github.com/githubleelee/AIManagement/issues/36#issuecomment-6381964067)。不把无端口/main冲突的消费点伪装成已接。
+- 发布原文和回执见 `ready-for-b-comment.md`、`attachment-blockers-comment.md`、`coordinated-publication.json`；不包含凭据或真实业务数据。
+
 未合PR/关闭票/改main。原有未提交的C交互记录、原始摘录与handoff仍保留，不混入本轮技术交付。

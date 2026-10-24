@@ -4,10 +4,10 @@
   "baseCommit": "ea81e4e",
   "includedMain": "0998f626df3459a709370bfb59d938dde77658ed",
   "push": {
-    "status": "not_executed",
-    "reason": "Automatic tool review failed before command execution, including explicit user reauthorization and resubmission for review. No force push, account/transport change, or review bypass performed.",
-    "verifiedRemoteHead": "ea81e4ec64b6fdcb6581a5e618b8bfca578b5ee4",
-    "remoteVerification": "Independent git ls-remote after blocked push attempts"
+    "status": "verified_success",
+    "reason": "Earlier review failures are retained in the prior commit. On 2026-10-24 the normal same-account branch push succeeded, including 86b3b02 and 7b2f27e; no force push, account/transport change, or review bypass.",
+    "verifiedRemoteHead": "f8456268525729b4687e6475f73f93b8fb501fed",
+    "remoteVerification": "Independent git ls-remote matched local HEAD after the integrated UML delivery; subsequent commits only append technical publication receipts"
   },
   "comment": {
     "url": "https://github.com/githubleelee/AIManagement/issues/35#issuecomment-6366947085",
