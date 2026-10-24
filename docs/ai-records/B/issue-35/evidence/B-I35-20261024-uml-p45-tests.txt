@@ -1,0 +1,39 @@
+
+ RUN  v2.1.9 /home/lee/aim-wt/b-uml-p45
+
+(node:9406) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9412) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9404) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9405) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9423) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9418) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ test/skeleton-smoke.test.ts (6 tests) 1935ms
+ ✓ src/modules/uml/uml-picker.http.test.ts (6 tests) 2619ms
+ ✓ src/modules/authz/sensitivity-uml-sticky.test.ts (7 tests) 2793ms
+ ✓ src/modules/uml/uml-schema.test.ts (25 tests) 2908ms
+ ✓ src/modules/task/task-sensitivity.test.ts (43 tests) 10713ms
+   ✓ 端点 30 正例：标记敏感并指定可见成员 > 名单内成员在列表与详情都可见；名单外成员在列表与详情都不可见 353ms
+ ✓ src/modules/uml/uml.http.test.ts (54 tests) 15817ms
+   ✓ US-15 PM persistence, wire format and transaction semantics > creates real use-case content, fresh node ids, refs of all four kinds, and reads identical saved content 303ms
+   ✓ US-15 PM persistence, wire format and transaction semantics > treats another diagram real node id as a new local alias; cross-graph edge references do not update or expose the original graph 403ms
+   ✓ US-15 PM persistence, wire format and transaction semantics > rejects unknown PATCH fields and changing kind; metadata cannot masquerade as content replacement 325ms
+   ✓ US-15 PM persistence, wire format and transaction semantics > deletes diagram and subsequent GET/PATCH/PUT/DELETE all return the same nonexistent response 325ms
+   ✓ US-15 real authorization seam and sticky no-declassification guard > anonymous cannot list/detail; outsider existing id and missing id have identical 404 envelopes 328ms
+   ✓ US-15 real authorization seam and sticky no-declassification guard > member reads ordinary empty and associated graphs without receiving the internal guard 304ms
+   ✓ US-15 real authorization seam and sticky no-declassification guard > sensitive task association hides all content even from whitelist members 333ms
+   ✓ US-15 real authorization seam and sticky no-declassification guard > sensitive story association hides all content even from whitelist members 314ms
+   ✓ US-15 real authorization seam and sticky no-declassification guard > PATCH establishes sticky task restriction; unlink, metadata, owner and content changes never clear it 540ms
+   ✓ US-15 real authorization seam and sticky no-declassification guard > PATCH establishes sticky story restriction; unlink, metadata, owner and content changes never clear it 550ms
+   ✓ US-15 real authorization seam and sticky no-declassification guard > non-PM list, kind filter, total and truncation exclude restricted rows before taking 200 320ms
+
+ Test Files  6 passed (6)
+      Tests  141 passed (141)
+   Start at  16:06:08
+   Duration  16.58s (transform 559ms, setup 0ms, collect 3.13s, tests 36.78s, environment 1ms, prepare 345ms)
+

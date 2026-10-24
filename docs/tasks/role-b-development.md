@@ -10,7 +10,7 @@
 > 依据已完成并留证的交付与独立验证，只更新 Status / Evidence / Blocker，不改业务规则、不新增授权。原始状态历史保留在各任务行内。
 
 - **已完成**：#13（FS 开工守卫：PATCH + 验收 REJECT 双入口，PR #114）、#20（看板最终验收）、#45（共享 AI 三表，PR #88）、**#59**（UML 粘性置位，PR #103）、**#38/#39/#40**（通知存储/运行时/顶栏，PR #104/#105/#106）；另合入 **PR #108**（事件目录登记）、**PR #109**（整合 A 的 PR #100）、**PR #112**（三个已接来源能力改判）、**PR #114**（FS 开工守卫双入口，`cc67e33`）。
-- **进行中**：#15（甘特：只剩合并后一次浏览器复核）、#34/#35（附件候选 `902cfa1`；D #94 已按 I-4 修好待合、C 的真实接线仍缺）、#41（通知 6/9 来源已端到端，仅 C 域两类 + 后置 @提及未接）。
+- **进行中**：#15（甘特：只剩合并后一次浏览器复核）、#34/#35（附件候选已并入最新 main `integrate/attach-candidate-on-main@f516b20`，8 文件/100 例、migrate diff 无漂移；**只差 C 的任务 DELETE 联动与 TaskSection 挂载**）、#41（通知 6/9 来源已端到端，仅 C 域两类 + 后置 @提及未接）。
 - **仍待外部**：#36/#37（C 的真实任务删除接线与 TaskSection 挂载）、#41（A/C 的真实生产方未接，最终 AC 不勾）、#44/#47/#49/#50（等 C 推送本域实现与接口事实，B 已于 #32 发出 6 项事实请求）、#57/#58（等 C 的 UML P2/P3 读侧服务）。
 - **已解除的旧阻塞**：D 的 #31 字段/端口提案、共享 AI 存储、D 的通知模块、C 的审阅入口、C 的 task 写窗口（PR #99）。**不再**作为当前阻塞。
 - **main 基线（独立 tester）**：`9160587` 上 `npm run typecheck` exit 0、`npx vitest run` **81 文件通过 + 1 跳过 / 1709 通过 + 12 todo / 0 失败**；`295e694` 全量 83 文件/1732 例；合入 PR #109 后 `aa62c0d` 全量 **84 文件通过 + 1 跳过 / 1757 通过 + 12 todo / 0 失败**（`docs/ai-records/B/issue-34/B-I34-20261024b-a100-and-live-capabilities-01.md`）。
@@ -502,21 +502,21 @@ Done when: 模型 / 迁移 / 测试基建 / 权限动作齐备并验证；不新
 Dependencies: #55 [FS]
 
 ## #57 US-15 UML P2/P3：本域类型与端点（C 实现，B 复核）
-Status: not started
-Note: P1 已就绪（`d8315c4`）。**B 侧已补写侧缺口**：后置标敏粘性置位已合入 main `9160587`（PR #103，`setSensitivity` 同事务置 `everRestricted`）。仍等 ROLE-C 开 P2/P3（`src/modules/uml/*` 服务与 6 端点）。
+Status: done
+Note: P1 `d8315c4`；C 的 P2/P3 于 `feat/US15-uml@7b2f27e` 交付并经 B 独立评审「可挂载」（无 CRITICAL/HIGH；`src/modules/uml` 85 例 + 合并后 92 例通过；零公共文件越界）。C 的非阻断项见评审记录。
 Outcome: C 域 UML 服务与 6 个端点实现，含可见性交集、整图替换、校验与错误映射。
+Evidence: 独立评审 `docs/ai-records/B/issue-35/B-I35-20261024-uml-p2p3-review-01.md`；合并 PR #117 → main `982f850`。
 Done when: C 交付并给出测试证据；B 复核通过（不越权、不泄漏不可见关联、404 文案统一、无镜像写路径）。
 Dependencies: #56 [FS]
-Blocker: C 远端 `feat/US15-uml` 目前只到 P1 守卫（`ea81e4e`/`cefe96c`），选择器 `86b3b02` 本地未推送；UML 读侧 `everRestricted = false` guard 与端点均未落地，B 不代写 C 域。
 ## #58 US-15 UML P4/P5：注册行 + 骨架挂载 + 路由文档
-Status: not started
+Status: done
 Note: 等 P3 导出 `registerUmlRoutes` 后由 B 落笔（`src/routes.ts` 注册行、`web/src/routes.tsx` 路由行、`ProjectLayout.tsx` 左导航行、`docs/frontend-routes.md` 表行）；页面本体归 C（`web/src/pages/uml/**`）。
 Outcome: 端点与页面在公共层挂载完成，路由文档同步。
+Evidence: PR #117 → main `982f850`：`src/routes.ts` 注册行、`web/src/routes.tsx` 路由行、`ProjectLayout` 导航行、`docs/frontend-routes.md` 表行；`typecheck` 0、`build:web` 0、6 文件 141 例。真实 HTTP 矩阵：置敏前 member1 200/1-1 → 置敏后 404（与不存在 id 逐字一致）/0-0 → 解绑后**仍 404**（`everRestricted=1`、关联 0）。浏览器：PM 页面可打开、SVG 4 节点 3 边、选择器显示已选关联。记录 `docs/ai-records/B/issue-35/B-I35-20261024-uml-p4p5-mount-01.md`。
 Done when: 注册行 / 路由行 / 导航行 / 文档行落笔并验证（`typecheck` + 浏览器走查）；同一时刻同一文件单写。
 Dependencies: #57 [FS]
 
 ---
-Blocker: 等 C 的 P3 导出 `registerUmlRoutes` 后 B 才能落注册行/路由行/导航行/文档行；当前仅写侧粘性置位在 main，无读侧服务可挂载。
 ## 估算拆分（本轮修订口径）
 
 仅为 B 侧工作量初估，不是追加预算或整体延期批准，也不要求原 18 人日无条件吸收。新任务编号不是预算归属：文档/提案协调仍计原统筹项，原 B 票的模型/挂载/验证不重复收费。
