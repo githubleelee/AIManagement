@@ -141,6 +141,11 @@ export default function ProjectLayout() {
           <NavLink to="board" className={navClass}>
             <span aria-hidden="true">▥</span>故事看板
           </NavLink>
+          {/* US-15 UML（工单 #35）：用例图 / 时序图入口。行属冻结区（前端骨架），
+              由公共单写人 B 按已授权范围落地（#35 P4/P5 挂载批次）。 */}
+          <NavLink to="uml" className={navClass}>
+            <span aria-hidden="true">◫</span>UML 图
+          </NavLink>
         </nav>
         <Link className="project-switcher" to="/projects">
           <span>当前项目 · {ROLE_LABELS[project.myRole]}</span>

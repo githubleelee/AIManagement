@@ -36,6 +36,7 @@
 | `/projects/:projectId/risks` | `RiskPage` | 风险台账与项目关闭：风险三级四态清单 + 登记 + 状态流转；关闭前阻断清单与关闭/重开入口（仅 PM）（本阶段新增，见 `docs/us-10-progress-risk-api.md`） | A / US-10（#30） |
 | `/projects/:projectId/gantt` | `GanttPage` | 甘特图：需求 / 任务 / 里程碑与 FS 依赖统一时间轴，故事可展开任务；故事**进度已确认**（已 `CLOSED` 任务数 ÷ 同一可见任务集合的任务总数，`DONE` 不计入，无任务显示「—」而非 0%，与仪表盘 `progress` 同形同取整；口径见 `DECISIONS.md` 的 `analytics.story-progress-aggregation`），故事**日期仍为候选汇总口径**（`candidate-minmax`）；**里程碑与 FS 依赖的增删改入口仅 PM 渲染**（写操作走 `POST /projects/:projectId/milestones`、`PATCH|DELETE /milestones/:milestoneId`、`POST /projects/:projectId/task-dependencies`、`DELETE /task-dependencies/:dependencyId`；MEMBER / VIEWER 只读，服务端 `gantt.write` 403 为准）（`GET /projects/:projectId/gantt`，**本阶段新增，不在 Sprint 1 的 30 个端点内**） | B / US-06（#26） |
 | `/projects/:projectId/board` | `BoardPage` | 故事看板：按正式故事状态（`DRAFT` / `PLANNING` / `DONE`）三列展示，卡片含目标/活动路径与优先级；**PM 可在卡片上直接调整状态**（写路径仍唯一走端点 21 `PATCH /stories/:storyId`，`requirement.write` 仅 PM；状态真实变化写审计；MEMBER / VIEWER 只读）（`GET /projects/:projectId/board`，**本阶段新增，不在 Sprint 1 的 30 个端点内**） | B / US-04（#25） |
+| `/projects/:projectId/uml` | `UmlPage` | US-15 UML：按图类型（用例图 / 时序图）列出与编辑图、节点、边，并把**目标 / 用户活动 / 用户故事 / 任务**四类对象关联进图；写操作仅 PM（`uml.write`），MEMBER / VIEWER 只读且**曾关联过敏感对象的图对非 PM 一律 404（与「图不存在」逐字一致，永不自动降密）**；列表返回同源 `total`（`GET /projects/:projectId/uml-diagrams` 等，**本阶段新增，不在 Sprint 1 的 30 个端点内**） | C 实现 / B 挂载（#35） |
 | `*` | `NotFoundPage` | 全局 404 | M2 |
 
 ## 页面职责与数据来源
