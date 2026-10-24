@@ -109,7 +109,7 @@ export function buildDomainEventEnvelope(
 }
 
 // ---------------------------------------------------------------------------
-// 业务域事件目录（ROLE-B 生产接线，本批接入甘特 + 需求）
+// 业务域事件目录（ROLE-B 生产接线：甘特 5 + 需求 1 + 风险 3 + 验收结果 2）
 // ---------------------------------------------------------------------------
 //
 // 命名规范：`<domain>.<object>.<action>`（全小写、点分三段）。domain 取模块名，
@@ -123,6 +123,18 @@ export function buildDomainEventEnvelope(
 // | `gantt.dependency.created`          | `task-dependency`         | `{predecessorTaskId, successorTaskId, type:'FS'}`     | `<name>:<dependencyId>`                       | 两端任务任一 `isSensitive`                              |
 // | `gantt.dependency.deleted`          | `task-dependency`         | `{predecessorTaskId, successorTaskId, type:'FS'}`     | `<name>:<dependencyId>`                       | 两端任务任一 `isSensitive`                              |
 // | `requirement.story.status-changed`  | `story`                   | `{from, to}`（只含状态）                              | `<name>:<storyId>:<occurredAt>`               | 故事 `isSensitive`                                      |
+// | `risk.created`                      | `risk`                    | `{status, level, ownerUserId, taskId}`                  | `<name>:<riskId>`                              | 关联任务 `isSensitive`（references 含风险自身）          |
+// | `risk.updated`                      | `risk`                    | `{status, level, ownerUserId, taskId, changedFields}`   | `<name>:<riskId>:<occurredAt>`                 | 更新前 / 后关联任务任一 `isSensitive`                    |
+// | `risk.level-raised`                 | `risk`                    | `{fromLevel, toLevel, status, ownerUserId}`             | `<name>:<riskId>:<occurredAt>`                 | 关联任务任一 `isSensitive`                              |
+// | `acceptance.approved`               | `task`                    | `{conclusion, statusBefore, statusAfter, recordId}`     | `<name>:<taskId>:<occurredAt>`                 | 任务 `isSensitive`                                      |
+// | `acceptance.rejected`               | `task`                    | `{conclusion, statusBefore, statusAfter, recordId}`     | `<name>:<taskId>:<occurredAt>`                 | 任务 `isSensitive`                                      |
+
+// 命名例外（`DECISIONS.md` `events.notification-catalog-exceptions`）：`risk.created` /
+// `risk.updated` / `risk.level-raised` / `acceptance.approved` / `acceptance.rejected`
+// 以及通知目录的 `task.assigned` / `task.mentioned` / `task.overdue` /
+// `acceptance.submitted` / `milestone.due` 是**已批准的两段名字**，不上改成三段；本表只登记
+// 实际已接线的事件。`risk.updated` 是业务变更事件，**不是**通知触发事件（通知只取
+// `risk.created` 与 `risk.level-raised`），不得拿它冒充提级。
 //
 // 敏感规则（契约 I-6，必须遵守）：只要事件涉及的对象里有**敏感**的 `task` / `story`，
 // 该事件必须以**敏感事件**发布（`sensitive: true`，`payload` **只能**是
