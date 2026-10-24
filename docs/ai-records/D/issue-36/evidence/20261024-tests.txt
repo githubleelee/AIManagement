@@ -1,0 +1,17 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ai-management@0.1.0 test
+> vitest run src/modules/attachment
+
+
+ RUN  v2.1.9 /workspace/scratch/05204396b77e/review36
+
+ ✓ src/modules/attachment/local-storage.test.ts (3 tests) 32ms
+ ✓ src/modules/attachment/service.test.ts (21 tests) 92ms
+ ✓ src/modules/attachment/plugin.test.ts (12 tests) 270ms
+
+ Test Files  3 passed (3)
+      Tests  36 passed (36)
+   Start at  13:08:19
+   Duration  859ms (transform 324ms, setup 0ms, collect 492ms, tests 393ms, environment 1ms, prepare 240ms)
+

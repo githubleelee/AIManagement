@@ -1,0 +1,111 @@
+{
+  "generatedAt": "2026-10-24T05:11:43.811Z",
+  "issue": 36,
+  "syntheticData": true,
+  "mockedRequests": 0,
+  "cases": [
+    {
+      "name": "unsupported-content-type",
+      "mime": "image/svg+xml",
+      "file": "a.svg",
+      "bytes": 1,
+      "expected": 415,
+      "actual": 415,
+      "body": {
+        "error": {
+          "code": "VALIDATION_FAILED",
+          "message": "Unsupported Media Type"
+        }
+      }
+    },
+    {
+      "name": "transport-body-limit",
+      "mime": "application/pdf",
+      "file": "a.pdf",
+      "bytes": 10000002,
+      "expected": 413,
+      "actual": 413,
+      "body": {
+        "error": {
+          "code": "VALIDATION_FAILED",
+          "message": "Request body is too large"
+        }
+      }
+    },
+    {
+      "name": "parsed-business-size-limit",
+      "mime": "application/pdf",
+      "file": "a.pdf",
+      "bytes": 10000001,
+      "expected": 422,
+      "actual": 422,
+      "body": {
+        "error": {
+          "code": "VALIDATION_FAILED",
+          "message": "单个附件不能超过 10MB",
+          "details": [
+            {
+              "field": "file",
+              "code": "TOO_LONG"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "parsed-extension-mime-mismatch",
+      "mime": "image/png",
+      "file": "a.pdf",
+      "bytes": 1,
+      "expected": 422,
+      "actual": 422,
+      "body": {
+        "error": {
+          "code": "VALIDATION_FAILED",
+          "message": "附件扩展名与 MIME 不匹配",
+          "details": [
+            {
+              "field": "mimeType",
+              "code": "INVALID_VALUE"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "exact-size-boundary",
+      "mime": "application/pdf",
+      "file": "a.pdf",
+      "bytes": 10000000,
+      "expected": 201,
+      "actual": 201,
+      "body": {
+        "id": "7131bc05-e007-4e8d-8a20-504174bf2ea5",
+        "taskId": "f73de87a-1dbb-499c-8424-70f3bacbc2f3",
+        "projectId": "8494ba4b-5b5c-45e3-abd1-f2c972c97ef2",
+        "originalName": "a.pdf",
+        "extension": "pdf",
+        "mimeType": "application/pdf",
+        "sizeBytes": 10000000,
+        "uploaderUserId": "aadd9317-0be8-46d5-b2cb-2ca850831bc8",
+        "uploadedAt": "2026-10-24T05:11:40.097Z",
+        "state": "ACTIVE"
+      }
+    },
+    {
+      "name": "attachment-parser-does-not-leak-to-project-routes",
+      "expected": 415,
+      "actual": 415
+    }
+  ],
+  "page": {
+    "actualHttpStatus": 404,
+    "errorVisible": true,
+    "loadingHintVisible": false,
+    "scope": "independent TaskAttachmentPanel + B candidate real HTTP"
+  },
+  "limitations": [
+    "B candidate not merged with latest main due public-file conflicts",
+    "task DELETE lifecycle and production TaskSection mounting remain C responsibility"
+  ]
+}
