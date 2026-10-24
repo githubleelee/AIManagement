@@ -30,3 +30,11 @@
 |4|2026-10-24 17:16:32 Asia/Shanghai|代码审查与文档智能体（同一主控）|范围与交接|保留现有逻辑、不改B/C所属文件|检查数据不外泄、API失败不回桩、模型身份稳定；写明B配置与C验收剩余项，未更改全局索引或历史记录|待人工复核|
 
 证据：[validation.md](evidence/validation.md)、[定点](evidence/targeted-tests.txt)、[回归](evidence/ai-regression.txt)、[类型检查](evidence/typecheck.txt)、[构建](evidence/build.txt)、[manifest](evidence/source-sha256.json)。
+
+## 发布回执（当次追加，未代替人工审核）
+
+- 2026-10-24 17:23:37 Asia/Shanghai：云浏览器上传独立分支 `feat/D-scheduling-model-port`，首批交付head `c122d0eb753bef36fd9965ff2129160124162056`；16个远程文件与本地逐字节核对，0差异。
+- PR：[#122](https://github.com/githubleelee/AIManagement/pull/122)，已回读确认Open；未合并、未改main。
+- 已在[#32回复](https://github.com/githubleelee/AIManagement/issues/32#issuecomment-6382499372)向B/C交接工厂入口、数据边界、实测数量和未配置真实模型等限制。
+- 本次追加只补交付回执，不改变测试生产代码；人工代码审查仍待确认。
+- 浏览器发布由用户本轮“更新仓库”及先前云浏览器授权覆盖；未通过Git凭据或插件扩大权限。
