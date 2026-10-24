@@ -1,0 +1,3 @@
+START 2026-10-24T14:42:40.143Z limit=240s
+TIMEOUT after 240s; stopping owned tree pid=52960
+END exit=124 signal=none elapsed=241.52s

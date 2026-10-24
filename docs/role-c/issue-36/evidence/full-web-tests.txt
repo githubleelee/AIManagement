@@ -1,0 +1,3 @@
+START 2026-10-24T14:56:39.961Z limit=180s
+JSON report written to D:/临时项目/AIManagement-C-attachments/docs/role-c/issue-36/evidence/full-web-results.json
+END exit=0 signal=none elapsed=2.02s

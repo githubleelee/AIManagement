@@ -1,0 +1,300 @@
+START 2026-10-24T14:47:16.388Z limit=200s
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/临时项目/AIManagement-C-attachments[39m
+
+[90mstderr[2m | src/modules/ai-scheduling/integration.pending.test.ts[2m > [22m[2mUS12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22m[2mG6: browser generation → confirm → actual task/gantt/workload changes → audit
+[22m[39m[G6] "checks=11 browser=155.0.4283.45 url=http://127.0.0.1:5173/projects/5f05db4d-91a1-4047-9680-8ae901fc2166/workload evidence=C:\\Users\\陆禹畅\\AppData\\Local\\Temp\\us12-g6-evidence-Z7jxzO"
+
+ [32m✓[39m src/modules/ai-scheduling/integration.pending.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 32721[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG1/G2: generates from real #31 port and current #26/#27 data without altering formal plans [33m604[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG3: real PM-only actions cover generation/list/detail/decision/audit and 401/403/404 [33m1052[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG3: revocation takes effect before every request and idempotent retry [33m787[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG4: persists actual input scope, mode/model/version/requestId and generation time [33m622[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG4/G5: confirms the saved proposal without calling the model a second time [33m742[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG4/G5: two-task application and successful audit share one real DB transaction [33m851[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG4/G5: one invalid task rolls back all changes, separate safe failure evidence remains [33m799[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG4/G5: identical request is idempotent, different/concurrent disposition conflicts [33m782[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG2/G5: changed task/member/FS/milestone/workload/permission snapshot expires whole proposal [33m1722[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG5: preserves existing task assignment/progress/acceptance rules after authorized extraction [33m675[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG7: explicit real API mode and outflow evidence on invented data, never implicit stub fallback [33m1615[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG6: browser generation → confirm → actual task/gantt/workload changes → audit [33m20062[2mms[22m[39m
+ [32m✓[39m src/modules/requirement/requirement.adversarial2.test.ts [2m([22m[2m71 tests[22m[2m)[22m[33m 37770[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：并发创建时 sortOrder 必须唯一且连续[2m > [22m端点 11 并发 6 条 → 序号恰好是 [0..5]，无重复无空洞 [33m614[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：并发创建时 sortOrder 必须唯一且连续[2m > [22m端点 11 并发 10 条 → 落库 10 行，序号集合恰好 0..9 [33m630[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：并发创建时 sortOrder 必须唯一且连续[2m > [22m端点 15 并发 6 条 → 序号恰好是 [0..5]（与端点 11 同型，同属「最大值 + 1」） [33m542[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：并发创建时 sortOrder 必须唯一且连续[2m > [22m端点 15 并发 8 条 → 序号集合恰好 0..7（活动与目标各自独立编号） [33m579[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：并发创建时 sortOrder 必须唯一且连续[2m > [22m端点 11 与端点 15 交叉并发：目标序号与活动序号互不串号 [33m607[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：并发创建时 sortOrder 必须唯一且连续[2m > [22m并发混合：合法与 422 交错，只有合法的落库且序号无空洞 [33m499[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 2：PATCH 部分更新不得静默清空其它字段[2m > [22m端点 12 只传 status → 其余 5 个字段逐字段不变 [33m471[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 2：PATCH 部分更新不得静默清空其它字段[2m > [22m端点 12 只传 name → description 不被清空为 null [33m449[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 2：PATCH 部分更新不得静默清空其它字段[2m > [22m端点 12 只传 description → name 与 status 不被重置 [33m449[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 2：PATCH 部分更新不得静默清空其它字段[2m > [22m端点 12 空 body → 200 幂等 no-op，整行完全不变 [33m458[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 2：PATCH 部分更新不得静默清空其它字段[2m > [22m端点 12 连续 3 次只改单字段 → 每步都只动那一个字段（累积不漂移） [33m476[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 2：PATCH 部分更新不得静默清空其它字段[2m > [22m端点 16 只传 status → 活动的 goalId/projectId/sortOrder/name/description 全不变 [33m472[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 2：PATCH 部分更新不得静默清空其它字段[2m > [22m端点 16 只传 name → description 与 status 不被重置 [33m460[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 2：PATCH 部分更新不得静默清空其它字段[2m > [22m端点 12/16 的 PATCH 不接受 sortOrder 注入（排序只能走端点 14/18） [33m504[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：跨项目引用必须被拒绝且不污染另一个项目[2m > [22m端点 12：PATCH B 项目的目标 → 404，且 B 的行逐字段不变 [33m455[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：跨项目引用必须被拒绝且不污染另一个项目[2m > [22m端点 13：DELETE B 项目的目标 → 404，且 B 的行仍在 [33m439[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：跨项目引用必须被拒绝且不污染另一个项目[2m > [22m端点 16：PATCH B 项目的活动 → 404，且 B 的行逐字段不变 [33m460[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：跨项目引用必须被拒绝且不污染另一个项目[2m > [22m端点 17：DELETE B 项目的活动 → 404，且 B 的行仍在 [33m444[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：跨项目引用必须被拒绝且不污染另一个项目[2m > [22m端点 15：往 B 项目的目标下挂活动 → 404（跨项目挂载被拒），A 与 B 都零新增 [33m457[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：跨项目引用必须被拒绝且不污染另一个项目[2m > [22m端点 22：DELETE B 项目的故事 → 404，且 B 的故事仍在 [33m480[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：跨项目引用必须被拒绝且不污染另一个项目[2m > [22m端点 14：orderedIds 掺入 B 项目的目标 id → 422，且 A 的序号一个都不变 [33m506[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：跨项目引用必须被拒绝且不污染另一个项目[2m > [22m端点 14：orderedIds 用 B 项目的 id 替换掉 A 的一个 → 422，A 全部序号不变 [33m791[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：跨项目引用必须被拒绝且不污染另一个项目[2m > [22m端点 18：orderedIds 掺入其它目标的活动 id → 422，序号零变化 [33m710[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：跨项目引用必须被拒绝且不污染另一个项目[2m > [22m端点 18：orderedIds 掺入 B 项目的活动 id → 422，双方零变化 [33m476[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：跨项目引用必须被拒绝且不污染另一个项目[2m > [22m端点 14：orderedIds 长度正确但含重复 id → 422，零副作用 [33m429[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：跨项目引用必须被拒绝且不污染另一个项目[2m > [22m端点 18：orderedIds 缺一个 → 422，零副作用 [33m449[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：跨项目引用必须被拒绝且不污染另一个项目[2m > [22m端点 15：请求体注入 projectId 不被采信，归属仍取自父级目标 [33m480[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：越权拒绝与不可区分性[2m > [22m端点 12：MEMBER/VIEWER → 403；非成员 → 404；未登录 → 401 [33m474[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：越权拒绝与不可区分性[2m > [22m端点 15：MEMBER → 403；非成员 → 404；未登录 → 401，且零写入 [33m470[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：越权拒绝与不可区分性[2m > [22m端点 13/17/22：MEMBER/VIEWER → 403，非成员 → 404，未登录 → 401，且三行全在 [33m586[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：越权拒绝与不可区分性[2m > [22m端点 14/18：MEMBER → 403，非成员 → 404，未登录 → 401（先判定权限而非校验形状） [33m500[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：越权拒绝与不可区分性[2m > [22m未登录 + 非法 body → 401（不得先回 422 泄漏字段规则） [33m457[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：越权拒绝与不可区分性[2m > [22mMEMBER/非成员 + 非法 body → 403/404（不得先回 422） [33m451[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：越权拒绝与不可区分性[2m > [22m「id 不存在」与「存在但非本成员」的响应结构完全一致（防存在性探测） [33m497[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：越权拒绝与不可区分性[2m > [22m403/404 响应体不得泄漏对象名称（含 403 这种「对象可见」的情况） [33m452[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：删除保护的完整生命周期[2m > [22m409 可解除（自下而上）：删故事 → 删活动 → 删目标，三步都 204 [33m532[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：删除保护的完整生命周期[2m > [22m每一层的 409 都先于删除发生：三次被拒后三行一条不少 [33m550[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：删除保护的完整生命周期[2m > [22m三层的 HAS_CHILDREN 各自带对应字段名（goalId / activityId / storyId） [33m591[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：删除保护的完整生命周期[2m > [22m端点 22：故事有任务时 409；删掉任务后同一次删除变 204（409 可解除） [33m543[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：删除保护的完整生命周期[2m > [22m端点 22：连删两次 → 第一次 204，第二次 404（不是 500，也不是 409） [33m485[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：删除保护的完整生命周期[2m > [22m端点 13/17：连删两次同样 204 → 404 [33m492[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：删除保护的完整生命周期[2m > [22m删除故事时清空 ObjectVisibility(story) —— 本故事的记录归零 [33m509[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：删除保护的完整生命周期[2m > [22m删除故事**不**牵连其它对象：别 story 的 story 记录、同 story id 的 task 记录逐行不变 [33m493[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：删除保护的完整生命周期[2m > [22m删除活动/目标不触碰任何 ObjectVisibility（清理只属于 story 删除） [33m589[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：删除保护的完整生命周期[2m > [22m删除只作用于该行：同项目其它层级的行逐字段不变 [33m522[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：删除保护的完整生命周期[2m > [22m删除目标不影响另一个项目的任何行（跨项目隔离） [33m456[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：全量替换排序的幂等与边界[2m > [22m端点 14：重排后序号是 0..n-1，响应 items 顺序与入参一致 [33m450[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：全量替换排序的幂等与边界[2m > [22m端点 14：重复调用同一入参是幂等的（两次结果完全相同） [33m487[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：全量替换排序的幂等与边界[2m > [22m端点 14：反向排列（[A,B] → [B,A]）不会因唯一性约束而失败 [33m455[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：全量替换排序的幂等与边界[2m > [22m端点 14：空项目 + 空数组 → 200 且 items 为空（不是 422） [33m489[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：全量替换排序的幂等与边界[2m > [22m端点 14：空项目 + 非空数组 → 422，不写入任何行 [33m443[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：全量替换排序的幂等与边界[2m > [22m端点 14：orderedIds 缺字段 / 非数组 / 含非字符串 → 422，零副作用 [33m506[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：全量替换排序的幂等与边界[2m > [22m端点 18：重排后序号 0..n-1 且只影响该目标下的活动 [33m512[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：全量替换排序的幂等与边界[2m > [22m端点 18：幂等（重复同一入参两次结果相同） [33m454[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：全量替换排序的幂等与边界[2m > [22m端点 18：目标下无活动 + 空数组 → 200；非空数组 → 422 [33m430[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：全量替换排序的幂等与边界[2m > [22m端点 14/18：目标不存在 → 404（不是 422，也不产生 500） [33m436[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：全量替换排序的幂等与边界[2m > [22m端点 14/18：并发同权重排不产生重复序号（同一项目被同时重排） [33m500[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 7：响应形状精确匹配契约类型[2m > [22m端点 12 响应键集合精确等于 BusinessGoal（不得多给 createdAt/sortOrder 以外的字段） [33m425[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 7：响应形状精确匹配契约类型[2m > [22m端点 16 响应键集合精确等于 UserActivity [33m482[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 7：响应形状精确匹配契约类型[2m > [22m端点 15 响应键集合精确等于 UserActivity，status 默认 ACTIVE、description 为 null [33m433[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 7：响应形状精确匹配契约类型[2m > [22m端点 14/18 响应是 { items: [...] } 列表包装，元素键集合精确 [33m485[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 7：响应形状精确匹配契约类型[2m > [22m端点 13/17/22 成功响应为 204 且响应体为空（契约 I-3） [33m505[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 7：响应形状精确匹配契约类型[2m > [22m端点 12/16：PATCH 响应里的 projectId 与 sortOrder 与库中一致（不返回伪造值） [33m466[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 8：校验边界与零副作用[2m > [22m端点 15：name 纯空白 → 422 REQUIRED，且不写入任何行 [33m478[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 8：校验边界与零副作用[2m > [22m端点 15：name 超长 → 422 TOO_LONG；合法边界值被接受 [33m555[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 8：校验边界与零副作用[2m > [22m端点 15：name 类型错误 → 422，details 定位到 name [33m494[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 8：校验边界与零副作用[2m > [22m端点 12：status 非法值 → 422 INVALID_VALUE；合法值 ACTIVE/DONE 被接受 [33m536[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 8：校验边界与零副作用[2m > [22m端点 12：name 出现但为纯空白 → 422；name 完全缺席才是合法 no-op [33m456[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 8：校验边界与零副作用[2m > [22m端点 16：name 出现但为纯空白 → 422；status 非法 → 422 INVALID_VALUE [33m478[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 8：校验边界与零副作用[2m > [22m端点 11/15：校验失败后首次成功创建仍拿到 sortOrder = 0（失败不占号） [33m479[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 8：校验边界与零副作用[2m > [22m端点 12/16：PATCH 不存在的 id → 404，且不产生任何写入 [33m474[2mms[22m[39m
+ [32m✓[39m src/modules/gantt/gantt-write.test.ts [2m([22m[2m38 tests[22m[2m)[22m[33m 19695[2mms[22m[39m
+   [33m[2m✓[22m[39m 写端点权限矩阵（`gantt.write` 仅 PM）[2m > [22mPOST /projects/:projectId/milestones [33m466[2mms[22m[39m
+   [33m[2m✓[22m[39m 写端点权限矩阵（`gantt.write` 仅 PM）[2m > [22mPATCH /milestones/:milestoneId [33m484[2mms[22m[39m
+   [33m[2m✓[22m[39m 写端点权限矩阵（`gantt.write` 仅 PM）[2m > [22mDELETE /milestones/:milestoneId [33m557[2mms[22m[39m
+   [33m[2m✓[22m[39m 写端点权限矩阵（`gantt.write` 仅 PM）[2m > [22mPOST /projects/:projectId/task-dependencies [33m444[2mms[22m[39m
+   [33m[2m✓[22m[39m 写端点权限矩阵（`gantt.write` 仅 PM）[2m > [22mDELETE /task-dependencies/:dependencyId [33m573[2mms[22m[39m
+   [33m[2m✓[22m[39m POST /projects/:projectId/milestones[2m > [22m创建（含 taskIds）→ 201，taskIds 按 createdAt asc, id asc 且去重 [33m418[2mms[22m[39m
+   [33m[2m✓[22m[39m POST /projects/:projectId/milestones[2m > [22m无 taskIds / 无 ownerUserId → 空关联、负责人 null [33m379[2mms[22m[39m
+   [33m[2m✓[22m[39m POST /projects/:projectId/milestones[2m > [22mdueDate 非法 → 422（格式 INVALID_FORMAT / 日历不存在 INVALID_VALUE） [33m378[2mms[22m[39m
+   [33m[2m✓[22m[39m POST /projects/:projectId/milestones[2m > [22mname 超长 / 纯空白 / 缺失 → 422（TOO_LONG / REQUIRED） [33m435[2mms[22m[39m
+   [33m[2m✓[22m[39m POST /projects/:projectId/milestones[2m > [22mownerUserId 非本项目成员 → 422 NOT_PROJECT_MEMBER [33m372[2mms[22m[39m
+   [33m[2m✓[22m[39m POST /projects/:projectId/milestones[2m > [22mtaskIds 跨项目 / 不存在 → 422 CROSS_PROJECT_REF，且两者响应逐字一致 [33m448[2mms[22m[39m
+   [33m[2m✓[22m[39m PATCH /milestones/:milestoneId[2m > [22m改 name / dueDate，taskIds 出现即整体替换（旧关联消失） [33m461[2mms[22m[39m
+   [33m[2m✓[22m[39m PATCH /milestones/:milestoneId[2m > [22m空体 {} → 200 且 name / dueDate / ownerUserId 都不变 [33m424[2mms[22m[39m
+   [33m[2m✓[22m[39m PATCH /milestones/:milestoneId[2m > [22mtaskIds = [] 清空关联；未提供 taskIds 时不动关联 [33m517[2mms[22m[39m
+   [33m[2m✓[22m[39m PATCH /milestones/:milestoneId[2m > [22mownerUserId / dueDate / taskIds 的非法取值 → 422（不落库） [33m534[2mms[22m[39m
+   [33m[2m✓[22m[39m PATCH /milestones/:milestoneId[2m > [22m他项目里程碑 id / 不存在 id → 404，且与「项目不存在」逐字一致 [33m510[2mms[22m[39m
+   [33m[2m✓[22m[39m DELETE /milestones/:milestoneId[2m > [22m删除 → 204，里程碑与 TaskMilestone 关联行都被清理 [33m454[2mms[22m[39m
+   [33m[2m✓[22m[39m DELETE /milestones/:milestoneId[2m > [22m他项目里程碑 id / 不存在 id → 404 [33m520[2mms[22m[39m
+   [33m[2m✓[22m[39m DELETE /milestones/:milestoneId[2m > [22m并发两次 DELETE → 恰好一个 204、另一个 404（不得 500），关联行被清理 [33m455[2mms[22m[39m
+   [33m[2m✓[22m[39m POST /projects/:projectId/task-dependencies[2m > [22m创建 FS → 201；type 缺省视为 FS [33m404[2mms[22m[39m
+   [33m[2m✓[22m[39m POST /projects/:projectId/task-dependencies[2m > [22mtype 非 'FS'（SS / FF / SF）→ 422 INVALID_VALUE（field type） [33m457[2mms[22m[39m
+   [33m[2m✓[22m[39m POST /projects/:projectId/task-dependencies[2m > [22m自依赖 → 422 INVALID_VALUE（field successorTaskId） [33m383[2mms[22m[39m
+   [33m[2m✓[22m[39m POST /projects/:projectId/task-dependencies[2m > [22m跨项目 / 不存在任务 → 422 CROSS_PROJECT_REF，且「不可见」与「不存在」响应一致 [33m509[2mms[22m[39m
+   [33m[2m✓[22m[39m POST /projects/:projectId/task-dependencies[2m > [22m重复边 → 409 CONFLICT + DUPLICATE [33m368[2mms[22m[39m
+   [33m[2m✓[22m[39m POST /projects/:projectId/task-dependencies[2m > [22m二节点环（A→B 后 B→A）→ 409 CONFLICT + INVALID_VALUE，环不落库 [33m395[2mms[22m[39m
+   [33m[2m✓[22m[39m POST /projects/:projectId/task-dependencies[2m > [22m三节点环（A→B、B→C 后 C→A）→ 409 CONFLICT + INVALID_VALUE [33m503[2mms[22m[39m
+   [33m[2m✓[22m[39m POST /projects/:projectId/task-dependencies[2m > [22m四节点长链环（A→B→C→D 后 D→A）→ 409 CONFLICT + INVALID_VALUE [33m473[2mms[22m[39m
+   [33m[2m✓[22m[39m POST /projects/:projectId/task-dependencies[2m > [22m并发互反建边 → 恰好一个 201、另一个 409，库中只有一条边 [33m409[2mms[22m[39m
+   [33m[2m✓[22m[39m DELETE /task-dependencies/:dependencyId[2m > [22m删除 → 204，边消失且后建同向边不再冲突 [33m470[2mms[22m[39m
+   [33m[2m✓[22m[39m DELETE /task-dependencies/:dependencyId[2m > [22m不存在 id → 404（与「项目不存在」同一条文案） [33m401[2mms[22m[39m
+   [33m[2m✓[22m[39m DELETE /task-dependencies/:dependencyId[2m > [22m并发两次 DELETE → 恰好一个 204、另一个 404（不得 500） [33m458[2mms[22m[39m
+   [33m[2m✓[22m[39m 写后读回归：GET /projects/:projectId/gantt[2m > [22m新里程碑（含关联）与新依赖出现在聚合视图里 [33m480[2mms[22m[39m
+   [33m[2m✓[22m[39m 领域事件（同事务追加 + 幂等键 + 敏感判定）[2m > [22m5 个写操作各产出恰好一条事件：名字 / object / payload / actor / occurredAt [33m566[2mms[22m[39m
+   [33m[2m✓[22m[39m 领域事件（同事务追加 + 幂等键 + 敏感判定）[2m > [22m业务事务失败（成环 / 重复边 / P2025 删除不存在）→ 事件表零新增 [33m488[2mms[22m[39m
+   [33m[2m✓[22m[39m 领域事件（同事务追加 + 幂等键 + 敏感判定）[2m > [22m事件发布失败 → 业务写入同事务回滚（不产生「业务成功但事件丢失」） [33m369[2mms[22m[39m
+   [33m[2m✓[22m[39m 领域事件（同事务追加 + 幂等键 + 敏感判定）[2m > [22m敏感任务参与依赖 → 敏感事件（载荷只有 references）+ MEMBER 查不到 / PM 查得到 [33m401[2mms[22m[39m
+   [33m[2m✓[22m[39m 领域事件（同事务追加 + 幂等键 + 敏感判定）[2m > [22m敏感任务关联里程碑 → 敏感事件（references 列出关联任务）+ MEMBER 查不到 [33m421[2mms[22m[39m
+   [33m[2m✓[22m[39m 领域事件（同事务追加 + 幂等键 + 敏感判定）[2m > [22m非敏感依赖事件：MEMBER 也能查到（查询层过滤不误伤） [33m424[2mms[22m[39m
+ [32m✓[39m src/modules/requirement/requirement.adversarial.test.ts [2m([22m[2m79 tests[22m[2m)[22m[33m 32211[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：权限矩阵穷举[2m > [22mPM → 201（唯一被允许的角色） [33m397[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：权限矩阵穷举[2m > [22mMEMBER → 403 FORBIDDEN，且响应体不泄漏对象字段（对象可见，只是不许写） [33m365[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：权限矩阵穷举[2m > [22mVIEWER → 403 FORBIDDEN（写类动作，与 MEMBER 同待遇） [33m355[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：权限矩阵穷举[2m > [22m非本项目成员 → 404 NOT_FOUND，且响应体不泄漏对象字段 [33m367[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：权限矩阵穷举[2m > [22m未登录（无 Authorization 头）→ 401 UNAUTHENTICATED [33m347[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：权限矩阵穷举[2m > [22mAuthorization 头是垃圾令牌 → 401 UNAUTHENTICATED（凭证不透明串，验不过即未登录） [33m371[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：权限矩阵穷举[2m > [22m令牌对应用户已被删除 → 401（actor 注入须现查用户存在性，决策 I-10 不做缓存） [33m418[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：权限矩阵穷举[2m > [22mprojectId 不存在 → 404 NOT_FOUND（不泄漏项目是否存在） [33m351[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：权限矩阵穷举[2m > [22m"项目不存在" 与 "存在但非成员" 的响应结构完全相同（不可区分，防存在性探测） [33m371[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：权限矩阵穷举[2m > [22m非成员对**不存在**的项目 → 仍是 404（不因叠加两种失败而变成其它码） [33m341[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：权限矩阵穷举[2m > [22mPM 被降级为 VIEWER 后立即失去写权限（权限即时生效，无需重新登录） [33m369[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：权限矩阵穷举[2m > [22m被移出项目的成员立即变成 404（成员关系实时读取，不做进程内缓存） [33m372[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 2：判定顺序与信息泄漏[2m > [22m未登录 + 非法 body → 401（不能先回 422 泄漏校验细节） [33m367[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 2：判定顺序与信息泄漏[2m > [22m未登录 + 非法 JSON → 422 VALIDATION_FAILED（解析层先于 preHandler，见 C 类疑点） [33m392[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 2：判定顺序与信息泄漏[2m > [22mMEMBER + 非法 body → 403（越权先于校验，不泄漏字段规则） [33m431[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 2：判定顺序与信息泄漏[2m > [22m非成员 + 非法 body → 404（不泄漏字段规则，也不承认项目存在） [33m349[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 2：判定顺序与信息泄漏[2m > [22m项目不存在 + 非法 JSON → 422 VALIDATION_FAILED（解析层先于 handler） [33m342[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 2：判定顺序与信息泄漏[2m > [22m不存在的方法（DELETE /projects/:id/goals）→ 404 NOT_FOUND（未注册的方法走统一信封） [33m349[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：name 的字面空白与多字节边界[2m > [22mname 为半角空格 → 422，name: REQUIRED（决策 I-4：REQUIRED 含纯空白） [33m368[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：name 的字面空白与多字节边界[2m > [22mname 为制表符 → 422，name: REQUIRED（决策 I-4：REQUIRED 含纯空白） [33m380[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：name 的字面空白与多字节边界[2m > [22mname 为换行符 → 422，name: REQUIRED（决策 I-4：REQUIRED 含纯空白） [33m354[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：name 的字面空白与多字节边界[2m > [22mname 为换行+回车+制表符混合 → 422，name: REQUIRED（决策 I-4：REQUIRED 含纯空白） [33m336[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：name 的字面空白与多字节边界[2m > [22mname 为不换行空格 NBSP U+00A0 → 422，name: REQUIRED（决策 I-4：REQUIRED 含纯空白） [33m387[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：name 的字面空白与多字节边界[2m > [22mname 为全角空格 U+3000 → 422，name: REQUIRED（决策 I-4：REQUIRED 含纯空白） [33m358[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：name 的字面空白与多字节边界[2m > [22mname 为字节序标记 U+FEFF → 422，name: REQUIRED（决策 I-4：REQUIRED 含纯空白） [33m383[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：name 的字面空白与多字节边界[2m > [22mname 为多种 Unicode 空白混合 → 422，name: REQUIRED（决策 I-4：REQUIRED 含纯空白） [33m346[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：name 的字面空白与多字节边界[2m > [22mname 只含零宽空格 U+200B → 记录实测（trim() 不视其为空白，属契约未定义） [33m357[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：name 的字面空白与多字节边界[2m > [22mname 两端为 Unicode 空白、中间有内容 → 201，且落库为 trim 后的内容 [33m366[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：name 的字面空白与多字节边界[2m > [22m长度按「字符」而非「字节」计算：50 个汉字（150 字节）→ 201 [33m352[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：name 的字面空白与多字节边界[2m > [22m50 个汉字 + 1 → 422 TOO_LONG [33m354[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：name 的字面空白与多字节边界[2m > [22m多字节 emoji 恰好上限（25 个 emoji，JS length=50）→ 201 [33m363[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：name 的字面空白与多字节边界[2m > [22m多字节 emoji 上限 + 1（26 个 emoji，JS length=52）→ 422 TOO_LONG（口径为 UTF-16 长度） [33m355[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：name 的字面空白与多字节边界[2m > [22mname 为换行符包裹的内容 → 201，且换行被 trim 掉（不会写入孤立换行） [33m351[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：name 的字面空白与多字节边界[2m > [22m极长 name（10000 字符）→ 422 TOO_LONG，不产生 500 [33m369[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：字段类型穷举[2m > [22mname 为 undefined → 422，details 定位到 name [33m341[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：字段类型穷举[2m > [22mname 为 null → 422，details 定位到 name [33m353[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：字段类型穷举[2m > [22mname 为 数字 → 422，details 定位到 name [33m352[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：字段类型穷举[2m > [22mname 为 布尔 true → 422，details 定位到 name [33m342[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：字段类型穷举[2m > [22mname 为 布尔 false → 422，details 定位到 name [33m382[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：字段类型穷举[2m > [22mname 为 数组 → 422，details 定位到 name [33m354[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：字段类型穷举[2m > [22mname 为 对象 → 422，details 定位到 name [33m361[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：字段类型穷举[2m > [22mdescription 为 数字 → 422，details 定位到 description [33m357[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：字段类型穷举[2m > [22mdescription 为 布尔 → 422，details 定位到 description [33m373[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：字段类型穷举[2m > [22mdescription 为 数组 → 422，details 定位到 description [33m361[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：字段类型穷举[2m > [22mdescription 为 对象 → 422，details 定位到 description [33m362[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：字段类型穷举[2m > [22mdescription = null → 422（契约 I-8 端点 11 的请求形状是 description?: string，null 不在其中） [33m344[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：字段类型穷举[2m > [22mdescription = 空串 → 201，且响应为 "" 而非 null（省略与空串必须可区分） [33m360[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：字段类型穷举[2m > [22mdescription 极长（20000 字符）→ 契约未规定上限，但不得 500 或静默截断 [33m369[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：字段类型穷举[2m > [22m整个请求体是数组 → 422（不是对象即形状非法） [33m358[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：字段类型穷举[2m > [22m请求体为空对象 → 422，name: REQUIRED [33m353[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：projectId 推导与未知字段注入[2m > [22m请求体塞入其它项目的 projectId/id/createdAt/status/sortOrder → 全部被丢弃，归属以 URL 为准 [33m458[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：projectId 推导与未知字段注入[2m > [22m带未知顶层字段（foo / __proto__ / constructor）→ 201，未知字段不落库也不回显 [33m341[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：projectId 推导与未知字段注入[2m > [22mURL 项目已有大 sortOrder 时，注入体里的小 sortOrder 不得影响计算结果 [33m355[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：projectId 推导与未知字段注入[2m > [22mprojectId 为含特殊字符的路径段 → 404，不产生 500 [33m366[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：projectId 推导与未知字段注入[2m > [22mprojectId 长度 ≤ 100 → 404 NOT_FOUND（走统一错误信封） [33m382[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：projectId 推导与未知字段注入[2m > [22mprojectId 长度 ≥ 101 → 414 且响应体**不是** ErrorResponse 信封（契约 I-3 违规，见 B2） [33m350[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：sortOrder 的对抗场景[2m > [22m已有目标被人为设成大值 → 新建取「最大值 + 1」而非「行数」 [33m346[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：sortOrder 的对抗场景[2m > [22m稀疏序号（0 与 500）→ 下一条为 501 [33m382[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：sortOrder 的对抗场景[2m > [22m删除中间目标后新建仍取最大值 + 1（不填补空洞） [33m406[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：sortOrder 的对抗场景[2m > [22m两个项目交叉创建：序号各自独立，互不影响 [33m543[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：sortOrder 的对抗场景[2m > [22m已有目标的 sortOrder 为负数 → 下一条为最大值 + 1（不假设非负） [33m378[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：sortOrder 的对抗场景[2m > [22m串行创建 8 条 → 序号为 0..7 且互不重复 [33m496[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：sortOrder 的对抗场景[2m > [22m并发创建 5 条 → 序号必须唯一（契约 I-8：sortOrder = 当前项目内最大值 + 1） [33m455[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：sortOrder 的对抗场景[2m > [22m并发创建后数据库内序号也与响应一致且唯一 [33m410[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：sortOrder 的对抗场景[2m > [22m并发 8 条 → 落库行数为 8，且序号集合必须是 0..7（竞态的最强证据） [33m591[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：sortOrder 的对抗场景[2m > [22m并发创建 3 条，其中 2 条 name 非法 → 只有 1 条落库，序号不跳号 [33m380[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 7：响应形状[2m > [22m键集合必须精确等于 BusinessGoal 的 6 个字段（多给字段也是契约违规） [33m382[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 7：响应形状[2m > [22m字段类型逐个断言：id/projectId/name 为 string，description 为 string|null，sortOrder 为 integer [33m373[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 7：响应形状[2m > [22mdescription 缺省时必须是 null 而非 undefined（JSON 序列化后键必须存在） [33m357[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 7：响应形状[2m > [22m响应 id 是可直接用于后续请求的 uuid，且落库可查 [33m365[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 7：响应形状[2m > [22mstatus 只可能是 ACTIVE/DONE 两者之一，且首建必为 ACTIVE [33m339[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 7：响应形状[2m > [22m201 响应不得带 Location 之外的意外头/字段；body 即资源本身（契约 I-3 不套壳） [33m353[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 8：副作用隔离（失败的请求必须什么都没发生）[2m > [22m401 / 403 / 404 / 422 四类失败后，目标表行数一律不变 [33m401[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 8：副作用隔离（失败的请求必须什么都没发生）[2m > [22m全部失败请求之后，第一次成功创建仍必须拿到 sortOrder = 0（失败不占用序号） [33m402[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 8：副作用隔离（失败的请求必须什么都没发生）[2m > [22m422 不得触发对其它项目的写入（跨项目副作用） [33m459[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 8：副作用隔离（失败的请求必须什么都没发生）[2m > [22m403 不得触发写入，且不得在项目内留下任何痕迹 [33m360[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 8：副作用隔离（失败的请求必须什么都没发生）[2m > [22m不存在的项目路径被拒绝后，不得创建任何目标（外键与前置检查都要求如此） [33m334[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 9：重复请求与并发安全[2m > [22m同名目标允许重复创建，各得独立 id 与递增 sortOrder（契约未规定 name 唯一） [33m359[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 9：重复请求与并发安全[2m > [22m完全相同的请求体重复 3 次 → 3 行，序号 0/1/2（POST 非幂等，符合契约） [33m405[2mms[22m[39m
+ [32m✓[39m src/modules/risk/risk.test.ts [2m([22m[2m42 tests[22m[2m)[22m[33m 24323[2mms[22m[39m
+   [33m[2m✓[22m[39m AC3 风险三级四态[2m > [22m新建风险：默认「未处理」，级别与负责人按请求落库 [33m531[2mms[22m[39m
+   [33m[2m✓[22m[39m AC3 风险三级四态[2m > [22m三个级别都能建（高 / 中 / 低） [33m549[2mms[22m[39m
+   [33m[2m✓[22m[39m AC3 风险三级四态[2m > [22m★ 级别非法值 → 422 INVALID_VALUE [33m445[2mms[22m[39m
+   [33m[2m✓[22m[39m AC3 风险三级四态[2m > [22m★ 状态非法值 → 422 INVALID_VALUE（用不存在的取值继续验证"非法被拒"） [33m457[2mms[22m[39m
+   [33m[2m✓[22m[39m AC3 风险三级四态[2m > [22m负责人不是本项目成员 → 422 NOT_PROJECT_MEMBER [33m449[2mms[22m[39m
+   [33m[2m✓[22m[39m AC3 风险三级四态[2m > [22m关联任务不属于本项目 → 422 CROSS_PROJECT_REF [33m450[2mms[22m[39m
+   [33m[2m✓[22m[39m 创建风险：状态只能是「未处理」[2m > [22m★ 直接建「处理中 / 已解决 / 已关闭」→ 422 INVALID_VALUE，且不落库、不写审计 [33m465[2mms[22m[39m
+   [33m[2m✓[22m[39m 创建风险：状态只能是「未处理」[2m > [22m★ 收窄不改变鉴权顺序：MEMBER 422 / VIEWER 403 / outsider 404 / 未登录 401 [33m520[2mms[22m[39m
+   [33m[2m✓[22m[39m 创建风险：状态只能是「未处理」[2m > [22m显式传 OPEN 或缺省 → 都建成「未处理」（不能把合法的也拦了） [33m493[2mms[22m[39m
+   [33m[2m✓[22m[39m 创建风险：状态只能是「未处理」[2m > [22m创建时带的解决说明被归一为 null（不留「未处理却有解决说明」的脏数据） [33m484[2mms[22m[39m
+   [33m[2m✓[22m[39m 创建风险：状态只能是「未处理」[2m > [22m封死的是「创建」，不是「流转」：建成后仍能一路走到已关闭 [33m555[2mms[22m[39m
+   [33m[2m✓[22m[39m AC3 四态流转[2m > [22m未处理 → 处理中 → 已解决（需解决说明）→ 已关闭 [33m603[2mms[22m[39m
+   [33m[2m✓[22m[39m AC3 四态流转[2m > [22m★ 改为「已解决」但不填解决说明 → 422 resolution REQUIRED [33m501[2mms[22m[39m
+   [33m[2m✓[22m[39m AC3 四态流转[2m > [22m★ 允许回退（重开）：已解决 → 未处理（四态不强制单向，依据批复由本票定义） [33m510[2mms[22m[39m
+   [33m[2m✓[22m[39m AC3 四态流转[2m > [22m状态变化写一条 risk.status 审计（不是普通 risk.update） [33m483[2mms[22m[39m
+   [33m[2m✓[22m[39m AC3 四态流转[2m > [22m★ 审计覆盖**全部可写字段**：改绑负责人 / 改关联任务 / 改描述都看得见 [33m543[2mms[22m[39m
+   [33m[2m✓[22m[39m AC3 四态流转[2m > [22m★ 审计覆盖 create 的全部可写字段（原实现漏 description 与 resolution） [33m513[2mms[22m[39m
+   [33m[2m✓[22m[39m AC3 四态流转[2m > [22m★ 状态回退清空解决说明，在审计里也看得见（resolution 前后值） [33m592[2mms[22m[39m
+   [33m[2m✓[22m[39m 授权：风险写权限 = PM + MEMBER；VIEWER 只读[2m > [22mMEMBER 可以新建与修改风险（批复明确 MEMBER 可写） [33m506[2mms[22m[39m
+   [33m[2m✓[22m[39m 授权：风险写权限 = PM + MEMBER；VIEWER 只读[2m > [22m★ 成员只能流转**自己负责**的风险（公共层 risk.flow 对象关系判定，2026-10-18 落地） [33m649[2mms[22m[39m
+   [33m[2m✓[22m[39m 授权：风险写权限 = PM + MEMBER；VIEWER 只读[2m > [22m★ H1：成员不能"先改绑、再流转"绕过 risk.flow（评审实跑的三步复现） [33m553[2mms[22m[39m
+   [33m[2m✓[22m[39m 授权：风险写权限 = PM + MEMBER；VIEWER 只读[2m > [22m★ H1：「关联任务」变更与负责人改绑同一口径，也走 risk.flow [33m516[2mms[22m[39m
+   [33m[2m✓[22m[39m 授权：风险写权限 = PM + MEMBER；VIEWER 只读[2m > [22mH1 的边界（如实登记，不代表已定案）：成员改**自己负责**风险的归属仍允许 [33m490[2mms[22m[39m
+   [33m[2m✓[22m[39m 授权：风险写权限 = PM + MEMBER；VIEWER 只读[2m > [22mVIEWER 可以读清单，但不能写 → 403 [33m502[2mms[22m[39m
+   [33m[2m✓[22m[39m 授权：风险写权限 = PM + MEMBER；VIEWER 只读[2m > [22m非项目成员 → 404（读与写都一样，不泄漏项目存在性） [33m525[2mms[22m[39m
+   [33m[2m✓[22m[39m AC7 敏感风险继承关联任务可见性[2m > [22m★ 关联到"我看不到的敏感任务"的风险：清单不含、详情与修改都是 404 [33m560[2mms[22m[39m
+   [33m[2m✓[22m[39m AC7 敏感风险继承关联任务可见性[2m > [22m白名单成员可以看到并修改该风险 [33m549[2mms[22m[39m
+   [33m[2m✓[22m[39m AC7 敏感风险继承关联任务可见性[2m > [22m不关联任务的公开风险对普通成员可见 [33m509[2mms[22m[39m
+   [33m[2m✓[22m[39m AC4/AC5 项目关闭与重开[2m > [22m★ 有未关闭任务 → 关闭被拒（409），项目仍是 ACTIVE [33m519[2mms[22m[39m
+   [33m[2m✓[22m[39m AC4/AC5 项目关闭与重开[2m > [22m★ 任务都关闭了，但还有「未处理」风险 → 关闭同样被拒（409） [33m504[2mms[22m[39m
+   [33m[2m✓[22m[39m AC4/AC5 项目关闭与重开[2m > [22m★ 风险改为「已解决」后条件解除 → 可以关闭，且留一条审计 [33m553[2mms[22m[39m
+   [33m[2m✓[22m[39m AC4/AC5 项目关闭与重开[2m > [22m★ 并发双关闭：恰好一个 200、一个 409，且 project.close 审计只有 1 条（审查 B1 回归护栏） [33m503[2mms[22m[39m
+   [33m[2m✓[22m[39m AC4/AC5 项目关闭与重开[2m > [22mMEMBER 不能关闭项目（project.close 仅 PM）→ 403 [33m460[2mms[22m[39m
+   [33m[2m✓[22m[39m AC4/AC5 项目关闭与重开[2m > [22mVIEWER 与 outsider 也关不了（VIEWER 403 / outsider 404） [33m446[2mms[22m[39m
+   [33m[2m✓[22m[39m AC4/AC5 项目关闭与重开[2m > [22m重复关闭 → 409（已处于关闭状态） [33m478[2mms[22m[39m
+   [33m[2m✓[22m[39m AC4/AC5 项目关闭与重开[2m > [22m重开：仅 PM，且只有已关闭的项目能重开；重开写审计 [33m553[2mms[22m[39m
+   [33m[2m✓[22m[39m AC4/AC5 项目关闭与重开[2m > [22m★ 敏感风险不可见时不计入该成员的阻断清单（不泄漏存在性） [33m548[2mms[22m[39m
+   [33m[2m✓[22m[39m 排序：未处理排前、高危优先[2m > [22m★ 清单按「状态 → 等级 → 创建时间」排序，而不是字典序 [33m636[2mms[22m[39m
+   [33m[2m✓[22m[39m 排序：未处理排前、高危优先[2m > [22m★ closure-check：排序发生在 50 条截断**之前**，中危不会被低危挤出清单 [33m569[2mms[22m[39m
+   [33m[2m✓[22m[39m 测试缺口补齐：409 形状 / S5 回归 / 可见性先于流转[2m > [22m① 关闭被阻断的 409：错误体只有 code + message，既无 details 也无清单 [33m505[2mms[22m[39m
+   [33m[2m✓[22m[39m 测试缺口补齐：409 形状 / S5 回归 / 可见性先于流转[2m > [22m② S5 回归：「关联不可见的敏感任务」与「不存在的任务」给同一条 422 [33m483[2mms[22m[39m
+   [33m[2m✓[22m[39m 测试缺口补齐：409 形状 / S5 回归 / 可见性先于流转[2m > [22m③ 负责人改自己风险的**状态**，但风险关联着他看不到的敏感任务 → 404（可见性先于流转） [33m547[2mms[22m[39m
+ [32m✓[39m src/modules/task/task-sensitivity.test.ts [2m([22m[2m43 tests[22m[2m)[22m[33m 23843[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 正例：标记敏感并指定可见成员[2m > [22mPM 标记敏感 + 指定 member → 200 SensitivityView 并写入白名单 [33m451[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 正例：标记敏感并指定可见成员[2m > [22m响应体字段形状与契约 SensitivityView 完全一致（四字段，无多余键） [33m410[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 正例：标记敏感并指定可见成员[2m > [22m名单内成员在列表与详情都可见；名单外成员在列表与详情都不可见 [33m537[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 正例：标记敏感并指定可见成员[2m > [22mPM 始终可见敏感任务（无论是否在名单内） [33m475[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 正例：标记敏感并指定可见成员[2m > [22misSensitive=true 且空名单 → 仅 PM 可见，MEMBER / VIEWER 均 404 [33m453[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 正例：标记敏感并指定可见成员[2m > [22m列表过滤在查询层：未授权成员只看到非敏感任务，items 长度不计入敏感任务 [33m429[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 全量覆盖语义[2m > [22m连续两次设置不同名单 → 最终名单等于第二次请求（不叠加） [33m1069[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 全量覆盖语义[2m > [22m从多成员名单收敛到单成员 → 只保留第二次请求的成员 [33m512[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 全量覆盖语义[2m > [22m请求名单含重复 id → 去重后写库，不因复合主键冲突失败 [33m411[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 关闭敏感语义[2m > [22misSensitive=false 忽略请求名单，保留原名单（不清空） [33m494[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 关闭敏感语义[2m > [22m关闭时请求里传入不同名单也被忽略，保留的是原名单 [33m455[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 关闭敏感语义[2m > [22m关闭敏感后全部项目成员恢复可见（详情与列表） [33m548[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 关闭敏感语义[2m > [22m重新开启时名单恢复生效（关闭保留、开启传回原名单 → 原成员仍可见） [33m548[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 关闭敏感语义[2m > [22m从未设置过敏感的任务：关闭后名单为空且所有成员可见 [33m433[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 校验反例[2m > [22mvisibleMemberIds 含非本项目成员 → 422 NOT_PROJECT_MEMBER [33m428[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 校验反例[2m > [22m跨项目成员 → 422 NOT_PROJECT_MEMBER（最容易漏的变体） [33m556[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 校验反例[2m > [22mvisibleMemberIds 含不存在的用户 → 422 NOT_PROJECT_MEMBER [33m426[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 校验反例[2m > [22m校验失败时不写入任务敏感标记、白名单与审计 [33m412[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 校验反例[2m > [22m缺少 isSensitive → 422 REQUIRED [33m398[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 校验反例[2m > [22mvisibleMemberIds 缺省 → 422 REQUIRED [33m691[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 校验反例[2m > [22mvisibleMemberIds 不是数组 → 422 [33m1436[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 权限反例[2m > [22mMEMBER 调用 → 403 FORBIDDEN（sensitivity.manage 仅 PM） [33m426[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 权限反例[2m > [22mVIEWER 调用 → 403 FORBIDDEN [33m412[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 权限反例[2m > [22m非项目成员调用 → 404 NOT_FOUND 且响应体无任务字段 [33m390[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 权限反例[2m > [22m未登录调用 → 401 UNAUTHENTICATED [33m405[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 权限反例[2m > [22m任务不存在 → 404，且与非成员响应的状态码与响应体逐字一致 [33m413[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 权限反例[2m > [22m敏感任务且非 PM 不在名单：调用端点 30 → 404（不泄漏存在性，优先于 403） [33m449[2mms[22m[39m
+   [33m[2m✓[22m[39m 敏感任务详情与写操作的不可见性[2m > [22m未授权成员请求敏感任务详情 → 404，响应体无任务任何字段 [33m467[2mms[22m[39m
+   [33m[2m✓[22m[39m 敏感任务详情与写操作的不可见性[2m > [22m未授权成员详情 404 与「任务不存在」逐字一致，文案不含「无权限」「敏感」 [33m487[2mms[22m[39m
+   [33m[2m✓[22m[39m 敏感任务详情与写操作的不可见性[2m > [22m名单内成员可读详情，读取到完整 TaskView [33m419[2mms[22m[39m
+   [33m[2m✓[22m[39m 敏感任务详情与写操作的不可见性[2m > [22m未授权成员 PATCH 敏感任务 → 404（不是 403，避免泄漏存在性） [33m421[2mms[22m[39m
+   [33m[2m✓[22m[39m 敏感任务详情与写操作的不可见性[2m > [22m未授权成员 DELETE 敏感任务 → 404，且任务仍在 [33m430[2mms[22m[39m
+   [33m[2m✓[22m[39m 敏感任务详情与写操作的不可见性[2m > [22m名单内但非 PM 的成员 PATCH / DELETE → 403（对象可见，写动作不允许） [33m450[2mms[22m[39m
+   [33m[2m✓[22m[39m 敏感任务详情与写操作的不可见性[2m > [22mPATCH / DELETE 的未授权 404 与「任务不存在」逐字一致且无任务字段 [33m507[2mms[22m[39m
+   [33m[2m✓[22m[39m 敏感可见性变更即时生效（同一 token）[2m > [22m成员被移出名单后，同一个 token 的下一次请求即被拒绝（详情） [33m459[2mms[22m[39m
+   [33m[2m✓[22m[39m 敏感可见性变更即时生效（同一 token）[2m > [22m成员被移出名单后，列表同样即时过滤（同一个 token） [33m488[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 审计记录[2m > [22m标记敏感写入 1 条 AuditLog，关键字段齐备 [33m408[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 审计记录[2m > [22mbefore / after 可 JSON.parse，且结构与内容等于 SensitivityView [33m397[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 审计记录[2m > [22m第二次变更的 before 等于第一次的 after（变更前后可串联） [33m475[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 审计记录[2m > [22m关闭敏感同样写入审计，且 after 反映关闭后状态 [33m415[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 30 审计记录[2m > [22m校验失败 / 权限失败均不产生审计记录 [33m412[2mms[22m[39m
+   [33m[2m✓[22m[39m AC-US-05-09 敏感任务对未授权成员不可见[2m > [22m同一未授权成员在列表、详情与计数三处均看不到敏感任务 [33m458[2mms[22m[39m
+   [33m[2m✓[22m[39m AC-US-05-09 敏感任务对未授权成员不可见[2m > [22m敏感任务被过滤后，同故事其它任务的字段与顺序不受影响 [33m464[2mms[22m[39m
+TIMEOUT after 200s; stopping owned tree pid=5200
+END exit=124 signal=none elapsed=207.06s
