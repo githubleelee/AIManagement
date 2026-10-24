@@ -10,7 +10,7 @@
 > 依据已完成并留证的交付与独立验证，只更新 Status / Evidence / Blocker，不改业务规则、不新增授权。原始状态历史保留在各任务行内。
 
 - **已完成**：#13（FS 开工守卫：PATCH + 验收 REJECT 双入口，PR #114）、#20（看板最终验收）、#45（共享 AI 三表，PR #88）、**#59**（UML 粘性置位，PR #103）、**#38/#39/#40**（通知存储/运行时/顶栏，PR #104/#105/#106）；另合入 **PR #108**（事件目录登记）、**PR #109**（整合 A 的 PR #100）、**PR #112**（三个已接来源能力改判）、**PR #114**（FS 开工守卫双入口，`cc67e33`）。
-- **进行中**：#15（甘特：只剩合并后一次浏览器复核）、#34/#35（附件候选已并入最新 main `integrate/attach-candidate-on-main@f516b20`，8 文件/100 例、migrate diff 无漂移；**只差 C 的任务 DELETE 联动与 TaskSection 挂载**）、#41（通知 6/9 来源已端到端，仅 C 域两类 + 后置 @提及未接）。
+- **进行中**：#34/#35（附件候选已并入最新 main `integrate/attach-candidate-on-main@f516b20`，8 文件/100 例、migrate diff 无漂移；**只差 C 的任务 DELETE 联动与 TaskSection 挂载**）、#41（通知 6/9 来源已端到端，仅 C 域两类 + 后置 @提及未接）。
 - **仍待外部**：#36/#37（C 的真实任务删除接线与 TaskSection 挂载）、#41（A/C 的真实生产方未接，最终 AC 不勾）、#44/#47/#49/#50（等 C 推送本域实现与接口事实，B 已于 #32 发出 6 项事实请求）、#57/#58（等 C 的 UML P2/P3 读侧服务）。
 - **已解除的旧阻塞**：D 的 #31 字段/端口提案、共享 AI 存储、D 的通知模块、C 的审阅入口、C 的 task 写窗口（PR #99）。**不再**作为当前阻塞。
 - **main 基线（独立 tester）**：`9160587` 上 `npm run typecheck` exit 0、`npx vitest run` **81 文件通过 + 1 跳过 / 1709 通过 + 12 todo / 0 失败**；`295e694` 全量 83 文件/1732 例；合入 PR #109 后 `aa62c0d` 全量 **84 文件通过 + 1 跳过 / 1757 通过 + 12 todo / 0 失败**（`docs/ai-records/B/issue-34/B-I34-20261024b-a100-and-live-capabilities-01.md`）。
@@ -165,12 +165,11 @@ Done when: 支持故事展开、计划时间、汇总进度、里程碑和 FS �
 Dependencies: #11 [FS]
 
 ## #15 验收并交付甘特图
-Status: in progress
+Status: done
 Outcome: GitHub #26 AC1–AC7 证据包及交付 C 域 GitHub #32 的数据契约。
-Evidence: 写路径/事件已由 #12（PR #68）与 #37（PR #90）覆盖；UI 走查见 PR #69 → 记录 PR #70（PM 编辑器 CRUD、重复/成环失败、MEMBER/VIEWER 无写控件、直连 MEMBER 403）。FS 真实开工路径随 #13 于 PR #114 覆盖（双入口 422/200 端到端）。
+Evidence: 骑写路径 PR #68、事件 PR #90、UI 走查 PR #69→记录 PR #70；FS 开工路径随 #13（PR #114）覆盖。**合并后复核**（main `e7bc546`，隔离库 + 真实 API/Vite/Chromium）：PM 编辑器齐全、里程碑 201、依赖 201、重复 409 DUPLICATE、反向成环 409 INVALID_VALUE、member1 写控件 0 且直连 403、故事进度 0%（0/3）。记录 `docs/ai-records/B/issue-26/B-I26-20261024c-gantt-final-acceptance-01.md`。另登记实现口径：无可见关联任务的里程碑对非 PM 不返回（fail-closed，设计稿 §9.5 已登记为已决+已知限制）。
 Done when: 公共层（B 单写授权）完成必要路由与页面挂载；本模块测试与 `npm run typecheck` 通过；浏览器验证展开、汇总、里程碑；覆盖 FS、环、跨项目、敏感过滤及真实任务开工路径；C2 已确认口径留证；事件联调保留真实证据，不能只用模拟替代；未决或外部不可验证项不勾完成，不建立对 GitHub #32 的反向依赖。
 Dependencies: #12 [FS], #13 [FS], #14 [FS]
-Blocker: **仅剩一次合并后浏览器复核**（展开/汇总/里程碑 + 跨项目/敏感过滤在 `cc67e33` 上重跑）。守卫是后端行为、不改前端，故属复核而非新实现。完成前不勾 #26 的最终交付。
 
 ## #16 提前完成故事看板方案与授权细化
 Status: done

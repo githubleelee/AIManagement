@@ -1,0 +1,8 @@
+
+> ai-management@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit
+
+
+real	0m8.832s
+user	0m15.481s
+sys	0m0.837s
