@@ -1,0 +1,12 @@
+
+ RUN  v2.1.9 /tmp/notif-merge-probe
+
+(node:135312) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ src/modules/authz/sensitivity-uml-sticky.test.ts (7 tests) 1905ms
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  00:45:40
+   Duration  2.56s (transform 267ms, setup 0ms, collect 437ms, tests 1.90s, environment 0ms, prepare 44ms)
+

@@ -38,6 +38,8 @@ import { PrismaEventRepository, createEventAuthorizationPort } from './db/event-
 import { createGanttEventPort } from './modules/gantt/event-port.js'
 import { createRequirementEventPort } from './modules/requirement/event-port.js'
 import { createRiskEventPort } from './modules/risk/event-port.js'
+import { createNotificationRuntime } from './db/notification-runtime.js'
+import { createAcceptanceEventPort } from './modules/acceptance/event-port.js'
 import { PrismaAiSuggestionRepository, createAiAuthorizationPort } from './db/ai-repository.js'
 import { createDomainEventInfrastructure } from './modules/events/factory.js'
 import { createAiBreakdownService } from './modules/ai/factory.js'
@@ -128,11 +130,34 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   context.ganttEvents = createGanttEventPort({ repository: eventRepository })
   context.requirementEvents = createRequirementEventPort({ repository: eventRepository })
   context.riskEvents = createRiskEventPort({ repository: eventRepository })
-  // 生命周期：Fastify 启动完成 / 关闭时驱动 D 的事件基础设施。
+  context.acceptanceEvents = createAcceptanceEventPort({ repository: eventRepository })
+  // #34 站内通知公共运行时：真实 DB 仓储 + 权威接收者解析器 + #37 订阅适配器 + 提交后消费桥接
+  // + B 自己的定时生产点（task.overdue / milestone.due）。与事件基础设施共用**同一个**
+  // `PrismaEventRepository` 实例（否则会出现「查询看不到域内写入」的裂缝）。D 的消费模块零改动。
+  // 测试环境（NODE_ENV === 'test'）不自动启动后台定时器，避免 10s 扫描污染其它模块的事件计数；
+  // 订阅注册与首次激活仍照常完成，HTTP 探测 / 生产则开启定时器。
+  const notificationRuntime = createNotificationRuntime({
+    prisma: context.prisma,
+    subscriber: events.subscriber,
+    eventRepository,
+    autoStartLoops: process.env.NODE_ENV !== 'test',
+    onError: (error, scope) => app.log.error({ err: error, scope }, '通知后台任务失败'),
+  })
+  context.notificationService = notificationRuntime.module.service
+
+  // 生命周期：Fastify 启动完成 / 关闭时驱动 D 的事件基础设施与通知运行时。
   app.addHook('onReady', async () => {
     await infrastructure.start()
+    try {
+      await notificationRuntime.start()
+    } catch (error) {
+      // 失败 log 但**不吞**整体异常：启动失败即让应用启动失败（fail-fast）。
+      app.log.error({ err: error }, '通知运行时启动失败')
+      throw error
+    }
   })
   app.addHook('onClose', async () => {
+    await notificationRuntime.stop()
     await infrastructure.stop()
   })
 

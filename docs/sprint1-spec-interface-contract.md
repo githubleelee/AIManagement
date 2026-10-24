@@ -290,6 +290,8 @@ export function toFieldErrors(issues: z.ZodIssue[]): FieldError[] {
 
 业务规则不塞进 Zod 的原因：它们需要跳字段比较（`planEnd >= planStart`、`acceptor !== owner`）或需要查库（「是不是本项目成员」）。塞进 Zod 会让 schema 依赖数据库，破坏测试的独立性。
 
+> **2026-10-23 追加，FS 开工门的窄例外**：业务守卫查库校验前置关闭/计划边界时，复用既有 `INVALID_VALUE`，分别定位 `status` / `planStart`；由处理器主动抛 `AppError(422,'VALIDATION_FAILED',…)`，不是 Zod 枚举失败。这是 I-2b 职责表及 I-4 字段码语义的 **FS 专用补充**：值可有合法形状但不满足当前开工条件；不新增 `FieldErrorCode`、不扩大其他用法，不改变 I-3 信封、权限错误优先顺序或 I-4 的传输状态码规则。依据 `DECISIONS.md` `contract.fs-start-validation`；端点 28 的新增条件见下方追加说明。
+
 **`src/shared/errors.ts`（冻结）**
 
 ```ts
@@ -975,6 +977,8 @@ model AuditLog {
            不得只校验请求体中出现的字段
 说明  不含 isSensitive
 ```
+
+> **2026-10-23 追加，端点 28 的 FS 条件**：现有权限判定后，凡原状态非 `DOING` 且结果为 `DOING`，在真实写入同一事务校验全部 FS 前置 `CLOSED`（`DONE` 不算）及 `planStart >= 前置 planEnd 次日`。条件失败为 `422 VALIDATION_FAILED`，字段 `status` 或 `planStart` 的码为既有 `INVALID_VALUE`，混合补丁整体回滚。重复写已 `DOING` 和纯计划改期不触发开工门；计划应用另保留其本域完整验证。敏感前置只参与受保护校验，响应不返回对象引用、标题、日期、状态清单或数量。该定义也适用于验收 REJECT 等进入 `DOING` 的真实入口，由原域消费统一守卫端口；两端均接线前不宣称全覆盖完成。依据 `scheduling.fs-enter-doing-all-paths`，不改变既有 Action 或其他状态边。
 
 **29. `DELETE /tasks/:taskId`** — 权限：`task.write`
 

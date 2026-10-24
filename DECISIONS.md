@@ -247,3 +247,40 @@
 - **timestamp:** 2026-10-21T22:10:00+08:00
 - **rationale:** 事件基础设施（PR #86）就绪后，业务域若不接线则 `DomainEvent` 表永远为空、查询 / 重投端口无实际语义；本口径把「同事务、可回滚、按可见性过滤、幂等、可登记」固化为所有域复用的一套规则，避免各域自拼信封、自定命名与幂等键而彼此漂移。
 
+## `notifications.public-integration-and-scheduling`
+
+- **value:** 沿用 `notifications.events-timing-timezone` 的六类站内通知、接收者、60 秒与上海时区，不重新扩权。B 负责通知公共存储、权威接收者适配器、提交后消费桥接、调度和骨架挂载；D 负责消费模块；普通生产点由原域在登记窗口内接线（C 的 task/：分配 `task.assigned`、真实进入 DONE 时 `acceptance.submitted`；A 的验收域：`acceptance.approved/rejected`；A 的风险域：`risk.created/level-raised`）。`task.mentioned` 维持明确未接入的后置单向联调项，不擅自新增 Mention 模型。B 定时生产 `task.overdue`（planEnd 次日 00:00 Asia/Shanghai 仍非 CLOSED，含 DONE）与 `milestone.due`（dueDate 当日 09:00）；启动补扫、每 10 秒扫描、同实例不重叠、关闭停止。逾期启动补扫覆盖当前非 CLOSED 的已逾期任务；节点首次只补启用当日已到点的节点，之后补启用日及之后已到点的节点，不自动提醒启用日前的旧里程碑。定时事件 occurredAt 必须为条件成立时间；普通事件按业务成功时间计时（同事务事件时间可作保守起点），停机补投不重置起点，未在 60 秒内可查须如实记超时。接收者只由权威 Task.ownerUserId/acceptorUserId、Risk.ownerUserId、Milestone.ownerUserId? 与项目 PM 解析并去重，且筛选当前成员及对象权限；节点无负责人只发 PM，有负责人发 PM+该负责人，不推断他人。
+- **timestamp:** 2026-10-23T13:24:04+08:00
+- **rationale:** 项目负责人授权 B 裁定，细化既有冻结口径的执行归属、09:00 节点规则及启动恢复边界，不将模块模拟事件冒充六类真实送达。
+
+## `notifications.committed-consumption-and-query-contract`
+
+- **value:** 域内同事务 append 不会触发 live 订阅，通知接入必须补已提交 DomainEvent 的通知专用消费桥接：显式适配 #37 订阅端口并真实注册处理器，提交后读取器复用同一处理器；不改变 publish 对 DUPLICATE 不自动派发的语义，不在业务事务内调用订阅者。内部扫描限定支持的事件名并分批读取，不复用带 projectId/actor 限制的用户 query 端口。以 `(consumerId,eventId)` 的持久消费账本判断是否完成，不以单纯 storedAt/id 水位防重；首次启用在同一事务持久化激活记录并将当时可见历史支持事件记为 SKIPPED_BASELINE，不自动群发旧风险，重启不重置基线。处理器必须返回 ConsumeNotificationEventResult；仅 DELIVERED 才确认成功，UNAVAILABLE/异常不确认、保留诊断并可重试，部分投递成功靠通知唯一键安全重放，单条失败不得阻塞后续事件。属于至少一次尝试+幂等，不新增 outbox/外部队列、不承诺 exactly-once。订阅源须有动态健康状态和逐事件 sourceCapabilities；仅注册回调成功不能宣称 AVAILABLE，停机/读源故障须诚实降级。接受通知域的 AVAILABLE/UNAVAILABLE/DELIVERED 词汇，不强改其他域枚举。列表、详情、未读统计与已读条件更新均以必填 actorUserId 应用当前成员/对象可见性（含原敏感引用与当前业务关联），在查询层过滤，撤权后旧通知不可见，越权与不存在同一 404；敏感通知只存必要引用，禁止因解绑/删除原关联自动暴露。已读保持首次 readAt。仓储同一快照返回 items/total/unreadCount/limit/truncated，上限 200；total 为 unreadOnly 条件下的真实可见总数，unreadCount 为全部当前可见未读数。三个 HTTP 端点统一投影前端必要字段，不外发收件人、dedupeKey、sourceEventId 或内部投递诊断。latencyMs 保留原始差值，只有 0 <= latencyMs <= 60000 才 withinDeliveryTarget；不把负延迟归零伪装达标。订阅中途失败须回收已注册 disposer，stop 幂等。六类真实生产证据未齐不勾最终 AC1/AC2，不随模块 PR 自动关闭 #34。
+- **timestamp:** 2026-10-23T13:24:04+08:00
+- **rationale:** 独立评审发现事务内事件不派发、UNAVAILABLE 被 void 回调吞掉、撤权后的通知泄漏和列表统计缺口；定点测试实测了负延迟伪达标、吞返回值与部分订阅泄漏三反例，冻结真实接入必须满足的边界而非假可用。
+
+## `events.notification-catalog-exceptions`
+
+- **value:** 通知显式目录采用九个精确名字：task.assigned、task.mentioned、task.overdue、acceptance.submitted、acceptance.approved、acceptance.rejected、risk.created、risk.level-raised、milestone.due；这些已提案名字作为事件三段命名规范的局部例外，需在 shared 事件目录登记，不全仓重命名。其他新事件仍遵循原规范；`events.business-domain-production` 的同事务追加、敏感载荷、适配器分层和失败回滚规则继续完整生效。不得把普通 risk.updated 当等级提升，也不得把里程碑 CRUD 当到期提醒；风险等级提升仅为 LOW < MEDIUM < HIGH 的真实上升，幂等键按更新类包含本次变化标识/时间，不能仅按 riskId 永久去重。通知新增生产方归属遵循 notifications.public-integration-and-scheduling，不越 A/C 现有写窗。
+- **supersedes:** events.business-domain-production@2026-10-21T22:10:00+08:00（仅通知目录九个名字的三段命名要求；其余值继续有效）
+- **timestamp:** 2026-10-23T13:24:04+08:00
+- **rationale:** D 的通知订阅及已合入的 risk.created 均使用两段名字，保留明确目录比改写全部消费方更小，且不将不同业务触发混为同义事件。
+
+## `scheduling.fs-enter-doing-all-paths`
+
+- **value:** FS 的「开工」统一定义为**任务原状态非 DOING、写入结果为 DOING**，覆盖 TODO 首次执行、BLOCKED/SUSPENDED 恢复、DONE/CLOSED 重开及验收 REJECT→DOING；所有既有入口均须同事务校验全部前置 CLOSED（DONE 不算）与后继 planStart 不早于前置 planEnd 次日。重复写已经 DOING 的任务不是新进入；纯改期和不改状态的 applyTaskPlanDates 不属于开工，本规则不代替 #32 本域的完整计划验证。拒收会进入 DOING 时也必须校验，未满足条件则验收操作整体回滚，不写验收结果、成功审计或事件；PASS→CLOSED 不触发本门。仅增加这一已确认条件，不改变 Action、成员/敏感授权或其他合法状态边。保持原分工：B 在 task 共享写核心落实同一守卫，并声明 shared 的 TaskStartGuardPort、由 app 组装；A 在验收原事务内消费注入端口，禁止跨模块直接调 task service 或复制第二套规则。核心与验收两条真实 HTTP 写入口及其他进入 DOING 路径完成覆盖前不合入 FS、不标本地 #13 或相关最终 AC 完成。原 C task 写窗以 PR #99 合入结束，当前 B 只写已登记守卫范围；附件等 C/D 旧模块不被本次裁定接管。
+- **supersedes:** legacy.task-start-guard-authorization@2026-10-19T16:50:00+08:00（仅明确开工触发范围，并允许该条件作用于恢复/重开/验收返回；其他写窗、权限与不得镜像/不得强加AI规则的限制继续有效）
+- **timestamp:** 2026-10-23T23:01:48+08:00
+- **rationale:** 独立评审发现 PATCH 将重开视为开工而验收 REJECT 走另一入口，负责人明确选择“所有进入 DOING 都校验”，消除两个入口口径不一致而不接管原业务域。
+
+## `contract.fs-start-validation`
+
+- **value:** FS 开工条件不满足沿用 HTTP 422 / VALIDATION_FAILED：前置未 CLOSED 标 status: INVALID_VALUE，计划边界未满足标 planStart: INVALID_VALUE；由业务处理器/守卫主动抛 AppError，不把查库规则塞进 Zod。此为 I-2b 单字段枚举分类及端点 28 的**窄范围补充**，只复用 I-4 已有字面码，不新增顶层/字段码、不改统一信封与 401/403/404 优先顺序，也不改变其它 HTTP 传输错误的冻结规则。对有权操作的后继核验完整真实 FS 约束（含隐藏前置），失败只返回静态通用错误，不返回前置 ID、标题、正文、日期、状态清单或数量。保留 fail-closed，承认动作可行性本身可能形成粗粒度行为信号，不能把“响应不含对象字段”夸大为绝对零侧信道或扩大前置读取权限。未知数据库并发保证不靠无锁猜测宣称安全，须留实测和限制。
+- **timestamp:** 2026-10-23T23:01:48+08:00
+- **rationale:** 既有 I-4 没有 FS 专属字段码而禁止另造码，明确复用 INVALID_VALUE 的业务校验语义并登记端点契约，避免把合法代码字面量误当已冻结的全部业务语义。
+
+## `notifications.source-event-provenance`
+
+- **value:** 通知“原敏感引用”采用 B 的持久化 join 方案，不再要求 D 的 NotificationRecord 复制 references：生产 Notification.sourceEventId 必须外键关联已提交 DomainEvent.id，onDelete Restrict，消费账本的事件引用同样保留；通知/账本存续期间原事件不是可任意删除的缓存，未来留存清理另案。追加时核对原事件 projectId/eventName/object 与通知一致，拒绝缺失或伪造来源。列表、详情、计数、已读的查询条件同时校验原敏感 payload.references 中所有 task/story 引用和当前业务关联，不能只凭当前 Risk.taskId/TaskMilestone 已解绑就放行；原事件缺失、受限引用无效或来源归属不一致均 fail-closed 并留诊断，不降级为空引用。保持 D 消费端口签名，B 实施真实 DB 外键/过滤与解绑、删除、来源缺失回归；模块 PR #93 合入不表示该存储/桥接已经完成。
+- **timestamp:** 2026-10-23T23:01:48+08:00
+- **rationale:** PR #93 修正版已闭合消费模块问题，但风险/节点解绑后仍须保留原受限来源；复用既存不可悬空事件行可满足保护并避免重复存储第二份敏感引用。

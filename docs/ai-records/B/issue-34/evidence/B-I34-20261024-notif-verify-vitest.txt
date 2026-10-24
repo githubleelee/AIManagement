@@ -1,0 +1,23 @@
+
+ RUN  v2.1.9 /home/lee/aim-wt/notif-verify
+
+ ✓ src/modules/notification/service.test.ts (24 tests) 13ms
+ ✓ src/modules/notification/review-regression.test.ts (9 tests) 34ms
+(node:130134) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:130026) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ test/db-schema-contract.test.ts (29 tests) 1994ms
+ ✓ test/error-handler.test.ts (20 tests) 360ms
+ ✓ test/db-schema.test.ts (8 tests) 2455ms
+   ✓ 表结构与迁移 > 迁移可重复执行：对同一库再次 deploy 不报错 641ms
+ ✓ src/modules/notification/plugin.test.ts (5 tests) 2075ms
+ ✓ src/db/event-repository.test.ts (11 tests) 2530ms
+ ✓ src/db/notification-http.test.ts (7 tests) 2684ms
+ ✓ src/db/notification-runtime.test.ts (16 tests) 3281ms
+
+ Test Files  9 passed (9)
+      Tests  129 passed (129)
+   Start at  00:40:40
+   Duration  3.75s (transform 827ms, setup 0ms, collect 4.15s, tests 15.43s, environment 1ms, prepare 567ms)
+

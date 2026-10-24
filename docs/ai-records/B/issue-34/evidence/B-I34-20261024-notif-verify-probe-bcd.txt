@@ -1,0 +1,15 @@
+
+ RUN  v2.1.9 /home/lee/aim-wt/notif-verify
+
+(node:133237) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | test/zz-probe-bcd.test.ts > D: three-endpoint projection > unauthorized and nonexistent return byte-identical 404 body (GET + PATCH)
+404 body: "{\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"通知不存在或不可见\"}}"
+
+ ✓ test/zz-probe-bcd.test.ts (10 tests) 2582ms
+
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+   Start at  00:44:12
+   Duration  3.26s (transform 285ms, setup 0ms, collect 460ms, tests 2.58s, environment 0ms, prepare 38ms)
+

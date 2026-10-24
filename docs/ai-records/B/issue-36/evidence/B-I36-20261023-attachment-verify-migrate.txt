@@ -1,0 +1,68 @@
+TMPD=/tmp/attach-migrate-Pgu08q
+DB=/tmp/attach-migrate-Pgu08q/verify.db
+=== migrate deploy ===
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
+For more information, see: https://pris.ly/prisma-config
+
+Prisma schema loaded from src/db/schema.prisma
+Datasource "db": SQLite database "verify.db" at "file:/tmp/attach-migrate-Pgu08q/verify.db"
+
+11 migrations found in prisma/migrations
+
+Applying migration `20260919102113_init`
+Applying migration `20260926000000_add_session_token`
+Applying migration `20261017180000_add_task_progress_blocked`
+Applying migration `20261017230000_add_acceptance_record`
+Applying migration `20261018033000_add_risk_and_project_status`
+Applying migration `20261018050000_add_gantt_models`
+Applying migration `20261019090000_add_uml_models`
+Applying migration `20261021120000_add_uml_ever_restricted`
+Applying migration `20261021130000_add_domain_event`
+Applying migration `20261021150000_add_ai_suggestion_store`
+Applying migration `20261023050228_add_attachment`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 20260919102113_init/
+    └─ migration.sql
+  └─ 20260926000000_add_session_token/
+    └─ migration.sql
+  └─ 20261017180000_add_task_progress_blocked/
+    └─ migration.sql
+  └─ 20261017230000_add_acceptance_record/
+    └─ migration.sql
+  └─ 20261018033000_add_risk_and_project_status/
+    └─ migration.sql
+  └─ 20261018050000_add_gantt_models/
+    └─ migration.sql
+  └─ 20261019090000_add_uml_models/
+    └─ migration.sql
+  └─ 20261021120000_add_uml_ever_restricted/
+    └─ migration.sql
+  └─ 20261021130000_add_domain_event/
+    └─ migration.sql
+  └─ 20261021150000_add_ai_suggestion_store/
+    └─ migration.sql
+  └─ 20261023050228_add_attachment/
+    └─ migration.sql
+      
+All migrations have been successfully applied.
+MIGRATE_EXIT=0
+=== migrate status ===
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
+For more information, see: https://pris.ly/prisma-config
+
+Prisma schema loaded from src/db/schema.prisma
+Datasource "db": SQLite database "verify.db" at "file:/tmp/attach-migrate-Pgu08q/verify.db"
+
+11 migrations found in prisma/migrations
+
+Database schema is up to date!
+=== migrate diff (DB vs schema) ===
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
+For more information, see: https://pris.ly/prisma-config
+
+No difference detected.
+
+DIFF_EXIT=0

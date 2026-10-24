@@ -25,7 +25,12 @@ import { AppError } from '../../shared/errors.js'
 import { toFieldErrors } from '../../shared/validation.js'
 import { currentUserId, requireAuth } from '../../auth/actor.js'
 import type { RouteContext } from '../../routes.js'
-import { ACCEPTANCE_CONCLUSIONS, ACCEPTANCE_QUEUE_SCOPES, ACCEPTANCE_REASON_MAX_LENGTH } from './types.js'
+import {
+  ACCEPTANCE_CONCLUSIONS,
+  ACCEPTANCE_QUEUE_SCOPES,
+  ACCEPTANCE_REASON_MAX_LENGTH,
+  type AcceptanceEventPort,
+} from './types.js'
 import { assertMayAccept, listAcceptanceQueue, listTaskAcceptances, submitAcceptance } from './service.js'
 
 /**
@@ -67,6 +72,15 @@ const queueQuerySchema = z.object({
 export function registerAcceptanceRoutes(app: FastifyInstance, context: RouteContext): void {
   const prisma = context.prisma
 
+  // 事件端口由 `src/app.ts` 显式组装注入；缺失即 fail-fast，**不得**静默跳过发布。
+  const events: AcceptanceEventPort | undefined = context.acceptanceEvents
+  if (!events) {
+    throw new Error(
+      '验收路由组装缺失：RouteContext.acceptanceEvents 未注入。请在 src/app.ts 用 ' +
+        'createAcceptanceEventPort({ repository }) 组装后传入。',
+    )
+  }
+
   // -------------------------------------------------------------------------
   // 端点 A：POST /tasks/:taskId/acceptance —— 执行验收
   // -------------------------------------------------------------------------
@@ -82,7 +96,7 @@ export function registerAcceptanceRoutes(app: FastifyInstance, context: RouteCon
     if (!parsed.success) throw validationFailed(parsed.error)
 
     // ③ 业务规则 + 落库（状态机、驳回必填原因、CAS 防并发重复验收）
-    const result = await submitAcceptance(prisma, actorUserId, task, parsed.data)
+    const result = await submitAcceptance(prisma, events, actorUserId, task, parsed.data)
     return reply.status(200).send(result)
   })
 

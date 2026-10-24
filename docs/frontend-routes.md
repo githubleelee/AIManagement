@@ -40,7 +40,8 @@
 
 ## 页面职责与数据来源
 
-- **AppLayout**：顶栏（品牌、当前用户、退出登录）+ 内容区。已登录用户可见。
+- **AppLayout**：顶栏（品牌、当前用户、退出登录 + **站内通知入口** `<NotificationBell/>`）+ 内容区。已登录用户可见。
+  - 通知入口由 B 在公共骨架挂载（工单 #34 / US-14），组件本体归 D：折叠面板展示本人通知（列表 / 未读计数 / 点开标记已读 / 刷新），数据来自 `GET /me/notifications`；详情与已读走 `GET /notifications/:notificationId`、`PATCH /notifications/:notificationId/read`。**未接来源必须如实展示「UNAVAILABLE」而不得伪造空列表**；面板不展示收件人、去重键、来源事件 ID 等内部字段。
 - **ProtectedRoute**：明确退出后重定向 `/login` 并清除旧页面回跳；首次访问深链时使用 `/login?redirect=<原路径>`。
 - **ProjectLayout**：按 `:projectId` 调 `GET /projects/:projectId`：
   - 成功：左侧导航（概览 / 需求 / 任务 / 成员）+ `<Outlet context={project}>`

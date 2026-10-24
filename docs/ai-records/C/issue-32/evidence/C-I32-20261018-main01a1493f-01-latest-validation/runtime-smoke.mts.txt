@@ -1,0 +1,29 @@
+import { writeFileSync } from 'node:fs'
+import { buildApp } from './candidate/src/app.ts'
+import { createTempDatabase } from './candidate/src/db/test-support.ts'
+import { hashPassword } from './candidate/src/auth/password.ts'
+const temp = createTempDatabase()
+const db = temp.prisma
+const passwordHash = await hashPassword('ValidationOnly-2026!')
+const pm = await db.user.create({ data: { account: 'validation-pm', displayName: '虚构验证 PM', passwordHash } })
+const member = await db.user.create({ data: { account: 'validation-member', displayName: '虚构验证成员', passwordHash } })
+const project = await db.project.create({ data: { name: '虚构隔离验证项目', ownerUserId: pm.id, members: { create: [{ userId: pm.id, role: 'PM' }, { userId: member.id, role: 'MEMBER' }] } } })
+const goal = await db.businessGoal.create({ data: { projectId: project.id, name: '虚构验证目标', sortOrder: 0 } })
+const activity = await db.userActivity.create({ data: { projectId: project.id, goalId: goal.id, name: '虚构验证活动', sortOrder: 0 } })
+const story = await db.userStory.create({ data: { projectId: project.id, activityId: activity.id, title: '虚构验证故事', roleText: '教学', capabilityText: '验证', valueText: '安全回归', businessValue: '仅临时测试', priority: 'P1', status: 'PLANNING' } })
+const first = await db.task.create({ data: { projectId: project.id, storyId: story.id, title: '虚构前置任务', ownerUserId: member.id, acceptorUserId: pm.id, planStart: '2026-10-18', planEnd: '2026-10-19', status: 'CLOSED' } })
+const second = await db.task.create({ data: { projectId: project.id, storyId: story.id, title: '虚构后继任务', ownerUserId: member.id, acceptorUserId: pm.id, planStart: '2026-10-20', planEnd: '2026-10-22', status: 'TODO' } })
+await db.task.create({ data: { projectId: project.id, storyId: story.id, title: '虚构待验收任务', ownerUserId: member.id, acceptorUserId: pm.id, planStart: '2026-10-20', planEnd: '2026-10-21', status: 'DONE', progress: 100 } })
+await db.taskDependency.create({ data: { projectId: project.id, predecessorTaskId: first.id, successorTaskId: second.id, type: 'FS' } })
+const milestone = await db.milestone.create({ data: { projectId: project.id, name: '虚构验证里程碑', dueDate: '2026-10-23' } })
+await db.taskMilestone.create({ data: { taskId: second.id, milestoneId: milestone.id } })
+const app = buildApp({ logger: false, prisma: db })
+await app.listen({ port: 3197, host: '127.0.0.1' })
+const routes = app.printRoutes()
+if (routes.includes('_test')) throw new Error('Test route in production registry')
+writeFileSync(new URL('./runtime-info.json', import.meta.url), JSON.stringify({ projectId: project.id, taskId: second.id, dbFile: temp.file, routeRegistryHasTestRoutes: false }, null, 2))
+writeFileSync(new URL('./runtime-routes.txt', import.meta.url), routes)
+console.log('ISOLATED_RUNTIME_READY port=3197')
+async function stop() { await app.close(); await temp.dispose(); process.exit(0) }
+process.on('SIGINT', stop)
+process.on('SIGTERM', stop)

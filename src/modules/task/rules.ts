@@ -14,7 +14,7 @@
  * 注意：单字段形状校验（必填、长度、日期格式）由 Zod 在处理器里先行完成，
  * 本函数只处理需要跳字段比较或查库的业务规则。
  */
-import type { PrismaClient } from '@prisma/client'
+import type { Prisma, PrismaClient, Task } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
 import type { FieldError } from '../../shared/types.js'
 
@@ -51,7 +51,7 @@ function validationError(message: string, details: FieldError[]): AppError {
  * 应报 `INSUFFICIENT_MEMBERS` 而不是 `ACCEPTOR_EQUALS_OWNER`（否则上一条不可能满足）。
  */
 export async function assertTaskAssignment(
-  prisma: PrismaClient,
+  prisma: Pick<PrismaClient, 'projectMember'>,
   projectId: string,
   input: TaskAssignmentInput,
 ): Promise<void> {
@@ -97,4 +97,74 @@ export async function assertTaskAssignment(
       { field: 'planEnd', code: 'END_BEFORE_START' },
     ])
   }
+}
+
+/** Single persistence core shared by the existing PATCH and transactional plan batches.
+ * Caller owns authorization, input shape checks, and (for a batch) the transaction.
+ * This does not add US12-only TODO/FS/snapshot rules to ordinary manual PATCH.
+ */
+export type TaskWriteDb = Pick<Prisma.TransactionClient, 'task' | 'projectMember'>
+export type AssignedTaskWrite = TaskAssignmentInput & Partial<Pick<Task,
+  'title' | 'description' | 'status' | 'progress' | 'blockedReason'>>
+
+export async function writeAssignedTask(
+  db: TaskWriteDb, projectId: string, taskId: string, values: AssignedTaskWrite,
+): Promise<Task> {
+  await assertTaskAssignment(db, projectId, values)
+  return db.task.update({
+    where: { id: taskId, projectId },
+    data: {
+      ownerUserId: values.ownerUserId, acceptorUserId: values.acceptorUserId,
+      planStart: values.planStart, planEnd: values.planEnd,
+      title: values.title, description: values.description, status: values.status,
+      progress: values.progress, blockedReason: values.blockedReason,
+    },
+  })
+}
+
+export type TaskPlanDates = { taskId: string; planStart: string; planEnd: string }
+
+/** Not a route or an authorization boundary. Use only inside the caller's transaction.
+ * B will expose/assemble the cross-domain port; C must not import task services.
+ * Does not commit, audit, decide suggestions, or publish events.
+ */
+export async function applyTaskPlanDates(
+  tx: TaskWriteDb, projectId: string, changes: readonly TaskPlanDates[],
+): Promise<TaskPlanDates[]> {
+  if ('$transaction' in tx) throw new Error('Plan batches require the caller transaction client')
+  if (changes.length === 0 || new Set(changes.map((c) => c.taskId)).size !== changes.length) {
+    throw validationError('计划调整不能为空或包含重复任务', [{ field: 'taskId', code: 'INVALID_VALUE' }])
+  }
+  for (const change of changes) {
+    const validDate = (value: string) => {
+      if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+      const date = new Date(`${value}T00:00:00.000Z`)
+      return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
+    }
+    if (!change.taskId || !validDate(change.planStart) || !validDate(change.planEnd)
+      || Object.keys(change).some((key) => !['taskId', 'planStart', 'planEnd'].includes(key))) {
+      throw validationError('计划调整只能包含有效任务ID和自然日', [{ field: 'planStart', code: 'INVALID_VALUE' }])
+    }
+  }
+  const rows = await tx.task.findMany({
+    where: { projectId, id: { in: changes.map((c) => c.taskId) } },
+    select: { id: true, ownerUserId: true, acceptorUserId: true },
+  })
+  if (rows.length !== changes.length) throw new AppError(404, 'NOT_FOUND', '资源不存在')
+  const tasks = new Map(rows.map((row) => [row.id, row]))
+  // Validate the whole set before the first write, still in the caller transaction.
+  for (const change of changes) {
+    const task = tasks.get(change.taskId)!
+    await assertTaskAssignment(tx, projectId, { ...task, planStart: change.planStart, planEnd: change.planEnd })
+  }
+  const result: TaskPlanDates[] = []
+  for (const change of changes) {
+    const task = tasks.get(change.taskId)!
+    const updated = await writeAssignedTask(tx, projectId, task.id, {
+      ownerUserId: task.ownerUserId, acceptorUserId: task.acceptorUserId,
+      planStart: change.planStart, planEnd: change.planEnd,
+    })
+    result.push({ taskId: updated.id, planStart: updated.planStart, planEnd: updated.planEnd })
+  }
+  return result
 }

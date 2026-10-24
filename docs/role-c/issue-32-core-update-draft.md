@@ -1,0 +1,23 @@
+# #32 / #24 核心能力进展评论初稿（历史保留）
+
+> 用户已批准后续版本发布。本文件仍保留最初未提交阶段原文，不当作当前状态或实际发布正文。代码已推2282221；实际发布正文见`issue-32-core-comment-body.md`、`issue-24-us12-core-comment-body.md`、`issue-31-us12-core-comment-body.md`。
+> 已发回执：[#32](https://github.com/githubleelee/AIManagement/issues/32#issuecomment-6296407025)、[#24](https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6296408050)、[#31](https://github.com/githubleelee/AIManagement/issues/31#issuecomment-6296408986)。请求发出不代表已获答复。
+
+## ROLE-C：已完成本批授权核心能力，请收清公共接入与错误映射
+
+依据#32评论6260611783的task写窗口，本批已实际修改`task/rules.ts`和`task/routes.ts`，并在本域实现真实DB投影、保护快照/指纹、受保护日期复核。窗口不是“C尚未编码”；但代码目前仅本地，**未commit/push、无可引用远端分支**，不提供失效链接。
+
+- 开工aa69288，现固定基线main37287c2；仅写本域及获准的task两文件，不动B公共区或其他旧模块。
+- 基础能力`applyTaskPlanDates(tx, projectId, changes)`拒绝根客户端，不自行提交事务；手工PATCH和批量能力经同一基础持久化核心。混合PATCH保持单次SQL原子写，原Action/进度/验收不扩权。
+- C读取投影在事务内先执行注入的统一授权；查询层同时排除敏感任务与父故事；来源与PM/模型出口分离；离项owner任务不漏统计。
+- 同项目可见不等于原建议允许修改。确认复核器要求受保护保存建议的来源revision和可改任务集合，不接受客户端扩大范围；再读相关真实FS两端与混合里程碑，无隐藏ID/日期/精确约束数外发。
+- 没有正式#32路由、真实AI/共享存储/唯一处置，也没有用task.write冒充#32正式Action（它仅在测试探针中作为临时鉴权seam）。完整链路的12个集成TODO仍保留。
+- 完整本地交付与最终实测见`docs/role-c/issue-32-core-handoff.md`，记录及日志随用户批准提交后提供。此草稿不把未运行检查写成已通过。
+
+请B收口三点：
+
+1. **校验状态冲突**：冻结#32稿C5写“既有400”，而共享`AppError`、`error-handler.ts`及现有接口使用422，甘特通知也明确422。C旧路径继续422，不自改公共错误信封；请确认正式#32采用既有422，或由公共单写人给出明确的契约变更与迁移。内部`stale/out-of-scope/unavailable`只表示业务状态，尚未私造公共code。
+2. **公共接入**：请在共享存储就绪时装配#32 PM-only生成/读取/审计/共享处置Action、caller-tx存储能力和本批task基础能力；C不直接import其他域service、不另建建议表。#31/#37最小交付截止已过，目前未见D新公开交付；请项目负责人决定后续负责人，C不因超时自动接管公共层。
+3. **task交接**：本批task提炼可独立审阅，无需等待AI生成端口。用户批准提交后请优先审阅；按约定PR合入或双方书面关闭，再交给B的真实开工FS守卫。当前没有自动关闭窗口，C也不顺带实现B守卫。
+
+所有#32操作仍PM-only；#33的非PM只读不扩张#32。原七问/十二问已经接受，本次不重新打开已确认业务规则。

@@ -1,0 +1,8 @@
+Set-Location : 找不到路径“D:\涓存椂椤圭洰\AIManagement-US12-core”，因为该路径不存在。
+所在位置 D:\临时项目\US12-core-runtime\validate-latest.ps1:2 字符: 1
++ Set-Location 'D:\涓存椂椤圭洰\AIManagement-US12-core'
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (D:\涓存椂椤圭洰\AIManagement-US12-core:String) [Set-Location], ItemNotFo
+undEx    ception
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.SetLocationCommand
+ 

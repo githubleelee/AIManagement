@@ -1,0 +1,54 @@
+
+> ai-management@0.1.0 test
+> vitest run src/modules/ai-scheduling/core.http.test.ts --maxWorkers=2 --minWorkers=1
+
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/临时项目/AIManagement-US12-core[39m
+
+ [32m✓[39m src/modules/ai-scheduling/core.http.test.ts [2m([22m[2m40 tests[22m[2m)[22m[33m 24976[2mms[22m[39m
+   [33m[2m✓[22m[39m real source projection and safe model boundary[2m > [22mreads real DB and marks known empty dependencies/milestones as complete [33m563[2mms[22m[39m
+   [33m[2m✓[22m[39m real source projection and safe model boundary[2m > [22mfilters task AND parent-story sensitivity before returning title/content [33m578[2mms[22m[39m
+   [33m[2m✓[22m[39m real source projection and safe model boundary[2m > [22mmodel DTO excludes private counts/digest/revision/roles/sensitive flags [33m552[2mms[22m[39m
+   [33m[2m✓[22m[39m real source projection and safe model boundary[2m > [22mprivate FS edges require controlled validation, not silently no dependencies [33m579[2mms[22m[39m
+   [33m[2m✓[22m[39m real source projection and safe model boundary[2m > [22mmixed milestone associations never leak hidden task IDs into the model [33m645[2mms[22m[39m
+   [33m[2m✓[22m[39m real source projection and safe model boundary[2m > [22mnon-CLOSED workload includes DONE, excludes CLOSED and sensitive tasks [33m540[2mms[22m[39m
+   [33m[2m✓[22m[39m real source projection and safe model boundary[2m > [22mdoes not silently drop tasks whose owner has left the project [33m505[2mms[22m[39m
+   [33m[2m✓[22m[39m real source projection and safe model boundary[2m > [22mdoes not inherit the 500-row UI cap [33m606[2mms[22m[39m
+   [33m[2m✓[22m[39m real source projection and safe model boundary[2m > [22mDB source failure returns unavailable/null, never empty arrays or fabricated count [33m564[2mms[22m[39m
+   [33m[2m✓[22m[39m real source projection and safe model boundary[2m > [22minvalid persisted UNKNOWN fails closed instead of defaulting to TODO [33m486[2mms[22m[39m
+   [33m[2m✓[22m[39m real source projection and safe model boundary[2m > [22minvalid persisted bad-date fails closed instead of defaulting to TODO [33m533[2mms[22m[39m
+   [33m[2m✓[22m[39m real source projection and safe model boundary[2m > [22mauthorizer seam null -> 401 [33m460[2mms[22m[39m
+   [33m[2m✓[22m[39m real source projection and safe model boundary[2m > [22mauthorizer seam member -> 403 [33m482[2mms[22m[39m
+   [33m[2m✓[22m[39m real source projection and safe model boundary[2m > [22mauthorizer seam viewer -> 403 [33m466[2mms[22m[39m
+   [33m[2m✓[22m[39m real source projection and safe model boundary[2m > [22mauthorizer seam outsider -> 404 [33m443[2mms[22m[39m
+   [33m[2m✓[22m[39m real source projection and safe model boundary[2m > [22mrevocation applies to the next source request using the same login [33m489[2mms[22m[39m
+   [33m[2m✓[22m[39m real source projection and safe model boundary[2m > [22mroot-client read is rejected instead of pretending multi-query consistency [33m533[2mms[22m[39m
+   [33m[2m✓[22m[39m stable source baseline[2m > [22mseparate reads preserve digest despite a different capture time [33m626[2mms[22m[39m
+   [33m[2m✓[22m[39m stable source baseline[2m > [22mplanStart change invalidates source [33m650[2mms[22m[39m
+   [33m[2m✓[22m[39m stable source baseline[2m > [22mstatus change invalidates source [33m576[2mms[22m[39m
+   [33m[2m✓[22m[39m stable source baseline[2m > [22mtitle change invalidates source [33m492[2mms[22m[39m
+   [33m[2m✓[22m[39m stable source baseline[2m > [22macceptor change invalidates source [33m501[2mms[22m[39m
+   [33m[2m✓[22m[39m stable source baseline[2m > [22mrole change invalidates source [33m572[2mms[22m[39m
+   [33m[2m✓[22m[39m stable source baseline[2m > [22mdependency change invalidates source [33m520[2mms[22m[39m
+   [33m[2m✓[22m[39m stable source baseline[2m > [22mmilestone change invalidates source [33m575[2mms[22m[39m
+   [33m[2m✓[22m[39m stable source baseline[2m > [22mlink change invalidates source [33m593[2mms[22m[39m
+   [33m[2m✓[22m[39m stable source baseline[2m > [22msensitivity change invalidates source [33m564[2mms[22m[39m
+   [33m[2m✓[22m[39m stable source baseline[2m > [22mprivate predecessor date changes invalidate the protected digest [33m578[2mms[22m[39m
+   [33m[2m✓[22m[39m stable source baseline[2m > [22munrelated hidden-task changes do not expire every suggestion globally [33m666[2mms[22m[39m
+   [33m[2m✓[22m[39m caller-transaction plan capability, not suggestion application[2m > [22mwrites both dates without changing title/status/assignment [33m590[2mms[22m[39m
+   [33m[2m✓[22m[39m caller-transaction plan capability, not suggestion application[2m > [22msecond invalid date order leaves every task unchanged [33m568[2mms[22m[39m
+   [33m[2m✓[22m[39m caller-transaction plan capability, not suggestion application[2m > [22mfailAfter rolls back actual SQL changes [33m662[2mms[22m[39m
+   [33m[2m✓[22m[39m caller-transaction plan capability, not suggestion application[2m > [22mfailAudit rolls back actual SQL changes [33m643[2mms[22m[39m
+   [33m[2m✓[22m[39m caller-transaction plan capability, not suggestion application[2m > [22mforeign/missing task is indistinguishable and cannot partially write [33m538[2mms[22m[39m
+   [33m[2m✓[22m[39m caller-transaction plan capability, not suggestion application[2m > [22mroot-client batch cannot bypass caller transaction requirement [33m552[2mms[22m[39m
+   [33m[2m✓[22m[39m caller-transaction plan capability, not suggestion application[2m > [22mduplicate tasks are rejected without writes [33m517[2mms[22m[39m
+   [33m[2m✓[22m[39m caller-transaction plan capability, not suggestion application[2m > [22mmember cannot use test plan route [33m493[2mms[22m[39m
+   [33m[2m✓[22m[39m caller-transaction plan capability, not suggestion application[2m > [22mbase helper does not impose AI TODO-only on ordinary manual edits [33m571[2mms[22m[39m
+   [33m[2m✓[22m[39m caller-transaction plan capability, not suggestion application[2m > [22minvalid mixed PATCH keeps title/date/progress unchanged [33m525[2mms[22m[39m
+   [33m[2m✓[22m[39m caller-transaction plan capability, not suggestion application[2m > [22mproduction assembly does not expose the test probes or a fake scheduling API [33m589[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m40 passed[39m[22m[90m (40)[39m
+[2m   Start at [22m 21:59:51
+[2m   Duration [22m 26.87s[2m (transform 562ms, setup 0ms, collect 1.30s, tests 24.98s, environment 0ms, prepare 140ms)[22m
+

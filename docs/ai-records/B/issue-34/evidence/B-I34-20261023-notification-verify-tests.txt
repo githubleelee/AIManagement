@@ -1,0 +1,13 @@
+
+ RUN  v2.1.9 /home/lee/aim-wt/b-notification-verify
+
+ ✓ src/modules/notification/service.test.ts (24 tests) 8ms
+(node:78850) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ src/modules/notification/plugin.test.ts (5 tests) 1381ms
+
+ Test Files  2 passed (2)
+      Tests  29 passed (29)
+   Start at  13:12:45
+   Duration  2.01s (transform 252ms, setup 0ms, collect 430ms, tests 1.39s, environment 0ms, prepare 110ms)
+

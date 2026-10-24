@@ -43,6 +43,8 @@ model User {
   ownedMilestones Milestone[]      @relation("MilestoneOwner")
   // US-15（工单 #35）：这个人负责的 UML 图（反向关系，见文件末尾 UmlDiagram）
   ownedUmlDiagrams UmlDiagram[]    @relation("UmlDiagramOwner")
+  // #34 站内通知（ROLE-D 消费模块，公共存储由 ROLE-B 落地）：这个人收到的通知
+  notifications    Notification[]  @relation("NotificationRecipient")
 }
 
 model Project {
@@ -76,6 +78,8 @@ model Project {
   domainEvents     DomainEvent[]
   // #31 US-11：本项目的 AI 建议（反向关系，见文件末尾 AiSuggestion）
   aiSuggestions    AiSuggestion[]
+  // #34 站内通知：本项目的通知（反向关系，见文件末尾 Notification）
+  notifications    Notification[]
 }
 
 model ProjectMember {
@@ -533,6 +537,12 @@ model DomainEvent {
   // 读路径：按项目 + 时间范围列事件；按项目 + 事件名筛选
   @@index([projectId, occurredAt])
   @@index([projectId, eventName])
+
+  // #34 站内通知（ROLE-B 公共运行时）：通知行与消费账本都以原事件为不可悬空的来源
+  // （`onDelete: Restrict`，见 `notifications.source-event-provenance`）。这里只是反向关系，
+  // 不加列、不新增索引，故不影响既有事件表。
+  notifications Notification[]
+  consumptions  NotificationConsumption[]
 }
 
 // #31 US-11 AI 建议（ROLE-D 的共享「建议 + 处置」存储，公共表由 ROLE-B 落地）。
@@ -639,4 +649,90 @@ model AiApplication {
   targetReferences Json // AiSourceObjectRef[]
 
   suggestion AiSuggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+}
+
+// #34 站内通知（ROLE-D 的消费模块；公共存储 / 消费账本由 ROLE-B 落地）。
+//
+// 为什么需要：D 的进程内实现只把通知放在内存里（模块测试用）；AC 要求通知可持久化、
+// 可按收件人查询、去重必须由数据库唯一约束兜底（并发消费时内存 Map 不足以保证），
+// 且 `notifications.source-event-provenance` 要求通知的来源事件不可悬空。
+//
+// 字段与 `src/modules/notification/contracts.ts` 的 `NotificationRecord` 一一对应：
+//   reference      → referenceObjectType / referenceObjectId
+//   content        → contentKind（'TEXT' | 'REFERENCE_ONLY'）/ contentTitle / contentSummary
+//   occurredAt / storedAt → DATETIME（与 DomainEvent 同款：必须原生时间比较与排序）
+//   latencyMs      → INTEGER（**允许负值**：事件时间在未来时保留原始差值，不归零伪装达标）
+//
+// 删除语义：
+//   projectId / recipientUserId → Restrict（与 Task / Risk 等一致，项目/人不该被删掉而留下孤儿通知）。
+//   sourceEventId → DomainEvent **Restrict**（`notifications.source-event-provenance`：通知存续期间
+//     原事件不是可任意删除的缓存；未来留存清理另案）。
+//
+// 索引：`@@index([recipientUserId, isRead, storedAt])` 支撑「按收件人 + 未读 + 时间倒序」的
+//   列表主查询；`@@index([sourceEventId])` 支撑原事件 join 与来源外键。
+model Notification {
+  id                  String   @id @default(uuid())
+  projectId           String
+  recipientUserId     String
+  type                String // NotificationType
+  sourceEventId       String
+  sourceEventName     String
+  dedupeKey           String   @unique
+  referenceObjectType String
+  referenceObjectId   String
+  contentKind         String // 'TEXT' | 'REFERENCE_ONLY'
+  contentTitle        String?
+  contentSummary      String?
+  sensitive           Boolean
+  occurredAt          DateTime
+  storedAt            DateTime
+  latencyMs           Int
+  withinDeliveryTarget Boolean
+  isRead              Boolean  @default(false)
+  readAt              DateTime?
+
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  recipient   User        @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Restrict)
+  sourceEvent DomainEvent @relation(fields: [sourceEventId], references: [id], onDelete: Restrict)
+
+  @@index([recipientUserId, isRead, storedAt])
+  @@index([sourceEventId])
+}
+
+// #34 通知消费激活记录（每个 consumerId 一条，只写一次）。
+//
+// 首次启用时在同一事务写入激活记录，并把当时已存在的支持事件在消费账本里记为
+// SKIPPED_BASELINE（`notifications.committed-consumption-and-query-contract`）：
+// 不自动群发旧风险、重启不重置基线。`activatedDay` 为启用日（Asia/Shanghai，'YYYY-MM-DD'），
+// 兼作里程碑 `milestone.due` 启动补扫的下界（「不补启用日前的旧节点」）。
+model NotificationConsumer {
+  consumerId  String   @id
+  activatedAt DateTime
+  activatedDay String // 'YYYY-MM-DD'（Asia/Shanghai）
+  createdAt   DateTime @default(now())
+
+  consumptions NotificationConsumption[]
+}
+
+// #34 持久消费账本（`(consumerId, eventId)` 唯一）。
+//
+// 以「是否已有账本行」判断事件是否已处理完成，而不是靠 storedAt / id 水位防重：
+//   - `DELIVERED`：处理器返回 DELIVERED 才落该状态；
+//   - `SKIPPED_BASELINE`：首次启用时对历史支持事件登记，表示「已按策略跳过、不投递」；
+//   - UNAVAILABLE / 异常**不落账本**，因此可重试（至少一次尝试 + 幂等，无 outbox）。
+//
+// 删除语义：consumerId → NotificationConsumer Restrict；eventId → DomainEvent Restrict
+//（账本的事件引用同样保留，见 `notifications.source-event-provenance`）。
+model NotificationConsumption {
+  consumerId String
+  eventId    String
+  status     String // 'DELIVERED' | 'SKIPPED_BASELINE'
+  note       String?
+  createdAt  DateTime @default(now())
+
+  consumer NotificationConsumer @relation(fields: [consumerId], references: [consumerId], onDelete: Restrict)
+  event    DomainEvent          @relation(fields: [eventId], references: [id], onDelete: Restrict)
+
+  @@id([consumerId, eventId])
+  @@index([eventId])
 }

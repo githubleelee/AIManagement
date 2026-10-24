@@ -1,0 +1,134 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/临时项目/US12-validation-20261018-163716/control[39m
+
+ [32m✓[39m src/modules/requirement/requirement.adversarial2.test.ts [2m([22m[2m71 tests[22m[2m)[22m[33m 20264[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：并发创建时 sortOrder 必须唯一且连续[2m > [22m端点 11 并发 6 条 → 序号恰好是 [0..5]，无重复无空洞 [33m351[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：并发创建时 sortOrder 必须唯一且连续[2m > [22m端点 11 并发 10 条 → 落库 10 行，序号集合恰好 0..9 [33m369[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：并发创建时 sortOrder 必须唯一且连续[2m > [22m端点 15 并发 6 条 → 序号恰好是 [0..5]（与端点 11 同型，同属「最大值 + 1」） [33m387[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：并发创建时 sortOrder 必须唯一且连续[2m > [22m端点 15 并发 8 条 → 序号集合恰好 0..7（活动与目标各自独立编号） [33m343[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 1：并发创建时 sortOrder 必须唯一且连续[2m > [22m端点 11 与端点 15 交叉并发：目标序号与活动序号互不串号 [33m360[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 2：PATCH 部分更新不得静默清空其它字段[2m > [22m端点 16 只传 status → 活动的 goalId/projectId/sortOrder/name/description 全不变 [33m309[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 3：跨项目引用必须被拒绝且不污染另一个项目[2m > [22m端点 18：orderedIds 掺入其它目标的活动 id → 422，序号零变化 [33m304[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 4：越权拒绝与不可区分性[2m > [22m端点 12：MEMBER/VIEWER → 403；非成员 → 404；未登录 → 401 [33m319[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：删除保护的完整生命周期[2m > [22m每一层的 409 都先于删除发生：三次被拒后三行一条不少 [33m306[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：删除保护的完整生命周期[2m > [22m端点 22：故事有任务时 409；删掉任务后同一次删除变 204（409 可解除） [33m300[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 5：删除保护的完整生命周期[2m > [22m删除活动/目标不触碰任何 ObjectVisibility（清理只属于 story 删除） [33m335[2mms[22m[39m
+   [33m[2m✓[22m[39m 对抗 6：全量替换排序的幂等与边界[2m > [22m端点 18：幂等（重复同一入参两次结果相同） [33m307[2mms[22m[39m
+ [32m✓[39m src/modules/requirement/requirement.adversarial.test.ts [2m([22m[2m79 tests[22m[2m)[22m[33m 15870[2mms[22m[39m
+ [32m✓[39m src/modules/task/task-sensitivity.test.ts [2m([22m[2m43 tests[22m[2m)[22m[33m 10094[2mms[22m[39m
+[90mstdout[2m | src/modules/task/task-sensitivity.adversarial.test.ts[2m > [22m[2mC12 即时生效（同一 token，不重新登录）[2m > [22m[2mA 可见 → PM 移出 A → A 下一次请求 404；列表同样即时清空
+[22m[39m[C12 before] detail.status = [33m200[39m list.ids = [ [32m'dd13fd7c-703a-46da-b5f3-e67ea7b5831d'[39m ]
+
+[90mstdout[2m | src/modules/task/task-sensitivity.adversarial.test.ts[2m > [22m[2mC12 即时生效（同一 token，不重新登录）[2m > [22m[2mA 可见 → PM 移出 A → A 下一次请求 404；列表同样即时清空
+[22m[39m[C12 after ] detail.status = [33m404[39m list.ids = []
+
+[90mstdout[2m | src/modules/task/task-sensitivity.adversarial.test.ts[2m > [22m[2mC12 即时生效（同一 token，不重新登录）[2m > [22m[2m反向：名单外 → PM 加入 A → A 下一次请求立即 200
+[22m[39m[C12 reverse] memberB detail.status = [33m200[39m
+
+[90mstdout[2m | src/modules/task/task-sensitivity.adversarial.test.ts[2m > [22m[2mC13 / C14 审计记录[2m > [22m[2m每次调用恰好新增 1 条审计；两次变更的 before / after 可串联
+[22m[39m[C13 audit first .after ] {"objectType":"task","objectId":"5636dcb8-4d31-4e1c-b3ac-bae497cd8b46","isSensitive":true,"visibleMemberIds":["82a260f8-85fd-4372-bd7a-f7f972a87a66"]}
+[C13 audit second.before] {"objectType":"task","objectId":"5636dcb8-4d31-4e1c-b3ac-bae497cd8b46","isSensitive":true,"visibleMemberIds":["82a260f8-85fd-4372-bd7a-f7f972a87a66"]}
+
+ [32m✓[39m src/modules/task/task-sensitivity.adversarial.test.ts [2m([22m[2m37 tests[22m[2m)[22m[33m 10385[2mms[22m[39m
+   [33m[2m✓[22m[39m B7 关闭敏感（isSensitive=false + 空数组）[2m > [22m关闭后全项目成员（含名单外的 B / VIEWER）在详情与列表恢复可见 [33m312[2mms[22m[39m
+ [32m✓[39m src/modules/acceptance/acceptance.test.ts [2m([22m[2m37 tests[22m[2m)[22m[33m 11084[2mms[22m[39m
+   [33m[2m✓[22m[39m 验收清单 scope=owner：我负责的、被驳回的任务[2m > [22m不传 scope 时默认 acceptor（原行为不变；被驳回的任务**不**出现在默认清单） [33m314[2mms[22m[39m
+ [32m✓[39m src/modules/task/task-update.adversarial.test.ts [2m([22m[2m46 tests[22m[2m)[22m[33m 9997[2mms[22m[39m
+ [32m✓[39m src/modules/requirement/requirement.delete.test.ts [2m([22m[2m41 tests[22m[2m)[22m[33m 10102[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 13 反例：HAS_CHILDREN 与权限[2m > [22m非项目成员删除 → 404 NOT_FOUND，且目标仍在 [33m303[2mms[22m[39m
+ [32m✓[39m src/modules/requirement/requirement.story-create.test.ts [2m([22m[2m60 tests[22m[2m)[22m[33m 12198[2mms[22m[39m
+ [32m✓[39m src/modules/requirement/requirement.goal-tree.test.ts [2m([22m[2m27 tests[22m[2m)[22m[33m 6438[2mms[22m[39m
+ [32m✓[39m src/modules/requirement/requirement.story-read-update.test.ts [2m([22m[2m55 tests[22m[2m)[22m[33m 12130[2mms[22m[39m
+ [32m✓[39m src/modules/task/task-update.test.ts [2m([22m[2m45 tests[22m[2m)[22m[33m 9725[2mms[22m[39m
+ [32m✓[39m src/modules/task/task-create.adversarial.test.ts [2m([22m[2m32 tests[22m[2m)[22m[33m 7215[2mms[22m[39m
+ [32m✓[39m src/modules/requirement/requirement.activity.test.ts [2m([22m[2m35 tests[22m[2m)[22m[33m 7744[2mms[22m[39m
+ [32m✓[39m src/modules/task/project-tasks.adversarial.test.ts [2m([22m[2m22 tests[22m[2m)[22m[33m 8759[2mms[22m[39m
+   [33m[2m✓[22m[39m A. 端点 26 是敏感任务的第四条查询路径[2m > [22mA1：名单外成员 B 不带 ownerUserId → 敏感任务不出现，items 长度不计入其存在 [33m328[2mms[22m[39m
+   [33m[2m✓[22m[39m A. 端点 26 是敏感任务的第四条查询路径[2m > [22mA2：★ B 带敏感任务负责人 A 的 ownerUserId → 结果必须为空数组（最易漏路径） [33m328[2mms[22m[39m
+   [33m[2m✓[22m[39m A. 端点 26 是敏感任务的第四条查询路径[2m > [22mA3：不带参数 vs 带参数的结果数一致性 —— B 的总数 = 库中非敏感任务数 [33m367[2mms[22m[39m
+   [33m[2m✓[22m[39m A. 端点 26 是敏感任务的第四条查询路径[2m > [22mA4：名单内成员 A（敏感任务负责人）与 PM 都能看到敏感任务；A 带自己 ownerUserId 也能看到 [33m440[2mms[22m[39m
+   [33m[2m✓[22m[39m A. 端点 26 是敏感任务的第四条查询路径[2m > [22mA4b：敏感任务负责人不在白名单时，本人带自己 ownerUserId 也看不到（反事实对照） [33m378[2mms[22m[39m
+   [33m[2m✓[22m[39m B. 过滤与排序[2m > [22mB7a：planStart 升序 [33m375[2mms[22m[39m
+   [33m[2m✓[22m[39m B. 过滤与排序[2m > [22mB7b：两条 planStart 相同 → 退化为 createdAt 升序（过滤后仍保持） [33m418[2mms[22m[39m
+   [33m[2m✓[22m[39m B. 过滤与排序[2m > [22mB8：ownerUserId 过滤结果与「全量结果里按该人筛选」集合相等（两种取法交叉验证） [33m366[2mms[22m[39m
+   [33m[2m✓[22m[39m B. 过滤与排序[2m > [22mB8b：B 视角下「过滤结果」与「全量可见结果里按该人筛选」同样相等 [33m356[2mms[22m[39m
+   [33m[2m✓[22m[39m C. 契约与权限[2m > [22mC9a：ownerUserId 不是本项目成员（User 存在）→ 422 NOT_PROJECT_MEMBER [33m301[2mms[22m[39m
+   [33m[2m✓[22m[39m C. 契约与权限[2m > [22mC9b：ownerUserId 是别的项目的成员 → 同样 422 NOT_PROJECT_MEMBER（跨项目变体） [33m325[2mms[22m[39m
+   [33m[2m✓[22m[39m C. 契约与权限[2m > [22mC10：ownerUserId 传不存在的用户 id → 记录实现行为（契约冻结为 NOT_PROJECT_MEMBER） [33m317[2mms[22m[39m
+   [33m[2m✓[22m[39m C. 契约与权限[2m > [22mC11a：非项目成员 → 404 NOT_FOUND 且响应体不含任何任务字段 [33m306[2mms[22m[39m
+   [33m[2m✓[22m[39m C. 契约与权限[2m > [22mC11c：★ 鉴权先于业务校验 —— 非成员 + 非法 ownerUserId → 404（而非 422） [33m324[2mms[22m[39m
+   [33m[2m✓[22m[39m C. 契约与权限[2m > [22mC11d：★ 未登录 + 非法 ownerUserId → 401（而非 422） [33m301[2mms[22m[39m
+   [33m[2m✓[22m[39m C. 契约与权限[2m > [22mC12a：项目 A 的成员查项目 B → 404 NOT_FOUND [33m300[2mms[22m[39m
+   [33m[2m✓[22m[39m C. 契约与权限[2m > [22mC12b：项目 A 的查询结果不含项目 B 的任务（即使同一 ownerUserId） [33m336[2mms[22m[39m
+   [33m[2m✓[22m[39m C. 契约与权限[2m > [22mC13a：项目内无任务 → 200 { items: [] }（不是 404） [33m331[2mms[22m[39m
+   [33m[2m✓[22m[39m C. 契约与权限[2m > [22mC13b：ownerUserId 指向本项目成员但该人无任务 → 200 { items: [] } [33m322[2mms[22m[39m
+   [33m[2m✓[22m[39m C. 契约与权限[2m > [22mC14：重复查询参数 ?ownerUserId=a&ownerUserId=b → 记录行为，且不产生 500 [33m393[2mms[22m[39m
+   [33m[2m✓[22m[39m C. 契约与权限[2m > [22mC14b：重复参数在非成员访问时仍先返回 404 [33m335[2mms[22m[39m
+ [32m✓[39m src/modules/requirement/requirement.activity-order.test.ts [2m([22m[2m38 tests[22m[2m)[22m[33m 9149[2mms[22m[39m
+ [32m✓[39m src/modules/requirement/requirement.goal-update.test.ts [2m([22m[2m38 tests[22m[2m)[22m[33m 8432[2mms[22m[39m
+ [32m✓[39m src/modules/task/project-tasks.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 8960[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 正例：按项目列任务[2m > [22m不传 ownerUserId → 200 返回项目全部可见任务，内嵌 owner / acceptor 的 UserBrief [33m321[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 正例：按项目列任务[2m > [22m传 ownerUserId → 只返回该负责人的任务（不同负责人被排除） [33m318[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 正例：按项目列任务[2m > [22mownerUserId 是合法项目成员但当前没有任务 → 200 空数组 [33m312[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 正例：按项目列任务[2m > [22mMEMBER / VIEWER 都可访问（project.read 允许） [33m318[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 正例：按项目列任务[2m > [22m空项目任务列表 → 200 { items: [] }（列表不分页，无 total 等额外字段） [33m312[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 排序[2m > [22m按 planStart 升序；planStart 相同按 createdAt 升序 [33m330[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 排序[2m > [22mownerUserId 过滤后仍保持 planStart / createdAt 排序 [33m321[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 可见性：敏感任务不泄漏（第四条查询路径）[2m > [22m未授权成员不带 ownerUserId → 列表中不含敏感任务，items 长度不计入它（计数不泄漏） [33m336[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 可见性：敏感任务不泄漏（第四条查询路径）[2m > [22m★ 未授权成员带敏感任务负责人的 ownerUserId 过滤 → 结果必须为空（最易漏的泄漏路径） [33m340[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 可见性：敏感任务不泄漏（第四条查询路径）[2m > [22m敏感任务负责人自己不在白名单 → 带自己的 ownerUserId 也看不到它 [33m353[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 可见性正例：授权成员能看到敏感任务[2m > [22m名单内成员不带 ownerUserId → 能看到敏感任务 [33m343[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 可见性正例：授权成员能看到敏感任务[2m > [22m名单内成员带该负责人 ownerUserId → 能看到敏感任务（授权后过滤也保留） [33m383[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 可见性正例：授权成员能看到敏感任务[2m > [22mPM 始终可见敏感任务，且可带负责人过滤 [33m375[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 ownerUserId 校验反例[2m > [22mownerUserId 不是本项目成员 → 422 NOT_PROJECT_MEMBER [33m327[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 ownerUserId 校验反例[2m > [22mownerUserId 是别的项目的成员 → 同样 422 NOT_PROJECT_MEMBER（最易漏的变体） [33m325[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 ownerUserId 校验反例[2m > [22mownerUserId 是不存在的用户 → 422 NOT_PROJECT_MEMBER [33m328[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 ownerUserId 校验反例[2m > [22m校验失败时不返回任何任务（避免在校验错误的响应里泄漏数据） [33m328[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 权限反例[2m > [22m非项目成员访问 → 404 NOT_FOUND 且响应体不含任务任何字段 [33m351[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 权限反例[2m > [22m非项目成员即使带合法 ownerUserId 也先判 404（鉴权先于业务校验） [33m339[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 权限反例[2m > [22m未登录（缺少 Actor）→ 401 UNAUTHENTICATED [33m326[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 权限反例[2m > [22m项目不存在 → 404，且与非成员访问的响应体完全一致 [33m320[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 跨项目隔离[2m > [22m项目 A 的成员查项目 B → 404 NOT_FOUND [33m309[2mms[22m[39m
+   [33m[2m✓[22m[39m 端点 26 跨项目隔离[2m > [22m项目 A 的查询结果不含项目 B 的任务 [33m303[2mms[22m[39m
+ [32m✓[39m src/modules/requirement/requirement.activity-update.test.ts [2m([22m[2m39 tests[22m[2m)[22m[33m 8687[2mms[22m[39m
+ [32m✓[39m test/db-schema-contract.test.ts [2m([22m[2m29 tests[22m[2m)[22m[33m 1418[2mms[22m[39m
+ [32m✓[39m src/modules/requirement/requirement.goal-order.test.ts [2m([22m[2m35 tests[22m[2m)[22m[33m 8210[2mms[22m[39m
+ [32m✓[39m src/modules/gantt/gantt.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 4142[2mms[22m[39m
+ [32m✓[39m src/modules/project/project.members.test.ts [2m([22m[2m29 tests[22m[2m)[22m[33m 3874[2mms[22m[39m
+ [32m✓[39m src/modules/task/task-delete.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 5116[2mms[22m[39m
+ [32m✓[39m src/modules/task/task-delete.adversarial.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 3719[2mms[22m[39m
+ [32m✓[39m src/modules/task/tasks.test.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 6613[2mms[22m[39m
+ [32m✓[39m test/factories.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 2666[2mms[22m[39m
+ [32m✓[39m src/modules/task/assignment-rules.adversarial.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 4452[2mms[22m[39m
+ [32m✓[39m src/modules/workload/workload.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 4089[2mms[22m[39m
+ [32m✓[39m src/modules/requirement/requirement.test.ts [2m([22m[2m22 tests[22m[2m)[22m[33m 5274[2mms[22m[39m
+ [32m✓[39m test/t0-gap-fix.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 2389[2mms[22m[39m
+ [32m✓[39m src/modules/requirement/requirement.sensitivity.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 3348[2mms[22m[39m
+ [32m✓[39m test/db-delete-rules.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 1691[2mms[22m[39m
+ [32m✓[39m src/modules/board/board.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 3376[2mms[22m[39m
+ [32m✓[39m test/db-schema.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 2507[2mms[22m[39m
+   [33m[2m✓[22m[39m 表结构与迁移[2m > [22m迁移可重复执行：对同一库再次 deploy 不报错 [33m1112[2mms[22m[39m
+ [32m✓[39m src/modules/task/t5-07-migration.adversarial.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 3737[2mms[22m[39m
+ [32m✓[39m test/skeleton-smoke.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 1566[2mms[22m[39m
+ [32m✓[39m src/modules/task/task-story-sensitivity.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 3332[2mms[22m[39m
+ [32m✓[39m src/modules/task/assignment-rules.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 3867[2mms[22m[39m
+ [32m✓[39m src/modules/authz/sensitivity.http.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 3596[2mms[22m[39m
+ [32m✓[39m src/modules/workbench/workbench.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 3020[2mms[22m[39m
+ [32m✓[39m src/modules/task/task-concurrent-delete.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 1654[2mms[22m[39m
+ [32m✓[39m test/auth-project-contract.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 2155[2mms[22m[39m
+ [32m✓[39m test/error-handler.test.ts [2m([22m[2m20 tests[22m[2m)[22m[90m 68[2mms[22m[39m
+ [32m✓[39m test/shared-validation.test.ts [2m([22m[2m17 tests[22m[2m)[22m[90m 9[2mms[22m[39m
+ [32m✓[39m src/modules/task/task-progress.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 4103[2mms[22m[39m
+ [32m✓[39m src/modules/project/project.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 2079[2mms[22m[39m
+ [32m✓[39m src/auth/auth.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 1979[2mms[22m[39m
+ [32m✓[39m test/db-reset.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 1407[2mms[22m[39m
+ [32m✓[39m test/db-date-ordering.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 1319[2mms[22m[39m
+ [32m✓[39m test/db-client-isolation.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 2510[2mms[22m[39m
+ [32m✓[39m src/modules/project/project.isolation.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 2020[2mms[22m[39m
+ [32m✓[39m test/seed.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 1444[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m52 passed[39m[22m[90m (52)[39m
+[2m      Tests [22m [1m[32m1216 passed[39m[22m[90m (1216)[39m
+[2m   Start at [22m 16:52:27
+[2m   Duration [22m 316.00s[2m (transform 823ms, setup 0ms, collect 13.04s, tests 289.99s, environment 8ms, prepare 3.92s)[22m
+
