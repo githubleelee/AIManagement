@@ -1,0 +1,29 @@
+START 2026-10-24T10:19:54.431Z limit=75s
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/临时项目/AIManagement-C-attachments[39m
+
+ [31m❯[39m src/modules/task/task-attachment-input.http.test.ts [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 3349[2mms[22m[39m
+[31m   [31m×[31m production attachment input preserves 413/415/422 and returns all 250 actually uploaded files[33m 3348[2mms[22m[31m[39m
+[31m     → makeTask：负责人与验收人不能是同一人 —— 契约「测试数据工厂」要求夹具内部满足该约束，而端点 25/28 会以 ACCEPTOR_EQUALS_OWNER 拒绝这类数据。请传入两个不同的用户 id。[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[1m[7m Failed Tests 1 [27m[22m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/modules/task/task-attachment-input.http.test.ts[2m > [22mproduction attachment input preserves 413/415/422 and returns all 250 actually uploaded files
+[31m[1mError[22m: makeTask：负责人与验收人不能是同一人 —— 契约「测试数据工厂」要求夹具内部满足该约束，而端点 25/28 会以 ACCEPTOR_EQUALS_OWNER 拒绝这类数据。请传入两个不同的用户 id。[39m
+[36m [2m❯[22m Module.makeTask test/factories.ts:[2m291:11[22m[39m
+    [90m289| [39m)[33m:[39m [33mPromise[39m[33m<[39mstring[33m>[39m {
+    [90m290| [39m  [35mif[39m (ownerUserId [33m===[39m acceptorUserId) {
+    [90m291| [39m    [35mthrow[39m [35mnew[39m [33mError[39m(
+    [90m   | [39m          [31m^[39m
+    [90m292| [39m      [32m'makeTask：负责人与验收人不能是同一人 —— 契约「测试数据工厂」要[39m…
+    [90m293| [39m        [32m'而端点 25/28 会以 ACCEPTOR_EQUALS_OWNER 拒绝这类数据。请传入[39m…
+[90m [2m❯[22m src/modules/task/task-attachment-input.http.test.ts:[2m17:26[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m   Start at [22m 18:19:55
+[2m   Duration [22m 4.92s[2m (transform 565ms, setup 0ms, collect 1.14s, tests 3.35s, environment 0ms, prepare 82ms)[22m
+
+END exit=1 signal=none elapsed=5.78s

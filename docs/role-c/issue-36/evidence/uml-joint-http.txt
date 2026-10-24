@@ -1,0 +1,4 @@
+START 2026-10-24T09:46:12.245Z limit=90s
+WARNING: Some tests are still running when generating the JSON report.This is likely an internal bug in Vitest.Please report it to https://github.com/vitest-dev/vitest/issues
+JSON report written to D:/临时项目/AIManagement-C-attachments/docs/role-c/issue-36/evidence/uml-joint-http-results.json
+END exit=1 signal=none elapsed=43.58s

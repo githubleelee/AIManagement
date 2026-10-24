@@ -1,0 +1,27 @@
+{
+  "diagnosticOnly": false,
+  "acceptancePassed": true,
+  "limitation": "Actual isolated HTTP late-sensitivity protection only; does not establish formal UI routing or full-ticket acceptance.",
+  "observations": [
+    {
+      "kind": "task",
+      "initial": 200,
+      "currentHidden": 404,
+      "whitelistAfterSensitivity": 404,
+      "afterUnlink": 404,
+      "afterTargetOrdinary": 404,
+      "beforeDelete": 404,
+      "afterDelete": 404
+    },
+    {
+      "kind": "story",
+      "initial": 200,
+      "currentHidden": 404,
+      "whitelistAfterSensitivity": 404,
+      "afterUnlink": 404,
+      "afterTargetOrdinary": 404,
+      "beforeDelete": 404,
+      "afterDelete": 404
+    }
+  ]
+}

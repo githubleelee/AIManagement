@@ -1,0 +1,66 @@
+START 2026-10-24T09:59:27.602Z limit=60s
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/临时项目/AIManagement-C-attachments[39m
+
+ [32m✓[39m src/modules/uml/uml.http.test.ts [2m([22m[2m54 tests[22m[2m)[22m[33m 34368[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mcreates real use-case content, fresh node ids, refs of all four kinds, and reads identical saved content [33m570[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mtreats another diagram real node id as a new local alias; cross-graph edge references do not update or expose the original graph [33m646[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22massigns seq by array order, accepts self messages, ignores client seq and sorts lifelines by orderIndex [33m578[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mPATCH only replaces specified associations; [] clears; owner transfer does not grant UML write [33m567[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mrejects unknown PATCH fields and changing kind; metadata cannot masquerade as content replacement [33m650[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mPUT accepts an empty document and removes previous content atomically [33m534[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mdeletes diagram and subsequent GET/PATCH/PUT/DELETE all return the same nonexistent response [33m633[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mlist has no diagram content/ref titles and kind filter and total use the same where [33m576[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mreports exact total when list is truncated, not length-derived total [33m593[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mconcurrent whole-content replacement yields complete winner, never a mixed graph or 500 [33m642[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects unsupported kind without creating a diagram [33m507[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects blank title without creating a diagram [33m472[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized title without creating a diagram [33m487[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized description without creating a diagram [33m477[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects too many nodes without creating a diagram [33m502[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects too many edges without creating a diagram [33m518[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized refs without creating a diagram [33m564[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects unknown create field without creating a diagram [33m504[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects wrong node kind on PUT and preserves content [33m564[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects blank node on PUT and preserves content [33m608[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects unsupported enum on PUT and preserves content [33m499[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects duplicate node ids on PUT and preserves content [33m522[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects missing source on PUT and preserves content [33m543[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects self include on PUT and preserves content [33m524[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects case-case association on PUT and preserves content [33m507[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects actor include on PUT and preserves content [33m564[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects wrong edge kind on PUT and preserves content [33m566[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects usecase seq on PUT and preserves content [33m573[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects duplicate relationship on PUT and preserves content [33m543[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized name on PUT and preserves content [33m580[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized edge label on PUT and preserves content [33m530[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects client coordinates on PUT and preserves content [33m508[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mcross-project and missing goalIds return identical 422; failed PATCH rolls back metadata/refs [33m531[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mcross-project and missing activityIds return identical 422; failed PATCH rolls back metadata/refs [33m586[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mcross-project and missing storyIds return identical 422; failed PATCH rolls back metadata/refs [33m571[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mcross-project and missing taskIds return identical 422; failed PATCH rolls back metadata/refs [33m657[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects owner outside project and leaves metadata unchanged [33m674[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mmember cannot write through any UML endpoint [33m724[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mviewer cannot write through any UML endpoint [33m615[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22moutsider cannot write through any UML endpoint [33m541[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22manonymous cannot write through any UML endpoint [33m532[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22manonymous cannot list/detail; outsider existing id and missing id have identical 404 envelopes [33m594[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mmember reads ordinary empty and associated graphs without receiving the internal guard [33m552[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mviewer reads ordinary empty and associated graphs without receiving the internal guard [33m604[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22msensitive task association hides all content even from whitelist members [33m684[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22msensitive story association hides all content even from whitelist members [33m658[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mreal task DELETE Cascade does not disclose historical diagram content [33m647[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mreal story DELETE Cascade does not disclose historical diagram content [33m545[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mPATCH establishes sticky task restriction; unlink, metadata, owner and content changes never clear it [33m1022[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mPATCH establishes sticky story restriction; unlink, metadata, owner and content changes never clear it [33m991[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mnon-PM list, kind filter, total and truncation exclude restricted rows before taking 200 [33m762[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mcurrent task/story intersection still hides a graph if any associated target becomes invisible [33m631[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mfailed PATCH rolls back sensitive guard, earlier join changes and metadata together [33m807[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22minvalid content after sensitive refs rolls back the entire new diagram and guard [33m507[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m54 passed[39m[22m[90m (54)[39m
+[2m   Start at [22m 17:59:28
+[2m   Duration [22m 35.91s[2m (transform 563ms, setup 0ms, collect 1.14s, tests 34.37s, environment 0ms, prepare 92ms)[22m
+
+END exit=0 signal=none elapsed=36.64s

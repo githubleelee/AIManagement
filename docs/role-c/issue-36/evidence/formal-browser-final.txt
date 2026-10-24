@@ -1,0 +1,29 @@
+START 2026-10-24T10:07:00.017Z limit=90s
+file:///D:/%E4%B8%B4%E6%97%B6%E9%A1%B9%E7%9B%AE/AIManagement-C-attachments/docs/role-c/issue-36/verify-browser.mjs:18
+    server.once('exit', code => { clearTimeout(timer); reject(new Error(`Fixture exit ${code}: ${errors}`)) })
+                                                              ^
+
+Error: Fixture exit 1: D:\临时项目\AIManagement-C-attachments\test\http-support.ts:121
+      setSession.run(
+                 ^
+
+Error: database is locked
+    at Object.loginAs (D:\临时项目\AIManagement-C-attachments\test\http-support.ts:121:18)
+    at <anonymous> (D:\临时项目\AIManagement-C-attachments\docs\role-c\issue-36\integration-server.ts:29:83)
+    at Array.map (<anonymous>)
+    at <anonymous> (D:\临时项目\AIManagement-C-attachments\docs\role-c\issue-36\integration-server.ts:29:52)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+  code: 'ERR_SQLITE_ERROR',
+  errcode: 5,
+  errstr: 'database is locked'
+}
+
+Node.js v24.15.0
+
+    at ChildProcess.<anonymous> (file:///D:/%E4%B8%B4%E6%97%B6%E9%A1%B9%E7%9B%AE/AIManagement-C-attachments/docs/role-c/issue-36/verify-browser.mjs:18:63)
+    at Object.onceWrapper (node:events:631:26)
+    at ChildProcess.emit (node:events:509:28)
+    at ChildProcess._handle.onexit (node:internal/child_process:295:12)
+
+Node.js v24.15.0
+END exit=1 signal=none elapsed=5.13s

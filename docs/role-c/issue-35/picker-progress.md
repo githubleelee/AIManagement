@@ -1,5 +1,7 @@
 # #35 C 可独立推进部分交付：关联选择器、回归及验收准备
 
+> 2026-10-24 更新：本页保留上一轮快照。选择器代码现已推送；已合入含 B 后置标敏补丁的 main `aa62c0d`，105项HTTP与13项浏览器验证通过。最新结果和边界见 [coordinated-delivery.md](coordinated-delivery.md)，不要继续把下文历史“未推送/写侧未实现”当当前阻塞。
+
 日期：2026-10-23（Asia/Shanghai）。本批从 `ea81e4e` 继续，已含 main `0998f62`；未改 B 单写文件、未修改数据库/迁移/鉴权/正式路由/TaskSection。子 agent 因无 tmux 无法启动，由当前 agent 直接实施，不假定有子 agent 成果。
 
 ## 已完成

@@ -1,0 +1,35 @@
+START 2026-10-24T10:26:45.947Z limit=75s
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/临时项目/AIManagement-C-attachments[39m
+
+ [31m❯[39m src/modules/task/task-attachment-input.http.test.ts [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 7482[2mms[22m[39m
+[31m   [31m×[31m production attachment input preserves 413/415/422 and returns all 250 actually uploaded files[33m 7481[2mms[22m[31m[39m
+[31m     → expected false to be true // Object.is equality[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[1m[7m Failed Tests 1 [27m[22m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/modules/task/task-attachment-input.http.test.ts[2m > [22mproduction attachment input preserves 413/415/422 and returns all 250 actually uploaded files
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/modules/task/task-attachment-input.http.test.ts:[2m55:38[22m[39m
+    [90m 53| [39m    [35mconst[39m list [33m=[39m [35mawait[39m client[33m.[39m[35mget[39m([32m`/tasks/[39m[36m${[39mtaskId[36m}[39m[32m/attachments`[39m)
+    [90m 54| [39m    [34mexpect[39m(list[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m200[39m)
+    [90m 55| [39m    [34mexpect[39m([33mArray[39m[33m.[39m[34misArray[39m(list[33m.[39mbody))[33m.[39m[34mtoBe[39m([35mtrue[39m)
+    [90m   | [39m                                     [31m^[39m
+    [90m 56| [39m    [34mexpect[39m(list[33m.[39mbody)[33m.[39m[34mtoHaveLength[39m([34m250[39m)
+    [90m 57| [39m    [34mexpect[39m([35mnew[39m [33mSet[39m(list[33m.[39mbody[33m.[39m[34mmap[39m((item[33m:[39m { id[33m:[39m string }) [33m=>[39m item[33m.[39mid)))[33m.[39m…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m   Start at [22m 18:26:46
+[2m   Duration [22m 8.88s[2m (transform 520ms, setup 0ms, collect 1.05s, tests 7.48s, environment 0ms, prepare 88ms)[22m
+
+END exit=1 signal=none elapsed=9.55s

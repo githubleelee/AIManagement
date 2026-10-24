@@ -1,0 +1,6 @@
+{
+  "error": "Error: Fixture exit 1: D:\\临时项目\\AIManagement-C-attachments\\test\\http-support.ts:121\r\n      setSession.run(\r\n                 ^\r\n\r\nError: database is locked\r\n    at Object.loginAs (D:\\临时项目\\AIManagement-C-attachments\\test\\http-support.ts:121:18)\r\n    at <anonymous> (D:\\临时项目\\AIManagement-C-attachments\\docs\\role-c\\issue-36\\integration-server.ts:29:83)\r\n    at Array.map (<anonymous>)\r\n    at <anonymous> (D:\\临时项目\\AIManagement-C-attachments\\docs\\role-c\\issue-36\\integration-server.ts:29:52)\r\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {\r\n  code: 'ERR_SQLITE_ERROR',\r\n  errcode: 5,\r\n  errstr: 'database is locked'\r\n}\r\n\r\nNode.js v24.15.0\r\n",
+  "checks": [],
+  "requests": [],
+  "pageErrors": []
+}

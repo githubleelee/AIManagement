@@ -6,12 +6,15 @@ import path from 'node:path'
 
 const require = createRequire(import.meta.url)
 const { chromium } = require(process.argv[2] || 'playwright-core')
-const evidence = path.resolve('docs/role-c/issue-35/evidence/picker')
+const formal = process.argv.includes('--formal')
+const evidence = path.resolve(`docs/role-c/issue-35/evidence/${formal ? 'formal' : 'picker'}`)
 await mkdir(evidence, { recursive: true })
-const server = fork(path.resolve('docs/role-c/issue-35/integration-server.ts'), [], {
+const server = fork(path.resolve('docs/role-c/issue-35/integration-server.ts'), formal ? ['--formal'] : [], {
   execArgv: ['--import', 'tsx'], stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
 })
 let serverErrors = ''
+let fixtureExit = null
+server.on('exit', (code, signal) => { fixtureExit = { code, signal } })
 server.stderr.on('data', value => { serverErrors += value.toString() })
 const checks = [], requests = [], pageErrors = [], requestFailures = []
 let browser, page
@@ -34,10 +37,12 @@ try {
     const url = new URL(req.url())
     if (url.pathname.startsWith('/api/')) requests.push({ method: req.method(), path: url.pathname, status: response.status(), hasAuthorization: !!req.headers().authorization })
   })
-  const url = `${fixture.url}/src/pages/uml/integration.html?projectId=${encodeURIComponent(fixture.projectId)}`
+  const entry = projectId => formal ? `${fixture.url}/projects/${encodeURIComponent(projectId)}/uml`
+    : `${fixture.url}/src/pages/uml/integration.html?projectId=${encodeURIComponent(projectId)}`
+  const url = entry(fixture.projectId)
   await page.goto(url)
   await page.evaluate(token => localStorage.setItem('aim.token', token), fixture.pmToken)
-  await page.reload()
+  await page.goto(url)
   await page.getByText('可见图共 0 张', { exact: true }).waitFor()
   async function check(name, action) { await action(); checks.push({ name, passed: true }); console.log(`PASS ${name}`) }
   const currentId = () => page.evaluate(() => new URLSearchParams(location.search).get('diagram'))
@@ -48,6 +53,10 @@ try {
     return api.getUml(id)
   })
   let firstId
+  if (formal) await check('real ProjectLayout navigation exposes the production UML route', async () => {
+    await page.getByRole('navigation', { name: '项目导航', exact: true }).getByRole('link', { name: /UML 图/ }).click()
+    assert.equal(new URL(page.url()).pathname, `/projects/${fixture.projectId}/uml`)
+  })
   await check('PM creates sequence and all four refs through real API, fresh server ids, correct persisted seq', async () => {
     await page.getByRole('button', { name: '新建时序图', exact: true }).click()
     await page.getByLabel('图标题', { exact: true }).fill('真实保存时序图')
@@ -224,13 +233,17 @@ try {
     await page.getByRole('heading', { name: '编辑图：元数据已保存', exact: true }).waitFor()
     await page.getByLabel('图标题', { exact: true }).fill('必须清除的草稿')
   })
-  await check('real restricted-graph denial clears existing graph, drafts and saved association titles', async () => {
-    await page.evaluate(async ({ id, taskId }) => {
+  await check('late sensitivity through the real setter hides the diagram even from whitelist VIEWER after unlink and clears drafts', async () => {
+    await page.evaluate(async ({ id, taskId, viewerId }) => {
       const api = await import('/src/pages/uml/api.ts')
-      await api.patchUml(id, { taskIds: [taskId] })
-      // Removing the last sensitive association must NOT make it readable again.
+      const response = await fetch(`/api/tasks/${taskId}/sensitivity`, { method: 'PUT', headers: {
+        'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('aim.token')}`,
+      }, body: JSON.stringify({ isSensitive: true, visibleMemberIds: [viewerId] }) })
+      await response.text()
+      if (response.status !== 200) throw new Error(`Real sensitivity setter failed: ${response.status}`)
+      // The originally ordinary task was already linked; B's transaction must propagate the guard.
       await api.patchUml(id, { taskIds: [] })
-    }, { id: firstId, taskId: fixture.restrictedTaskId })
+    }, { id: firstId, taskId: fixture.taskId, viewerId: fixture.viewerId })
     await page.evaluate(token => localStorage.setItem('aim.token', token), fixture.viewerToken)
     const deniedStatus = await page.evaluate(async id => {
       const response = await fetch(`/api/uml-diagrams/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('aim.token')}` } })
@@ -291,7 +304,7 @@ try {
   })
   await check('a real empty project shows all four empty picker states without borrowing other project candidates', async () => {
     const before = page.url()
-    await page.goto(`${fixture.url}/src/pages/uml/integration.html?projectId=${encodeURIComponent(fixture.emptyProjectId)}`)
+    await page.goto(entry(fixture.emptyProjectId))
     await page.getByText('可见图共 0 张', { exact: true }).waitFor()
     await page.getByRole('button', { name: '新建用例图', exact: true }).click()
     for (const label of ['业务目标', '用户活动', '用户故事', '任务']) {
@@ -301,16 +314,57 @@ try {
     await page.goto(before)
     await page.getByRole('heading', { name: '编辑图：真实保存用例图', exact: true }).waitFor()
   })
+  if (formal) await check('saved task link reaches and focuses the visible row through actual routing, refresh, hash changes and history', async () => {
+    const diagram = await page.evaluate(async ({ projectId, taskId }) => {
+      const api = await import('/src/pages/uml/api.ts')
+      return api.createUml(projectId, { title: '正式目标行验收', kind: 'USECASE', taskIds: [taskId], nodes: [], edges: [] })
+    }, { projectId: fixture.projectId, taskId: fixture.taskId })
+    await page.goto(`${entry(fixture.projectId)}?diagram=${diagram.id}`)
+    await page.getByRole('link', { name: '任务：合成任务', exact: true }).click()
+    const rowId = `task-${fixture.taskId}`
+    await page.locator(`[id="${rowId}"]`).waitFor()
+    await page.waitForFunction(id => document.activeElement?.id === id, rowId)
+    await page.reload()
+    await page.waitForFunction(id => document.activeElement?.id === id, rowId)
+    const before = requests.length
+    await page.evaluate(() => { location.hash = '#task-%ZZ' })
+    await page.evaluate(() => { location.hash = '#task-unknown-synthetic-id' })
+    await page.evaluate(() => { location.hash = '' })
+    await page.evaluate(taskId => { location.hash = `#task-${encodeURIComponent(taskId)}` }, fixture.restrictedTaskId)
+    await page.waitForFunction(id => document.activeElement?.id === id, `task-${fixture.restrictedTaskId}`)
+    await page.goBack()
+    await page.evaluate(taskId => { location.hash = `#task-${encodeURIComponent(taskId)}` }, fixture.taskId)
+    await page.waitForFunction(id => document.activeElement?.id === id, rowId)
+    await page.goBack()
+    await page.goForward()
+    await page.waitForFunction(id => document.activeElement?.id === id, rowId)
+    assert(!requests.slice(before).some(request => request.path.includes('unknown-synthetic-id')))
+    await page.screenshot({ path: path.join(evidence, 'formal-task-anchor.png'), fullPage: true })
+  })
+  if (formal) await check('VIEWER hidden-task hash never focuses or requests the hidden task', async () => {
+    await page.evaluate(token => localStorage.setItem('aim.token', token), fixture.viewerToken)
+    const before = requests.length
+    await page.goto(`${fixture.url}/projects/${fixture.projectId}/requirements/${fixture.storyId}#task-${fixture.restrictedTaskId}`)
+    // Hash-only navigation reuses the previous PM React tree. Reboot the real auth context
+    // after the fixture identity change before asserting the VIEWER visibility matrix.
+    await page.reload()
+    await page.locator(`[id="task-${fixture.taskId}"]`).waitFor()
+    assert.equal(await page.locator(`[id="task-${fixture.restrictedTaskId}"]`).count(), 0)
+    assert.notEqual(await page.evaluate(() => document.activeElement?.id), `task-${fixture.restrictedTaskId}`)
+    assert.equal(await page.getByText('合成敏感任务', { exact: true }).count(), 0)
+    assert(!requests.slice(before).some(request => request.path === `/api/tasks/${fixture.restrictedTaskId}`))
+    await page.screenshot({ path: path.join(evidence, 'formal-hidden-anchor.png'), fullPage: true })
+  })
   assert.equal(pageErrors.length, 0, JSON.stringify(pageErrors))
   assert(requests.filter(r => r.method !== 'GET').every(r => r.hasAuthorization))
   await writeFile(path.join(evidence, 'integration-browser-results.json'), JSON.stringify({ checks, requests, pageErrors,
-    limitations: ['Synthetic isolated migrated DB and explicit test registration, not production mounting', 'Association-time sticky guard and ordinary VIEWER reads exercised; later target sensitivity propagation still requires B confirmation', 'Task href only, target anchor not exercised', 'No real project data or credentials archived'] }, null, 2))
+    limitations: [formal ? 'Synthetic isolated migrated DB; production app routes and ProjectLayout used, no test UML registration' : 'Synthetic isolated migrated DB and explicit test registration, not production mounting', 'Association-time and later-target-sensitivity guards integrated; unknown unlinked history and formal mounting/task anchor are not accepted by these component checks', formal ? 'Actual visible task anchor exercised; unknown unlinked diagram history remains outside this fixture' : 'Task href only, target anchor not exercised', 'No real project data or credentials archived'] }, null, 2))
   console.log(`PASS ${checks.length} real-API browser checks; no full-ticket acceptance claimed`)
 } catch (error) {
   const alerts = page ? await page.getByRole('alert').allTextContents().catch(() => []) : []
-  const diagnostics = { error: String(error), checks, alerts, requests, requestFailures, pageErrors }
+  const diagnostics = { error: String(error), checks, alerts, requests, requestFailures, pageErrors, fixtureExit, serverErrors }
   await writeFile(path.join(evidence, 'integration-failure.json'), JSON.stringify(diagnostics, null, 2))
-  console.error(JSON.stringify({ alerts, recentRequests: requests.slice(-12), requestFailures, pageErrors }))
+  console.error(JSON.stringify({ alerts, recentRequests: requests.slice(-12), requestFailures, pageErrors, fixtureExit, serverErrors }))
   if (page) await page.screenshot({ path: path.join(evidence, 'integration-failure.png'), fullPage: true }).catch(() => {})
   throw error
 } finally {

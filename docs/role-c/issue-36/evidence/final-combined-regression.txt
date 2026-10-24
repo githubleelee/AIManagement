@@ -1,0 +1,135 @@
+START 2026-10-24T10:28:11.577Z limit=150s
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/临时项目/AIManagement-C-attachments[39m
+
+ [32m✓[39m src/modules/uml/uml-schema.test.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 5496[2mms[22m[39m
+   [33m[2m✓[22m[39m 级联删除：图内容与关联行[2m > [22m删图 → 节点 / 边 / 4 类关联行全部消失（DB 级联，不需要手写清理） [33m341[2mms[22m[39m
+   [33m[2m✓[22m[39m 级联删除：图内容与关联行[2m > [22m删关联对象：任务 / 故事 / 活动 / 目标被删时其关联行消失 [33m323[2mms[22m[39m
+ [32m✓[39m test/db-schema-contract.test.ts [2m([22m[2m29 tests[22m[2m)[22m[33m 3121[2mms[22m[39m
+ [32m✓[39m test/db-schema.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 4125[2mms[22m[39m
+   [33m[2m✓[22m[39m 表结构与迁移[2m > [22m迁移可重复执行：对同一库再次 deploy 不报错 [33m1271[2mms[22m[39m
+ [32m✓[39m src/db/attachment-repository.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 9948[2mms[22m[39m
+   [33m[2m✓[22m[39m ① 上传 / 列表 / 下载 / 删除 happy path[2m > [22mmember（任务负责人）可上传；列表只暴露视图字段；下载带 Content-Disposition；删除清理实体文件 [33m443[2mms[22m[39m
+   [33m[2m✓[22m[39m ① 上传 / 列表 / 下载 / 删除 happy path[2m > [22mPM 也可上传 / 下载；VIEWER 可列表和下载但上传 / 删除 403 [33m459[2mms[22m[39m
+   [33m[2m✓[22m[39m ① 上传 / 列表 / 下载 / 删除 happy path[2m > [22m非负责人 MEMBER：可列表 / 下载，但上传 / 删除 403（写 = task.progress 仅负责人或 PM） [33m473[2mms[22m[39m
+   [33m[2m✓[22m[39m ① 上传 / 列表 / 下载 / 删除 happy path[2m > [22m列表为完整数组：250 条 ACTIVE 行全部返回，total 为真实 250（无隐形截断） [33m471[2mms[22m[39m
+   [33m[2m✓[22m[39m ① 上传 / 列表 / 下载 / 删除 happy path[2m > [22moutsider 列表 → 404 [33m427[2mms[22m[39m
+   [33m[2m✓[22m[39m ① 上传 / 列表 / 下载 / 删除 happy path[2m > [22m未登录 → 401 [33m630[2mms[22m[39m
+   [33m[2m✓[22m[39m ② 扩展名 + MIME 联合校验与 10MB 上限[2m > [22m扩展名与 MIME 不匹配 → 422 字段级错误 [33m607[2mms[22m[39m
+   [33m[2m✓[22m[39m ② 扩展名 + MIME 联合校验与 10MB 上限[2m > [22m非白名单扩展名 → 422，且不落库、不写盘 [33m644[2mms[22m[39m
+   [33m[2m✓[22m[39m ② 扩展名 + MIME 联合校验与 10MB 上限[2m > [22m非白名单 MIME → 415（传输层拒绝未支持的 Content-Type，不落库） [33m645[2mms[22m[39m
+   [33m[2m✓[22m[39m ② 扩展名 + MIME 联合校验与 10MB 上限[2m > [22m恰好 10,000,000 B 允许；超过 1 字节 → 413/422 且不落库 [33m862[2mms[22m[39m
+   [33m[2m✓[22m[39m ③ 敏感任务隔离（查询层判定，404 与不可见逐字一致）[2m > [22m敏感任务：MEMBER 读 / 写 / 下载 → 404，且响应体与「跨项目不可见」逐字一致；PM 正常 [33m1111[2mms[22m[39m
+   [33m[2m✓[22m[39m ⑥ 列表只返回 ACTIVE（DELETING / CLEANUP_FAILED 对用户不可见）[2m > [22m仓储查询层用 state 过滤，非 ACTIVE 行不出现在列表 [33m572[2mms[22m[39m
+ [32m✓[39m src/db/attachment-cleanup.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 4498[2mms[22m[39m
+   [33m[2m✓[22m[39m ④ 任务删除联动与清理[2m > [22m窄生命周期端口：事务内 markForTaskDeletion（可回滚）、提交后 run() 清理 [33m365[2mms[22m[39m
+   [33m[2m✓[22m[39m ⑤ 事务回滚[2m > [22m上传写库失败 → 磁盘无残留文件（service 回滚已写入的实体） [33m319[2mms[22m[39m
+ [32m✓[39m src/modules/uml/uml.http.test.ts [2m([22m[2m54 tests[22m[2m)[22m[33m 34039[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mcreates real use-case content, fresh node ids, refs of all four kinds, and reads identical saved content [33m376[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mtreats another diagram real node id as a new local alias; cross-graph edge references do not update or expose the original graph [33m572[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22massigns seq by array order, accepts self messages, ignores client seq and sorts lifelines by orderIndex [33m465[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mPATCH only replaces specified associations; [] clears; owner transfer does not grant UML write [33m487[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mrejects unknown PATCH fields and changing kind; metadata cannot masquerade as content replacement [33m453[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mPUT accepts an empty document and removes previous content atomically [33m453[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mdeletes diagram and subsequent GET/PATCH/PUT/DELETE all return the same nonexistent response [33m471[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mlist has no diagram content/ref titles and kind filter and total use the same where [33m448[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mreports exact total when list is truncated, not length-derived total [33m434[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mconcurrent whole-content replacement yields complete winner, never a mixed graph or 500 [33m484[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects unsupported kind without creating a diagram [33m445[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects blank title without creating a diagram [33m419[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized title without creating a diagram [33m355[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized description without creating a diagram [33m392[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects too many nodes without creating a diagram [33m381[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects too many edges without creating a diagram [33m367[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized refs without creating a diagram [33m356[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects unknown create field without creating a diagram [33m374[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects wrong node kind on PUT and preserves content [33m456[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects blank node on PUT and preserves content [33m456[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects unsupported enum on PUT and preserves content [33m458[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects duplicate node ids on PUT and preserves content [33m442[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects missing source on PUT and preserves content [33m394[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects self include on PUT and preserves content [33m415[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects case-case association on PUT and preserves content [33m450[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects actor include on PUT and preserves content [33m406[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects wrong edge kind on PUT and preserves content [33m447[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects usecase seq on PUT and preserves content [33m509[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects duplicate relationship on PUT and preserves content [33m459[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized name on PUT and preserves content [33m469[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized edge label on PUT and preserves content [33m484[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects client coordinates on PUT and preserves content [33m453[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mcross-project and missing goalIds return identical 422; failed PATCH rolls back metadata/refs [33m486[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mcross-project and missing activityIds return identical 422; failed PATCH rolls back metadata/refs [33m496[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mcross-project and missing storyIds return identical 422; failed PATCH rolls back metadata/refs [33m484[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mcross-project and missing taskIds return identical 422; failed PATCH rolls back metadata/refs [33m535[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects owner outside project and leaves metadata unchanged [33m559[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mmember cannot write through any UML endpoint [33m729[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mviewer cannot write through any UML endpoint [33m639[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22moutsider cannot write through any UML endpoint [33m796[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22manonymous cannot write through any UML endpoint [33m640[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22manonymous cannot list/detail; outsider existing id and missing id have identical 404 envelopes [33m698[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mmember reads ordinary empty and associated graphs without receiving the internal guard [33m692[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mviewer reads ordinary empty and associated graphs without receiving the internal guard [33m645[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22msensitive task association hides all content even from whitelist members [33m847[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22msensitive story association hides all content even from whitelist members [33m816[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mreal task DELETE Cascade does not disclose historical diagram content [33m773[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mreal story DELETE Cascade does not disclose historical diagram content [33m726[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mPATCH establishes sticky task restriction; unlink, metadata, owner and content changes never clear it [33m1569[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mPATCH establishes sticky story restriction; unlink, metadata, owner and content changes never clear it [33m1345[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mnon-PM list, kind filter, total and truncation exclude restricted rows before taking 200 [33m970[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mcurrent task/story intersection still hides a graph if any associated target becomes invisible [33m763[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mfailed PATCH rolls back sensitive guard, earlier join changes and metadata together [33m1102[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22minvalid content after sensitive refs rolls back the entire new diagram and guard [33m1006[2mms[22m[39m
+ [32m✓[39m test/skeleton-smoke.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 4226[2mms[22m[39m
+   [33m[2m✓[22m[39m T0-06 ② 行走骨架：表结构 + 路由 + 鉴权 + 校验 + 序列化 + 凭证，整条链走通[2m > [22m从登录到需求层级树：一条链路端到端可用 [33m328[2mms[22m[39m
+   [33m[2m✓[22m[39m T0-06 ② 行走骨架：表结构 + 路由 + 鉴权 + 校验 + 序列化 + 凭证，整条链走通[2m > [22m链路对外部访问者封闭：非成员读该项目需求 → 404，且不泄漏对象内容 [33m651[2mms[22m[39m
+ [32m✓[39m src/modules/authz/sensitivity-uml-sticky.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 7601[2mms[22m[39m
+   [33m[2m✓[22m[39m 后置标敏：关联普通对象的图被粘性置位[2m > [22m建图并关联非敏感任务/故事时 everRestricted 保持 false [33m535[2mms[22m[39m
+   [33m[2m✓[22m[39m 后置标敏：关联普通对象的图被粘性置位[2m > [22m之后把已关联的任务设为敏感：同一请求返回后 everRestricted 立即为 true [33m839[2mms[22m[39m
+   [33m[2m✓[22m[39m 后置标敏：关联普通对象的图被粘性置位[2m > [22m之后把已关联的故事设为敏感：同一请求返回后 everRestricted 立即为 true [33m908[2mms[22m[39m
+   [33m[2m✓[22m[39m 后置标敏：关联普通对象的图被粘性置位[2m > [22m已置位后再设敏感：幂等，不报错且仍为 true [33m551[2mms[22m[39m
+   [33m[2m✓[22m[39m 后置标敏：关联普通对象的图被粘性置位[2m > [22m解除关联（删链行）或删除任务/故事后 everRestricted 仍为 true [33m823[2mms[22m[39m
+   [33m[2m✓[22m[39m 后置标敏：关联普通对象的图被粘性置位[2m > [22m设为敏感但未关联任何图：对其它图无副作用 [33m464[2mms[22m[39m
+   [33m[2m✓[22m[39m 后置标敏：关联普通对象的图被粘性置位[2m > [22m粘性置位失败时整个敏感设置事务回滚 [33m459[2mms[22m[39m
+ [32m✓[39m src/modules/attachment/service.test.ts [2m([22m[2m21 tests[22m[2m)[22m[90m 28[2mms[22m[39m
+ [32m✓[39m src/modules/authz/sensitivity.http.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 12133[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22mPM 可设置故事与任务的敏感白名单；其他角色不能设置 [33m1375[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m仅 PM 可以设置；未登录 401，非成员 404，成员 403 且不落审计 [33m1125[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m故事白名单全量覆盖，旧凭证下一次请求立即失效，404 不泄漏标题 [33m992[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m可见范围过滤在数据库查询层生效，恢复非敏感时保留旧名单 [33m806[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m任务敏感设置可用；非项目成员名单被拒且事务无副作用 [33m796[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m审计保存前后对象、操作人与时间；改权限的用户下一次请求直接按库判定 [33m1194[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m角色变更与成员移除都在同一事务写入审计 [33m830[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m三角色 × 五动作 × 敏感状态：仅 PM 可写，未授权敏感对象先返回 404 [33m828[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m无效请求无写入；不存在对象与外部人员不可区分 [33m983[2mms[22m[39m
+ [32m✓[39m src/modules/attachment/plugin.test.ts [2m([22m[2m12 tests[22m[2m)[22m[90m 160[2mms[22m[39m
+ [32m✓[39m src/modules/uml/uml-picker.http.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 5160[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 picker consumes real project-scoped lists[2m > [22mPM gets all four candidate types, hierarchy labels, unique ids and no other project objects [33m504[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 picker consumes real project-scoped lists[2m > [22mVIEWER candidates honor story and task visibility at the actual HTTP boundary [33m433[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 picker consumes real project-scoped lists[2m > [22ma real empty project has four empty candidate collections [33m407[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 picker consumes real project-scoped lists[2m > [22mnull cannot load candidate objects [33m439[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 picker consumes real project-scoped lists[2m > [22moutsider cannot load candidate objects [33m701[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 picker consumes real project-scoped lists[2m > [22madapter refuses a successful but wrong-project HTTP projection rather than displaying its names [33m378[2mms[22m[39m
+ [32m✓[39m src/modules/uml/uml-late-sensitivity.http.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 10660[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 write-side sticky propagation consumed by actual UML readers[2m > [22mtask sensitivity before-link=false stays hidden through whitelist, ordinary transition, unlink and Cascade [33m1543[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 write-side sticky propagation consumed by actual UML readers[2m > [22mtask sensitivity before-link=true stays hidden through whitelist, ordinary transition, unlink and Cascade [33m2753[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 write-side sticky propagation consumed by actual UML readers[2m > [22mstory sensitivity before-link=false stays hidden through whitelist, ordinary transition, unlink and Cascade [33m2623[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 write-side sticky propagation consumed by actual UML readers[2m > [22mstory sensitivity before-link=true stays hidden through whitelist, ordinary transition, unlink and Cascade [33m1485[2mms[22m[39m
+ [32m✓[39m src/modules/task/task-attachment-input.http.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 9043[2mms[22m[39m
+   [33m[2m✓[22m[39m production attachment input preserves 413/415/422 and returns all 250 actually uploaded files [33m9042[2mms[22m[39m
+ [32m✓[39m src/modules/uml/uml-constraints.http.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 3192[2mms[22m[39m
+ [32m✓[39m src/modules/task/task-attachment-lifecycle.http.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 38059[2mms[22m[39m
+   [33m[2m✓[22m[39m real task DELETE consumes the injected attachment lifecycle[2m > [22mreal upload then task DELETE removes task, attachment row and actual file after commit [33m903[2mms[22m[39m
+   [33m[2m✓[22m[39m real task DELETE consumes the injected attachment lifecycle[2m > [22ma real database deletion failure rolls back the attachment mark and visibility cleanup, without deleting files [33m841[2mms[22m[39m
+   [33m[2m✓[22m[39m real task DELETE consumes the injected attachment lifecycle[2m > [22mreal file deletion failure keeps retry state; the actual 30s background loop recovers without a manual cleanup call [33m31669[2mms[22m[39m
+   [33m[2m✓[22m[39m real task DELETE consumes the injected attachment lifecycle[2m > [22mowner cannot delete a task or trigger cleanup [33m542[2mms[22m[39m
+   [33m[2m✓[22m[39m real task DELETE consumes the injected attachment lifecycle[2m > [22mviewer cannot delete a task or trigger cleanup [33m505[2mms[22m[39m
+   [33m[2m✓[22m[39m real task DELETE consumes the injected attachment lifecycle[2m > [22mother cannot delete a task or trigger cleanup [33m543[2mms[22m[39m
+   [33m[2m✓[22m[39m real task DELETE consumes the injected attachment lifecycle[2m > [22msensitive revocation hides download and list with the exact unknown-object envelope [33m770[2mms[22m[39m
+ [32m✓[39m src/modules/attachment/local-storage.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 27[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m17 passed[39m[22m[90m (17)[39m
+[2m      Tests [22m [1m[32m218 passed[39m[22m[90m (218)[39m
+[2m   Start at [22m 18:28:12
+[2m   Duration [22m 84.16s[2m (transform 1.02s, setup 0ms, collect 7.04s, tests 151.52s, environment 3ms, prepare 1.41s)[22m
+
+END exit=0 signal=none elapsed=84.97s

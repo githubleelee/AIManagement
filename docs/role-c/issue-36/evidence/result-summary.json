@@ -1,0 +1,135 @@
+[
+  {
+    "file": "attachment-regression-results.json",
+    "success": true,
+    "total": 107,
+    "passed": 107,
+    "failed": 0,
+    "todo": 0,
+    "totalSuites": 32,
+    "failedSuites": 0,
+    "completedFiles": [
+      {
+        "name": "D:/临时项目/AIManagement-C-attachments/test/db-schema-contract.test.ts",
+        "assertions": 29,
+        "status": "passed"
+      },
+      {
+        "name": "D:/临时项目/AIManagement-C-attachments/test/db-schema.test.ts",
+        "assertions": 8,
+        "status": "passed"
+      },
+      {
+        "name": "D:/临时项目/AIManagement-C-attachments/test/skeleton-smoke.test.ts",
+        "assertions": 6,
+        "status": "passed"
+      },
+      {
+        "name": "D:/临时项目/AIManagement-C-attachments/src/db/attachment-cleanup.test.ts",
+        "assertions": 9,
+        "status": "passed"
+      },
+      {
+        "name": "D:/临时项目/AIManagement-C-attachments/src/db/attachment-repository.test.ts",
+        "assertions": 12,
+        "status": "passed"
+      },
+      {
+        "name": "D:/临时项目/AIManagement-C-attachments/src/modules/attachment/local-storage.test.ts",
+        "assertions": 3,
+        "status": "passed"
+      },
+      {
+        "name": "D:/临时项目/AIManagement-C-attachments/src/modules/attachment/plugin.test.ts",
+        "assertions": 12,
+        "status": "passed"
+      },
+      {
+        "name": "D:/临时项目/AIManagement-C-attachments/src/modules/attachment/service.test.ts",
+        "assertions": 21,
+        "status": "passed"
+      },
+      {
+        "name": "D:/临时项目/AIManagement-C-attachments/src/modules/task/task-attachment-lifecycle.http.test.ts",
+        "assertions": 7,
+        "status": "passed"
+      }
+    ],
+    "reportedAssertions": 107,
+    "unfinishedAssertions": [],
+    "unhandledErrors": null,
+    "incomplete": []
+  },
+  {
+    "file": "uml-joint-http-results.json",
+    "success": true,
+    "total": 110,
+    "passed": 106,
+    "failed": 0,
+    "todo": 0,
+    "totalSuites": 23,
+    "failedSuites": 0,
+    "completedFiles": [
+      {
+        "name": "D:/临时项目/AIManagement-C-attachments/src/modules/authz/sensitivity-uml-sticky.test.ts",
+        "assertions": 7,
+        "status": "passed"
+      },
+      {
+        "name": "D:/临时项目/AIManagement-C-attachments/src/modules/authz/sensitivity.http.test.ts",
+        "assertions": 9,
+        "status": "passed"
+      },
+      {
+        "name": "D:/临时项目/AIManagement-C-attachments/src/modules/uml/uml-constraints.http.test.ts",
+        "assertions": 5,
+        "status": "passed"
+      },
+      {
+        "name": "D:/临时项目/AIManagement-C-attachments/src/modules/uml/uml-late-sensitivity.http.test.ts",
+        "assertions": 4,
+        "status": "passed"
+      },
+      {
+        "name": "D:/临时项目/AIManagement-C-attachments/src/modules/uml/uml-picker.http.test.ts",
+        "assertions": 6,
+        "status": "passed"
+      },
+      {
+        "name": "D:/临时项目/AIManagement-C-attachments/src/modules/uml/uml-schema.test.ts",
+        "assertions": 25,
+        "status": "passed"
+      },
+      {
+        "name": "D:/临时项目/AIManagement-C-attachments/src/modules/uml/uml.http.test.ts",
+        "assertions": 54,
+        "status": "passed"
+      }
+    ],
+    "reportedAssertions": 110,
+    "unfinishedAssertions": [
+      {
+        "file": "D:/临时项目/AIManagement-C-attachments/src/modules/uml/uml.http.test.ts",
+        "title": "US-15 real authorization seam and sticky no-declassification guard non-PM list, kind filter, total and truncation exclude restricted rows before taking 200",
+        "status": "pending"
+      },
+      {
+        "file": "D:/临时项目/AIManagement-C-attachments/src/modules/uml/uml.http.test.ts",
+        "title": "US-15 real authorization seam and sticky no-declassification guard current task/story intersection still hides a graph if any associated target becomes invisible",
+        "status": "pending"
+      },
+      {
+        "file": "D:/临时项目/AIManagement-C-attachments/src/modules/uml/uml.http.test.ts",
+        "title": "US-15 real authorization seam and sticky no-declassification guard failed PATCH rolls back sensitive guard, earlier join changes and metadata together",
+        "status": "pending"
+      },
+      {
+        "file": "D:/临时项目/AIManagement-C-attachments/src/modules/uml/uml.http.test.ts",
+        "title": "US-15 real authorization seam and sticky no-declassification guard invalid content after sensitive refs rolls back the entire new diagram and guard",
+        "status": "pending"
+      }
+    ],
+    "unhandledErrors": null,
+    "incomplete": []
+  }
+]
