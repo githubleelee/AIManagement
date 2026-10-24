@@ -99,7 +99,7 @@ let idSequence = 0
 
 beforeAll(async () => {
   ctx = await createBareNotificationContext()
-  repository = new InMemoryNotificationRepository()
+  repository = new InMemoryNotificationRepository(() => true)
   service = new NotificationService({
     repository,
     recipientResolver: {

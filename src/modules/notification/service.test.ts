@@ -29,7 +29,7 @@ function createHarness(options: {
   sourceAvailable?: boolean
   now?: string
 } = {}) {
-  const repository = new InMemoryNotificationRepository()
+  const repository = new InMemoryNotificationRepository(() => true)
   let resolution: RecipientResolution = options.resolution ?? {
     state: 'AVAILABLE',
     recipients: [
@@ -263,7 +263,7 @@ describe('US-14 本人可见与已读状态', () => {
 describe('US-14 #37 订阅生命周期', () => {
   it('未提供 #37 端口时保持显式 UNAVAILABLE', () => {
     const module = createNotificationModule({
-      repository: new InMemoryNotificationRepository(),
+      repository: new InMemoryNotificationRepository(() => true),
       recipientResolver: { resolve: async () => ({ state: 'AVAILABLE', recipients: [] }) },
     })
     expect(module.start()).toMatchObject({ state: 'UNAVAILABLE' })
@@ -273,7 +273,7 @@ describe('US-14 #37 订阅生命周期', () => {
     const handlers = new Map<NotificationEventName, NotificationEventHandler>()
     const disposed: string[] = []
     const module = createNotificationModule({
-      repository: new InMemoryNotificationRepository(),
+      repository: new InMemoryNotificationRepository(() => true),
       recipientResolver: { resolve: async () => ({ state: 'AVAILABLE', recipients: [] }) },
       eventSource: {
         health: () => ({ state: 'AVAILABLE', note: null, sourceCapabilities }),
