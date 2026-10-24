@@ -1,5 +1,7 @@
 # #35 实测结果（阶段性交付，不是最终验收）
 
+> 历史快照：本文为2026-10-21阶段记录。“非PM暂关闭/未做选择器”等已被后续实现取代；最新写读集成见 [coordinated-delivery.md](coordinated-delivery.md)，正式挂载已由B PR117合入 main982f850，后续评审修正和正式页面验收另附新批次证据。不要据本文历史状态重复申请已完成事项。
+
 ## 环境
 
 - 工作目录：`D:/临时项目/AIManagement-US15`；分支 `feat/US15-uml`；基线 `37287c26a2d867e938132a906f9422354f66eb7c`；代码提交 `dca876a28288ccdc6a569f3d74285ce321a1af2d`（本地）。首次推送被 GitHub 403 拒绝（[历史结果](submission-result.json)）；用户确认改用 brucelyce-ux 后已成功推送功能分支。最新 main 检查、125 项定向复测/3 todo、构建及浏览器通过、全量和最新 typecheck 超时限制见 [本轮交付记录](prepush-status.md)。

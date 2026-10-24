@@ -1,0 +1,14 @@
+{
+  "implementationCommit": "f8456268525729b4687e6475f73f93b8fb501fed",
+  "branch": "feat/US15-uml",
+  "includedMain": "aa62c0de502d5c75ac965ba8815f59ac81eed082",
+  "pushVerified": true,
+  "verification": "Independent ls-remote matched local HEAD. Includes previously blocked 86b3b02 and B late-sensitivity write-side integration.",
+  "tests": {"httpPassed":105,"httpTodo":0,"browserPassed":13,"protectedProbe":"task and story passed","typecheck":"server and web passed","build":"server, web and both C entry bundles passed","fullSuite":"not rerun; prior timeout/crash root cause not claimed fixed"},
+  "comments": [
+    {"issue":35,"url":"https://github.com/githubleelee/AIManagement/issues/35#issuecomment-6381959861","author":"brucelyce-ux","bodyFile":"ready-for-b-comment.md","readBackVerified":true},
+    {"issue":36,"url":"https://github.com/githubleelee/AIManagement/issues/36#issuecomment-6381964067","author":"brucelyce-ux","bodyFile":"attachment-blockers-comment.md","readBackVerified":true}
+  ],
+  "scope": {"uml":"read/write safety integration delivered; formal mounting/task anchor and unknown unlinked history remain B follow-up","attachments":"candidate port and D correction verified; no C task edits before public conflict resolution and explicit window handover","scheduling":"user confirmed separate active C session owns commit/push and issue32 reply; this session did not commit that worktree or duplicate its publication"},
+  "ticketAcceptance":"not completed; no PR merged and no issue closed"
+}
