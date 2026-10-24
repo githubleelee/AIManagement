@@ -13,6 +13,8 @@ const server = fork(path.resolve('docs/role-c/issue-35/integration-server.ts'), 
   execArgv: ['--import', 'tsx'], stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
 })
 let serverErrors = ''
+let fixtureExit = null
+server.on('exit', (code, signal) => { fixtureExit = { code, signal } })
 server.stderr.on('data', value => { serverErrors += value.toString() })
 const checks = [], requests = [], pageErrors = [], requestFailures = []
 let browser, page
@@ -343,6 +345,9 @@ try {
     await page.evaluate(token => localStorage.setItem('aim.token', token), fixture.viewerToken)
     const before = requests.length
     await page.goto(`${fixture.url}/projects/${fixture.projectId}/requirements/${fixture.storyId}#task-${fixture.restrictedTaskId}`)
+    // Hash-only navigation reuses the previous PM React tree. Reboot the real auth context
+    // after the fixture identity change before asserting the VIEWER visibility matrix.
+    await page.reload()
     await page.locator(`[id="task-${fixture.taskId}"]`).waitFor()
     assert.equal(await page.locator(`[id="task-${fixture.restrictedTaskId}"]`).count(), 0)
     assert.notEqual(await page.evaluate(() => document.activeElement?.id), `task-${fixture.restrictedTaskId}`)
@@ -357,9 +362,9 @@ try {
   console.log(`PASS ${checks.length} real-API browser checks; no full-ticket acceptance claimed`)
 } catch (error) {
   const alerts = page ? await page.getByRole('alert').allTextContents().catch(() => []) : []
-  const diagnostics = { error: String(error), checks, alerts, requests, requestFailures, pageErrors }
+  const diagnostics = { error: String(error), checks, alerts, requests, requestFailures, pageErrors, fixtureExit, serverErrors }
   await writeFile(path.join(evidence, 'integration-failure.json'), JSON.stringify(diagnostics, null, 2))
-  console.error(JSON.stringify({ alerts, recentRequests: requests.slice(-12), requestFailures, pageErrors }))
+  console.error(JSON.stringify({ alerts, recentRequests: requests.slice(-12), requestFailures, pageErrors, fixtureExit, serverErrors }))
   if (page) await page.screenshot({ path: path.join(evidence, 'integration-failure.png'), fullPage: true }).catch(() => {})
   throw error
 } finally {
