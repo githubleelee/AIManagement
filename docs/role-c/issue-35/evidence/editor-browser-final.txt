@@ -1,0 +1,34 @@
+PASS create/edit use-case actors, cases, all three relation types and real SVG
+PASS self include is reported, invalid graph cannot be exported, and repair clears validation
+PASS remove actor cascades editor-local association only, keeping case-to-case edges
+PASS create/edit sequence including async, return and self message
+PASS reorder lifelines without changing message endpoints or order
+PASS reorder sequence messages and renumber strictly; delete lifeline removes dangling messages
+PASS read-only controls cannot change document (presentation check, not authorization)
+PASS download real JSON and reload editor via import after refresh; not a database save
+PASS reject malformed JSON without changing current document
+PASS reject unknown kind without changing current document
+PASS reject unknown format version without changing current document
+PASS reject unknown document field without changing current document
+PASS reject empty node name without changing current document
+PASS reject oversized text without changing current document
+PASS reject duplicate ids across categories without changing current document
+PASS reject duplicate edge id without changing current document
+PASS reject duplicate relationship with distinct ids without changing current document
+PASS reject missing endpoint without changing current document
+PASS reject wrong association direction without changing current document
+PASS reject include actor is illegal without changing current document
+PASS reject self extend illegal without changing current document
+PASS reject unsupported relationship without changing current document
+PASS reject too many nodes without changing current document
+PASS reject combined node count over bound without changing current document
+PASS reject unsupported message without changing current document
+PASS reject duplicate seq without changing current document
+PASS reject descending seq without changing current document
+PASS reject zero seq without changing current document
+PASS reject fractional seq without changing current document
+PASS reject missing lifeline without changing current document
+PASS supported sequence gaps remain strictly increasing; import preserves message order
+PASS user markup is SVG text, cannot create script/image/events or external requests
+PASS mobile editor has no viewport overflow; preview scrolls within its own region
+PASS 34 browser checks; no project/API/authorization AC claimed

@@ -21,6 +21,7 @@ import DashboardPage from './pages/analytics/DashboardPage'
 import RiskPage from './pages/risk/RiskPage'
 import GanttPage from './pages/gantt/GanttPage'
 import BoardPage from './pages/board/BoardPage'
+import UmlPage from './pages/uml/UmlPage'
 
 /**
  * 路由表（见 docs/frontend-routes.md，冻结）。
@@ -61,6 +62,8 @@ export default function AppRoutes() {
             <Route path="gantt" element={<GanttPage />} />
             {/* US-04 故事看板（工单 #25）：三列看板；PM 可在卡片调整状态（唯一写路径端点 21），MEMBER / VIEWER 只读（C11 已裁定不扩权），入口在左导航 */}
             <Route path="board" element={<BoardPage />} />
+            {/* US-15 UML（工单 #35）：用例图 / 时序图编辑与关联；写权限 uml.write 仅 PM，受限图对非 PM 404，入口在左导航 */}
+            <Route path="uml" element={<UmlPage />} />
             <Route path="members" element={<ProjectMembersPage />} />
           </Route>
         </Route>

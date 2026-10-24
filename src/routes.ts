@@ -4,7 +4,7 @@
  * 各模块只导出路由插件，由本文件集中注册；数据库依赖通过 RouteContext 注入。
  */
 import type { FastifyInstance } from 'fastify'
-import type { PrismaClient } from '@prisma/client'
+import type { Prisma, PrismaClient } from '@prisma/client'
 import { registerAuthRoutes } from './auth/plugin.js'
 import { registerAcceptanceRoutes } from './modules/acceptance/plugin.js'
 import { registerAnalyticsRoutes } from './modules/analytics/plugin.js'
@@ -15,6 +15,7 @@ import { registerTaskRoutes } from './modules/task/routes.js'
 import { registerWorkloadRoutes } from './modules/workload/plugin.js'
 import { registerGanttRoutes } from './modules/gantt/plugin.js'
 import { registerBoardRoutes } from './modules/board/plugin.js'
+import { registerUmlRoutes } from './modules/uml/plugin.js'
 import { registerWorkbenchRoutes } from './modules/workbench/plugin.js'
 import { registerRequirementRoutes } from './modules/requirement/plugin.js'
 import { registerAiRoutes } from './modules/ai/plugin.js'
@@ -25,6 +26,7 @@ import type { GanttEventPort } from './modules/gantt/types.js'
 import type { RequirementEventPort } from './modules/requirement/service.js'
 import type { RiskEventPort } from './modules/risk/types.js'
 import type { AcceptanceEventPort } from './modules/acceptance/types.js'
+import type { TaskStartGuardPort } from './shared/task-execution.js'
 
 export type RouteContext = {
   prisma: PrismaClient
@@ -71,6 +73,15 @@ export type RouteContext = {
    * 缺失即 fail-fast —— **禁止** hasRoute 跳过、默认 no-op 或内存仓储回退（本批任务约束）。
    */
   notificationService?: NotificationService
+  /**
+   * FS 开工守卫窄端口（由 `src/app.ts` 用 `src/modules/task/rules.ts` 的**同一**守卫实现
+   * 装配后注入；不是第二套复制实现，也没有 no-op / 默认放行）。
+   *
+   * 供需要“进入 DOING”的其他域（当前为验收 `REJECT`）在同一事务内调用，不 import
+   * `src/modules/task/` 的实现（契约 I-9）。可选：模块测试可只构造 `{ prisma }`；
+   * 生产 `buildApp` 始终真实注入。缺省时引用方必须 fail-fast，不得静默跳过校验。
+   */
+  taskStartGuard?: TaskStartGuardPort<Prisma.TransactionClient>
 }
 
 export function registerRoutes(app: FastifyInstance, context: RouteContext): void {
@@ -129,6 +140,11 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
   // 不在 Sprint 1 契约的 30 个端点内，属本阶段新增（见 docs/role-b-board-design.md）。
   // 状态写入仍走既有 PATCH /stories/:storyId（端点 21），本模块不建镜像写入口。
   registerBoardRoutes(app, context)
+
+  // #35 US-15 UML：图 / 节点 / 边与四类关联（C 的独立模块，B 只落公共注册行）。
+  // 组装不需要新端口（UML 事件本期不接线）：模块直接用 `context.prisma`。
+  // 写权限 `uml.write` 仅 PM、非 PM 读含 `everRestricted = false` guard，均在模块内走 can()。
+  registerUmlRoutes(app, context)
 
   // #31 US-11 AI 建议（B 公共接入）：POST / AI 建议生成、GET 列表、POST 处置。
   // 不在 Sprint 1 契约的 30 个端点内，属本阶段新增；服务由 `src/app.ts` 组装后经 context 注入。

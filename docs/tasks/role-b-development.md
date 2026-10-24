@@ -9,11 +9,11 @@
 
 > 依据已完成并留证的交付与独立验证，只更新 Status / Evidence / Blocker，不改业务规则、不新增授权。原始状态历史保留在各任务行内。
 
-- **已完成**：#20（故事看板最终验收，main `9160587` 上的真实登录/改状态/审计+事件/详情同步/权限矩阵/敏感计数 + 16 文件 578 例）、#45（共享 AI 三表，PR #88）、**#59**（UML 后置标敏粘性置位，PR #103）、**#38/#39/#40**（通知存储与迁移、运行时组装、顶栏挂载：PR #104/#105/#106；`risk.created` 能力改判）。
-- **进行中**：#13（FS 共享端口与装配已就绪、独立复验 45+412；**等 A 在验收 REJECT 同事务接入**后整体合入）、#34/#35（附件候选 `902cfa1`，含上传解析器封装修正；等 D #94 与 C 的真实接线后合入）、#41（通知公共接入验证：基础链路与三个真实来源已端到端，六类未齐）。
+- **已完成**：#13（FS 开工守卫：PATCH + 验收 REJECT 双入口，PR #114）、#20（看板最终验收）、#45（共享 AI 三表，PR #88）、**#59**（UML 粘性置位，PR #103）、**#38/#39/#40**（通知存储/运行时/顶栏，PR #104/#105/#106）；另合入 **PR #108**（事件目录登记）、**PR #109**（整合 A 的 PR #100）、**PR #112**（三个已接来源能力改判）、**PR #114**（FS 开工守卫双入口，`cc67e33`）。
+- **进行中**：#15（甘特：只剩合并后一次浏览器复核）、#34/#35（附件候选已并入最新 main `integrate/attach-candidate-on-main@f516b20`，8 文件/100 例、migrate diff 无漂移；**只差 C 的任务 DELETE 联动与 TaskSection 挂载**）、#41（通知 6/9 来源已端到端，仅 C 域两类 + 后置 @提及未接）。
 - **仍待外部**：#36/#37（C 的真实任务删除接线与 TaskSection 挂载）、#41（A/C 的真实生产方未接，最终 AC 不勾）、#44/#47/#49/#50（等 C 推送本域实现与接口事实，B 已于 #32 发出 6 项事实请求）、#57/#58（等 C 的 UML P2/P3 读侧服务）。
 - **已解除的旧阻塞**：D 的 #31 字段/端口提案、共享 AI 存储、D 的通知模块、C 的审阅入口、C 的 task 写窗口（PR #99）。**不再**作为当前阻塞。
-- **main 基线（独立 tester）**：`9160587` 上 `npm run typecheck` exit 0、`npx vitest run` **81 文件通过 + 1 跳过 / 1709 通过 + 12 todo / 0 失败**；通知三批合入后（`295e694`）最终全量：`typecheck` 0、**83 文件通过 + 1 跳过 / 1732 通过 + 12 todo / 0 失败**、`build:web` 0（`docs/ai-records/B/issue-22/B-I22-20261024-main-final-suite-01.md`）。
+- **main 基线（独立 tester）**：`9160587` 上 `npm run typecheck` exit 0、`npx vitest run` **81 文件通过 + 1 跳过 / 1709 通过 + 12 todo / 0 失败**；`295e694` 全量 83 文件/1732 例；合入 PR #109 后 `aa62c0d` 全量 **84 文件通过 + 1 跳过 / 1757 通过 + 12 todo / 0 失败**（`docs/ai-records/B/issue-34/B-I34-20261024b-a100-and-live-capabilities-01.md`）。
 
 ## 执行规则
 
@@ -151,12 +151,11 @@ Dependencies: #11 [FS]
 Note: **事件接入待 D 的 #37**（本批只留 `GanttEventPort` 占位、未接线）；写操作授权（`gantt.write`）与模型 / 迁移已交付。
 
 ## #13 落实真实任务入口的 FS 放行校验
-Status: in progress
+Status: done
 Outcome: 按 C2 批准规则执行、不能绕过的任务开工约束。
-Evidence: 共享守卫端口候选 `feat/fs-start-guard`：`8290349`（独立 tester 复验 45=28+17、task 412=367+45、typecheck 0；真实 REJECT 探针 HTTP200 进 DOING 证明旁路）→ 注释收口 `2e0d2f8`（typecheck 0、task 18 文件 412 例）。裁定文档已合入 main `f1ee977`（`scheduling.fs-enter-doing-all-paths`、`contract.fs-start-validation`）。
+Evidence: PR #114 → main `cc67e33`（A 的 `feat/acceptance-fs-guard@bffb575` 含 B 的 `2e0d2f8`）：`src/shared/task-execution.ts` 窄端口 + task PATCH 同事务校验 + 验收 REJECT 在**原事务内、CAS/记录/事件之前**调用、缺端口 fail-fast。整合分支 typecheck 0、task+acceptance+notification **25 文件 / 522 例**通过。**真实 HTTP 决定性证据**（隔离库）：前置仅 DONE → REJECT `422 VALIDATION_FAILED / status INVALID_VALUE`、任务仍 DONE、`AcceptanceRecord=0`、`acceptance.* 事件=0`；前置 CLOSED → `200` + `DOING` + 1 记录 + `acceptance.rejected`。记录 `docs/ai-records/B/issue-26/B-I26-20261024b-fs-dual-entry-01.md`。
 Done when: 按已确认 C2 实施：前置必须 `CLOSED`、`DONE` 不算，后继建议开始不早于前置计划结束次日，自然日含起止；明确真实任务开工路径的 owner 与实施范围；必要旧模块授权留痕；验证直接调用真实入口也拒绝未放行的后置开工，不仅依赖甘特按钮禁用，不新增镜像任务写路径；该甘特旧模块写入口仍按 B 既有授权 / 既定流程，不由 C 的 #32 写窗口例外覆盖。
 Dependencies: #12 [FS]
-Blocker: **A 验收 REJECT 仍未接**：全仓无业务调用 `taskStartGuard`，`submitAcceptance` 的 DONE→DOING 直接 `updateMany`，真实 HTTP 探针实测前置仅 DONE 仍 200 进 DOING。B 侧端口/装配/装配缺失 fail-fast 已就绪（未合 main，等 A 在同事务接入后整体合入）；`src/modules/acceptance/**` 属 A，B 不代改。合并前需两端真实入口覆盖并独立复验。
 
 ## #14 实现甘特时间轴页面
 Status: done
@@ -166,11 +165,12 @@ Done when: 支持故事展开、计划时间、汇总进度、里程碑和 FS �
 Dependencies: #11 [FS]
 
 ## #15 验收并交付甘特图
-Status: not started
+Status: in progress
 Outcome: GitHub #26 AC1–AC7 证据包及交付 C 域 GitHub #32 的数据契约。
+Evidence: 写路径/事件已由 #12（PR #68）与 #37（PR #90）覆盖；UI 走查见 PR #69 → 记录 PR #70（PM 编辑器 CRUD、重复/成环失败、MEMBER/VIEWER 无写控件、直连 MEMBER 403）。FS 真实开工路径随 #13 于 PR #114 覆盖（双入口 422/200 端到端）。
 Done when: 公共层（B 单写授权）完成必要路由与页面挂载；本模块测试与 `npm run typecheck` 通过；浏览器验证展开、汇总、里程碑；覆盖 FS、环、跨项目、敏感过滤及真实任务开工路径；C2 已确认口径留证；事件联调保留真实证据，不能只用模拟替代；未决或外部不可验证项不勾完成，不建立对 GitHub #32 的反向依赖。
 Dependencies: #12 [FS], #13 [FS], #14 [FS]
-Blocker: **部分解除**：D 的 #37 公共事件端口已合入（PR #90），#12 写路径已合入（PR #68）。**仍缺** #13 真实开工守卫（见 #13：验收 REJECT 未接，FS 整体不可合）；故本任务不勾 AC、不标完成。
+Blocker: **仅剩一次合并后浏览器复核**（展开/汇总/里程碑 + 跨项目/敏感过滤在 `cc67e33` 上重跑）。守卫是后端行为、不改前端，故属复核而非新实现。完成前不勾 #26 的最终交付。
 
 ## #16 提前完成故事看板方案与授权细化
 Status: done
@@ -360,12 +360,12 @@ Dependencies: none
 ## #41 验证通知公共接入
 Status: in progress
 Outcome: 通知基础真实接入、模块模拟与六类生产方联调的分栏证据。
-Evidence: 基础链路（真实订阅/入库/列表/未读计数/已读/页面）已实测：tester 探针（真实进程 12/12、可见性 10/10、投影与 404 同形）+ 主控浏览器走查（面板、未读 2→1）。真实生产方端到端：`task.overdue`、`milestone.due`（B 自产，由注入时钟探针覆盖 09:00 边界）、`risk.created`（A 风险域，面板可见）。
+Evidence: 基础链路 + **6/9 来源**已真实端到端：`task.overdue`、`milestone.due`（B 定时/注入时钟边界）、`risk.created`、`risk.level-raised`（MEDIUM→HIGH，2 条通知，latency≈1.5s）、`acceptance.approved`（1 条，≈1.6s）、`acceptance.rejected`（1 条，≈0.28s），全部 `withinDeliveryTarget=1`；真实 HTTP 能力清单 6 项 AVAILABLE。证据 `docs/ai-records/B/issue-34/B-I34-20261024b-a100-and-live-capabilities-01.md`。
 Done when: 相关测试/typecheck 与基础订阅/入库/查询/页面链路通过；≤60 秒从业务成功或条件成立计量；模拟生产者不替代六类真实生产方联调；生产方未齐或其他六状态转换未确认时相关最终 AC 不通过，不阻塞已明确基础链路的验证记录。
 Dependencies: #26 [FS], #38 [FS], #39 [FS], #40 [FS]
 
 ---
-Blocker: **六类真实生产方未齐**：`task.assigned`、`task.mentioned`（后置）、`acceptance.submitted/approved/rejected`、`risk.level-raised` 未接，能力如实 UNAVAILABLE；因此 **#34 最终 AC1/AC2 不勾**。里程碑的浏览器端到端受时间窗限制（09:00 上海），现仅有注入时钟探针证据。
+Blocker: **仍缺 3/9**：`task.assigned`、`acceptance.submitted`（C 域真实生产）、`task.mentioned`（明确后置）未接，能力如实 UNAVAILABLE，**#34 最终 AC1/AC2 不勾**。里程碑浏览器端到端仍受上海 09:00 时间窗限制（探针证据为准）。
 ## C #32 公共集成任务（本轮修订）
 
 本地 `#42–#50` 不是 GitHub 工单编号。这些是 B 侧为 C `#32` 提供的公共集成任务：C 负责业务 / 整份原子写 / 快照 / 幂等，B 只落公共声明 / 模型 / 权限 / 组装 / 挂载。**依赖只按真实接口 / 验收关系登记，不用优先级造边。** 历史修订时本节仅保存计划；随后本轮获准执行 `#43/#46` 的本地提案，其余按各项 Status / Evidence 为准。追加授权仅允许准备 `#03/#42` 本地待发布文本，不发布、不编码；当前进度见各项证据。
@@ -502,21 +502,21 @@ Done when: 模型 / 迁移 / 测试基建 / 权限动作齐备并验证；不新
 Dependencies: #55 [FS]
 
 ## #57 US-15 UML P2/P3：本域类型与端点（C 实现，B 复核）
-Status: not started
-Note: P1 已就绪（`d8315c4`）。**B 侧已补写侧缺口**：后置标敏粘性置位已合入 main `9160587`（PR #103，`setSensitivity` 同事务置 `everRestricted`）。仍等 ROLE-C 开 P2/P3（`src/modules/uml/*` 服务与 6 端点）。
+Status: done
+Note: P1 `d8315c4`；C 的 P2/P3 于 `feat/US15-uml@7b2f27e` 交付并经 B 独立评审「可挂载」（无 CRITICAL/HIGH；`src/modules/uml` 85 例 + 合并后 92 例通过；零公共文件越界）。C 的非阻断项见评审记录。
 Outcome: C 域 UML 服务与 6 个端点实现，含可见性交集、整图替换、校验与错误映射。
+Evidence: 独立评审 `docs/ai-records/B/issue-35/B-I35-20261024-uml-p2p3-review-01.md`；合并 PR #117 → main `982f850`。
 Done when: C 交付并给出测试证据；B 复核通过（不越权、不泄漏不可见关联、404 文案统一、无镜像写路径）。
 Dependencies: #56 [FS]
-Blocker: C 远端 `feat/US15-uml` 目前只到 P1 守卫（`ea81e4e`/`cefe96c`），选择器 `86b3b02` 本地未推送；UML 读侧 `everRestricted = false` guard 与端点均未落地，B 不代写 C 域。
 ## #58 US-15 UML P4/P5：注册行 + 骨架挂载 + 路由文档
-Status: not started
+Status: done
 Note: 等 P3 导出 `registerUmlRoutes` 后由 B 落笔（`src/routes.ts` 注册行、`web/src/routes.tsx` 路由行、`ProjectLayout.tsx` 左导航行、`docs/frontend-routes.md` 表行）；页面本体归 C（`web/src/pages/uml/**`）。
 Outcome: 端点与页面在公共层挂载完成，路由文档同步。
+Evidence: PR #117 → main `982f850`：`src/routes.ts` 注册行、`web/src/routes.tsx` 路由行、`ProjectLayout` 导航行、`docs/frontend-routes.md` 表行；`typecheck` 0、`build:web` 0、6 文件 141 例。真实 HTTP 矩阵：置敏前 member1 200/1-1 → 置敏后 404（与不存在 id 逐字一致）/0-0 → 解绑后**仍 404**（`everRestricted=1`、关联 0）。浏览器：PM 页面可打开、SVG 4 节点 3 边、选择器显示已选关联。记录 `docs/ai-records/B/issue-35/B-I35-20261024-uml-p4p5-mount-01.md`。
 Done when: 注册行 / 路由行 / 导航行 / 文档行落笔并验证（`typecheck` + 浏览器走查）；同一时刻同一文件单写。
 Dependencies: #57 [FS]
 
 ---
-Blocker: 等 C 的 P3 导出 `registerUmlRoutes` 后 B 才能落注册行/路由行/导航行/文档行；当前仅写侧粘性置位在 main，无读侧服务可挂载。
 ## 估算拆分（本轮修订口径）
 
 仅为 B 侧工作量初估，不是追加预算或整体延期批准，也不要求原 18 人日无条件吸收。新任务编号不是预算归属：文档/提案协调仍计原统筹项，原 B 票的模型/挂载/验证不重复收费。

@@ -1,0 +1,51 @@
+
+ RUN  v2.1.9 /home/lee/aim-wt/b-a100-integration
+
+ ✓ src/modules/notification/service.test.ts (24 tests) 10ms
+ ✓ src/modules/notification/review-regression.test.ts (9 tests) 27ms
+(node:5223) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5126) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5125) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5145) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5124) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5157) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5196) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ src/modules/notification/plugin.test.ts (5 tests) 2061ms
+ ✓ src/db/event-repository.test.ts (11 tests) 2646ms
+ ✓ src/db/notification-http.test.ts (7 tests) 2817ms
+ ✓ src/db/notification-runtime.test.ts (16 tests) 3593ms
+ ✓ src/modules/acceptance/acceptance-events.test.ts (10 tests) 4083ms
+ ✓ src/modules/risk/closure.test.ts (13 tests) 4818ms
+   ✓ AC4 任务侧阻断 > 计数精确、清单有上限：55 个未关闭任务 ⇒ total=55、rows=50 490ms
+ ✓ src/modules/risk/risk-events.test.ts (25 tests) 7071ms
+ ✓ src/modules/acceptance/acceptance.test.ts (37 tests) 11959ms
+   ✓ AC3 通过验收 > 验收人 PASS：任务变 CLOSED，且从任务详情接口读得回来（读-写-读闭环） 385ms
+   ✓ AC3 通过验收 > 通过时留的原因会被记录（选填） 351ms
+   ✓ AC3 通过验收 > 未提交验收（TODO / DOING / BLOCKED / SUSPENDED）一律 409，且状态未变、无记录落库 429ms
+   ✓ AC4 驳回验收 > 验收人 REJECT：任务回到 DOING，原因逐字落库 374ms
+   ✓ AC4 驳回验收 > 驳回而不给原因 → 422 reason: REQUIRED（服务端强制，不靠界面） 368ms
+   ✓ AC5 重验与可追溯 > 提交 → 驳回 → 再提交 → 通过：两条记录、旧到新、字段齐备 373ms
+   ✓ AC1 授权：只有验收人（与 PM）能验收 > 合法验收人提交非法结论 → 422 conclusion: INVALID_VALUE（中文标签不是线上常量） 329ms
+   ✓ 验收清单 scope=owner：我负责的、被驳回的任务 > 不传 scope 时默认 acceptor（原行为不变；被驳回的任务**不**出现在默认清单） 311ms
+ ✓ src/modules/risk/risk.test.ts (42 tests) 12857ms
+   ✓ AC3 风险三级四态 > 新建风险：默认「未处理」，级别与负责人按请求落库 315ms
+   ✓ AC3 风险三级四态 > 三个级别都能建（高 / 中 / 低） 362ms
+   ✓ AC3 风险三级四态 > ★ 级别非法值 → 422 INVALID_VALUE 301ms
+   ✓ 创建风险：状态只能是「未处理」 > ★ 收窄不改变鉴权顺序：MEMBER 422 / VIEWER 403 / outsider 404 / 未登录 401 381ms
+   ✓ 创建风险：状态只能是「未处理」 > 封死的是「创建」，不是「流转」：建成后仍能一路走到已关闭 348ms
+   ✓ AC3 四态流转 > 未处理 → 处理中 → 已解决（需解决说明）→ 已关闭 302ms
+   ✓ 授权：风险写权限 = PM + MEMBER；VIEWER 只读 > ★ 成员只能流转**自己负责**的风险（公共层 risk.flow 对象关系判定，2026-10-18 落地） 359ms
+   ✓ 排序：未处理排前、高危优先 > ★ 清单按「状态 → 等级 → 创建时间」排序，而不是字典序 348ms
+
+ Test Files  11 passed (11)
+      Tests  199 passed (199)
+   Start at  13:09:12
+   Duration  13.63s (transform 1.07s, setup 0ms, collect 4.64s, tests 51.94s, environment 2ms, prepare 558ms)
+

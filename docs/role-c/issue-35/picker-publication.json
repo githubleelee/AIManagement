@@ -1,0 +1,27 @@
+{
+  "branch": "feat/US15-uml",
+  "implementationCommit": "86b3b02",
+  "baseCommit": "ea81e4e",
+  "includedMain": "0998f626df3459a709370bfb59d938dde77658ed",
+  "push": {
+    "status": "not_executed",
+    "reason": "Automatic tool review failed before command execution, including explicit user reauthorization and resubmission for review. No force push, account/transport change, or review bypass performed.",
+    "verifiedRemoteHead": "ea81e4ec64b6fdcb6581a5e618b8bfca578b5ee4",
+    "remoteVerification": "Independent git ls-remote after blocked push attempts"
+  },
+  "comment": {
+    "url": "https://github.com/githubleelee/AIManagement/issues/35#issuecomment-6366947085",
+    "author": "brucelyce-ux",
+    "bodyFile": "picker-delivery-comment.md",
+    "readBackVerified": true
+  },
+  "verification": {
+    "targetedHttpPassed": 94,
+    "browserPassed": 13,
+    "typecheck": "server and web passed",
+    "build": "server, production web and both C verification entries passed",
+    "fullSuite": "incomplete: bounded 180 seconds, exit 124, old worker crash not reproduced",
+    "earlyBrowserFailures": "Two earlier intermittent waits failed; root cause unproven. Final complete runs passed; diagnostics and failures retained."
+  },
+  "acceptance": "C independent work delivered locally; formal mounting, task anchor and late-sensitivity propagation still require B and subsequent verification"
+}
