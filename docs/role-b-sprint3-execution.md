@@ -10,8 +10,8 @@
 
 | 项 | 当前状态 | 范围 / 交付条件 |
 |---|---|---|
-| S3-B-01 | 已实现并定向验证，待发布 | PB-01：tx-aware 授权、SCHEDULING 专项 PM-only 读/审计、统一日期写端口、成功审计和事务外最小失败证据。不得改变通用 AI 读取/审计权限，不新增未经确认的 Action。 |
-| S3-B-02 | 已实现并定向验证，待发布 | PB-01：C 工厂后端正式注册、依赖注入；前端 SchedulingPage 的正式路由/导航与身份切换隔离。保留服务端逐请求鉴权，不用 demo 入口。 |
+| S3-B-01 | 已交 PR #123，待 A 复核 | PB-01：tx-aware 授权、SCHEDULING 专项 PM-only 读/审计、统一日期写端口、成功审计和事务外最小失败证据。不得改变通用 AI 读取/审计权限，不新增未经确认的 Action。 |
+| S3-B-02 | 已交 PR #123，待 A 复核 | PB-01：C 工厂后端正式注册、依赖注入；前端 SchedulingPage 的正式路由/导航与身份切换隔离。保留服务端逐请求鉴权，不用 demo 入口。 |
 | S3-B-03 | 依赖已进 main | PB-01：D 的 SCHEDULING 模型端口已独立评审（无高危/阻断项）及定向验证（61例、两端typecheck）；PM 已合 `33e03ca`，当前 main `4dbd1ba`。B 接续注入，不再等D交付；真实供应商/凭据未选仍显式不可用，不声称真实大模型验收。 |
 | S3-B-04 | B 范围验证通过，C 最终门禁另行接续 | B 装配的真实 HTTP/SQLite、PM/MEMBER/VIEWER/outsider、撤权重试、事务回滚和前端正式入口。C 的 12 个最终门禁仍由 C 收口，不用 fixture 代签。 |
 | S3-B-05 | 等交接 / 裁定 | PB-06 任务锚点由 C 提交、B 最小挂载；PB-09 里程碑可见性维持现有 fail-closed，变更先由负责人裁定。 |
@@ -60,3 +60,12 @@ B 已解除自己施加的跨票等待，继续自己文件内的实现；**尚�
 - 主控真实浏览器完成 PM 正式入口/无配置失败态、MEMBER/VIEWER 不加载排期、outsider 项目隔离；[证据](ai-records/B/issue-32/evidence/B-I32-20261024-s3-browser.md)。成功日期处置的证据是独立 HTTP/SQLite + 明确合成模型，未冒充浏览器或真实外部 AI。
 - 用户已明确授权提交、推送独立分支并创建 PR；**不合 main、不关票、不改 C 验收状态**。实际 SHA/PR 发布后追加。
 - 详细装配端口、配置、边界与交接见 [生产装配交接](role-b-scheduling-production-handoff.md)。
+
+### 追加实际交付（2026-10-24 18:59 Asia/Shanghai）
+
+- 源提交 `039d0ede39f8a8e3930ea6e7bb42501de9673da7` 已实际推送，GitHub API 回读 ref 一致；[PR #123](https://github.com/githubleelee/AIManagement/pull/123) 已创建，未合 main。
+- [向 C 交确切 SHA/端口/配置](https://github.com/githubleelee/AIManagement/issues/32#issuecomment-6383376476)、[向 A 交 DRI 复核入口](https://github.com/githubleelee/AIManagement/issues/20#issuecomment-6383379885)、[#120 双道执行回执](https://github.com/githubleelee/AIManagement/issues/120#issuecomment-6383383774)。不再是“B 只有本地代码/无 SHA”；C 可基于分支接续，不等附件整票。
+- B 的 `workflow.db.test.ts` 单文件修正窗口结束并交回 C；task/TaskSection 窗口仍不占用。A/C 尚未回本轮最终验收，不冒充对方已通过。
+- 推送出现 Windows 凭据助手对 Linux worktree 路径的警告，但命令 exit 0；独立 API 确认远端提交成功，未把该警告隐去，也未误记为推送失败。
+- D 模型非阻断跟进已[回交原 owner](https://github.com/githubleelee/AIManagement/pull/122#issuecomment-6383299717)，不占其业务文件、不成为附件前置。
+- 后续提交只补发布回执文档，不改变上述已验证源代码。
