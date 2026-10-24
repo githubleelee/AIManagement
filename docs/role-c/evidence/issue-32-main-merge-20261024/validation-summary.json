@@ -1,0 +1,35 @@
+{
+  "mainBaseline": "e7bc546571662b2374f7496cb44f621ef2340d83",
+  "testedIntegration": "43f1a704e6b2928068be92a8ed9649bae069ea5e",
+  "capturedAt": "2026-10-24T08:21:41.687Z",
+  "reports": {
+    "backend-result": {
+      "success": true,
+      "total": 239,
+      "passed": 227,
+      "failed": 0,
+      "todo": 12
+    },
+    "frontend-result": {
+      "success": true,
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "todo": 0
+    }
+  },
+  "cSourceHashMismatches": [],
+  "typechecks": {
+    "server": "exit0",
+    "web": "exit0",
+    "serverBuildTypes": "exit0"
+  },
+  "webBuild": "exit0",
+  "browser": {
+    "passed": 8,
+    "mode": "synthetic-component-only",
+    "finalUS12Acceptance": false
+  },
+  "fullSuitePassed": false,
+  "finalUS12Acceptance": false
+}
