@@ -1,0 +1,16 @@
+{
+  "kind": "synthetic-component-only",
+  "finalUS12Acceptance": false,
+  "checks": [
+    "authorized synthetic list/detail render",
+    "sanitized date assessment warnings and workload render",
+    "lost response after synthetic server commit locks unresolved input",
+    "retry preserves request id and applies once in synthetic transport",
+    "stale source blocks adoption but permits rejection with reason",
+    "HTTP-style 403 clears detail and draft",
+    "mount authorization revocation unmounts workspace",
+    "no uncaught browser exceptions"
+  ],
+  "passed": 8,
+  "exceptions": []
+}

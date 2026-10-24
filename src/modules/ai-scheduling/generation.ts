@@ -126,9 +126,12 @@ export function createSchedulingGenerator<TTransaction>(ports: SchedulingGenerat
           if (assessment.blockers.some((blocker) => blocker.code !== 'PRIVATE_VALIDATION_REQUIRED')) error = invalidResponse
           else suggestion = output.data
         }
-      } catch {
-        // Never persist provider exception text, raw output, credentials or prompts.
-        error = generationFailed
+      } catch (cause) {
+        // Only shared failure tags are recognized; never persist provider exception text.
+        const code = typeof cause === 'object' && cause !== null && 'code' in cause ? cause.code : undefined
+        error = code === 'AI_TIMEOUT' ? { code, message: '排期模型调用超时', retryable: true }
+          : code === 'AI_SERVICE_UNAVAILABLE' ? { code, message: '排期模型暂不可用', retryable: true }
+          : code === 'AI_INVALID_RESPONSE' ? invalidResponse : generationFailed
       }
       const generatedAt = ports.now().toISOString()
       const saved = await ports.transaction(async (tx) => {
@@ -173,7 +176,8 @@ export function createSchedulingGenerator<TTransaction>(ports: SchedulingGenerat
             fingerprint: canonicalAiJsonDigest(snapshot), fingerprintAlgorithm: SHA256_CANONICAL_JSON_V1,
           },
           model: prepared.descriptor,
-          generation: { requestId: request.requestId, status: error ? 'FAILED' : 'SUCCEEDED', generatedAt, error },
+          generation: { requestId: request.requestId,
+            status: error?.code === 'AI_TIMEOUT' ? 'TIMED_OUT' : error ? 'FAILED' : 'SUCCEEDED', generatedAt, error },
           generatedByUserId: request.actorUserId, suggestion,
           disposition: {
             status: 'PENDING', requestId: null, contentDigest: null, disposedByUserId: null,
