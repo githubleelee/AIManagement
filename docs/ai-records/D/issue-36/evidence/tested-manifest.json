@@ -1,0 +1,25 @@
+{
+  "main": "014555ba7843863ef7230956b89081b8ccd2f461",
+  "D_head": "8a4a328a4d09f493ef204e546f1c0f9f83100ed9",
+  "B_candidate": "3086cee97540fec0bea0c6715e6d04b4d4407f3f",
+  "files": {
+    "src/app.ts": "3f550c5ccc7fe923e0bd38142328210aa177de34420c576e864a949e2eae1a09",
+    "src/routes.ts": "f3621b7a8a8ba17088f238897e8709357cdd5cbb9a545a1f20861a0c635c8e0e",
+    "src/db/schema.prisma": "a3761bf975f373d43b063c8e2e92eb671ec2bf1d9200f881dba6cf9b344ca2ab",
+    "src/modules/task/routes.ts": "d7dfeda90379d7315d0d03be955ba2a94493aa394e0f9b5922066285bae141cb",
+    "web/src/pages/attachment/TaskAttachmentPanel.tsx": "51e0d95b5a05d61f02e748a64cb06920ccda71c55976fa55b511faf3824e42b2",
+    "src/modules/attachment/plugin.ts": "3a03ad5a7e0f8ee1865e3691f00d2fa3e65b16fe2d729aaea1348749ca4ca6f0",
+    "src/modules/attachment/in-memory-repository.ts": "534c3bb6fd1fe0b3de94330a4f4279fb09f848e19270c393d057ee9cd1dcc4dd",
+    "src/modules/attachment/service.test.ts": "6b41a1a8d0f786bb76a3afd3b7f4be3760e5f9111ba08b9cb46b5b4a784fc5c1",
+    "src/modules/attachment/errors.ts": "9f6376f8092ee907ba2ee651300b523d31c713e34138137ef4511f6d799b3752",
+    "src/modules/attachment/plugin.test.ts": "645e2c5d4253555779af9f07e6c5e4ac81cfffa87da4aa1310a6a9d4de210d21",
+    "src/modules/attachment/local-storage.ts": "d5c404d7208eaaa24418d2a87c38a37fb9fa3ac180f58b99cfe09376f58c9e19",
+    "src/modules/attachment/local-storage.test.ts": "ef14124e1f2fe366cafda61c78c96cc547ed3b7c6e69e8d9d6958c22d18eed1c",
+    "src/modules/attachment/contracts.ts": "1b3bcc08893b3ffc0c339f7156eb04b041adccb6a679e9f1ed1a4eda6eafe27f",
+    "src/modules/attachment/service.ts": "df0454f1868a5314188b625037a282fddac06427cf076b539f2c7a1faee752cc",
+    "src/modules/attachment/index.ts": "1d1aeb26036147d012a0bc0cd2a4af983df70eed3eaa9dcb3c98b70e3767d5b3"
+  },
+  "node": "v24.19.0",
+  "browser": "@sparticuz/chromium 153.0.0 via npm; Playwright bundled runtime",
+  "database": "fresh temporary migrated SQLite; synthetic fixtures only; no database file in deliverable"
+}
