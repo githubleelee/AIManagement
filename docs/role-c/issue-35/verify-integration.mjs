@@ -339,6 +339,17 @@ try {
     assert(!requests.slice(before).some(request => request.path.includes('unknown-synthetic-id')))
     await page.screenshot({ path: path.join(evidence, 'formal-task-anchor.png'), fullPage: true })
   })
+  if (formal) await check('VIEWER hidden-task hash never focuses or requests the hidden task', async () => {
+    await page.evaluate(token => localStorage.setItem('aim.token', token), fixture.viewerToken)
+    const before = requests.length
+    await page.goto(`${fixture.url}/projects/${fixture.projectId}/requirements/${fixture.storyId}#task-${fixture.restrictedTaskId}`)
+    await page.locator(`[id="task-${fixture.taskId}"]`).waitFor()
+    assert.equal(await page.locator(`[id="task-${fixture.restrictedTaskId}"]`).count(), 0)
+    assert.notEqual(await page.evaluate(() => document.activeElement?.id), `task-${fixture.restrictedTaskId}`)
+    assert.equal(await page.getByText('合成敏感任务', { exact: true }).count(), 0)
+    assert(!requests.slice(before).some(request => request.path === `/api/tasks/${fixture.restrictedTaskId}`))
+    await page.screenshot({ path: path.join(evidence, 'formal-hidden-anchor.png'), fullPage: true })
+  })
   assert.equal(pageErrors.length, 0, JSON.stringify(pageErrors))
   assert(requests.filter(r => r.method !== 'GET').every(r => r.hasAuthorization))
   await writeFile(path.join(evidence, 'integration-browser-results.json'), JSON.stringify({ checks, requests, pageErrors,
