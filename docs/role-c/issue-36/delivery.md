@@ -30,19 +30,22 @@
 - 新增5项纯函数往返Vitest，覆盖反向/双向association、null标签、三类消息、自消息、换序与服务端seq权威、非法端点拒绝；未mock业务或改公共测试配置。
 - 修过期sticky注释、旧verification历史导航。LOW计时型存在性差异仍列已知非阻断项，不声称做到了常数时延。
 
-## 实测（本批固定组合基线）
+## 实测（最终组合基线 main d898cdd，HEAD 0f13a3e 之后）
 
 | 范围 | 实际结果 | 证据 |
 |---|---|---|
+| 最终组合全量（UML+authz+附件+task消费+骨架+schema） | **17 文件 / 218 passed / 0 failed / 0 todo，84.97 秒，exit 0** | evidence/final-combined-regression.txt |
 | 新C真实DELETE生命周期 | 7 passed，40.35秒，exit0 | evidence/lifecycle-http.txt |
-| 附件/D模块/B仓储清理/骨架/schema/新C生命周期 | 9个实际文件/107 passed/0todo，59.53秒，exit0 | evidence/attachment-regression-results.json及txt |
-| 正式TaskSection Chromium | 最终9项通过，20.46秒，exit0 | evidence/formal-browser-results.json、formal-browser-seeded.txt、截图（初轮formal-browser.txt保留） |
-| UML评审分支HTTP+schema+authz | 110 passed/0todo，37.84秒，exit0 | issue-35/evidence/review-http-results.json及txt（在UML worktree执行） |
+| 新C上传输入 413/415/422 + 250 文件 | 1 passed（含 250 次真实上传），9.84秒，exit0 | evidence/latest-input-http-4.txt |
+| 附件/D模块/B仓储清理/骨架/schema/新C生命周期 | 9个文件/107 passed，54.02秒，exit0 | evidence/latest-attachment-regression-results.json |
+| 正式TaskSection Chromium | 9项通过，21.33秒，exit0 | evidence/formal-browser-results.json、formal-browser-seeded.txt |
+| UML评审分支HTTP+schema+authz | 110 passed/0todo，exit0 | issue-35/evidence/review-http-results.json |
 | UML纯映射往返 | 5 passed，exit0 | issue-35/evidence/review-roundtrip.txt |
-| 正式UML路由/导航/任务行 Chromium | 最终16项通过，27.72秒，exit0 | evidence/uml-formal-browser-seeded.txt、issue-35/evidence/formal/integration-browser-results.json、截图（23.37秒独立诊断轮也保留） |
-| 组合server typecheck | exit0，13.93秒 | evidence/typecheck-final.txt |
-| 组合web typecheck | exit0，5.42秒 | evidence/typecheck-web-final.txt |
-| server build / web build | exit0，8.41 / 1.87秒 | evidence/build-server.txt、build-web.txt |
+| 正式UML路由/导航/任务行 Chromium | 16项通过，28.03秒，exit0 | evidence/latest-formal-uml.txt、issue-35/evidence/formal/ |
+| 组合server/web typecheck | exit0，14.95 / 8.70秒 | evidence/latest-typecheck-server.txt、latest-typecheck-web.txt |
+| server build / web build | exit0，5.58 / 2.11秒 | evidence/final-build-server.txt、final-build-web.txt |
+
+**前一版“JSON success=true 但 exit1、4 项 pending”的组合运行已被本次 218 项完整 exit0 取代**，旧日志与 result-summary.json 仍保留作为历史，不再引用为当前结论。
 
 ### 真正验证的关键行为
 
@@ -56,9 +59,9 @@
 
 1. 扩充的VIEWER隐藏hash用例首轮在只换localStorage+hash导航时保留了旧PM React树，错误观察到隐藏行。已修fixture：身份切换后真正reload重新装载AuthContext，未改任何拒权断言；最终隐藏行0、无隐藏详情请求。失败日志uml-formal-browser-final.txt保留。
 2. 一轮formal浏览器在POST时ERR_CONNECTION_RESET、后续连接拒绝，未证明根因；增加fixture退出码/stderr诊断后独立运行完整16项通过。失败uml-formal-browser-rerun.txt/失败JSON保留，不把复跑绿说成已定位修复。
-3. 组合UML联合测试exit1，Vitest警告“tests still running when generating JSON”；JSON自报success=true但passed=106/total110，4项assertion仍pending（即使各file标passed）。**本轮按失败/不完整记录，不能信success一项造绿**。result-summary.json列出全部不一致。仅对受影响的uml.http.test.ts独立复核54项全过（36.64秒），不把跨轮计数累加为组合全量通过。
-4. 旧worker异常/全量测试可靠性仍未证明修复；没有改共享pool/timeout/断言或跳过失败来造通过。本批没有重跑全库。
-5. 提交后附件最终复核在fixture签发会话阶段报SQLite database is locked，尚未进入业务断言（formal-browser-final.txt保留）。核对test/http-support.ts确认loginAs是同步DatabaseSync写，而原脚本在app.listen启动真实后台写者后才签会话；已将两个C浏览器fixture的会话生成前移到listen之前。没有修改公共helper、禁用生产worker或添加重试掩盖错误。随后同组合上附件9项、UML16项重新完整通过。此定位仅解释本次bootstrap写锁，不擅自归因上面的旧连接重置或Vitest pending。
+3. 组合UML联合测试（旧组合头）出现 Vitest JSON success=true / exit1 / 106 passed 且 4 pending 不一致；该批原始报告保留。**最终组合头已重跑 218 项、17 文件全 passed、exit0、无 pending**，以该次为准；但仍不把定向范围冒称全库绿。
+4. 新增的上传输入用例首两版断言有误（把 10,000,001 B 当框架 413、把列表当裸数组），实测纠正为 D 契约：10,000,001 B = 业务 422 TOO_LONG，10,000,002 B = 框架 413，列表 = `{ total, items }`。真实 TCP 客户端在超 bodyLimit 时会被服务端中断（ECONNRESET），故框架 413 用同一生产 app 实例 inject 断言，与 D 自身插件测试一致；未放松任何阈值或改产品代码。
+5. 旧worker异常/全量测试可靠性仍未证明修复；没有改共享pool/timeout/断言或跳过失败来造通过。本批没有重跑全库。
 6. 已失关联且无可靠历史证据的旧UML图，当前表不能重建完整历史，尚不能提供全覆盖保护证明；仍需负责人/B按既定未知历史保护口径收口。读侧业务不能擅自把未知历史当普通公开；本批可构造的真实生命周期已验证，不冒称历史治理完成。
 
 未合PR/关闭工单/改main；只推本票分支，实际SHA与公开回帖见后续发布回执。源码/数据/凭据均不从真实开发环境取用。C旧文件补丁交付后停止继续双写，B可按回执组合复核；后续增量再登记窗口。
