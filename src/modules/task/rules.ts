@@ -17,6 +17,7 @@
 import type { Prisma, PrismaClient, Task } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
 import type { FieldError } from '../../shared/types.js'
+import type { TaskStartGuardInput, TaskStartGuardPort } from '../../shared/task-execution.js'
 
 /**
  * 创建与编辑共用的业务规则入参：必须是「合并后的最终值」。
@@ -103,14 +104,88 @@ export async function assertTaskAssignment(
  * Caller owns authorization, input shape checks, and (for a batch) the transaction.
  * This does not add US12-only TODO/FS/snapshot rules to ordinary manual PATCH.
  */
-export type TaskWriteDb = Pick<Prisma.TransactionClient, 'task' | 'projectMember'>
+export type TaskWriteDb = Pick<Prisma.TransactionClient, 'task' | 'projectMember' | 'taskDependency'>
 export type AssignedTaskWrite = TaskAssignmentInput & Partial<Pick<Task,
   'title' | 'description' | 'status' | 'progress' | 'blockedReason'>>
+
+/** FS 放行守卫的**静态通用消息**（`DECISIONS.md` `contract.fs-start-validation`）：前置未
+ * `CLOSED` 与计划边界未满足都复用这一条文案，仅用字段码 `status: INVALID_VALUE` /
+ * `planStart: INVALID_VALUE` 区分**条件类别**；只暴露类别，不返回任何前置的 ID / 标题 /
+ * 正文 / 日期 / 状态清单或数量。顶层码与字段码均取自决策 I-4 冻结表，未新增任何错误码。
+ */
+const FS_START_NOT_ALLOWED = '当前条件不允许开始执行'
+
+/**
+ * FS 开工守卫（`DECISIONS.md` `scheduling.fs-release-closed-natural-days` 与
+ * `legacy.task-start-guard-authorization`；触发面经项目负责人 2026-10-23 裁定）。
+ *
+ * **触发面 = 任何从非 `DOING` 进入 `DOING`**（首次 / 恢复 / 重开及验收 `REJECT`）。
+ * 当前已是 `DOING` → 直接返回（同值编辑不算“新进入”，不重复校验）。
+ * 只改计划日期（`applyTaskPlanDates`，`values.status === undefined`）不改变状态，
+ * 因此不属于开工，不会被本守卫拦下；普通 PATCH 只改 `title / planStart` 等字段时
+ * `merged.status` 仍等于原状态，也不会把「TODO 计划编辑」误判为「前置关闭后才可规划」。
+ *
+ * 入参是**调用方的事务客户端**（`TaskStartGuardPort` 的实现）；守卫绝不自行开启 / 提交事务，
+ * 前置读取与调用方后续真实写入同事务。传根 `PrismaClient` 会 fail-fast，避免形成
+ * 「读在两语句之外、写不原子」的绕过路径。
+ *
+ * 校验内容（只读**同一事务**内的真实 FS 前置，`orderBy predecessorTaskId asc` 保证确定性）：
+ *   1. 每个 FS 前置必须 `CLOSED`（`DONE` 不算验收通过）；
+ *   2. 本次进入 `DOING` 的 `planStart` 必须晚于前置 `planEnd` —— `YYYY-MM-DD` 字典序即自然日序，
+ *      「晚于」等价于「不早于次日」（含首尾、Asia/Shanghai，日期不落时区）。
+ *
+ * 前置对调用者是否可见不影响服务端校验；失败只抛冻结码、不回传任何前置正文（契约 I-3）。
+ *
+ * 跨域调用只准经 `src/shared/task-execution.ts` 的 `TaskStartGuardPort`（由唯一组装点
+ * `src/app.ts` 注入），**不要直接 import 本函数**（契约 I-9「不跨模块调 service」）。
+ * 本导出仅供该组装点与同域（`task/`）调用。
+ */
+export async function assertTaskCanEnterDoing(
+  db: TaskWriteDb,
+  input: TaskStartGuardInput,
+): Promise<void> {
+  const { projectId, taskId } = input
+  // 调用方必须传自己的事务客户端：本守卫的读取 / 校验要与后续真实写入同事务。
+  if ('$transaction' in db) {
+    throw new Error('FS 开工守卫需要调用方事务客户端，不接受根 PrismaClient（非原子读后写）')
+  }
+  // projectId 强校验：findUnique 带非唯一列 projectId，越项目 / 不存在一律不可访问。
+  const current = await db.task.findUnique({
+    where: { id: taskId, projectId },
+    select: { status: true, planStart: true },
+  })
+  if (!current) {
+    throw new AppError(404, 'NOT_FOUND', '资源不存在')
+  }
+  // 已是 DOING：同值编辑不算“新进入”，不重复校验。
+  if (current.status === 'DOING') return
+
+  // 未显式给出新计划时，用同一事务内读到的当前计划（不回传正文）。
+  const nextPlanStart = input.nextPlanStart ?? current.planStart
+
+  const predecessors = await db.taskDependency.findMany({
+    where: { projectId, successorTaskId: taskId, type: 'FS' },
+    orderBy: { predecessorTaskId: 'asc' },
+    select: { predecessor: { select: { status: true, planEnd: true } } },
+  })
+  for (const edge of predecessors) {
+    if (edge.predecessor.status !== 'CLOSED') {
+      throw validationError(FS_START_NOT_ALLOWED, [{ field: 'status', code: 'INVALID_VALUE' }])
+    }
+    if (nextPlanStart <= edge.predecessor.planEnd) {
+      throw validationError(FS_START_NOT_ALLOWED, [{ field: 'planStart', code: 'INVALID_VALUE' }])
+    }
+  }
+}
 
 export async function writeAssignedTask(
   db: TaskWriteDb, projectId: string, taskId: string, values: AssignedTaskWrite,
 ): Promise<Task> {
   await assertTaskAssignment(db, projectId, values)
+  // 只有「进入 DOING」才是开工；日期 / 其它字段写入不算。
+  if (values.status === 'DOING') {
+    await assertTaskCanEnterDoing(db, { projectId, taskId, nextPlanStart: values.planStart })
+  }
   return db.task.update({
     where: { id: taskId, projectId },
     data: {
@@ -123,6 +198,19 @@ export async function writeAssignedTask(
 }
 
 export type TaskPlanDates = { taskId: string; planStart: string; planEnd: string }
+
+/**
+ * 供**唯一组装点** `src/app.ts` 装配 `RouteContext.taskStartGuard` 的端口实现。
+ *
+ * 直接复用上面的同一 `assertTaskCanEnterDoing`（不是第二套复制实现，也没有
+ * no-op / 默认放行）。调用方（例如验收 `REJECT`）只依赖 `TaskStartGuardPort`，
+ * 不 import 本模块；`TTransaction` 按其事务客户端类型实例化。
+ */
+export function createTaskStartGuardPort<TTransaction extends TaskWriteDb>(): TaskStartGuardPort<TTransaction> {
+  return {
+    assertCanEnterDoing: (transaction, input) => assertTaskCanEnterDoing(transaction, input),
+  }
+}
 
 /** Not a route or an authorization boundary. Use only inside the caller's transaction.
  * B will expose/assemble the cross-domain port; C must not import task services.
