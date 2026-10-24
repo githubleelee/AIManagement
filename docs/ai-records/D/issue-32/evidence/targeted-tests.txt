@@ -1,0 +1,12 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+ RUN  v2.1.9 /workspace/scratch/05204396b77e/ai-scheduling-update
+
+ ✓ src/modules/ai/scheduling-provider.test.ts (54 tests) 312ms
+ ✓ src/modules/ai/scheduling-compatibility.db.test.ts (7 tests) 1774ms
+
+ Test Files  2 passed (2)
+      Tests  61 passed (61)
+   Start at  17:14:52
+   Duration  2.83s (transform 546ms, setup 0ms, collect 921ms, tests 2.09s, environment 0ms, prepare 160ms)
+

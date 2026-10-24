@@ -14,5 +14,10 @@
  *   - 增量：`AttachmentCleanupBatchResult`（B 的全局清理批次结果）与
  *     `TaskAttachmentLifecyclePort`（业务域删除路径的窄生命周期端口）。
  *   - D 的列表契约为**完整数组**，故不引入列表行数上限常量。
+ *
+ * 授权语义（随契约一并保留，阅读实现时仍需遵守）：
+ * 正式适配器必须现查任务、项目成员、角色与敏感白名单。
+ * WRITE 复用 task.progress：PM / 具备该能力的任务负责人可写；其他成员只读。
+ * 不可见对象和 outsider 返回 404，不在模块内新增 Action 或角色判断。
  */
 export * from '../../shared/attachments.js'

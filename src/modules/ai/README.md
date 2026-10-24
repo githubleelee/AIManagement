@@ -40,3 +40,15 @@ ROLE-B 已完成公共数据库仓储、权限适配、app 组装和正式路由
 
 “正式应用”没有公开 HTTP 端点。原因是负责人尚未确认应用目标是任务、故事还是验收标准；
 服务只预留 `recordApplicationResult()`，避免角色 D 自行拍定业务规则。
+
+
+## 2026-10-24：#32 排期模型端口补齐
+
+新增 `scheduling-provider.ts`，由 factory 导出 `createSchedulingAiModelPort` 与
+`createSchedulingAiModelPortFromEnvironment`，供 B 将外部 Chat Completions JSON
+适配器注入 C generator。只支持 SCHEDULING，不改需求拆解本地桩、业务规则或公共装配。
+仅批准的非敏感合成数据可外发，配置缺失/调用失败不静默回桩，输出只允许范围内 TODO
+任务的日期建议。代码就绪不表示真实供应商已配置或正式页面已上线。
+
+完整配置、接口、错误语义、证据边界和 B/C 待办见
+[ROLE-D-SCHEDULING-model-port](../../../docs/role-d/ROLE-D-SCHEDULING-model-port.md)。
