@@ -32,7 +32,8 @@ docs/ai-records/C/
 
 ## 已知记录缺口
 
-- **2026-10-22 换会话后至 10-24，两天未实时记账**；`issue-36/C-I36-...-01.md` 是事后回溯补记，不回填、不改写旧文件结论。
+- **2026-10-22 换会话后至 10-24，两天未实时记账**；`issue-36/C-I36-...-01.md` 是 2026-10-24 的事后回溯补记，不回填、不改写旧文件结论。补记已完成，但「当时没记」这一事实保留。
+- 旧会话 `01a14ec5` 的最后一段（2026-10-22 13:23 只读核查）已随 `issue-35` 的「后续追加 5」与 `raw/...followup-03` 一并归档。
 - 会话 01a163ee 内有 1 次 compaction，导出不重建被压缩掉的中间推理。
 - 导出为脱敏子集：排除 system/thinking/自动审核上下文与环境快照，单条工具参数与结果有截断。
 - 记录格式与 `C-I35-20261018-main01a14ec5-01.md` 一致（表 5 摘要 + 真实验证与未测项 + 人工复核）。
@@ -40,5 +41,7 @@ docs/ai-records/C/
 ## 脱敏与复核
 
 - 脱敏项：本机用户名、演示口令、token/key 形态、带凭据代理地址。
-- 每次导出后跑 `evidence/verify-redaction.mjs`，以 node 逐条 JSON 检查为准（不要用 WSL `grep` 判中文，会误报）。
+- 每次导出后跑 `evidence/verify-redaction.mjs`（issue-36 导出）或 `evidence/check-any-export.mjs`（任意导出），以 node 逐条检查为准——**不要用 WSL `grep` 判中文，会误报**。
+- 当前全部导出复核结论：**PASSED**，见 `issue-36/evidence/redaction-check-all.txt`。
+- 校验脚本会把 `sk-` 开头的 runner 标签（如 `sk-attachment-lifecycle`）识别为误报，真 key 判据为 `sk-` + 32 位以上无连字符高熵串。
 - 各文件「人工复核」段落一律保留「待确认」，不由 AI 代填采纳结论。
