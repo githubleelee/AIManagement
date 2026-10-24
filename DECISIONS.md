@@ -296,3 +296,9 @@
 - **supersedes:** attachments.storage-and-cleanup@2026-10-23T13:20:00+08:00
 - **timestamp:** 2026-10-24T00:20:00+08:00
 - **rationale:** 本条目以**追加**方式重述原名下的完整口径（原条目在合主干时被就地重写、无 supersedes，违反追加式约束，现已恢复原文）：SetNull + 清理状态机 + 查询层可见性 + 既有 Action 复用 + 窄生命周期端口 + 生命周期重试，避免清理状态丢失、任务删除被附件阻塞、敏感附件泄漏与「隐形截断/假 taskId」；并补记上传 MIME 解析器必须封装在附件插件子上下文（`app.register`），不得注册在根 app 改变其它端点的框架 415 行为。
+
+## `scheduling.frontend-route`
+
+- **value:** #32 的唯一正式前端路由为 `/projects/:projectId/scheduling`；项目左导航「AI 排期」仅 PM 可见，MEMBER/VIEWER 直接访问也不加载排期数据。后端七条 `/projects/:projectId/scheduling-suggestions` 相对路径不变，每次请求仍由统一鉴权判定；前端隐藏入口不替代服务端鉴权。
+- **timestamp:** 2026-10-24T18:05:21+08:00
+- **rationale:** 主控向 A 留言后，用户通过本会话单题确认明确选择采用该 URL，解除原材料中前端 URL 待定项，不扩业务或权限。

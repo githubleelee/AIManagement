@@ -1,0 +1,7 @@
+# cwd: /home/lee/aim-wt/b-sprint3-remaining
+# captured: 2026-10-24 18:11:39 CST (+0800)
+# HEAD: 4dbd1ba660f2b95003638237c55591ea0cb0338f
+# sha256 src/scheduling.ts: bc3a7277d113523ea05765d584b31d7afdb315354dc55492d8b7b41603b55cf2
+# sha256 src/app.ts: 0aa58dc44dadcebed72335a466df684ee9d2a60f3f904a48c38256be81c95db0
+# sha256 src/routes.ts: d2c07ca4dae910c8e8d1c773b755a0df4630908d4783e41ac35c9e48d9658497
+# sha256 src/db/ai-repository.ts: b248d15f3be38b344e733d32af10d766935d7b23d29da09235b28f4eb94a5316

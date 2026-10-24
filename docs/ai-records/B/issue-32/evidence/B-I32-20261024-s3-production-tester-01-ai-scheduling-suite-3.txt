@@ -1,0 +1,24 @@
+# cmd: npx vitest run src/modules/ai-scheduling
+
+ RUN  v2.1.9 /home/lee/aim-wt/b-sprint3-remaining
+
+ ↓ src/modules/ai-scheduling/integration.pending.test.ts (12 tests | 12 skipped)
+ ✓ src/modules/ai-scheduling/digests.test.ts (4 tests) 3ms
+ ✓ src/modules/ai-scheduling/generation.test.ts (23 tests) 30ms
+ ✓ src/modules/ai-scheduling/policy.http.test.ts (55 tests) 63ms
+(node:186699) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:186690) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:186689) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ src/modules/ai-scheduling/generation.db.test.ts (5 tests) 2033ms
+ ✓ src/modules/ai-scheduling/workflow.db.test.ts (24 tests) 4971ms
+ ✓ src/modules/ai-scheduling/core.http.test.ts (62 tests) 13760ms
+
+ Test Files  6 passed | 1 skipped (7)
+      Tests  173 passed | 12 todo (185)
+   Start at  18:36:34
+   Duration  14.61s (transform 700ms, setup 0ms, collect 2.25s, tests 20.86s, environment 1ms, prepare 390ms)
+
+# exit=0

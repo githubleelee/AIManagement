@@ -4,6 +4,7 @@ import type { ProjectView } from '../../../src/shared/types'
 import { ApiError, getProject } from '../api'
 import { ROLE_LABELS } from '../labels'
 import EmptyState from '../components/EmptyState'
+import { canAccessScheduling } from '../pages/scheduling/ProjectSchedulingPage'
 
 /**
  * 项目工作台骨架：按 :projectId 拉项目（端点 5），左侧导航 + 子路由内容。
@@ -146,6 +147,9 @@ export default function ProjectLayout() {
           <NavLink to="uml" className={navClass}>
             <span aria-hidden="true">◫</span>UML 图
           </NavLink>
+          {canAccessScheduling(project) && <NavLink to="scheduling" className={navClass}>
+            <span aria-hidden="true">▦</span>AI 排期
+          </NavLink>}
         </nav>
         <Link className="project-switcher" to="/projects">
           <span>当前项目 · {ROLE_LABELS[project.myRole]}</span>

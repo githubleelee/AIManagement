@@ -1,7 +1,13 @@
 import { randomUUID } from 'node:crypto'
-import type { Prisma } from '@prisma/client'
+import type { Prisma, PrismaClient } from '@prisma/client'
+import Fastify, { type FastifyInstance } from 'fastify'
+import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createHttpTestContext, makeMember, makeProject, makeUser, type HttpTestContext } from '../../../test/http-support.js'
+import { makeMember, makeProject, makeUser } from '../../../test/http-support.js'
+import { createTempDatabase, resetDatabase } from '../../db/test-support.js'
+import { registerActorResolver } from '../../auth/actor.js'
+import { issueToken } from '../../auth/token.js'
+import { registerErrorHandler } from '../../error-handler.js'
 import { PrismaAiSuggestionRepository } from '../../db/ai-repository.js'
 import { canonicalAiJsonDigest, type AiAuthorizationPort } from '../../shared/ai.js'
 import { createAuthorization } from '../authz/permissions.js'
@@ -16,11 +22,18 @@ import { registerSchedulingRoutes } from './plugin.js'
  * These adapters are not production authorization or a replacement for B's shared ports.
  * The final 12 gates remain pending until authoritative assembly and browser/API verification.
  */
-let ctx: HttpTestContext
+let ctx: { app: FastifyInstance; db: PrismaClient; reset(): Promise<void>; dispose(): Promise<void> }
 let pm: string, member: string, projectId: string, tasks: string[], suggestionId: string
 let h: ReturnType<typeof assembly>
 beforeAll(async () => {
-  ctx = await createHttpTestContext()
+  // This file owns a custom test-only workflow. Production buildApp now registers the
+  // same routes, so use a bare app here instead of registering this plugin twice.
+  const database = createTempDatabase()
+  const app = Fastify({ logger: false })
+  registerErrorHandler(app)
+  registerActorResolver(app, database.prisma)
+  ctx = { app, db: database.prisma, reset: () => resetDatabase(database.prisma),
+    dispose: async () => { await app.close(); await database.dispose() } }
   registerSchedulingRoutes(ctx.app, {
     generate: (input) => h.generate(input),
     workflow: {
@@ -234,10 +247,15 @@ describe('C scheduling disposition and read composition, real SQLite/test assemb
   })
   it('HTTP routes authenticate, reject actor injection, return 422 and support stale rejection', async () => {
     const path = `/projects/${projectId}/scheduling-suggestions`
-    const client = ctx.asUser(ctx.loginAs(pm))
-    expect((await ctx.asUser(null).get(path)).status).toBe(401)
+    const pmToken = await issueToken(ctx.db, pm)
+    const memberToken = await issueToken(ctx.db, member)
+    const client = {
+      get: (url: string) => request(ctx.app.server).get(url).set('Authorization', `Bearer ${pmToken}`),
+      post: (url: string) => request(ctx.app.server).post(url).set('Authorization', `Bearer ${pmToken}`),
+    }
+    expect((await request(ctx.app.server).get(path)).status).toBe(401)
     expect((await client.post(path).send({ requestId: 'r', actorUserId: member })).status).toBe(422)
-    expect((await ctx.asUser(ctx.loginAs(member)).get(path)).status).toBe(403)
+    expect((await request(ctx.app.server).get(path).set('Authorization', `Bearer ${memberToken}`)).status).toBe(403)
     expect((await client.get(`${path}/${suggestionId}`)).status).toBe(200)
     expect((await client.post(`${path}/${suggestionId}/disposition`).send({ requestId: 'reject', status: 'REJECTED', note: ' ' })).status).toBe(422)
     await ctx.db.task.update({ where: { id: tasks[0] }, data: { status: 'DOING' } })

@@ -1,0 +1,43 @@
+# cmd: npx vitest run src/modules/ai-scheduling
+
+ RUN  v2.1.9 /home/lee/aim-wt/b-sprint3-remaining
+
+ ↓ src/modules/ai-scheduling/integration.pending.test.ts (12 tests | 12 skipped)
+ ✓ src/modules/ai-scheduling/digests.test.ts (4 tests) 3ms
+ ✓ src/modules/ai-scheduling/generation.test.ts (23 tests) 29ms
+ ✓ src/modules/ai-scheduling/policy.http.test.ts (55 tests) 56ms
+(node:178953) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:178939) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:178938) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/modules/ai-scheduling/workflow.db.test.ts (24 tests | 24 skipped) 1247ms
+ ✓ src/modules/ai-scheduling/generation.db.test.ts (5 tests) 1818ms
+ ✓ src/modules/ai-scheduling/core.http.test.ts (62 tests) 12630ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/modules/ai-scheduling/workflow.db.test.ts [ src/modules/ai-scheduling/workflow.db.test.ts ]
+FastifyError: Method 'POST' already declared for route '/projects/:projectId/scheduling-suggestions'
+ ❯ Object.addNewRoute node_modules/fastify/lib/route.js:369:19
+ ❯ Object.route node_modules/fastify/lib/route.js:269:19
+ ❯ Object.prepareRoute node_modules/fastify/lib/route.js:168:18
+ ❯ Object._post [as post] node_modules/fastify/fastify.js:197:34
+ ❯ Module.registerSchedulingRoutes src/modules/ai-scheduling/plugin.ts:18:7
+     16|   const base = '/projects/:projectId/scheduling-suggestions'
+     17|   const options = { preHandler: requireAuth }
+     18|   app.post(base, options, async (request, reply) => {
+       |       ^
+     19|     const body = z.object({ requestId: z.string().trim().min(1) }).str…
+     20|     const { projectId } = request.params as { projectId: string }
+ ❯ src/modules/ai-scheduling/workflow.db.test.ts:24:3
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 5 passed | 1 skipped (7)
+      Tests  149 passed | 24 skipped | 12 todo (185)
+   Start at  18:18:51
+   Duration  13.45s (transform 617ms, setup 0ms, collect 2.16s, tests 15.78s, environment 1ms, prepare 396ms)
+
+# exit=1

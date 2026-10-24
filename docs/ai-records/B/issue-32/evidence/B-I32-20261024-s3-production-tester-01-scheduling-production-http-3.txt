@@ -1,0 +1,16 @@
+# cmd: npx vitest run test/scheduling-production.http.test.ts
+
+ RUN  v2.1.9 /home/lee/aim-wt/b-sprint3-remaining
+
+(node:185131) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ test/scheduling-production.http.test.ts (12 tests) 4271ms
+   ✓ B production scheduling assembly (buildApp) > runs generate -> assess -> accept -> audit -> replay -> revoke over HTTP 303ms
+   ✓ B production scheduling assembly (buildApp) > denies every suggestion operation for MEMBER/VIEWER and foreign-project identity 542ms
+
+ Test Files  1 passed (1)
+      Tests  12 passed (12)
+   Start at  18:36:25
+   Duration  5.04s (transform 341ms, setup 0ms, collect 541ms, tests 4.27s, environment 0ms, prepare 45ms)
+
+# exit=0

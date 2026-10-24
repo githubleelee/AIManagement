@@ -1,0 +1,19 @@
+# cwd: /home/lee/aim-wt/b-sprint3-remaining
+# cmd: npx vitest run test/probe-b-s3-production.http.test.ts
+
+ RUN  v2.1.9 /home/lee/aim-wt/b-sprint3-remaining
+
+(node:172040) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ test/probe-b-s3-production.http.test.ts (9 tests) 3884ms
+   ✓ B production assembly (buildApp) probe > returns 401 for all seven routes when unauthenticated 352ms
+   ✓ B production assembly (buildApp) probe > lets PM list and read stats for its own project 314ms
+   ✓ B production assembly (buildApp) probe > runs generate -> assess -> accept -> audit -> replay -> revoke over HTTP 303ms
+   ✓ B production assembly (buildApp) probe > emits a minimal scheduling HTTP>=400 safety log covering read/audit denials 309ms
+
+ Test Files  1 passed (1)
+      Tests  9 passed (9)
+   Start at  18:11:49
+   Duration  4.90s (transform 471ms, setup 0ms, collect 717ms, tests 3.88s, environment 0ms, prepare 96ms)
+
+# exit=0

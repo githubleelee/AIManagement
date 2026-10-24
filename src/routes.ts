@@ -19,6 +19,8 @@ import { registerUmlRoutes } from './modules/uml/plugin.js'
 import { registerWorkbenchRoutes } from './modules/workbench/plugin.js'
 import { registerRequirementRoutes } from './modules/requirement/plugin.js'
 import { registerAiRoutes } from './modules/ai/plugin.js'
+import { registerSchedulingRoutes } from './modules/ai-scheduling/plugin.js'
+import type { createSchedulingRuntime } from './scheduling.js'
 import { registerNotificationRoutes } from './modules/notification/plugin.js'
 import type { NotificationService } from './modules/notification/service.js'
 import { registerAttachmentRoutes } from './modules/attachment/plugin.js'
@@ -43,6 +45,11 @@ export type RouteContext = {
    * 可选：模块测试可能只构造 `{ prisma }` 并注册部分路由；缺省时跳过 AI 路由注册。
    */
   aiService?: AiBreakdownService
+  /** #32 production composition; separate PM-only scenario, never generic AI read.
+   * Required by the full registerRoutes assembly (like notificationService/attachmentService).
+   * Module-only tests register their own plugin instead; missing full-app wiring fails fast.
+   */
+  scheduling?: ReturnType<typeof createSchedulingRuntime>
   /**
    * 甘特域事件发布端口（由 `src/app.ts` 用 `createGanttEventPort` 显式组装注入）。
    *
@@ -169,6 +176,10 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
   // 不在 Sprint 1 契约的 30 个端点内，属本阶段新增；服务由 `src/app.ts` 组装后经 context 注入。
   // 三个入口均 `requireAuth`，服务端逐次走 `can()`（read 复用 project.read；生成 / 处置仅 PM）。
   if (context.aiService) registerAiRoutes(app, { service: context.aiService })
+
+  // #32 C owns the seven handlers; B supplies the production transaction/authorization ports.
+  if (!context.scheduling) throw new Error('排期运行时未组装：必须由 src/app.ts 注入')
+  registerSchedulingRoutes(app, context.scheduling)
 
   // #34 站内通知（B 公共接入）：GET /me/notifications、GET /notifications/:id、
   // PATCH /notifications/:id/read。不在 Sprint 1 契约的 30 个端点内，属本阶段新增。

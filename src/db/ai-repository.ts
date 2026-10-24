@@ -48,7 +48,7 @@
  * 不可见与不存在返回逐字一致、不泄漏正文的 404。列表 / 统计则直接在仓储 `where` 里过滤。
  */
 import { Prisma, type PrismaClient } from '@prisma/client'
-import { createAuthorization } from '../modules/authz/permissions.js'
+import { createAuthorization, type AuthzDb } from '../modules/authz/permissions.js'
 import {
   AI_SUGGESTION_LIST_LIMIT,
   type AiAdoptionStats,
@@ -81,7 +81,7 @@ import type { Action, Decision, ObjectRef } from '../shared/types.js'
  * `Prisma.TransactionClient` 不满足完整 `PrismaClient`，但结构上满足这个窄 `Pick`，
  * 因此仓储方法可在调用方事务内复用。
  */
-export type AiDb = Pick<PrismaClient, 'aiSuggestion' | 'aiDisposition' | 'aiApplication'>
+export type AiDb = Pick<PrismaClient, 'aiSuggestion' | 'aiDisposition' | 'aiApplication'> & AuthzDb
 
 /** `include` 后的行形状；时间列由 Prisma 反序列化为 `Date`。 */
 type SuggestionRow = Prisma.AiSuggestionGetPayload<{
@@ -288,11 +288,7 @@ export class PrismaAiSuggestionRepository<
   TRecord extends AiSuggestionRecord = AiSuggestionRecord,
 > implements AiSuggestionRepository<TRecord, AiDb>
 {
-  private readonly authorization: ReturnType<typeof createAuthorization>
-
-  constructor(private readonly prisma: PrismaClient) {
-    this.authorization = createAuthorization(prisma)
-  }
+  constructor(private readonly prisma: PrismaClient) {}
 
   /** 缺省时在内部事务里执行（不提前提交）；传入调用方事务时直接复用、不自行提交。 */
   private run<T>(db: AiDb | undefined, operation: (client: AiDb) => Promise<T>): Promise<T> {
@@ -339,7 +335,7 @@ export class PrismaAiSuggestionRepository<
 
   async listPage(query: AiSuggestionQuery, transaction?: AiDb): Promise<AiSuggestionListResult<TRecord>> {
     const client = transaction ?? this.prisma
-    const where = await scopeWhere(this.authorization, query)
+    const where = await scopeWhere(createAuthorization(client), query)
     const limit = query.limit ?? AI_SUGGESTION_LIST_LIMIT
     // 多取 1 行只用于判定截断；total 仍是同一 where 的精确计数，不由行数反推。
     const rows = await client.aiSuggestion.findMany({
@@ -465,7 +461,7 @@ export class PrismaAiSuggestionRepository<
   /** 采纳质量：口径沿用 D 的定义（pending = 未产生最终处置的建议，含生成失败）。 */
   async adoptionStats(query: AiSuggestionQuery, transaction?: AiDb): Promise<AiAdoptionStats> {
     const client = transaction ?? this.prisma
-    const suggestionWhere = await scopeWhere(this.authorization, query)
+    const suggestionWhere = await scopeWhere(createAuthorization(client), query)
     const total = await client.aiSuggestion.count({ where: suggestionWhere })
     const groups = await client.aiDisposition.groupBy({
       by: ['status'],
@@ -565,7 +561,7 @@ export function aiResourceRefToObjectRef(ref: AiResourceRef): ObjectRef {
  * **只用统一鉴权入口 `can()`**，零角色名字面判断。调用顺序由 service 保证：
  * `findAccessMetadata`（定位真实归属）→ `decide()`（本适配器 → `can()`）→ `findById`（读正文）。
  */
-export function createAiAuthorizationPort(prisma: PrismaClient): AiAuthorizationPort {
+export function createAiAuthorizationPort(prisma: AuthzDb): AiAuthorizationPort {
   const { can } = createAuthorization(prisma)
   return {
     async decide(actorUserId: string, capability: AiCapability, ref: AiResourceRef) {
