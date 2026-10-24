@@ -9,8 +9,8 @@
 
 > 依据已完成并留证的交付与独立验证，只更新 Status / Evidence / Blocker，不改业务规则、不新增授权。原始状态历史保留在各任务行内。
 
-- **已完成**：#20（看板最终验收）、#45（共享 AI 三表，PR #88）、**#59**（UML 粘性置位，PR #103）、**#38/#39/#40**（通知存储/运行时/顶栏，PR #104/#105/#106）；另合入 **PR #108**（事件目录登记）、**PR #109**（整合 A 的 PR #100：风险提级 + 验收结果事件）、**PR #112**（三个已接来源能力改判）。
-- **进行中**：#13（FS 共享端口与装配已就绪、独立复验 45+412；**等 A 在验收 REJECT 同事务接入**后整体合入）、#34/#35（附件候选 `902cfa1`，含上传解析器封装修正；等 D #94 与 C 的真实接线后合入）、#41（通知公共接入验证：**6/9 来源已真实端到端**，仅 C 域两类 + 后置 @提及未接）。
+- **已完成**：#13（FS 开工守卫：PATCH + 验收 REJECT 双入口，PR #114）、#20（看板最终验收）、#45（共享 AI 三表，PR #88）、**#59**（UML 粘性置位，PR #103）、**#38/#39/#40**（通知存储/运行时/顶栏，PR #104/#105/#106）；另合入 **PR #108**（事件目录登记）、**PR #109**（整合 A 的 PR #100）、**PR #112**（三个已接来源能力改判）、**PR #114**（FS 开工守卫双入口，`cc67e33`）。
+- **进行中**：#15（甘特：只剩合并后一次浏览器复核）、#34/#35（附件候选 `902cfa1`；D #94 已按 I-4 修好待合、C 的真实接线仍缺）、#41（通知 6/9 来源已端到端，仅 C 域两类 + 后置 @提及未接）。
 - **仍待外部**：#36/#37（C 的真实任务删除接线与 TaskSection 挂载）、#41（A/C 的真实生产方未接，最终 AC 不勾）、#44/#47/#49/#50（等 C 推送本域实现与接口事实，B 已于 #32 发出 6 项事实请求）、#57/#58（等 C 的 UML P2/P3 读侧服务）。
 - **已解除的旧阻塞**：D 的 #31 字段/端口提案、共享 AI 存储、D 的通知模块、C 的审阅入口、C 的 task 写窗口（PR #99）。**不再**作为当前阻塞。
 - **main 基线（独立 tester）**：`9160587` 上 `npm run typecheck` exit 0、`npx vitest run` **81 文件通过 + 1 跳过 / 1709 通过 + 12 todo / 0 失败**；`295e694` 全量 83 文件/1732 例；合入 PR #109 后 `aa62c0d` 全量 **84 文件通过 + 1 跳过 / 1757 通过 + 12 todo / 0 失败**（`docs/ai-records/B/issue-34/B-I34-20261024b-a100-and-live-capabilities-01.md`）。
@@ -151,12 +151,11 @@ Dependencies: #11 [FS]
 Note: **事件接入待 D 的 #37**（本批只留 `GanttEventPort` 占位、未接线）；写操作授权（`gantt.write`）与模型 / 迁移已交付。
 
 ## #13 落实真实任务入口的 FS 放行校验
-Status: in progress
+Status: done
 Outcome: 按 C2 批准规则执行、不能绕过的任务开工约束。
-Evidence: 共享守卫端口候选 `feat/fs-start-guard`：`8290349`（独立 tester 复验 45=28+17、task 412=367+45、typecheck 0；真实 REJECT 探针 HTTP200 进 DOING 证明旁路）→ 注释收口 `2e0d2f8`（typecheck 0、task 18 文件 412 例）。裁定文档已合入 main `f1ee977`（`scheduling.fs-enter-doing-all-paths`、`contract.fs-start-validation`）。
+Evidence: PR #114 → main `cc67e33`（A 的 `feat/acceptance-fs-guard@bffb575` 含 B 的 `2e0d2f8`）：`src/shared/task-execution.ts` 窄端口 + task PATCH 同事务校验 + 验收 REJECT 在**原事务内、CAS/记录/事件之前**调用、缺端口 fail-fast。整合分支 typecheck 0、task+acceptance+notification **25 文件 / 522 例**通过。**真实 HTTP 决定性证据**（隔离库）：前置仅 DONE → REJECT `422 VALIDATION_FAILED / status INVALID_VALUE`、任务仍 DONE、`AcceptanceRecord=0`、`acceptance.* 事件=0`；前置 CLOSED → `200` + `DOING` + 1 记录 + `acceptance.rejected`。记录 `docs/ai-records/B/issue-26/B-I26-20261024b-fs-dual-entry-01.md`。
 Done when: 按已确认 C2 实施：前置必须 `CLOSED`、`DONE` 不算，后继建议开始不早于前置计划结束次日，自然日含起止；明确真实任务开工路径的 owner 与实施范围；必要旧模块授权留痕；验证直接调用真实入口也拒绝未放行的后置开工，不仅依赖甘特按钮禁用，不新增镜像任务写路径；该甘特旧模块写入口仍按 B 既有授权 / 既定流程，不由 C 的 #32 写窗口例外覆盖。
 Dependencies: #12 [FS]
-Blocker: **A 验收 REJECT 仍未接**：全仓无业务调用 `taskStartGuard`，`submitAcceptance` 的 DONE→DOING 直接 `updateMany`，真实 HTTP 探针实测前置仅 DONE 仍 200 进 DOING。B 侧端口/装配/装配缺失 fail-fast 已就绪（未合 main，等 A 在同事务接入后整体合入）；`src/modules/acceptance/**` 属 A，B 不代改。合并前需两端真实入口覆盖并独立复验。
 
 ## #14 实现甘特时间轴页面
 Status: done
@@ -166,11 +165,12 @@ Done when: 支持故事展开、计划时间、汇总进度、里程碑和 FS �
 Dependencies: #11 [FS]
 
 ## #15 验收并交付甘特图
-Status: not started
+Status: in progress
 Outcome: GitHub #26 AC1–AC7 证据包及交付 C 域 GitHub #32 的数据契约。
+Evidence: 写路径/事件已由 #12（PR #68）与 #37（PR #90）覆盖；UI 走查见 PR #69 → 记录 PR #70（PM 编辑器 CRUD、重复/成环失败、MEMBER/VIEWER 无写控件、直连 MEMBER 403）。FS 真实开工路径随 #13 于 PR #114 覆盖（双入口 422/200 端到端）。
 Done when: 公共层（B 单写授权）完成必要路由与页面挂载；本模块测试与 `npm run typecheck` 通过；浏览器验证展开、汇总、里程碑；覆盖 FS、环、跨项目、敏感过滤及真实任务开工路径；C2 已确认口径留证；事件联调保留真实证据，不能只用模拟替代；未决或外部不可验证项不勾完成，不建立对 GitHub #32 的反向依赖。
 Dependencies: #12 [FS], #13 [FS], #14 [FS]
-Blocker: **部分解除**：D 的 #37 公共事件端口已合入（PR #90），#12 写路径已合入（PR #68）。**仍缺** #13 真实开工守卫（见 #13：验收 REJECT 未接，FS 整体不可合）；故本任务不勾 AC、不标完成。
+Blocker: **仅剩一次合并后浏览器复核**（展开/汇总/里程碑 + 跨项目/敏感过滤在 `cc67e33` 上重跑）。守卫是后端行为、不改前端，故属复核而非新实现。完成前不勾 #26 的最终交付。
 
 ## #16 提前完成故事看板方案与授权细化
 Status: done
