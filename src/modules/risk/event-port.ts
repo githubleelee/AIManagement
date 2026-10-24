@@ -50,12 +50,18 @@ export type RiskEventPortOptions = {
 /**
  * 更新类事件（幂等键需带 `occurredAt`，见 shared 目录注释）。
  *
- * ★ 风险域只有 `risk.updated` 这一类：状态流转（含「已解决 / 已关闭」）也是更新，
- *   因此同一毫秒内的两次 PATCH 会因幂等键相同而被去重 —— 这是 `src/shared/events.ts`
- *   明示的、**有意**的可接受行为。
+ * `risk.updated`：状态流转（含「已解决 / 已关闭」）也是更新，因此同一毫秒内的
+ * 两次 PATCH 会因幂等键相同而被去重 —— 这是 `src/shared/events.ts` 明示的、
+ * **有意**的可接受行为。
+ *
+ * ★ `risk.level-raised` **必须**在这一类里（技术负责人 GitHub #20 评论 6358121473）：
+ *   若按创建类算成 `<eventName>:<riskId>`，同一风险的**第二次真实提级**会命中既有的
+ *   幂等记录被永久去重 —— 通知就再也发不出去。带 `occurredAt` 后，每次真实提级
+ *   各自成键；同毫秒内的两次提级仍会被合法去重（视为同一次）。
  */
 const UPDATE_LIKE_EVENTS: ReadonlySet<RiskEventDraft['eventName']> = new Set([
   'risk.updated',
+  'risk.level-raised',
 ])
 
 /** 确定性幂等键：创建无 `occurredAt`；更新带 `occurredAt`（同毫秒重复更新去重）。 */

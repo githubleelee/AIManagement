@@ -140,16 +140,29 @@ export type RiskView = {
 /**
  * 风险域事件名（命名规范 `<domain>.<object>.<action>`）。
  *
- * ★ 为什么只有两个：风险的写路径只有「创建」与「修改」两条
+ * ★ 为什么没有 `risk.deleted`：风险的写路径只有「创建」与「修改」两条
  *   （见 `./plugin.ts` 的端点清单 —— **没有 DELETE 端点**）。
  *   「已解决 / 已关闭」是 `RiskStatus` 的两个取值、经 `PATCH` 流转，
  *   所以它们落在 `risk.updated` 里（载荷带 `status` 与 `changedFields`），
- *   不需要另立事件名，也不存在 `risk.deleted`。
+ *   不需要另立事件名。
+ *
+ * ★ 为什么另有 `risk.level-raised`（技术负责人 GitHub #20 评论 6357849262）：
+ *   `risk.updated` 是"什么都可能变"的粗粒度事件，**不能冒充「等级提升」**——
+ *   通知的触发条件必须是「等级真的往上走」。故独立一个事件，
+ *   **只在 `LOW < MEDIUM < HIGH` 的实际上升时**同事务追加：
+ *   - 降级、同级不算（`HIGH → LOW` 不发，`MEDIUM → MEDIUM` 不发）；
+ *   - 一次 PATCH 若同时提级并改别的字段，`risk.updated` 与 `risk.level-raised`
+ *     **两条都会发**（后者是在前者之上的追加，不是替代）。
+ *
+ * ★ 幂等键的坑（技术负责人 GitHub #20 评论 6358121473 第 1 条）：
+ *   `risk.level-raised` **必须按更新类**（键里带 `occurredAt`）计算，
+ *   不能沿用创建类的 `<eventName>:<objectId>` —— 否则同一个风险的**第二次真实提级**
+ *   会被幂等去重永久吞掉。
  *
  * ★ 事件目录的登记（`src/shared/events.ts` 的事件表）由技术负责人单写，
- *   本票**不修改**该文件；接线方按本文件的两个事件名消费。
+ *   本票**不修改**该文件；接线方按本文件的三个事件名消费。
  */
-export type RiskEventName = 'risk.created' | 'risk.updated'
+export type RiskEventName = 'risk.created' | 'risk.updated' | 'risk.level-raised'
 
 /**
  * 域内事件草稿：**不含** `id` / `schemaVersion` / `storedAt` / `idempotencyKey`。
