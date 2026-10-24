@@ -1,0 +1,114 @@
+== member1 PATCH story status
+{"error":{"code":"FORBIDDEN","message":"用户故事不存在"}}
+HTTP 403
+== viewer1 PATCH story status
+{"error":{"code":"FORBIDDEN","message":"用户故事不存在"}}
+HTTP 403
+== outsider GET demo board
+{"error":{"code":"NOT_FOUND","message":"项目不存在"}}
+HTTP 404
+== outsider GET own board
+HTTP 200
+== member1 board (sensitive hidden)
+{
+    "projectId": "90b4e031-034c-41ff-9f1c-65c299d1a996",
+    "basis": {
+        "scopeLabel": "\u53ef\u89c1\u8303\u56f4"
+    },
+    "columns": [
+        {
+            "status": "DRAFT",
+            "count": 1,
+            "truncated": false,
+            "items": [
+                {
+                    "id": "5733957b-1b20-41a5-8003-9181d59adc75",
+                    "title": "\u8349\u7a3f\u6545\u4e8b",
+                    "priority": "P0",
+                    "status": "DRAFT",
+                    "activityName": "\u770b\u677f\u9a8c\u6536\u6d3b\u52a8",
+                    "goalName": "\u770b\u677f\u9a8c\u6536\u76ee\u6807"
+                }
+            ]
+        },
+        {
+            "status": "PLANNING",
+            "count": 1,
+            "truncated": false,
+            "items": [
+                {
+                    "id": "192e2bda-6a67-4e32-bb96-f6b5cefe19d6",
+                    "title": "\u8fdb\u884c\u4e2d\u6545\u4e8b",
+                    "priority": "P1",
+                    "status": "PLANNING",
+                    "activityName": "\u770b\u677f\u9a8c\u6536\u6d3b\u52a8",
+                    "goalName": "\u770b\u677f\u9a8c\u6536\u76ee\u6807"
+                }
+            ]
+        },
+        {
+            "status": "DONE",
+            "count": 0,
+            "truncated": false,
+            "items": []
+        }
+    ]
+}
+== member2 board (sensitive visible)
+{
+    "projectId": "90b4e031-034c-41ff-9f1c-65c299d1a996",
+    "basis": {
+        "scopeLabel": "\u53ef\u89c1\u8303\u56f4"
+    },
+    "columns": [
+        {
+            "status": "DRAFT",
+            "count": 2,
+            "truncated": false,
+            "items": [
+                {
+                    "id": "5733957b-1b20-41a5-8003-9181d59adc75",
+                    "title": "\u8349\u7a3f\u6545\u4e8b",
+                    "priority": "P0",
+                    "status": "DRAFT",
+                    "activityName": "\u770b\u677f\u9a8c\u6536\u6d3b\u52a8",
+                    "goalName": "\u770b\u677f\u9a8c\u6536\u76ee\u6807"
+                },
+                {
+                    "id": "5fd4d114-ba7e-486c-b74c-02855d77f348",
+                    "title": "\u5df2\u5b8c\u6210\u6545\u4e8b",
+                    "priority": "P2",
+                    "status": "DRAFT",
+                    "activityName": "\u770b\u677f\u9a8c\u6536\u6d3b\u52a8",
+                    "goalName": "\u770b\u677f\u9a8c\u6536\u76ee\u6807"
+                }
+            ]
+        },
+        {
+            "status": "PLANNING",
+            "count": 1,
+            "truncated": false,
+            "items": [
+                {
+                    "id": "192e2bda-6a67-4e32-bb96-f6b5cefe19d6",
+                    "title": "\u8fdb\u884c\u4e2d\u6545\u4e8b",
+                    "priority": "P1",
+                    "status": "PLANNING",
+                    "activityName": "\u770b\u677f\u9a8c\u6536\u6d3b\u52a8",
+                    "goalName": "\u770b\u677f\u9a8c\u6536\u76ee\u6807"
+                }
+            ]
+        },
+        {
+            "status": "DONE",
+            "count": 0,
+            "truncated": false,
+            "items": []
+        }
+    ]
+}
+== member1 GET sensitive story detail
+{"error":{"code":"NOT_FOUND","message":"用户故事不存在"}}
+HTTP 404
+== member2 GET sensitive story detail
+HTTP 200

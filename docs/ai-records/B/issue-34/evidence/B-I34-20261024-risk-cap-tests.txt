@@ -1,0 +1,18 @@
+
+ RUN  v2.1.9 /home/lee/aim-wt/b-risk-cap
+
+ ✓ src/modules/notification/service.test.ts (24 tests) 9ms
+ ✓ src/modules/notification/review-regression.test.ts (9 tests) 22ms
+(node:139492) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:139480) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ src/modules/notification/plugin.test.ts (5 tests) 1699ms
+ ✓ src/db/notification-runtime.test.ts (16 tests) 2478ms
+ ✓ src/db/notification-http.test.ts (7 tests) 2244ms
+
+ Test Files  5 passed (5)
+      Tests  61 passed (61)
+   Start at  01:04:09
+   Duration  2.88s (transform 486ms, setup 0ms, collect 1.13s, tests 6.45s, environment 1ms, prepare 225ms)
+

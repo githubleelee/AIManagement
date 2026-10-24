@@ -1,0 +1,20 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { createTestContext, type HttpTestContext } from '../../../test/helpers.js'
+
+let ctx: HttpTestContext
+beforeAll(async () => { ctx = await createTestContext() }, 120_000)
+afterAll(async () => { await ctx.dispose() })
+
+describe('上传 MIME 解析器作用域探针', () => {
+  it('附件路由外的端点仍由框架返回 415', async () => {
+    const res = await ctx.asUser(null).post('/projects')
+      .set('Content-Type', 'application/pdf').send(Buffer.from('%PDF-1.4'))
+    expect(res.status).toBe(415)
+  })
+  it('附件路由自身仍消费白名单 MIME（未登录先 401，而非 415）', async () => {
+    const res = await ctx.asUser(null).post('/tasks/t-1/attachments')
+      .set('Content-Type', 'application/pdf')
+      .set('X-File-Name', encodeURIComponent('报告.pdf')).send(Buffer.from('%PDF-1.4'))
+    expect(res.status).toBe(401)
+  })
+})

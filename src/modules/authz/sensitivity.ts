@@ -70,6 +70,21 @@ export async function setSensitivity(
           data: nextIds.map(userId => ({ ...where, userId })),
         })
       }
+      // 粘性置位（后置标敏）：先关联、之后对象才变敏感时，把**当前**关联该对象的图
+      // 全部置 `everRestricted = true`——否则解除关联 / 删任务后交集为空会走「正文公开」
+      // 的降密路径。方向只允许 false → true，任何路径都不得清除（`DECISIONS.md`
+      // `uml.no-auto-declassification-guard`）：where 带 `everRestricted: false` 使
+      // 已置位的行不被重复更新（幂等且不无谓地刷新 `updatedAt`），空集合自然无副作用。
+      // 本步骤与名单替换 / 审计共处 `$transaction`，失败则整体回滚。
+      const links = objectType === 'story'
+        ? await tx.umlDiagramStory.findMany({ where: { storyId: objectId }, select: { diagramId: true } })
+        : await tx.umlDiagramTask.findMany({ where: { taskId: objectId }, select: { diagramId: true } })
+      if (links.length > 0) {
+        await tx.umlDiagram.updateMany({
+          where: { id: { in: links.map(link => link.diagramId) }, everRestricted: false },
+          data: { everRestricted: true },
+        })
+      }
     }
     // 关闭敏感时忽略传入的名单，并保留旧名单供再次开启。
     if (objectType === 'story') {

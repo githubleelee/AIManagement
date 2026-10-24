@@ -1,0 +1,116 @@
+diff --git a/src/modules/notification/plugin.test.ts b/src/modules/notification/plugin.test.ts
+index 1b61c33..dc1b7a7 100644
+--- a/src/modules/notification/plugin.test.ts
++++ b/src/modules/notification/plugin.test.ts
+@@ -1,14 +1,96 @@
+ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+-import {
+-  createHttpTestContext,
+-  makeUser,
+-  type HttpTestContext,
+-} from '../../../test/http-support.js'
++import { createRequire } from 'node:module'
++import Fastify, { type FastifyInstance } from 'fastify'
++import request from 'supertest'
++import { registerErrorHandler } from '../../error-handler.js'
++import { registerActorResolver } from '../../auth/actor.js'
++import { hashToken } from '../../auth/token.js'
++import { createTempDatabase, resetDatabase, type TestDatabase } from '../../db/test-support.js'
++import { makeUser } from '../../../test/http-support.js'
+ import { InMemoryNotificationRepository } from './in-memory-repository.js'
+ import { registerNotificationRoutes } from './plugin.js'
+ import { NotificationService } from './service.js'
+ 
+-let ctx: HttpTestContext
++/**
++ * 本文件用**独立 bare Fastify 实例**承载 D 的通知插件，而不是 `createHttpTestContext()`。
++ *
++ * 原因（B 批次的公共注册已落地）：`createHttpTestContext()` → `buildApp()` 现在会在
++ * `src/routes.ts` 里注册真实的 `registerNotificationRoutes`，本文件若再注册一次同一插件
++ * 会抛 `FST_ERR_DUPLICATED_ROUTE`。这是**测试装配**的调整，不改 D 的任何业务实现。
++ *
++ * 仍然走真实鉴权链路：临时库 + `registerActorResolver` + 真实会话令牌（与
++ * `test/http-support.ts` 的 `loginAs` 同款直写 `sessionTokenHash`），**不伪造**
++ * `request.actorUserId`，因此 401 覆盖保持真实。
++ */
++type BareNotificationContext = {
++  app: FastifyInstance
++  db: TestDatabase['prisma']
++  reset: () => Promise<void>
++  loginAs: (userId: string) => string
++  asUser: (token: string | null) => {
++    get: (url: string) => request.Test
++    post: (url: string) => request.Test
++    patch: (url: string) => request.Test
++    put: (url: string) => request.Test
++    delete: (url: string) => request.Test
++  }
++  dispose: () => Promise<void>
++}
++
++const nodeRequire = createRequire(import.meta.url)
++const { DatabaseSync } = nodeRequire('node:sqlite') as typeof import('node:sqlite')
++
++async function createBareNotificationContext(): Promise<BareNotificationContext> {
++  const tempDb = createTempDatabase()
++
++  const app = Fastify({ logger: false })
++  registerErrorHandler(app)
++  registerActorResolver(app, tempDb.prisma)
++
++  const sqlite = new DatabaseSync(tempDb.file)
++  const setSession = sqlite.prepare(
++    'UPDATE "User" SET "sessionTokenHash" = ?, "sessionTokenExpiresAt" = ? WHERE "id" = ?',
++  )
++
++  const asUser = (token: string | null) => {
++    const st = request(app.server)
++    const withAuth = <T extends request.Test>(t: T): T => {
++      if (token) t.set('Authorization', `Bearer ${token}`)
++      return t
++    }
++    return {
++      get: (url: string) => withAuth(st.get(url)),
++      post: (url: string) => withAuth(st.post(url)),
++      patch: (url: string) => withAuth(st.patch(url)),
++      put: (url: string) => withAuth(st.put(url)),
++      delete: (url: string) => withAuth(st.delete(url)),
++    }
++  }
++
++  return {
++    app,
++    db: tempDb.prisma,
++    reset: () => resetDatabase(tempDb.prisma),
++    // 与 `test/http-support.ts` 的 `loginAs` 同款：直接影响同一临时库的会话列。
++    loginAs: (userId: string) => {
++      const token = `test-token-${userId}`
++      setSession.run(
++        hashToken(token),
++        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
++        userId,
++      )
++      return token
++    },
++    asUser,
++    dispose: async () => {
++      sqlite.close()
++      await app.close()
++      await tempDb.dispose()
++    },
++  }
++}
++
++let ctx: BareNotificationContext
+ let service: NotificationService
+ let repository: InMemoryNotificationRepository
+ let recipientUserId: string
+@@ -16,7 +98,7 @@ let outsiderUserId: string
+ let idSequence = 0
+ 
+ beforeAll(async () => {
+-  ctx = await createHttpTestContext()
++  ctx = await createBareNotificationContext()
+   repository = new InMemoryNotificationRepository()
+   service = new NotificationService({
+     repository,

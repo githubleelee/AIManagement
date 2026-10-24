@@ -1,0 +1,18 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ai-management@0.1.0 test
+> vitest run src/modules/notification
+
+
+ RUN  v2.1.9 /workspace/scratch/05204396b77e/integration34
+
+ ✓ src/modules/notification/service.test.ts (24 tests) 24ms
+ ✓ src/modules/notification/review-regression.test.ts (9 tests) 42ms
+ ✓ src/modules/notification/plugin.test.ts (5 tests) 3624ms
+   ✓ US-14 通知 HTTP 端点 > 未登录访问列表返回 401 304ms
+
+ Test Files  3 passed (3)
+      Tests  38 passed (38)
+   Start at  09:45:32
+   Duration  5.69s (transform 1.01s, setup 0ms, collect 1.67s, tests 3.69s, environment 1ms, prepare 301ms)
+

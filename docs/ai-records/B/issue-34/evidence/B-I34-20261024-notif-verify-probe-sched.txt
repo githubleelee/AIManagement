@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/lee/aim-wt/notif-verify
+
+ ✓ test/zz-probe-sched.test.ts (2 tests) 1090ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  00:45:03
+   Duration  1.39s (transform 64ms, setup 0ms, collect 84ms, tests 1.09s, environment 0ms, prepare 46ms)
+

@@ -39,6 +39,8 @@ import { createAuthorization } from '../authz/permissions.js'
 import {
   ACCEPTANCE_REASON_MAX_LENGTH,
   type AcceptanceConclusion,
+  type AcceptanceEventName,
+  type AcceptanceEventPort,
   type AcceptanceQueueItem,
   type AcceptanceQueueScope,
   type AcceptanceRecordView,
@@ -74,6 +76,24 @@ function denied(decision: { status: 403 | 404; code: 'FORBIDDEN' | 'NOT_FOUND' }
 const NEXT_STATUS: Record<AcceptanceConclusion, TaskStatus> = {
   PASS: 'CLOSED',
   REJECT: 'DOING',
+}
+
+/* ===========================================================================
+ * 验收结果事件（#37 接线）
+ * =========================================================================== */
+
+/** 事件主体对象类型：验收结果是**关于某个任务**的，故 object 指向任务。 */
+const TASK_OBJECT_TYPE = 'task'
+
+/**
+ * 结论 → 事件名。
+ *
+ * 名字取自 `DECISIONS.md` `events.notification-catalog-exceptions` 冻结的精确名单
+ * （`acceptance.approved` / `acceptance.rejected`），**不是**本模块自拟。
+ */
+const EVENT_NAME: Record<AcceptanceConclusion, AcceptanceEventName> = {
+  PASS: 'acceptance.approved',
+  REJECT: 'acceptance.rejected',
 }
 
 /* ===========================================================================
@@ -216,6 +236,7 @@ export async function assertMayAccept(
  */
 export async function submitAcceptance(
   prisma: PrismaClient,
+  events: AcceptanceEventPort,
   actorUserId: string,
   task: TaskRow,
   input: AcceptanceSubmitInput,
@@ -261,7 +282,7 @@ export async function submitAcceptance(
     })
     if (changed.count === 0) return null
 
-    return tx.acceptanceRecord.create({
+    const created = await tx.acceptanceRecord.create({
       data: {
         projectId: task.projectId,
         taskId: task.id,
@@ -272,6 +293,54 @@ export async function submitAcceptance(
         statusAfter,
       },
     })
+
+    // ---------------------------------------------------------------------
+    // 同事务追加验收结果事件（#37）
+    // ---------------------------------------------------------------------
+    // 状态流转与验收记录此时已在本事务内落库；事件走同一 `tx`，发布失败则整笔
+    // 验收回滚（宁可业务失败，也不产生「已验收但通知丢失」）。
+    //
+    // 敏感判定在**同一事务内**读 `Task.isSensitive`：放在事务外用之前查到的行，
+    // 会与并发的敏感开关产生"事件敏感度落后于实际"的窗口，泄漏给非授权成员。
+    //
+    // 载荷只放**结构与标识**（结论 / 前后状态 / 记录 id）：
+    //   - 不放 `reason`（用户输入的自由文本，属受保护内容；需要时消费方按 recordId 回查）；
+    //   - 不放收件人（收件人由权威适配器按 `Task.ownerUserId` / `acceptorUserId` 解析）。
+    const sensitiveTask = await tx.task.findUnique({
+      where: { id: task.id },
+      select: { isSensitive: true },
+    })
+    const draftBase = {
+      eventName: EVENT_NAME[input.conclusion],
+      projectId: task.projectId,
+      object: { objectType: TASK_OBJECT_TYPE, objectId: task.id },
+      actor: { kind: 'USER' as const, userId: actorUserId },
+      // 全部事件共用这一次时间戳：同时决定幂等键（更新类，见 event-port.ts）。
+      occurredAt: new Date().toISOString(),
+    }
+    await events.publish(
+      sensitiveTask?.isSensitive
+        ? {
+            ...draftBase,
+            sensitive: true,
+            payload: {
+              references: [{ objectType: TASK_OBJECT_TYPE, objectId: task.id }],
+            },
+          }
+        : {
+            ...draftBase,
+            sensitive: false,
+            payload: {
+              conclusion: input.conclusion,
+              statusBefore,
+              statusAfter,
+              recordId: created.id,
+            },
+          },
+      tx,
+    )
+
+    return created
   })
 
   if (record === null) {
