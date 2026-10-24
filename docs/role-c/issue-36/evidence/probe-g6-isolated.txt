@@ -1,0 +1,27 @@
+START 2026-10-24T14:55:15.365Z limit=180s
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/临时项目/AIManagement-C-attachments[39m
+
+[90mstderr[2m | src/modules/ai-scheduling/integration.pending.test.ts[2m > [22m[2mUS12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22m[2mG6: browser generation → confirm → actual task/gantt/workload changes → audit
+[22m[39m[G6] "checks=11 browser=155.0.4283.45 url=http://127.0.0.1:5173/projects/d5b0f0e4-91f4-4ab8-a9bd-b0ece6f466df/workload evidence=C:\\Users\\陆禹畅\\AppData\\Local\\Temp\\us12-g6-evidence-CLs8Tj"
+
+ [32m✓[39m src/modules/ai-scheduling/integration.pending.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 58134[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG1/G2: generates from real #31 port and current #26/#27 data without altering formal plans [33m664[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG3: real PM-only actions cover generation/list/detail/decision/audit and 401/403/404 [33m1178[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG3: revocation takes effect before every request and idempotent retry [33m970[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG4: persists actual input scope, mode/model/version/requestId and generation time [33m571[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG4/G5: confirms the saved proposal without calling the model a second time [33m696[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG4/G5: two-task application and successful audit share one real DB transaction [33m1322[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG4/G5: one invalid task rolls back all changes, separate safe failure evidence remains [33m983[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG4/G5: identical request is idempotent, different/concurrent disposition conflicts [33m1110[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG2/G5: changed task/member/FS/milestone/workload/permission snapshot expires whole proposal [33m2801[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG5: preserves existing task assignment/progress/acceptance rules after authorized extraction [33m1500[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG7: explicit real API mode and outflow evidence on invented data, never implicit stub fallback [33m1769[2mms[22m[39m
+   [33m[2m✓[22m[39m US12 final integration gates — real HTTP, real SQLite, real loopback model[2m > [22mG6: browser generation → confirm → actual task/gantt/workload changes → audit [33m40844[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m12 passed[39m[22m[90m (12)[39m
+[2m   Start at [22m 22:55:16
+[2m   Duration [22m 61.12s[2m (transform 1.34s, setup 0ms, collect 2.38s, tests 58.13s, environment 0ms, prepare 148ms)[22m
+
+END exit=0 signal=none elapsed=62.57s

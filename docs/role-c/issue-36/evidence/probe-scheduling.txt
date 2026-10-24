@@ -1,0 +1,24 @@
+START 2026-10-24T14:46:52.329Z limit=70s
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/临时项目/AIManagement-C-attachments[39m
+
+ [32m✓[39m test/scheduling-production.http.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 9719[2mms[22m[39m
+   [33m[2m✓[22m[39m B production scheduling assembly (buildApp)[2m > [22mregisters the seven scheduling routes on the real app [33m939[2mms[22m[39m
+   [33m[2m✓[22m[39m B production scheduling assembly (buildApp)[2m > [22mreturns 401 for all seven routes when unauthenticated [33m608[2mms[22m[39m
+   [33m[2m✓[22m[39m B production scheduling assembly (buildApp)[2m > [22mlets PM list and read stats for its own project [33m530[2mms[22m[39m
+   [33m[2m✓[22m[39m B production scheduling assembly (buildApp)[2m > [22mgives MEMBER and VIEWER 403 and outsider 404 on the same project [33m517[2mms[22m[39m
+   [33m[2m✓[22m[39m B production scheduling assembly (buildApp)[2m > [22mrecords GENERATION_FAILED (not fake success) when no model is configured [33m478[2mms[22m[39m
+   [33m[2m✓[22m[39m B production scheduling assembly (buildApp)[2m > [22mruns generate -> assess -> accept -> audit -> replay -> revoke over HTTP [33m607[2mms[22m[39m
+   [33m[2m✓[22m[39m B production scheduling assembly (buildApp)[2m > [22msupports MODIFIED and REJECTED dispositions with success audit [33m596[2mms[22m[39m
+   [33m[2m✓[22m[39m B production scheduling assembly (buildApp)[2m > [22mfails a stale acceptance with 409 and leaves no partial disposition/date/audit writes [33m503[2mms[22m[39m
+   [33m[2m✓[22m[39m B production scheduling assembly (buildApp)[2m > [22mrolls back dates, disposition and application if the final audit append fails [33m582[2mms[22m[39m
+   [33m[2m✓[22m[39m B production scheduling assembly (buildApp)[2m > [22mkeeps sensitive tasks out of the model and blocks a protected FS violation atomically [33m494[2mms[22m[39m
+   [33m[2m✓[22m[39m B production scheduling assembly (buildApp)[2m > [22mdenies every suggestion operation for MEMBER/VIEWER and foreign-project identity [33m720[2mms[22m[39m
+   [33m[2m✓[22m[39m B production scheduling assembly (buildApp)[2m > [22memits a minimal scheduling HTTP>=400 safety log covering read/audit denials [33m541[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m12 passed[39m[22m[90m (12)[39m
+[2m   Start at [22m 22:46:53
+[2m   Duration [22m 13.24s[2m (transform 1.82s, setup 0ms, collect 2.96s, tests 9.72s, environment 0ms, prepare 135ms)[22m
+
+END exit=0 signal=none elapsed=14.45s
