@@ -288,13 +288,15 @@ describe('决策 I-7 表集合与字段逐列比对', () => {
    * `notifications.committed-consumption-and-query-contract` 授权再新增 3 张表 `Notification` /
    * `NotificationConsumer` / `NotificationConsumption`（通知存储 + 激活记录 + 持久消费账本）。
    */
-  it('表集合 = 契约规定的 9 张 + 本阶段经授权新增的 19 张（不多不少）', async () => {
+  it('表集合 = 契约规定的 9 张 + 本阶段经授权新增的 20 张（不多不少）', async () => {
     expect(await getTableNames()).toEqual([
       'AcceptanceRecord', // ← 本阶段经 #24 授权新增（US-09 / #29），不属于契约 I-7
       // ↓ #31 US-11：3 张 AI 建议表。ASCII 序（'c' < 'i' < 'u'）⇒ 落在 AcceptanceRecord 与 AuditLog 之间
       'AiApplication',
       'AiDisposition',
       'AiSuggestion',
+      // ↓ #36 任务附件：ASCII 序（'i' < 't'）⇒ 落在 AiSuggestion 与 AuditLog 之间
+      'Attachment',
       'AuditLog',
       'BusinessGoal',
       'DomainEvent', // ← 本阶段经 #37 授权新增（领域事件）；ASCII 序落在 BusinessGoal 与 Milestone 之间

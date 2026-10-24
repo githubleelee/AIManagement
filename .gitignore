@@ -27,6 +27,10 @@ coverage/
 *.sqlite
 *.sqlite3
 
+# ---------- 附件实体文件（#36：数据库存元数据，实体文件落项目根 var/uploads/） ----------
+# 不把该目录注册为公开静态资源；下载只走带鉴权的 GET /attachments/:id/download。
+var/uploads/
+
 # ---------- Prisma 生成物 ----------
 src/generated/
 prisma/generated/

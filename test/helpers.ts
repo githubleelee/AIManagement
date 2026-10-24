@@ -18,7 +18,7 @@
  * 使契约点名的两个名字落到同一套实现上：
  *
  *   - 已有 14 个测试文件 `import ... from '../../../test/http-support.js'` 的写法
- *     **一字不用改**（本文件不改动 `http-support.ts`，零破坏）；
+ *     **一字不用改**（`http-support.ts` 仅新增可选 `options` 透传，默认行为不变）；
  *   - 新代码从 `test/helpers.js` / `test/factories.js` 引入，符合契约命名；
  *   - 仓库里**始终只有一套** app 实例与临时库机制。
  *
@@ -52,12 +52,12 @@
  * 负责把前置数据摆好，不替代接口断言 —— 契约明确禁止用「前端不渲染按钮」之类
  * 非接口证据代替越权用例。
  */
-import type { HttpTestContext } from './http-support.js'
+import type { HttpTestContext, HttpTestContextOptions } from './http-support.js'
 import { createHttpTestContext } from './http-support.js'
 
 // 原样转出，保持契约命名的同时不产生第二套实现（`http-support.ts` 未被改动）
 export { createHttpTestContext, TEST_PASSWORD } from './http-support.js'
-export type { HttpTestContext } from './http-support.js'
+export type { HttpTestContext, HttpTestContextOptions } from './http-support.js'
 
 /** 工厂函数使用的数据库句柄类型（与 app 指向同一个临时库）。 */
 export type TestDb = HttpTestContext['db']
@@ -130,8 +130,10 @@ export function getActiveDatabase(): TestDb {
  *   - 挂死的连接还会让 `afterAll` 里的 `app.close()` 卡住 → `Hook timed out in 10000ms`。
  * 三个报错看起来毫不相干，根因却是同一个缺失的 `await`。
  */
-export async function createTestContext(): Promise<HttpTestContext> {
-  const ctx = await createHttpTestContext()
+export async function createTestContext(
+  options: HttpTestContextOptions = {},
+): Promise<HttpTestContext> {
+  const ctx = await createHttpTestContext(options)
   setActiveDatabase(ctx.db)
 
   // 必须：boot 应用，否则任何 HTTP 请求都会挂死（见上方"踩过的坑"）
