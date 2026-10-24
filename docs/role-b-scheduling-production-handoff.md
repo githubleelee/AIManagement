@@ -1,6 +1,8 @@
 # #32 · B 生产装配交接
 
-> 当前为本地待交付稿：`feat/sprint3-role-b-remaining`，基于 main `4dbd1ba`。实际提交 / PR 产生后追加，不把本地文件冒充远端已可取用。
+> 已按用户授权发布 [PR #123](https://github.com/githubleelee/AIManagement/pull/123)，待 A 复核；分支 `feat/sprint3-role-b-remaining`，基于 main `4dbd1ba`。实际源提交 `039d0ede39f8a8e3930ea6e7bb42501de9673da7`（后续回执提交仅文档），未合 main / 关票。
+>
+> C 可直接 fetch 此分支接续正式闭环，不等待 #36 附件；[C 交接回执](https://github.com/githubleelee/AIManagement/issues/32#issuecomment-6383376476)、[A 通知](https://github.com/githubleelee/AIManagement/issues/20#issuecomment-6383379885)、[机器发布回执](ai-records/B/issue-32/evidence/B-I32-20261024-s3-publication-receipt.json)。
 
 ## 1. 四项装配
 
