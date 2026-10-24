@@ -24,6 +24,8 @@
  * 两份定义是否漂移，由 `web/src/pages/acceptance/shared-types.typecheck.ts`
  * 在**编译期**钉住 —— 这是本票相对 US-08 的改进（那次是两份定义、没有护栏）。
  */
+import type { Prisma } from '@prisma/client'
+import type { EventActor, EventObjectRef, JsonObject } from '../../shared/events.js'
 import type { TaskStatus, TaskView, UserBrief } from '../../shared/types.js'
 
 /**
@@ -121,35 +123,78 @@ export type AcceptanceHistoryResult = {
 }
 
 /* ===========================================================================
- * 接口先行（**未接线**，不要在实现里当成已接入）
+ * 验收结果事件（#37 公共事件基础设施已合入，本票接线）
  * ===========================================================================
  *
- * 工单 #29 的 `interface_depends_on` 是 #36（验收证据附件）与 #37（验收结果事件）。
- * 两者都尚未交付，且决策 I-9 禁止跨业务模块调 service。因此这里**只出类型**：
- * 不写运行时发布、不 import 事件模块、不在请求体里接受附件字段。
- * 等 #37 交付后再由本票接线（另开一轮，不在本票假装已通）。
+ * ★ 事件名以 `DECISIONS.md` 的 `events.notification-catalog-exceptions` 为准：
+ *   **`acceptance.approved` / `acceptance.rejected`**。
+ *
+ *   本文件此前登记的占位形状用的是 `task.accepted` / `task.rejected`，与上述已冻结的
+ *   精确名单不一致；占位当时明确标注「未接线 / 不发布任何事件」，没有任何运行时依赖，
+ *   故按决策改正为正式名字（`src/modules/acceptance/event-port.ts` 负责落地）。
+ *
+ * ★ 收件人**不进载荷**（技术负责人 GitHub #20 评论 6358121473）：通知的接收者由权威
+ *   适配器读 `Task.ownerUserId` / `Task.acceptorUserId` 解析并做可见性筛选；事件载荷里
+ *   写收件人等于给伪造与越权留通道。
+ *
+ * ★ 敏感任务（契约 I-6）：任务 `isSensitive` 为真时，载荷**只能**是 `{references}`。
+ */
+
+/**
+ * 验收域事件名。
+ *
+ * ★ 幂等键必须按**更新类**计算（键里带 `occurredAt`）：同一任务可以被
+ *   驳回 → 重新提交 → 再通过，`<eventName>:<taskId>` 式的创建类键会让**第二次**同结论
+ *   验收被永久去重（与 `risk.level-raised` 是同一个坑）。
+ */
+export type AcceptanceEventName = 'acceptance.approved' | 'acceptance.rejected'
+
+/**
+ * 域内事件草稿：**不含** `id` / `schemaVersion` / `storedAt` / `idempotencyKey`，
+ * 后四者由模块内适配器（`./event-port.ts`）补齐。
+ */
+type AcceptanceEventDraftBase = {
+  eventName: AcceptanceEventName
+  projectId: string
+  object: EventObjectRef
+  actor: EventActor
+  /** ISO 8601 UTC（带毫秒，`…Z`）。 */
+  occurredAt: string
+}
+
+export type AcceptanceEventDraft =
+  | (AcceptanceEventDraftBase & { sensitive: false; payload: JsonObject })
+  | (AcceptanceEventDraftBase & {
+      sensitive: true
+      payload: { references: EventObjectRef[] }
+    })
+
+/**
+ * 验收域业务事件的发布端口。
+ *
+ * 接线方式：由 `./plugin.ts` 从 `RouteContext.acceptanceEvents` 取得
+ * （`src/app.ts` 用 `createAcceptanceEventPort` 显式组装），缺失即 fail-fast。
+ *
+ * 语义：必须在**验收写入的同一个 `$transaction` 内**调用（`transaction` 即该事务的 `tx`）；
+ * 适配器把事件追加到该事务，**不自行提交、不派发订阅者**。
+ * 发布失败 = 状态流转与验收记录一并回滚（刻意：宁可业务失败，不丢事件）。
+ */
+export type AcceptanceEventPort = {
+  publish(
+    event: AcceptanceEventDraft,
+    transaction: Prisma.TransactionClient,
+  ): Promise<void>
+}
+
+/* ===========================================================================
+ * 接口先行（**仍未接线**，不要在实现里当成已接入）
+ * ===========================================================================
+ *
+ * 工单 #29 的 `interface_depends_on` 另一项是 #36（验收证据附件），尚未交付，
+ * 因此这里**只出类型**：不在请求体里接受附件字段、不落库、不校验。
  */
 
 /** #36 验收证据附件：接口先行占位。当前**不传、不落库、不校验**。 */
 export type AcceptanceEvidenceRef = {
   attachmentId: string
-}
-
-/** #37 验收结果事件的载荷形状（**未接线**：本模块目前不发布任何事件）。 */
-export type AcceptanceEventPayload = {
-  /** 事件名：通过 / 驳回 */
-  type: 'task.accepted' | 'task.rejected'
-  projectId: string
-  taskId: string
-  /** 执行验收的人 */
-  actorUserId: string
-  /** 任务的验收人（= actorUserId，冗余存一份便于订阅方不必回查任务） */
-  acceptorUserId: string
-  conclusion: AcceptanceConclusion
-  reason: string | null
-  statusBefore: TaskStatus
-  statusAfter: TaskStatus
-  /** ISO 8601 UTC */
-  occurredAt: string
-  recordId: string
 }
