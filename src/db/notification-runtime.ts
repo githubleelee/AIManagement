@@ -40,18 +40,24 @@ import { createNotificationScheduler, type NotificationScheduler, type Scheduled
 /**
  * 未接入生产方的说明。已接入 = 真实生产方存在且本运行时已端到端验证：
  *   - `task.overdue` / `milestone.due`：B 自己的定时生产（调度未运行时降级 UNAVAILABLE）；
- *   - `risk.created`：A 的风险域真实生产（PR #95，同事务追加），已用真实事件 → 桥接 → 通知行
- *     → 顶栏面板端到端验证，故**不再保守声明**。
- * 其余（task.assigned/mentioned、acceptance.*、risk.level-raised）生产方尚未接入，保持 UNAVAILABLE，
- * 不伪造可用。
+ *   - `risk.created`：A 的风险域真实生产（PR #95）；
+ *   - `risk.level-raised`、`acceptance.approved`、`acceptance.rejected`：A 的真实生产
+ *     （PR #100 经 PR #109 合入 main），已用真实事件 → 桥接 → 通知行端到端验证。
+ * 仍缺生产方的只剩 `task.assigned`、`acceptance.submitted`（C 域）与后置的 `task.mentioned`，
+ * 保持 UNAVAILABLE，不伪造可用。
  */
+/** 生产方已在、且已端到端验证过的域事件（不含由调度是否运行决定的两类）。 */
+const LIVE_DOMAIN_EVENTS: ReadonlySet<string> = new Set([
+  'risk.created',
+  'risk.level-raised',
+  'acceptance.approved',
+  'acceptance.rejected',
+])
+
 const NOT_CONNECTED_NOTES: Record<string, string> = {
   'task.assigned': '任务域分配事件生产方尚未接入通知公共运行时',
   'task.mentioned': '@提及真实来源尚未接入（后置单向联调项）',
   'acceptance.submitted': '验收域事件生产方尚未接入通知公共运行时',
-  'acceptance.approved': '验收域事件生产方尚未接入通知公共运行时',
-  'acceptance.rejected': '验收域事件生产方尚未接入通知公共运行时',
-  'risk.level-raised': '风险等级提升事件生产方尚未接入通知公共运行时',
 }
 
 /** 九个事件的来源接线清单（调度未运行时，B 自产的两个降级为 UNAVAILABLE）。 */
@@ -64,9 +70,9 @@ export function notificationSourceCapabilities(
         ? { eventName, state: 'AVAILABLE' as const, note: null }
         : { eventName, state: 'UNAVAILABLE' as const, note: '通知定时生产尚未启动' }
     }
-    if (eventName === 'risk.created') {
-      // 真实生产方已在（A 的风险域，见 `events.notification-catalog-exceptions`）；
-      // 本运行时已用真实事件跑通「已提交事件 → 桥接 → 通知行 → 顶栏面板」。
+    if (LIVE_DOMAIN_EVENTS.has(eventName)) {
+      // 真实生产方已在（A 的风险/验收域，见 `events.notification-catalog-exceptions`）；
+      // 已用真实事件跑通「已提交事件 → 桥接 → 通知行 → 顶栏面板」。
       return { eventName, state: 'AVAILABLE' as const, note: null }
     }
     return {
