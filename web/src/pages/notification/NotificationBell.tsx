@@ -85,7 +85,7 @@ export default function NotificationBell() {
           </div>
 
           {error ? <p className="error">{error}</p> : null}
-          {!data ? <p className="muted">正在加载…</p> : null}
+          {!data && !error ? <p className="muted">正在加载…</p> : null}
           {data?.state === 'UNAVAILABLE' ? (
             <p className="notification-unavailable">{data.note}</p>
           ) : null}

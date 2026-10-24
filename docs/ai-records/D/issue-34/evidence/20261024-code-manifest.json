@@ -1,0 +1,17 @@
+{
+  "baseline": "568cc1b",
+  "B_candidate": null,
+  "files": {
+    "src/modules/notification/factory.ts": "1c3ae2db00c982908d1763af6d4104c37b2f0a7019be807aeb023493cc6fdb3d",
+    "src/modules/notification/in-memory-repository.ts": "bc8817e768fee11e36976d03f1ff1a941cf8dfd887abd0d7a41624e0481486f1",
+    "src/modules/notification/index.ts": "acff897a22fa7efe23f5e2f3b6f47c73f50c4adb8fd0c1939f5000347717b9f0",
+    "src/modules/notification/review-regression.test.ts": "59d3e910dc40276dcf9979dd0803e2c8c5f82fd5f8d82802ea5d6d0380aee52a",
+    "src/modules/notification/service.ts": "c9736ad0611808728fe2d07c96a872ec2a5eb989b5c206d528249dbeab3c1eed",
+    "src/modules/notification/plugin.test.ts": "65d39d507644e7951ca413bc3b39c397dc4fc691d5986e26b331db3953781611",
+    "src/modules/notification/service.test.ts": "afff145a69857b95d86f329089d1846a893c5da987d5473596eef1a73d385dc9",
+    "src/modules/notification/plugin.ts": "d1e844aa85e4b05229d966187d32eab1400f65da3330aaea8c7afeca3a3207fe",
+    "src/modules/notification/errors.ts": "04217ee23645962d6837b3f8b338bf0248fb15fa8b694b83c64d5c829622964b",
+    "src/modules/notification/contracts.ts": "77f3faef998bb916e5c13a2c99178d6b31a522421d70f4a7b35decd93c4edff9",
+    "web/src/pages/notification/NotificationBell.tsx": "a6334fbbe25e09a407bc552c3c63c903daa8b8a248f29b13634234d7d2a958ab"
+  }
+}
