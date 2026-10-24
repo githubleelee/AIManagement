@@ -1,0 +1,21 @@
+START 2026-10-23T05:22:25.356Z limit=60s
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+422 !== 200
+
+    at <anonymous> (D:\临时项目\AIManagement-US15\docs\role-c\issue-35\probe-late-sensitivity.ts:41:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 422,
+  expected: 200,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.15.0
+END exit=1 signal=none elapsed=4.67s

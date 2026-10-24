@@ -14,7 +14,7 @@ export function buildSchedulingInput(snapshot: SchedulingSnapshot) {
   const tasks = snapshot.tasks.filter((task) => !task.isSensitive && task.projectId === snapshot.projectId)
   const taskIds = new Set(tasks.map((task) => task.id))
   return {
-    scenario: 'scheduling' as const,
+    scenario: 'SCHEDULING' as const,
     projectId: snapshot.projectId,
     // Revision can contain private-constraint evidence: never send it to a model.
     capturedAt: snapshot.capturedAt,
@@ -45,7 +45,7 @@ export function sameSchedulingBaseline(a: SchedulingSnapshot, b: SchedulingSnaps
     sourceComplete: snapshot.sourceComplete,
     sourceConstraints: snapshot.sourceConstraints,
     tasks: snapshot.tasks.map((task) => [task.id, task.projectId, task.storyId, task.ownerUserId, task.acceptorUserId,
-      task.status, task.planStart, task.planEnd, task.isSensitive]).sort((x, y) => JSON.stringify(x).localeCompare(JSON.stringify(y))),
+      task.status, task.planStart, task.planEnd, task.isSensitive]).sort((x, y) => JSON.stringify(x) < JSON.stringify(y) ? -1 : JSON.stringify(x) > JSON.stringify(y) ? 1 : 0),
     dependencies: snapshot.dependencies.map((edge) => [edge.predecessorId, edge.successorId]).sort(),
     milestones: snapshot.milestones.map((milestone) => [milestone.id, milestone.date, [...milestone.taskIds].sort()]).sort(),
   })

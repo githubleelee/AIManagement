@@ -1,0 +1,10 @@
+=== #15 甘特合并后复核（main + 真实 API 3213 / Vite 5281 / 隔离库）===
+[PM] 服务端控件齐全：＋新建里程碑 / 编辑 / 删除 / ＋新建依赖 / 删除
+[PM] 页面文案：故事进度 0%（已关闭 0 / 共 3 个任务）；里程碑「甘特验收里程碑」截止 2026-10-30；依赖 甘特前置 → 甘特后继（FS）
+[API] POST /projects/:id/milestones = 201
+[API] POST /projects/:id/task-dependencies = 201
+[API] 重复依赖 = 409 {"code":"CONFLICT","details":[{"field":"successorTaskId","code":"DUPLICATE"}]}
+[API] 反向成环 = 409 {"code":"CONFLICT","details":[{"field":"successorTaskId","code":"INVALID_VALUE"}]}
+[API] member1 直连 POST milestones / task-dependencies = 403 / 403
+[API] GET gantt：PM milestones=1 / dependencies=1 / stories=1；member1 milestones=0（无关联任务的里程碑按已登记口径不返回）/ dependencies=1 / stories=1
+[浏览器] member1：写控件数=0，文案「可见范围 / 只有项目经理可以维护里程碑与依赖；你当前是只读访问。」，计数 1 故事 / 2 任务 / 0 里程碑 / 1 依赖边

@@ -1,0 +1,145 @@
+{
+  "scope": "isolated real editor, not platform end-to-end acceptance",
+  "browserVersion": "156.0.8078.4",
+  "results": [
+    {
+      "name": "create/edit use-case actors, cases, all three relation types and real SVG",
+      "result": "passed"
+    },
+    {
+      "name": "self include is reported, invalid graph cannot be exported, and repair clears validation",
+      "result": "passed"
+    },
+    {
+      "name": "remove actor cascades editor-local association only, keeping case-to-case edges",
+      "result": "passed"
+    },
+    {
+      "name": "create/edit sequence including async, return and self message",
+      "result": "passed"
+    },
+    {
+      "name": "reorder lifelines without changing message endpoints or order",
+      "result": "passed"
+    },
+    {
+      "name": "reorder sequence messages and renumber strictly; delete lifeline removes dangling messages",
+      "result": "passed"
+    },
+    {
+      "name": "read-only controls cannot change document (presentation check, not authorization)",
+      "result": "passed"
+    },
+    {
+      "name": "download real JSON and reload editor via import after refresh; not a database save",
+      "result": "passed"
+    },
+    {
+      "name": "reject malformed JSON without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject unknown kind without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject unknown format version without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject unknown document field without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject empty node name without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject oversized text without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject duplicate ids across categories without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject duplicate edge id without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject duplicate relationship with distinct ids without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject missing endpoint without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject wrong association direction without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject include actor is illegal without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject self extend illegal without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject unsupported relationship without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject too many nodes without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject combined node count over bound without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject unsupported message without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject duplicate seq without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject descending seq without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject zero seq without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject fractional seq without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "reject missing lifeline without changing current document",
+      "result": "passed"
+    },
+    {
+      "name": "supported sequence gaps remain strictly increasing; import preserves message order",
+      "result": "passed"
+    },
+    {
+      "name": "user markup is SVG text, cannot create script/image/events or external requests",
+      "result": "passed"
+    },
+    {
+      "name": "mobile editor has no viewport overflow; preview scrolls within its own region",
+      "result": "passed"
+    },
+    {
+      "name": "no console errors, no external requests, no API mocks",
+      "result": "passed"
+    }
+  ],
+  "errors": [],
+  "external": [],
+  "apiRequests": []
+}

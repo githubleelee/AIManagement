@@ -1,0 +1,4 @@
+START 2026-10-23T05:22:57.337Z limit=60s
+{"kind":"task","initial":200,"currentHidden":404,"whitelistAfterSensitivity":200,"afterUnlink":200,"afterTargetOrdinary":200,"beforeDelete":404,"afterDelete":200}
+{"kind":"story","initial":200,"currentHidden":404,"whitelistAfterSensitivity":200,"afterUnlink":200,"afterTargetOrdinary":200,"beforeDelete":404,"afterDelete":200}
+END exit=0 signal=none elapsed=2.67s

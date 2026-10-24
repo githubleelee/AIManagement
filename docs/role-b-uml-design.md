@@ -339,7 +339,8 @@ const where: Prisma.UmlDiagramWhereInput = { projectId, ...visibilityWhere }
 
 - 列表与（将来任何）计数**必须使用完全相同的 `where` 对象**（同一个变量，不重写一遍）。
 - **禁止**：先 `findMany` 取全量再内存过滤；用 `items.length` 冒充 `total`；先算全项目总数再减可见数。
-- 本期**不返回** `total`（无消费方，且甘特读侧同样不返回总数）。若后续需要，必须 `count({ where })` 用同一 `where`，并在截断时仍报精确 `total`（看板 `BOARD_COLUMN_ROW_LIMIT` 的先例）。
+- 本期**返回** `total`（与 `items` 用**同一个** `where` 的 `count()` 计算；截断时仍报精确值，禁止用 `items.length` 反推——看板 `BOARD_COLUMN_ROW_LIMIT` 的先例）。
+  > ⚠ **2026-10-24 修订**：原文写「本期不返回 `total`」，与 §6.2 的响应类型、§8 第 10 项及 C 的实现不一致；按后三者统一为**返回**，并保留此修订说明（不改历史结论的其他部分）。
 
 ### 5.5 关联目标被删 / 关联被解除（✅ 不自动降密）
 
@@ -426,7 +427,7 @@ type UmlDiagramView = UmlDiagramSummary & {
 }
 
 // 列表信封（契约 I-2 的 ListResponse 惯例）
-type UmlDiagramListResponse = { items: UmlDiagramSummary[]; truncated: boolean }
+type UmlDiagramListResponse = { items: UmlDiagramSummary[]; total: number; truncated: boolean }
 ```
 
 - **不含 `isSensitive`**：过滤已在查询层完成（与甘特 / 看板同款），列表不回传敏感标记。
@@ -586,7 +587,7 @@ ProjectMember, Risk, Task, TaskDependency, TaskMilestone, User, UserActivity, Us
 | 7 | C 的**前端渲染方案细节**：用例图两列布局的具体算法、生命线间距、自消息绘制、`orderIndex` 变更的交互（拖拽换序？） | C | 前端按 `nodeType` + `orderIndex` + `seq` 确定性渲染；换序 = 改 `orderIndex` 后整图提交 | 若需要拖拽换序，`PUT content` 语义已支持（重排数组），无需后端改动 |
 | 8 | 图内容**写入上限**（nodes 200 / edges 500 / 关联各 50）是否够用 | C | 采用本文数值 | 上限过低会挡住真实大图（422 无绕过路径）；过高会让单响应过大 |
 | 9 | **AC6「上传图片仅作补充」** 本期如何满足 | 项目负责人 | 本期**不提供任何上传路径** ⇒ 不存在「只能上传、不能在线编辑」的退化；若需补充图片，走 D 的附件能力（`#34` / `#35`，另票） | 若要求本期就能上传补充图，需接 D 的附件运行时，属跨票依赖 |
-| 10 | 列表是否需要 `total` | C | 本期**不返回**（无消费方；返回就必须同源 `count()`） | 若前端要做分页，需补同源 `count()`，且截断时仍报精确值 |
+| 10 | 列表是否需要 `total` | C | 本期**返回**（必须与 `items` 同源 `count()`，截断时仍报精确值） | 2026-10-24 已按实现统一；若前端做分页，直接用该值 |
 
 > 已批准口径**不再列**：两类图、三种关系 / 三种消息、`seq` 严格递增、不落外部服务、不做自动布局 / 自由画布校验、PM 写 / MEMBER·VIEWER 只读、无独立敏感标记、交集可见性 + 404 逐字一致、不自动降密、不遮链接降级、图→项目 / 负责人 Restrict、关联行 Cascade、列表与计数同源、不新增 scope / ObjectRef。
 
@@ -602,7 +603,7 @@ ProjectMember, Risk, Task, TaskDependency, TaskMilestone, User, UserActivity, Us
 | **AC2** 图可关联项目 / 目标 / 活动 / 故事 / 任务中的目标对象 | §3.5 两张关联表 + `PATCH` 的 `taskIds` / `storyIds` 整体替换 | 接口层：`PATCH` 传 `taskIds` / `storyIds` → `GET` 详情 `taskRefs` / `storyRefs` 正确；传 `[]` → 清空；重复 id → 去重。**目标 / 活动是否纳入见 §8 待决 1**（未裁定前不勾该子项） |
 | **AC3** 关联对象跨项目时拒绝 | §4.5 写入层读真实 `projectId` | 接口层：用**他项目**的任务 id / 故事 id 提交 → **422 `VALIDATION_FAILED` + `CROSS_PROJECT_REF`**；同一用例再传**不存在**的 id → **同一条**错误（逐字比对 message 与 code，证明不造存在性预言机） |
 | **AC4** 至少一条核心时序图可从图跳转到关联需求 / 任务 | §6.2 的 `taskRefs` / `storyRefs` 带 `id` + `storyId` / `activityId` | 接口层：详情响应含可跳转 id；**浏览器走查**：在时序图页面点关联任务 → 落到任务详情 / 需求详情（截图留证） |
-| **AC5** 无权者看不到不可见图及其关联；越权 404 | §5 交集 `where` + §6.4 统一 404 文案 | 接口层矩阵（**每格都打接口**）：<br>• PM：全部图可见（含关联敏感任务的图）<br>• MEMBER（非白名单）：关联敏感任务的图 → **404**，且 message 与「图不存在」**逐字一致**<br>• MEMBER（敏感白名单）：同图 → 200<br>• VIEWER：只读 → `GET` 200/404 按交集，`POST`/`PATCH`/`PUT`/`DELETE` → **403 `FORBIDDEN`**<br>• outsider（非项目成员）：列表为空集合 / 详情 404，`message` = `项目不存在`<br>• 未登录：401<br>• **列表与 count 同源**：同一账号的 `items.length` 与同 `where` 的 `count()` 一致（截断时用 `truncated` 标记，不用长度反推）<br>• **不泄漏存在性**：对比「不存在的 diagramId」与「存在但不可见的 diagramId」→ 两者 status / code / message 完全一致 |
+| **AC5** 无权者看不到不可见图及其关联；越权 404 | §5 交集 `where` + §6.4 统一 404 文案 | 接口层矩阵（**每格都打接口**）：<br>• PM：全部图可见（含关联敏感任务的图）<br>• MEMBER（非白名单）：关联敏感任务的图 → **404**，且 message 与「图不存在」**逐字一致**<br>• MEMBER（敏感白名单）：**仅当该图从未关联过敏感对象（`everRestricted = false`）** 才 200；若曾关联过敏感对象（含已解绑 / 目标已删），`everRestricted` 恒为 `true` ⇒ 仍 **404**（sticky，`DECISIONS.md` `uml.no-auto-declassification-guard`，不自动降密）<br>• VIEWER：只读 → `GET` 200/404 按交集，`POST`/`PATCH`/`PUT`/`DELETE` → **403 `FORBIDDEN`**<br>• outsider（非项目成员）：**列表 404 / 详情 404**，`message` = `项目不存在`（与甘特 / 看板 / 负载同款，不返回空集合）<br>• 未登录：401<br>• **列表与 count 同源**：同一账号的 `items.length` 与同 `where` 的 `count()` 一致（截断时用 `truncated` 标记，不用长度反推）<br>• **不泄漏存在性**：对比「不存在的 diagramId」与「存在但不可见的 diagramId」→ 两者 status / code / message 完全一致 |
 | **AC6** 上传图片仅作补充，不替代在线编辑能力 | §1.3 本期不提供上传路径 | 验证方式：确认接口集内**不存在**任何「仅上传图片」的创建路径（端点清单核对），且 AC1 的在线编辑路径已通过。**若负责人要求本期支持上传补充图，见 §8 待决 9（跨票依赖 D）** |
 
 ### 9.1 补充必测项（超出 AC 原文但属本设计的正确性下限）

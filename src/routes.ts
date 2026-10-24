@@ -15,6 +15,7 @@ import { registerTaskRoutes } from './modules/task/routes.js'
 import { registerWorkloadRoutes } from './modules/workload/plugin.js'
 import { registerGanttRoutes } from './modules/gantt/plugin.js'
 import { registerBoardRoutes } from './modules/board/plugin.js'
+import { registerUmlRoutes } from './modules/uml/plugin.js'
 import { registerWorkbenchRoutes } from './modules/workbench/plugin.js'
 import { registerRequirementRoutes } from './modules/requirement/plugin.js'
 import { registerAiRoutes } from './modules/ai/plugin.js'
@@ -158,6 +159,11 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
   // 不在 Sprint 1 契约的 30 个端点内，属本阶段新增（见 docs/role-b-board-design.md）。
   // 状态写入仍走既有 PATCH /stories/:storyId（端点 21），本模块不建镜像写入口。
   registerBoardRoutes(app, context)
+
+  // #35 US-15 UML：图 / 节点 / 边与四类关联（C 的独立模块，B 只落公共注册行）。
+  // 组装不需要新端口（UML 事件本期不接线）：模块直接用 `context.prisma`。
+  // 写权限 `uml.write` 仅 PM、非 PM 读含 `everRestricted = false` guard，均在模块内走 can()。
+  registerUmlRoutes(app, context)
 
   // #31 US-11 AI 建议（B 公共接入）：POST / AI 建议生成、GET 列表、POST 处置。
   // 不在 Sprint 1 契约的 30 个端点内，属本阶段新增；服务由 `src/app.ts` 组装后经 context 注入。
