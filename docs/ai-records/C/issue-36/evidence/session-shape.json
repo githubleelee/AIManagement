@@ -1,0 +1,56 @@
+{
+  "file": "C:\\Users\\陆禹畅\\.pi\\agent\\sessions\\--C--Users-陆禹畅--\\2026-10-22T14-06-00-895Z_01a163ee-dcbe-7542-bfb3-3cdaf90d319f.jsonl",
+  "lines": 2051,
+  "range": {
+    "first": "2026-10-22T14:06:00.895Z",
+    "last": "2026-10-24T13:00:56.012Z"
+  },
+  "types": [
+    [
+      "custom",
+      1116
+    ],
+    [
+      "message",
+      910
+    ],
+    [
+      "context_edit",
+      19
+    ],
+    [
+      "model_change",
+      3
+    ],
+    [
+      "session",
+      1
+    ],
+    [
+      "thinking_level_change",
+      1
+    ],
+    [
+      "compaction",
+      1
+    ]
+  ],
+  "roles": [
+    [
+      "system",
+      1
+    ],
+    [
+      "user",
+      27
+    ],
+    [
+      "assistant",
+      429
+    ],
+    [
+      "toolResult",
+      453
+    ]
+  ]
+}
