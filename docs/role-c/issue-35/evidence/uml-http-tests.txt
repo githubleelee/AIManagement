@@ -1,0 +1,52 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/临时项目/AIManagement-US15[39m
+
+ [32m✓[39m src/modules/uml/uml.http.test.ts [2m([22m[2m46 tests[22m[2m | [22m[33m3 skipped[39m[2m)[22m[33m 24705[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mcreates real use-case content, fresh node ids, refs of all four kinds, and reads identical saved content [33m577[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22massigns seq by array order, accepts self messages, ignores client seq and sorts lifelines by orderIndex [33m526[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mPATCH only replaces specified associations; [] clears; owner transfer does not grant UML write [33m513[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mrejects unknown PATCH fields and changing kind; metadata cannot masquerade as content replacement [33m546[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mPUT accepts an empty document and removes previous content atomically [33m525[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mdeletes diagram and subsequent GET/PATCH/PUT/DELETE all return the same nonexistent response [33m531[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mlist has no diagram content/ref titles and kind filter and total use the same where [33m513[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mreports exact total when list is truncated, not length-derived total [33m426[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mconcurrent whole-content replacement yields complete winner, never a mixed graph or 500 [33m440[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects unsupported kind without creating a diagram [33m461[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects blank title without creating a diagram [33m484[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized title without creating a diagram [33m325[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized description without creating a diagram [33m414[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects too many nodes without creating a diagram [33m460[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects too many edges without creating a diagram [33m419[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized refs without creating a diagram [33m361[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects unknown create field without creating a diagram [33m328[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects wrong node kind on PUT and preserves content [33m346[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects blank node on PUT and preserves content [33m384[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects unsupported enum on PUT and preserves content [33m547[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects duplicate node ids on PUT and preserves content [33m389[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects missing source on PUT and preserves content [33m359[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects self include on PUT and preserves content [33m419[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects case-case association on PUT and preserves content [33m477[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects actor include on PUT and preserves content [33m472[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects wrong edge kind on PUT and preserves content [33m429[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects usecase seq on PUT and preserves content [33m543[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects duplicate relationship on PUT and preserves content [33m654[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized name on PUT and preserves content [33m459[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects oversized edge label on PUT and preserves content [33m511[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects client coordinates on PUT and preserves content [33m443[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mcross-project and missing goalIds return identical 422; failed PATCH rolls back metadata/refs [33m588[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mcross-project and missing activityIds return identical 422; failed PATCH rolls back metadata/refs [33m558[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mcross-project and missing storyIds return identical 422; failed PATCH rolls back metadata/refs [33m612[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mcross-project and missing taskIds return identical 422; failed PATCH rolls back metadata/refs [33m529[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mrejects owner outside project and leaves metadata unchanged [33m421[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam; pending reader policy explicitly fail-closed[2m > [22mmember cannot write through any UML endpoint [33m514[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam; pending reader policy explicitly fail-closed[2m > [22mviewer cannot write through any UML endpoint [33m469[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam; pending reader policy explicitly fail-closed[2m > [22moutsider cannot write through any UML endpoint [33m518[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam; pending reader policy explicitly fail-closed[2m > [22manonymous cannot write through any UML endpoint [33m595[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam; pending reader policy explicitly fail-closed[2m > [22manonymous cannot list/detail; outsider existing id and missing id have identical 404 envelopes [33m567[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam; pending reader policy explicitly fail-closed[2m > [22mTEMPORARY fail-closed reader scope is empty with total=0 even for ordinary/unassociated diagrams [33m478[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam; pending reader policy explicitly fail-closed[2m > [22mdoes not automatically disclose old sensitive diagram text after real task delete Cascade or unlink [33m703[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m43 passed[39m[22m[2m | [22m[90m3 todo[39m[90m (46)[39m
+[2m   Start at [22m 23:12:25
+[2m   Duration [22m 27.61s[2m (transform 601ms, setup 0ms, collect 1.59s, tests 24.70s, environment 0ms, prepare 176ms)[22m

@@ -1,0 +1,59 @@
+START 2026-10-22T14:28:11.597Z limit=90s
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/临时项目/AIManagement-US15[39m
+
+ [32m✓[39m src/modules/uml/uml-schema.test.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 3854[2mms[22m[39m
+ [31m❯[39m src/modules/uml/uml.http.test.ts [2m([22m[2m54 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 17228[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mtreats another diagram real node id as a new local alias; cross-graph edge references do not update or expose the original graph [33m319[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mcross-project and missing storyIds return identical 422; failed PATCH rolls back metadata/refs [33m314[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 rejected writes leave the prior saved graph intact[2m > [22mcross-project and missing taskIds return identical 422; failed PATCH rolls back metadata/refs [33m305[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22msensitive task association hides all content even from whitelist members [33m333[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22msensitive story association hides all content even from whitelist members [33m333[2mms[22m[39m
+[31m   [31m×[31m US-15 real authorization seam and sticky no-declassification guard[2m > [22mreal story DELETE Cascade does not disclose historical diagram content[90m 273[2mms[22m[31m[39m
+[31m     → {"error":{"code":"CONFLICT","message":"仍有下级对象，请先处理子项","details":[{"field":"storyId","code":"HAS_CHILDREN"}]}}: expected 409 to be 204 // Object.is equality[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mPATCH establishes sticky task restriction; unlink, metadata, owner and content changes never clear it [33m466[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mPATCH establishes sticky story restriction; unlink, metadata, owner and content changes never clear it [33m483[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mnon-PM list, kind filter, total and truncation exclude restricted rows before taking 200 [33m335[2mms[22m[39m
+[31m   [31m×[31m US-15 real authorization seam and sticky no-declassification guard[2m > [22mfailed PATCH rolls back sensitive guard, earlier join changes and metadata together[90m 276[2mms[22m[31m[39m
+[31m     → makeTask：负责人与验收人不能是同一人 —— 契约「测试数据工厂」要求夹具内部满足该约束，而端点 25/28 会以 ACCEPTOR_EQUALS_OWNER 拒绝这类数据。请传入两个不同的用户 id。[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[1m[7m Failed Tests 2 [27m[22m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/modules/uml/uml.http.test.ts[2m > [22mUS-15 real authorization seam and sticky no-declassification guard[2m > [22mreal story DELETE Cascade does not disclose historical diagram content
+[31m[1mAssertionError[22m: {"error":{"code":"CONFLICT","message":"仍有下级对象，请先处理子项","details":[{"field":"storyId","code":"HAS_CHILDREN"}]}}: expected 409 to be 204 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 204[39m
+[31m+ 409[39m
+
+[36m [2m❯[22m src/modules/uml/uml.http.test.ts:[2m290:58[22m[39m
+    [90m288| [39m    [35mconst[39m saved [33m=[39m [35mawait[39m [34mcreate[39m([32m'USECASE'[39m[33m,[39m { [kind [33m===[39m [32m'task'[39m [33m?[39m [32m'taskId[39m…
+    [90m289| [39m    [35mconst[39m deleted [33m=[39m [35mawait[39m clients[33m.[39mpm[33m.[39m[35mdelete[39m([32m`/[39m[36m${[39mkind [33m===[39m [32m'task'[39m [33m?[39m [32m'tas[39m…
+    [90m290| [39m    [34mexpect[39m(deleted[33m.[39mstatus[33m,[39m [33mJSON[39m[33m.[39m[34mstringify[39m(deleted[33m.[39mbody))[33m.[39m[34mtoBe[39m([34m204[39m)
+    [90m   | [39m                                                         [31m^[39m
+    [90m291| [39m    [35mconst[39m loaded [33m=[39m [35mawait[39m clients[33m.[39mpm[33m.[39m[35mget[39m([34mdetail[39m(saved[33m.[39mid))
+    [90m292| [39m    [34mexpect[39m(loaded[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m200[39m)
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/modules/uml/uml.http.test.ts[2m > [22mUS-15 real authorization seam and sticky no-declassification guard[2m > [22mfailed PATCH rolls back sensitive guard, earlier join changes and metadata together
+[31m[1mError[22m: makeTask：负责人与验收人不能是同一人 —— 契约「测试数据工厂」要求夹具内部满足该约束，而端点 25/28 会以 ACCEPTOR_EQUALS_OWNER 拒绝这类数据。请传入两个不同的用户 id。[39m
+[36m [2m❯[22m Module.makeTask test/factories.ts:[2m291:11[22m[39m
+    [90m289| [39m)[33m:[39m [33mPromise[39m[33m<[39mstring[33m>[39m {
+    [90m290| [39m  [35mif[39m (ownerUserId [33m===[39m acceptorUserId) {
+    [90m291| [39m    [35mthrow[39m [35mnew[39m [33mError[39m(
+    [90m   | [39m          [31m^[39m
+    [90m292| [39m      [32m'makeTask：负责人与验收人不能是同一人 —— 契约「测试数据工厂」要[39m…
+    [90m293| [39m        [32m'而端点 25/28 会以 ACCEPTOR_EQUALS_OWNER 拒绝这类数据。请传入[39m…
+[90m [2m❯[22m src/modules/uml/uml.http.test.ts:[2m346:29[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m1 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m77 passed[39m[22m[90m (79)[39m
+[2m   Start at [22m 22:28:13
+[2m   Duration [22m 18.59s[2m (transform 471ms, setup 0ms, collect 1.94s, tests 21.08s, environment 0ms, prepare 164ms)[22m
+
+END exit=1 signal=none elapsed=20.34s

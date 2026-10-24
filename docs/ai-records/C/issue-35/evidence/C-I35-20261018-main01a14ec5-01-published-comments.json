@@ -1,0 +1,20 @@
+[
+    {
+        "issue":  24,
+        "id":  6249728765,
+        "url":  "https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6249728765",
+        "body":  "\u003c!-- role-c-us15-approval-24-v1 --\u003e\n## ROLE-C / #35：待批准契约与公共层申请\n\n我是 ROLE-C / @xichoutrees。本条经本次人工确认发布，只申请 #35 相关最小集，以下建议**均未获业务批准**。\n\n@githubleelee 请协调 B、项目负责人及权限负责人逐项答复。当前检查 main 基线为 fe824f2，UML 尚无实现。\n\nROLE-C / #35 最小契约申请（非已批准声明）：\n\n1. **C5**：推荐本地结构化编辑 + SVG 即时预览，用例图可编辑参与者/用例/关系、时序图可编辑生命线/有序消息；请 B + C + 项目负责人确认最小关系/消息种类及交互。不引入外部建模服务。\n2. **角色**：PM 可 CRUD 与管理关联；VIEWER 只读；请确认 MEMBER 本期只读，还是按明确对象关系允许参与编辑，并明确删除/关联权限。\n3. **敏感**：请确认图自身标敏/白名单规则，以及关联可见性取交集、任一关联不可见时整图隐藏的方案；须防止图正文泄漏，不能仅遮链接。解除敏感关联或目标被删后不自动降密的具体规则请一并裁决。\n4. **删除**：请裁决 Restrict / 清理关联 / 保留失效引用；前者可能影响旧 DELETE 错误映射，后两者必须解决正文保密和失效目标处理。未定前不做迁移。\n5. **B 单写公共需求**：UML 图表与类型化关联模型及迁移、共享 wire 类型/校验、后端注册、/projects/:projectId/uml 页面与导航、路由文档。请同时核对新模型对测试建库/重置的影响。C 提案，B 分批落地，不代写 C 的 UML 业务。\n6. **权限专项**：申请 UML Action/ObjectRef/图列表 scope 及真实对象加载支持；请权限负责人批准并明确落地人。B 的 #32/risk 例外不自动覆盖本票，不使用 can() 默认允许绕过审批。\n7. **旧文件**：当前不申请改 requirement/task/project 后端。任务没有独立详情前端路由；如要求精准跳转定位，拟申请 web/src/pages/task/TaskSection.tsx 的 taskId 锚点/定位最小改动，需具体授权和单写窗口。若删除方案要求改旧后端，另报文件清单后再实施。\n\n本轮只请求 #35 相关最小集，不新增执行依赖、不批准其他故事，不改标签/关闭工单/合 PR。确认结果请以可引用评论或适用契约留痕，并提供公共支持就绪 SHA。\n\n\n建议回复格式：编号 / 同意或调整结论 / 适用文件与实施人 / 公共支持就绪 SHA（如尚无实现请注明）。C5 与权限等未决部分继续只设计，不用其他票授权替代。"
+    },
+    {
+        "issue":  35,
+        "id":  6249729017,
+        "url":  "https://github.com/githubleelee/AIManagement/issues/35#issuecomment-6249729017",
+        "body":  "\u003c!-- role-c-us15-approval-35-v1 --\u003e\n## ROLE-C / #35：需他人批准确认事项（单独汇总）\n\n我是 ROLE-C / @xichoutrees，本次仅处理 #35。已核对 team-handoff、#22/#24 及适用契约；基线 main `fe824f2`。目前仅有本票设计、关联模型提案及验收方案，**UML 尚未实现，AC1–AC6 均未验收**。\n\n| 编号 | 请求确认 | 请谁确认 | 对实现的影响 |\n|---|---|---|---|\n| U1 | C5：推荐结构化编辑 + 本地 SVG 即时预览；用例图编辑参与者/用例/关系，时序图编辑生命线/有序消息；明确最小类型与交互 | B + C + 项目负责人 | 在线编辑器及图文档格式 |\n| U2 | MEMBER 本期只读，还是允许编辑指定范围；明确创建、编辑、删除、关联权限。建议 PM 写，MEMBER/VIEWER 只读 | 项目负责人 + 权限负责人 | UML 写入鉴权；建议不是既定规则 |\n| U3 | 图自身标敏/白名单及关联敏感继承；建议任一关联不可见则整图不可见，保护标题和正文；解绑或目标删除后不得意外自动降密 | 项目负责人 + 权限负责人，B/C 对齐实现 | 图列表、详情、候选、计数及正文保密 |\n| U4 | 关联目标删除采用 Restrict、清理关联还是保留失效引用；明确敏感正文与旧 DELETE 的处理 | B + 项目负责人；若影响旧业务则具体 owner | 关联模型、迁移、删除行为 |\n| U5 | UML 表与关联、共享类型/校验、候选 API 和正式前端 URL、后端注册及前端导航挂载分批落地 | B | 公共层由 B 单写，C 不直接改 |\n| U6 | UML Action / ObjectRef / 图列表 scope 的具体契约，权限文件变更批准及落地人 | 权限负责人 + 项目负责人 | #32/risk 的特例不覆盖 #35；不使用 can() 默认允许绕过 |\n| U7 | AC4 任务精确跳转：优先复用故事详情任务区；若需 taskId 定位，申请 `web/src/pages/task/TaskSection.tsx` 最小锚点/定位改动 | 该旧页面 owner + B 协调单写窗口 | 不编造当前不存在的任务详情路由，不扩任务业务 |\n\n@githubleelee 请协调上述确认，并将权限及旧文件申请交对应负责人，不将 B 的一般公共文件授权自动扩到权限模块或旧业务。\n\nC 计划只实现 `src/modules/uml/`、`web/src/pages/uml/`；公共层按 U5/U6 协作。本票无执行票/接口先行依赖，不等待 #32、AI、事件或附件全部完成，未决规则只阻塞相关部分。旧后端目前不申请修改，删除方案若需要另列具体范围。\n\n验收保持票面 AC1–AC6：两种图在线增改保存刷新、五类同项目关联、跨项目拒绝、核心时序图实际跳转、四角色与敏感/撤权验证、图片不替代编辑。使用真实数据库 HTTP 测试、typecheck 与浏览器证据，不以 mock 或文档冒充通过。\n\n本条不改标签、不关闭工单、不合 PR。审批主清单：https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6249728765"
+    },
+    {
+        "issue":  22,
+        "id":  6249729265,
+        "url":  "https://github.com/githubleelee/AIManagement/issues/22#issuecomment-6249729265",
+        "body":  "\u003c!-- role-c-us15-approval-22-v1 --\u003e\n## ROLE-C / #35 协调与确认请求\n\n接单身份：ROLE-C / @xichoutrees，本次仅认领 #35（在线用例图/时序图），不扩 #32。已读交接及三份既有规则、DECISIONS 和适用讨论，检查 main fe824f2；从该基线建立独立 feat/US15-uml 工作区，目前仅设计/申请/验收准备，尚无 UML 功能。\n\n@githubleelee 请协调 B、项目负责人和权限负责人确认：C5 编辑方式、MEMBER 写权限、图自身敏感与关联继承/解绑保密、目标删除语义、UML 共享模型/端点/挂载及权限扩展；若任务精确跳转确需改旧页面，另请旧 owner 限范围授权并登记写窗口。\n\n- 本票待确认事项及验收边界：https://github.com/githubleelee/AIManagement/issues/35#issuecomment-6249729017\n- 契约门正式申请（逐项批复主入口）：https://github.com/githubleelee/AIManagement/issues/24#issuecomment-6249728765\n\n公共文件由 B 单写，权限及旧业务修改另行获批；#32 的特例不扩到 #35。不跨业务 service 调用，不新增 AI/事件执行依赖。确认适用契约及文件边界后再处理 needs-confirmation；本条不移除标签、不宣称已实现/已验收、不关闭工单或合并 PR。"
+    }
+]
