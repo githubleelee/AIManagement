@@ -302,3 +302,9 @@
 - **value:** #32 的唯一正式前端路由为 `/projects/:projectId/scheduling`；项目左导航「AI 排期」仅 PM 可见，MEMBER/VIEWER 直接访问也不加载排期数据。后端七条 `/projects/:projectId/scheduling-suggestions` 相对路径不变，每次请求仍由统一鉴权判定；前端隐藏入口不替代服务端鉴权。
 - **timestamp:** 2026-10-24T18:05:21+08:00
 - **rationale:** 主控向 A 留言后，用户通过本会话单题确认明确选择采用该 URL，解除原材料中前端 URL 待定项，不扩业务或权限。
+
+## `notifications.us14-ac1-scope-downgrade`
+
+- **value:** #34（US-14 站内通知）的 AC1 计数口径经项目负责人 2026-10-24 裁定**降级**：以「任务分配（`task.assigned`）、逾期（`task.overdue`）、验收结果（`acceptance.submitted` / `acceptance.approved` / `acceptance.rejected`）、风险预警（`risk.created` / `risk.level-raised`）、关键节点提醒（`milestone.due`）」**五类**的真实端到端送达为达标依据；`task.mentioned`（@提及）作为**明确后置缺口**单独登记，不计入本阶段 AC1。降级仅作用于 AC1 的**计数口径**，不改变 AC2 的「事件到落库 ≤60 秒」目标，不改变 AC3（越权 404）、AC4（敏感只带引用）、AC5（已读状态）、AC6（只经 #37 订阅）的判定，也不削减任何已交付能力。
+- **timestamp:** 2026-10-24T20:40:00+08:00
+- **rationale:** @提及需新建 Mention 数据模型与真实来源，属独立的新功能，与本票核心口径（落库 / 列表 / 已读 / 60 秒 / 权限 / 敏感）无耦合；若坚持「六类全绿」为唯一门槛，会让已成立的核心能力因一个后置项长期无法结项。判定依据为 A 于 2026-10-24 补齐任务域事件通道后的 5/6 真实端到端证据（`task.assigned` → 收件人=负责人，latency 1836ms；`acceptance.submitted` → 收件人=验收人，latency 1962ms，均 `withinDeliveryTarget=true`），见 `docs/ai-records/A/issue-34/evidence/probe-task-events-output.json`。本条目为**追加**记录，不改写既有通知相关条目；`task.mentioned` 仍保持 UNAVAILABLE，不伪造可用。
