@@ -1,0 +1,8 @@
+{
+  "src/modules/ai/scheduling-provider.ts": "e5134542fbbf8d7a8610bfc7140faf7f670d140d15713109cd0afee665227cc1",
+  "src/modules/ai/scheduling-provider.test.ts": "225176a96d861dc9c96c3a9e3f478e4aea877d8e03e533eb33c59e7e97b378c6",
+  "src/modules/ai/scheduling-compatibility.db.test.ts": "cf6a142344c8e37277b9557139782141b973da57288c2e02ab3943ec70ff446f",
+  "src/modules/ai/factory.ts": "80e117ac89f8ca8675632a104ff40cbcc23abe99c2a45cf3d775333df9cd5521",
+  "src/modules/ai/README.md": "a288dab6d1a71a54a816205756edea0cebbf5e37e1175e81d3ecfd95d4647460",
+  "docs/role-d/ROLE-D-SCHEDULING-model-port.md": "dd0309c8ecf4c6b2590d04b17a375b0b9169679833821119c02a8b3d2b36db21"
+}

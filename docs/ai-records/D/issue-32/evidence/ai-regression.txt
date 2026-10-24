@@ -1,0 +1,51 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+ RUN  v2.1.9 /workspace/scratch/05204396b77e/ai-scheduling-update
+
+ ✓ src/modules/ai-insights/aggregate.test.ts (30 tests) 25ms
+ ✓ src/modules/ai/service.test.ts (15 tests) 67ms
+ ✓ src/modules/ai-scheduling/policy.http.test.ts (55 tests) 130ms
+ ✓ src/modules/ai/scheduling-provider.test.ts (49 tests) 488ms
+ ✓ src/modules/ai-scheduling/generation.test.ts (23 tests) 70ms
+ ✓ src/modules/ai/store.test.ts (2 tests) 3ms
+ ✓ src/modules/ai/plugin.test.ts (7 tests) 127ms
+ ↓ src/modules/ai-scheduling/integration.pending.test.ts (12 tests | 12 skipped)
+ ✓ src/modules/ai-scheduling/digests.test.ts (4 tests) 5ms
+ ✓ src/modules/ai/factory.test.ts (3 tests) 4ms
+ ✓ src/modules/ai-scheduling/generation.db.test.ts (5 tests) 3235ms
+ ✓ src/modules/ai/scheduling-compatibility.db.test.ts (7 tests) 3417ms
+   ✓ D model adapter + unmodified C generation + actual SQLite > persists a traced PENDING scheduling proposal but never applies formal dates 364ms
+ ✓ src/modules/ai-scheduling/workflow.db.test.ts (24 tests) 7245ms
+   ✓ C scheduling disposition and read composition, real SQLite/test assembly > accepts both tasks + application + success audit in one caller transaction 328ms
+ ✓ src/modules/ai-insights/metrics.test.ts (18 tests) 8283ms
+   ✓ 四类指标：PM 全项目基数 > ★ 四类数字与造数一一对上（含 C6 = GLOBAL、四类场景齐全） 464ms
+   ✓ 四类指标：PM 全项目基数 > today 可覆盖：同一批数据换「今天」，计划时间进度随之变化（口径可测） 362ms
+   ✓ 四类指标：PM 全项目基数 > ★ 空项目：进度 ratio 为 null + UNAVAILABLE，其余三类全 0（不编数字、不报错） 325ms
+   ✓ C6 基数与敏感对象 > ★ 非 PM：VISIBLE 基数，敏感任务不进任何一类指标（分子分母同源） 320ms
+   ✓ C6 基数与敏感对象 > 白名单内的成员：敏感任务计入（与 #30 的可见性口径一致） 313ms
+   ✓ C6 基数与敏感对象 > ★ 敏感风险继承关联任务的可见性：非 PM 不计入风险指标 316ms
+   ✓ C6 基数与敏感对象 > 跨项目隔离：别的项目的任务 / 风险 / 验收都不计入 336ms
+   ✓ 判权 > ★ 非项目成员 → 404，与「项目不存在」的响应逐字一致 333ms
+   ✓ 判权 > VIEWER 可以读（只读聚合，与 #30 的风险台账只读口径一致） 403ms
+   ✓ 数据边界（设计 §5.1 第 2 条）与只读 > ★ 结果里只有聚合数值：不含标题 / 姓名 / 账号 / userId / taskId / riskId 307ms
+   ✓ 数据边界（设计 §5.1 第 2 条）与只读 > memberKey 不是 userId，也不含 userId 片段 312ms
+   ✓ 数据边界（设计 §5.1 第 2 条）与只读 > ★ 只读：调用前后任务 / 风险 / 验收 / 审计的行数都不变（不写库、不写审计） 344ms
+   ✓ 数据边界（设计 §5.1 第 2 条）与只读 > 「算不出来」的指标带原因登记（生成层不得围绕它编建议） 374ms
+   ✓ 数据边界（设计 §5.1 第 2 条）与只读 > 口径声明随结果返回（基数、阈值、公式、时区、匿名化、数据边界） 374ms
+   ✓ AC6 与 #30 的口径一致性（交叉校验） > ★ PM（全项目基数）：进度 / 健康度 / 计划窗口与 GET /dashboard 逐字段相等 345ms
+   ✓ AC6 与 #30 的口径一致性（交叉校验） > ★ 非 PM（可见窗口）：同样逐字段相等（敏感任务两侧都不计入） 325ms
+   ✓ 类型护栏 > 返回类型就是 InsightMetricsView（字段齐全） 314ms
+ ✓ src/modules/ai-scheduling/core.http.test.ts (62 tests) 16427ms
+   ✓ real source projection and safe model boundary > reads real DB and marks known empty dependencies/milestones as complete 389ms
+   ✓ real source projection and safe model boundary > filters task AND parent-story sensitivity before returning title/content 317ms
+   ✓ real source projection and safe model boundary > model DTO excludes private counts/digest/revision/roles/sensitive flags 327ms
+   ✓ real source projection and safe model boundary > private FS edges require controlled validation, not silently no dependencies 342ms
+   ✓ real source projection and safe model boundary > mixed milestone associations never leak hidden task IDs into the model 313ms
+   ✓ real source projection and safe model boundary > does not inherit the 500-row UI cap 321ms
+   ✓ real source projection and safe model boundary > DB source failure returns unavailable/null, never empty arrays or fabricated count 395ms
+
+ Test Files  14 passed | 1 skipped (15)
+      Tests  304 passed | 12 todo (316)
+   Start at  17:12:20
+   Duration  18.41s (transform 2.20s, setup 0ms, collect 7.80s, tests 39.53s, environment 4ms, prepare 1.44s)
+

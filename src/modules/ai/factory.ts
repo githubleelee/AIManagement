@@ -3,6 +3,12 @@ import { AiPortError } from './errors.js'
 import { LocalStubAiProvider } from './local-stub-provider.js'
 import { AiBreakdownService, type AiServiceDependencies } from './service.js'
 
+// Scenario-specific API adapter. B injects it into C's generator at composition time.
+export {
+  createSchedulingAiModelPort, createSchedulingAiModelPortFromEnvironment,
+  type SchedulingApiOptions,
+} from './scheduling-provider.js'
+
 export type AiProviderFactoryOptions =
   | { mode: 'LOCAL_STUB' }
   | { mode: 'EXTERNAL'; provider: AiModelPort }
