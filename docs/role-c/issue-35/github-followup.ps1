@@ -1,4 +1,4 @@
-param([ValidateSet('read', 'post')][string]$Mode = 'read', [int]$Issue = 35, [string]$BodyFile)
+param([ValidateSet('read', 'post', 'create')][string]$Mode = 'read', [int]$Issue = 35, [string]$BodyFile, [string]$Title)
 # Credentials stay in memory; only public Issue content and response URLs are printed.
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
@@ -23,16 +23,22 @@ if ($me.login -ne 'brucelyce-ux') { throw 'Saved credential is not the user-appr
 $base = "https://api.github.com/repos/githubleelee/AIManagement/issues/$Issue"
 if ($Mode -eq 'read') {
   $ticket = Request 'GET' $base
-  Write-Output ("Issue #{0} state={1} comments={2}" -f $Issue, $ticket.state, $ticket.comments)
+  Write-Output ("Issue #{0} state={1} comments={2} author={3}" -f $Issue, $ticket.state, $ticket.comments, $ticket.user.login)
   $comments = Request 'GET' ($base + '/comments?per_page=100')
   $comments | Select-Object -Last 8 | ForEach-Object { Write-Output ("COMMENT {0} {1}`n{2}" -f $_.html_url, $_.user.login, $_.body) }
 } else {
   if (!$BodyFile) { throw 'BodyFile is required for publication' }
   $body = [System.IO.File]::ReadAllText((Resolve-Path $BodyFile), [System.Text.Encoding]::UTF8)
-  $result = Request 'POST' ($base + '/comments') (@{body=$body} | ConvertTo-Json -Compress)
-  # Verify the actual published body; never assume a successful local draft was posted.
+  if ($Mode -eq 'create') {
+    if (!$Title) { throw 'Title is required when creating an Issue' }
+    $result = Request 'POST' 'https://api.github.com/repos/githubleelee/AIManagement/issues' (@{title=$Title;body=$body} | ConvertTo-Json -Compress)
+  } else {
+    $result = Request 'POST' ($base + '/comments') (@{body=$body} | ConvertTo-Json -Compress)
+  }
+  # Verify actual publication; do not retry a write after an uncertain response without checking.
   $verified = Request 'GET' $result.url
   if ($verified.body -ne $body) { throw 'Published body verification failed' }
+  if ($Mode -eq 'create' -and $verified.title -ne $Title) { throw 'Published title verification failed' }
   Write-Output ("PUBLISHED {0} author={1}" -f $verified.html_url, $verified.user.login)
 }
 $password = $null
