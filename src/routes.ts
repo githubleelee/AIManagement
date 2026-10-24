@@ -20,7 +20,11 @@ import { registerRequirementRoutes } from './modules/requirement/plugin.js'
 import { registerAiRoutes } from './modules/ai/plugin.js'
 import { registerNotificationRoutes } from './modules/notification/plugin.js'
 import type { NotificationService } from './modules/notification/service.js'
+import { registerAttachmentRoutes } from './modules/attachment/plugin.js'
 import type { AiBreakdownService } from './modules/ai/service.js'
+import type { AttachmentService } from './modules/attachment/service.js'
+import type { AttachmentDb } from './db/attachment-repository.js'
+import type { TaskAttachmentLifecyclePort } from './shared/attachments.js'
 import type { GanttEventPort } from './modules/gantt/types.js'
 import type { RequirementEventPort } from './modules/requirement/service.js'
 import type { RiskEventPort } from './modules/risk/types.js'
@@ -81,6 +85,21 @@ export type RouteContext = {
    * 生产 `buildApp` 始终真实注入。缺省时引用方必须 fail-fast，不得静默跳过校验。
    */
   taskStartGuard?: TaskStartGuardPort<Prisma.TransactionClient>
+  /**
+   * #36 任务附件服务（由 `src/app.ts` 显式组装注入）。
+   *
+   * 与 `aiService` 同款：组装（prisma 仓储 + 本地存储 + 权限适配器）留在唯一组装点
+   * `src/app.ts`，路由总表只负责注册。**可选但不得静默跳过**：缺省时注册期 fail-fast。
+   */
+  attachmentService?: AttachmentService
+  /**
+   * #36 附件窄生命周期端口（由 `src/app.ts` 用同一个 prisma 仓储 + 本地存储显式组装注入）。
+   *
+   * 业务域（ROLE-C 的任务删除路径）只调 `markForTaskDeletion(tx, taskId)`（事务内）/ `run()`
+   * （提交后），**不得** import / new 任何附件实现。宿主为 `AttachmentDb` 窄 `Pick`，
+   * 使 `Prisma.TransactionClient` 可直接作为事务形参传入。
+   */
+  attachmentCleanup?: TaskAttachmentLifecyclePort<AttachmentDb>
 }
 
 export function registerRoutes(app: FastifyInstance, context: RouteContext): void {
@@ -155,4 +174,22 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
     )
   }
   registerNotificationRoutes(app, context.notificationService)
+  // #36 任务附件（B 公共接入）：POST/GET /tasks/:taskId/attachments、
+  // GET /attachments/:attachmentId/download、DELETE /attachments/:attachmentId。
+  // 服务由 `src/app.ts` 组装后经 context 注入；**同步显式注册**，缺失即 fail-fast
+  //（不得静默跳过；不得用 hasRoute 守卫 / skip 开关 / 默认回退掩盖装配缺失）。
+  const attachmentService = context.attachmentService
+  if (!attachmentService) {
+    throw new Error(
+      '附件路由需要 attachmentService：请由 src/app.ts 显式组装注入（缺失即 fail-fast，不得静默跳过）',
+    )
+  }
+  // 上传 MIME 解析器（`plugin.ts` 的 `addContentTypeParser`）必须限制在附件插件的**封装子上下文**内：
+  // 直接注册在根 app 会让 8 种附件 MIME 在**所有**路由上生效 —— 例如 `POST /projects`
+  // 携带 `Content-Type: application/pdf` 不再由框架返回 415，而进入业务校验变 422，
+  // 违反 I-4「401/403/413/415/429 保持原状」。这里是**同步 fail-fast 之后的封装注册**，
+  // 不是 hasRoute 守卫 / skip 开关 / 默认回退：缺 service 仍然立即抛错，只是路由随 boot 装载。
+  app.register(async instance => {
+    registerAttachmentRoutes(instance, attachmentService)
+  })
 }
