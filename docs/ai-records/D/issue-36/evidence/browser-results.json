@@ -1,0 +1,195 @@
+{
+  "scope": "Real isolated component, NOT production mounting",
+  "generatedAt": "2026-10-23T13:57:00.523Z",
+  "passed": [
+    "real login",
+    "upload listed",
+    "download event and byte equality",
+    "viewer read-only",
+    "outsider API 404 and no filenames",
+    "sensitive revoked viewer API 404 and no filenames",
+    "single attachment deletion"
+  ],
+  "blocked": [
+    "production TaskSection has no attachment mount",
+    "task DELETE lifecycle orphan"
+  ],
+  "responses": [
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/tasks/91f9ac49-e703-4cb0-98a4-5591973d56ac/attachments",
+      "status": 200
+    },
+    {
+      "url": "/api/tasks/91f9ac49-e703-4cb0-98a4-5591973d56ac/attachments",
+      "status": 201
+    },
+    {
+      "url": "/api/tasks/91f9ac49-e703-4cb0-98a4-5591973d56ac/attachments",
+      "status": 200
+    },
+    {
+      "url": "/api/attachments/32c00078-43c8-4843-9a22-91d15de8b7e6/download",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/tasks/91f9ac49-e703-4cb0-98a4-5591973d56ac/attachments",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/tasks/91f9ac49-e703-4cb0-98a4-5591973d56ac/attachments",
+      "status": 404
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/tasks/91f9ac49-e703-4cb0-98a4-5591973d56ac/attachments",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/projects",
+      "status": 401
+    },
+    {
+      "url": "/api/projects",
+      "status": 401
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/tasks/91f9ac49-e703-4cb0-98a4-5591973d56ac/attachments",
+      "status": 404
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/tasks/91f9ac49-e703-4cb0-98a4-5591973d56ac/attachments",
+      "status": 200
+    },
+    {
+      "url": "/api/attachments/32c00078-43c8-4843-9a22-91d15de8b7e6",
+      "status": 204
+    },
+    {
+      "url": "/api/tasks/91f9ac49-e703-4cb0-98a4-5591973d56ac/attachments",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "url": "/api/projects/df6eb7ec-a177-47db-86e7-91c1c3a008d7",
+      "status": 200
+    },
+    {
+      "url": "/api/projects/df6eb7ec-a177-47db-86e7-91c1c3a008d7",
+      "status": 200
+    },
+    {
+      "url": "/api/stories/6da1098b-e74e-4401-9277-7e1760f84aaf",
+      "status": 200
+    },
+    {
+      "url": "/api/projects/df6eb7ec-a177-47db-86e7-91c1c3a008d7/goals",
+      "status": 200
+    },
+    {
+      "url": "/api/stories/6da1098b-e74e-4401-9277-7e1760f84aaf",
+      "status": 200
+    },
+    {
+      "url": "/api/projects/df6eb7ec-a177-47db-86e7-91c1c3a008d7/goals",
+      "status": 200
+    },
+    {
+      "url": "/api/projects/df6eb7ec-a177-47db-86e7-91c1c3a008d7/members",
+      "status": 200
+    },
+    {
+      "url": "/api/projects/df6eb7ec-a177-47db-86e7-91c1c3a008d7/stories/6da1098b-e74e-4401-9277-7e1760f84aaf/ai-suggestions",
+      "status": 200
+    },
+    {
+      "url": "/api/stories/6da1098b-e74e-4401-9277-7e1760f84aaf/tasks",
+      "status": 200
+    },
+    {
+      "url": "/api/projects/df6eb7ec-a177-47db-86e7-91c1c3a008d7/members",
+      "status": 200
+    },
+    {
+      "url": "/api/projects/df6eb7ec-a177-47db-86e7-91c1c3a008d7/stories/6da1098b-e74e-4401-9277-7e1760f84aaf/ai-suggestions",
+      "status": 200
+    },
+    {
+      "url": "/api/stories/6da1098b-e74e-4401-9277-7e1760f84aaf/tasks",
+      "status": 200
+    }
+  ]
+}

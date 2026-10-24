@@ -1,0 +1,22 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ai-management@0.1.0 test
+> vitest run src/modules/attachment src/db/attachment-repository.test.ts src/db/attachment-cleanup.test.ts test/skeleton-smoke.test.ts
+
+
+ RUN  v2.1.9 /workspace/scratch/05204396b77e/candidate36
+
+ ✓ src/modules/attachment/local-storage.test.ts (3 tests) 29ms
+ ✓ src/modules/attachment/service.test.ts (21 tests) 41ms
+ ✓ src/modules/attachment/plugin.test.ts (12 tests) 138ms
+ ✓ src/db/attachment-cleanup.test.ts (9 tests) 1373ms
+ ✓ test/skeleton-smoke.test.ts (6 tests) 1368ms
+ ✓ src/db/attachment-repository.test.ts (12 tests) 3977ms
+   ✓ ① 上传 / 列表 / 下载 / 删除 happy path > member（任务负责人）可上传；列表只暴露视图字段；下载带 Content-Disposition；删除清理实体文件 314ms
+   ✓ ③ 敏感任务隔离（查询层判定，404 与不可见逐字一致） > 敏感任务：MEMBER 读 / 写 / 下载 → 404，且响应体与「跨项目不可见」逐字一致；PM 正常 338ms
+
+ Test Files  6 passed (6)
+      Tests  63 passed (63)
+   Start at  13:09:38
+   Duration  4.94s (transform 887ms, setup 0ms, collect 2.22s, tests 6.93s, environment 1ms, prepare 368ms)
+

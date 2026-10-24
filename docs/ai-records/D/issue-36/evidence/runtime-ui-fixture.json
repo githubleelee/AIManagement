@@ -1,0 +1,13 @@
+{
+  "projectId": "df6eb7ec-a177-47db-86e7-91c1c3a008d7",
+  "storyId": "6da1098b-e74e-4401-9277-7e1760f84aaf",
+  "taskId": "91f9ac49-e703-4cb0-98a4-5591973d56ac",
+  "ownerUserId": "7a2f9228-2c9a-4fe0-92fd-e06c94533b7c",
+  "accounts": [
+    "evidence.pm",
+    "evidence.owner",
+    "evidence.member",
+    "evidence.viewer",
+    "evidence.outsider"
+  ]
+}
