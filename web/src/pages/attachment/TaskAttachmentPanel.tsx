@@ -106,7 +106,7 @@ export default function TaskAttachmentPanel({ taskId, canWrite }: Props) {
 
       <p className="attachment-help">单文件不超过 10MB；支持图片、PDF、DOCX、XLSX、ZIP。</p>
       {error ? <p className="error" role="alert">{error}</p> : null}
-      {items === null ? <p className="muted">正在加载…</p> : null}
+      {items === null && !error ? <p className="muted">正在加载…</p> : null}
       {items?.length === 0 ? <p className="muted">暂无附件</p> : null}
       {items && items.length > 0 ? (
         <ul className="attachment-list">
