@@ -1,0 +1,28 @@
+START 2026-10-23T05:25:54.558Z limit=90s
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/临时项目/AIManagement-US15[39m
+
+ [32m✓[39m src/modules/uml/uml-schema.test.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 3140[2mms[22m[39m
+ [32m✓[39m src/modules/uml/uml.http.test.ts [2m([22m[2m54 tests[22m[2m)[22m[33m 15757[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mtreats another diagram real node id as a new local alias; cross-graph edge references do not update or expose the original graph [33m354[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 PM persistence, wire format and transaction semantics[2m > [22mconcurrent whole-content replacement yields complete winner, never a mixed graph or 500 [33m328[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mviewer reads ordinary empty and associated graphs without receiving the internal guard [33m309[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mPATCH establishes sticky task restriction; unlink, metadata, owner and content changes never clear it [33m439[2mms[22m[39m
+   [33m[2m✓[22m[39m US-15 real authorization seam and sticky no-declassification guard[2m > [22mPATCH establishes sticky story restriction; unlink, metadata, owner and content changes never clear it [33m438[2mms[22m[39m
+ [32m✓[39m src/modules/authz/sensitivity.http.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 29630[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22mPM 可设置故事与任务的敏感白名单；其他角色不能设置 [33m762[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m仅 PM 可以设置；未登录 401，非成员 404，成员 403 且不落审计 [33m547[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m故事白名单全量覆盖，旧凭证下一次请求立即失效，404 不泄漏标题 [33m650[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m可见范围过滤在数据库查询层生效，恢复非敏感时保留旧名单 [33m589[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m任务敏感设置可用；非项目成员名单被拒且事务无副作用 [33m576[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m审计保存前后对象、操作人与时间；改权限的用户下一次请求直接按库判定 [33m560[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m角色变更与成员移除都在同一事务写入审计 [33m591[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m三角色 × 五动作 × 敏感状态：仅 PM 可写，未授权敏感对象先返回 404 [33m577[2mms[22m[39m
+   [33m[2m✓[22m[39m T2：真实 HTTP 敏感设置与可见性[2m > [22m无效请求无写入；不存在对象与外部人员不可区分 [33m524[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m88 passed[39m[22m[90m (88)[39m
+[2m   Start at [22m 13:25:55
+[2m   Duration [22m 47.30s[2m (transform 520ms, setup 0ms, collect 2.15s, tests 48.53s, environment 0ms, prepare 265ms)[22m
+
+END exit=0 signal=none elapsed=48.02s

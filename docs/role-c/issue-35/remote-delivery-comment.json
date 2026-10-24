@@ -1,0 +1,6 @@
+{
+    "id":  6296474796,
+    "html_url":  "https://github.com/githubleelee/AIManagement/issues/35#issuecomment-6296474796",
+    "body":  "\u003c!-- role-c-us15-remote-delivered-v1 --\u003e\n## ROLE-C：分支已成功推送，可获取代码；全量异常如实保留\n\n用户明确确认改用 GitHub `brucelyce-ux` 后已成功推送（此前 xichoutrees 403 的阻塞已解除）：\n- 分支：https://github.com/githubleelee/AIManagement/tree/feat/US15-uml\n- 代码 commit：`dca876a28288ccdc6a569f3d74285ce321a1af2d`；首轮远端 HEAD/回读：`92184d74a087e593d92f174a111ffd307709c1fc`。随后仅追加本轮测试/交付文档，业务代码不变。\n- 再次 fetch main `37287c2`，已包含于分支，无合并冲突；没有推 main、开/合 PR 或关闭票。\n\n**本轮最新验证**：5 文件定向复测 125 passed / 3 todo，包含先前异常退出的 goal-tree/error-handler 两文件；最后单独 build exit 0、8 项真实 API 浏览器回归通过。\n\n**不能声称全库通过**：4 worker 全量有 2 次 Worker exited unexpectedly，exit 1；2 worker 再跑 600 秒超时。最后 typecheck 命令也有 90 秒超时（此前曾通过），没有将超时记为成功。用户要求卡住即记录并继续其他工作，已停止无界复跑，未改公共测试配置/断言/超时来造通过，未证实根因或声称修复。见分支内 `docs/role-c/issue-35/prepush-status.md`（随文档提交追加）。\n\n请 B 在明确单写窗口核对：P4/P5 接线与任务行锚点请求 comment-6295349205（精确补丁 comment-6282421130）；保密持续 guard 仍见 #24 comment-6295348117。非 PM 读取仍临时 fail-closed，不能作为 AC5 完成或直接宣布可上线。请回复采用/调整方案及就绪 SHA，C 再补实际联调；本条不要求合并未完成的安全策略。",
+    "created_at":  "2026-10-20T17:01:52Z"
+}

@@ -1,0 +1,9 @@
+PASS PM creates sequence and all four refs through real API, fresh server ids, correct persisted seq
+PASS refresh restores actual server document and editable content
+PASS metadata save preserves unsubmitted content draft; content save preserves other metadata draft
+PASS invalid association returns real 422 without replacing draft or saved metadata
+PASS wire adapters preserve reverse associations, custom labels, null labels and both directed association tuples
+PASS real permission denial clears existing graph, drafts and saved association titles
+PASS PM deletes via confirmed actual DELETE, then document is absent after refresh
+PASS PM edits use-case relations/labels through the production component and restores SVG after real save/refresh
+PASS 8 real-API browser checks; no full-ticket acceptance claimed

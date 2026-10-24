@@ -1,0 +1,25 @@
+START 2026-10-23T13:06:05.992Z limit=90s
+PASS PM creates sequence and all four refs through real API, fresh server ids, correct persisted seq
+PASS refresh restores actual server document and editable content
+PASS picker search and selection edit only the draft, survive offline retry, and preserve unknown IDs
+PASS picker enforces the 50-selection boundary without discarding an existing draft
+PASS metadata save preserves unsubmitted content draft; content save preserves other metadata draft
+PASS invalid association returns real 422 without replacing draft or saved metadata
+PASS wire adapters preserve reverse associations, custom labels, null labels and both directed association tuples
+PASS ordinary VIEWER reads persisted graph and refs without edit or create controls
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('alert').filter({ hasText: '图不存在' }) to be visible[22m
+
+    at D:\临时项目\AIManagement-US15\docs\role-c\issue-35\verify-integration.mjs:206:63
+    at async check (D:\临时项目\AIManagement-US15\docs\role-c\issue-35\verify-integration.mjs:38:40)
+    at async file:///D:/%E4%B8%B4%E6%97%B6%E9%A1%B9%E7%9B%AE/AIManagement-US15/docs/role-c/issue-35/verify-integration.mjs:197:3 {
+  name: 'TimeoutError'
+}
+
+Node.js v24.15.0
+END exit=1 signal=none elapsed=42.79s

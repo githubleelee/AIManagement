@@ -1,0 +1,177 @@
+{
+  "error": "TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('status').filter({ hasText: '图内容已保存' }) to be visible\u001b[22m\n",
+  "checks": [
+    {
+      "name": "PM creates sequence and all four refs through real API, fresh server ids, correct persisted seq",
+      "passed": true
+    },
+    {
+      "name": "refresh restores actual server document and editable content",
+      "passed": true
+    },
+    {
+      "name": "picker search and selection edit only the draft, survive offline retry, and preserve unknown IDs",
+      "passed": true
+    },
+    {
+      "name": "picker enforces the 50-selection boundary without discarding an existing draft",
+      "passed": true
+    }
+  ],
+  "alerts": [
+    "操作未完成，请检查图稿格式或稍后重试。 草稿未被替换。"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac",
+      "status": 401,
+      "hasAuthorization": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/tasks",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/goals",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/uml-diagrams",
+      "status": 201,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/5db7e137-89ae-461d-b87e-50e03561fce1",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/goals",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/tasks",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/5db7e137-89ae-461d-b87e-50e03561fce1",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/5db7e137-89ae-461d-b87e-50e03561fce1",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/goals",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/tasks",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/5db7e137-89ae-461d-b87e-50e03561fce1",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/tasks",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/goals",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/5db7e137-89ae-461d-b87e-50e03561fce1",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/5db7e137-89ae-461d-b87e-50e03561fce1",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/uml-diagrams/5db7e137-89ae-461d-b87e-50e03561fce1",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/2e34be0e-cc61-4b4f-a637-b301583fbcac/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/5db7e137-89ae-461d-b87e-50e03561fce1",
+      "status": 200,
+      "hasAuthorization": true
+    }
+  ],
+  "pageErrors": []
+}
