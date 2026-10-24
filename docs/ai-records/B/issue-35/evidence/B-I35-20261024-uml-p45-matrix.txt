@@ -1,0 +1,7 @@
+=== UML P4/P5 真实 HTTP 可见性矩阵（隔离库 + 真实 app.listen + 挂载后的路由）===
+① 置敏前 member1: detail=200, list items=1/total=1, missing-id=404
+② PM PUT /tasks/:id/sensitivity (白名单 member2) = 200
+③ 置敏后 member1: detail=404（body 与 missing-id 逐字一致）, list items=0/total=0
+④ PM PATCH taskIds=[] 解绑 = 200；member1 detail 仍=404（body 与 missing-id 一致）
+⑤ DB: everRestricted=1, UmlDiagramTask 链接=0（sticky，不自动降密）
+⑥ PM 浏览器：/projects/:id/uml 页面可打开、导航行存在、SVG 渲染 4 节点 3 边、选择器显示已选 1 故事/1 任务
