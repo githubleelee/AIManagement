@@ -4,7 +4,7 @@
  * 各模块只导出路由插件，由本文件集中注册；数据库依赖通过 RouteContext 注入。
  */
 import type { FastifyInstance } from 'fastify'
-import type { PrismaClient } from '@prisma/client'
+import type { Prisma, PrismaClient } from '@prisma/client'
 import { registerAuthRoutes } from './auth/plugin.js'
 import { registerAcceptanceRoutes } from './modules/acceptance/plugin.js'
 import { registerAnalyticsRoutes } from './modules/analytics/plugin.js'
@@ -25,6 +25,7 @@ import type { GanttEventPort } from './modules/gantt/types.js'
 import type { RequirementEventPort } from './modules/requirement/service.js'
 import type { RiskEventPort } from './modules/risk/types.js'
 import type { AcceptanceEventPort } from './modules/acceptance/types.js'
+import type { TaskStartGuardPort } from './shared/task-execution.js'
 
 export type RouteContext = {
   prisma: PrismaClient
@@ -71,6 +72,15 @@ export type RouteContext = {
    * 缺失即 fail-fast —— **禁止** hasRoute 跳过、默认 no-op 或内存仓储回退（本批任务约束）。
    */
   notificationService?: NotificationService
+  /**
+   * FS 开工守卫窄端口（由 `src/app.ts` 用 `src/modules/task/rules.ts` 的**同一**守卫实现
+   * 装配后注入；不是第二套复制实现，也没有 no-op / 默认放行）。
+   *
+   * 供需要“进入 DOING”的其他域（当前为验收 `REJECT`）在同一事务内调用，不 import
+   * `src/modules/task/` 的实现（契约 I-9）。可选：模块测试可只构造 `{ prisma }`；
+   * 生产 `buildApp` 始终真实注入。缺省时引用方必须 fail-fast，不得静默跳过校验。
+   */
+  taskStartGuard?: TaskStartGuardPort<Prisma.TransactionClient>
 }
 
 export function registerRoutes(app: FastifyInstance, context: RouteContext): void {

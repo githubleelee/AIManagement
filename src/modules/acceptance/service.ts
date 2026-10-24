@@ -32,8 +32,9 @@
  * 「重验」不是第三种结论：它是驳回后任务回到 DOING、执行人重新提交 DONE、
  * 验收人**再次调用本端点**。同一任务因此会有多条记录（AC5 的追溯来源）。
  */
-import type { PrismaClient, Task as TaskRow } from '@prisma/client'
+import type { Prisma, PrismaClient, Task as TaskRow } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
+import type { TaskStartGuardPort } from '../../shared/task-execution.js'
 import type { TaskStatus, TaskView, UserBrief } from '../../shared/types.js'
 import { createAuthorization } from '../authz/permissions.js'
 import {
@@ -237,6 +238,7 @@ export async function assertMayAccept(
 export async function submitAcceptance(
   prisma: PrismaClient,
   events: AcceptanceEventPort,
+  taskStartGuard: TaskStartGuardPort<Prisma.TransactionClient>,
   actorUserId: string,
   task: TaskRow,
   input: AcceptanceSubmitInput,
@@ -269,6 +271,25 @@ export async function submitAcceptance(
   const statusAfter = NEXT_STATUS[input.conclusion]
 
   const record = await prisma.$transaction(async (tx) => {
+    // ---------------------------------------------------------------------
+    // ★ FS 开工守卫（`DECISIONS.md` `legacy.task-start-guard-authorization`，
+    //   项目负责人 2026-10-23 裁定：**所有从非 DOING 进入 DOING 都校验 FS**）
+    // ---------------------------------------------------------------------
+    // 驳回把任务从 DONE 打回 DOING —— 这也是一次「进入 DOING」，与 PATCH 同一口径，
+    // 否则 `REJECT` 就是绕过 FS 的后门（独立探针已实测出绕过：前置未 CLOSED 仍 200）。
+    //
+    // 位置刻意在 **CAS / AcceptanceRecord / 事件写入之前**且用**同一个 `tx`**：
+    //   - 守卫拒绝 ⇒ 本事务整体回滚，任务仍是 DONE，不落记录、不发事件；
+    //   - 守卫自身不开启 / 不提交事务（端口契约），前置读取与本次写入同事务可见。
+    // PASS 的目标是 CLOSED，**不属于**本规则，不触发。
+    // 守卫不是鉴权替代：`can('task.accept')` 已在路由层 `assertMayAccept` 先行完成。
+    if (statusAfter === 'DOING') {
+      await taskStartGuard.assertCanEnterDoing(tx, {
+        projectId: task.projectId,
+        taskId: task.id,
+      })
+    }
+
     // ★ 比较并交换（CAS）：只在任务**仍是 DONE** 时改。两个并发验收请求里，
     //   后到的那个 updateMany 影响 0 行 → 返回 null → 409，且不会多写一条记录。
     const changed = await tx.task.updateMany({

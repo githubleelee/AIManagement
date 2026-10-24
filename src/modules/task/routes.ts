@@ -497,10 +497,16 @@ export function registerTaskRoutes(app: FastifyInstance, context: RouteContext):
     try {
       // One SQL update for all mixed PATCH fields, through the same assignment/date core
       // as caller-owned transactional batches. Keep original authorization/error order.
-      updated = await writeAssignedTask(prisma, task.projectId, task.id, {
-        ...merged,
-        blockedReason: nextBlockedReason,
-      })
+      //
+      // ★ FS 开工守卫的「前置读取 → 校验 → 真实写入」全在本事务内完成（守卫只接收本事务
+      //   客户端、不自开也不提前提交）：与端点 28 原有的单条 SQL update 语义一致，混合
+      //   字段仍是一次 update，失败时整事务回滚、不落部分写。
+      updated = await prisma.$transaction((tx) =>
+        writeAssignedTask(tx, task.projectId, task.id, {
+          ...merged,
+          blockedReason: nextBlockedReason,
+        }),
+      )
     } catch (error) {
       if (isRecordNotFoundError(error)) {
         throw notFound()
