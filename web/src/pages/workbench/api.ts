@@ -15,7 +15,7 @@ export type WorkbenchBlockKey = 'todo' | 'overdue' | 'accept' | 'mention' | 'upc
 /**
  * 一块的数据状态：
  *   - `ok`：数据可用，`total` 是精确条数；
- *   - `unavailable`：**数据源还没交付**（如依赖通知模块的"被提及"），
+ *   - `unavailable`：**数据源还没接入**（如「被提及」的 @提及来源尚未接入），
  *     `total` 为 `null`，界面必须显示「—」而不是 0 —— 不能把"还没接上"说成"没有"。
  */
 export type WorkbenchBlockState = 'ok' | 'unavailable'

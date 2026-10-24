@@ -15,6 +15,10 @@
 > - **AI 范围变更**：本轮演示部署范围经项目负责人明确改为可接外部公有云大模型 API（普通虚构教学 / 演示数据可入），**原 AC-13 不声称满足**；仍禁止外发真实密码 / token / 密钥 / 真实个人信息 / 未授权真实资料，敏感对象默认不入上下文。来源：`DECISIONS.md` `role-d.ai.demo-external-api-scope`、`docs/role-d-start-confirmation.md`。
 > - **公共文件归属变更**：`src/shared/*`、`src/db/schema.prisma` 及迁移、`src/routes.ts`、`src/app.ts`、前端骨架、`docs/frontend-routes.md`、`var/uploads` 的 `.gitignore` 现由 ROLE-B = `githubleelee` 单写（`permissions.ts` 除外）；见 `docs/team-handoff.md` §4.1。
 > - 本文档以下 §1.6 / §2.2.3 中「AI 上下文脱敏（AC-13）不在本期验收」等表述**保留为历史**，仅以上一节为准。
+>
+> **适用范围与变更说明（2026-10-24，追加）**
+> - **US-05 权限口径更新（PB-10）**：§2.4.2 的 **AC-US-05-08「仅 PM 可创建 / 编辑任务，Member 只读」** 与附录 B 表 4 中 US-05 的 ⑤「仅 PM 可创建/编辑任务」为 **Sprint 1 历史口径**，**原文按本文档规则不改**，以本条为准：本阶段 US-08 已扩展为 —— **任务的创建 / 编辑（含标题、描述、负责人、验收人、计划日期）/ 删除、以及指定负责人与验收人，仍为 PM-only**；**任务负责人本人可更新本人任务的状态与进度**（非负责人 MEMBER 仍 `403`，本人负责 `200`）。来源：`DECISIONS.md`（六状态与 `task.progress` 口径）、#28 实现与 2026-10-24 在 `90f0754` 上的复核；登记项 `docs/product-backlog.md` PB-10。
+> - 本节其余历史表述不变；未明确写在这里的口径仍按原文与 `docs/team-handoff.md` §9 执行。
 
 **编制依据**
 

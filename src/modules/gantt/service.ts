@@ -37,8 +37,10 @@
  * 任务 —— 包括里程碑的 `taskIds` 与依赖边端点 —— 以免间接泄漏隐藏故事的存在性。
  * 设计 §6 的「独立任务条 / 分组关系的安全表示」属待核对项，留待后续批次。
  *
- * 里程碑：PM 返回全项目；非 PM 仅返回「至少有一个可见关联任务」的里程碑
- * （无关联任务的里程碑对非 PM 不返回，避免存在性泄漏），`taskIds` 只含可见任务。
+ * 里程碑（PB-09，项目负责人 2026-10-24 裁定；设计 `docs/role-b-gantt-design.md` §9.5）：
+ * PM 返回全项目；非 PM 返回「**无关联任务**的」或「**至少有一个可见关联任务**的」
+ * 里程碑，`taskIds` 只含可见任务。**保留敏感保护**：关联任务全部落在可见范围之外的
+ * 里程碑**仍然不返回** —— 否则会泄漏「某里程碑存在且与不可见任务相关」的存在性信号。
  * 依赖边：仅当前驱与后继**都可见**时才返回（否则边会泄漏隐藏任务的存在性）。
  */
 import type { Prisma, PrismaClient } from '@prisma/client'
@@ -206,10 +208,18 @@ export async function buildGanttView(
     visibleTaskIds = rows.map((row) => row.id)
   }
 
-  // 里程碑：PM 全部；非 PM 仅「至少有一个可见关联任务」的。排序 `dueDate asc, id asc`。
+  // 里程碑：PM 全部；非 PM「无关联任务」或「至少有一个可见关联任务」的（PB-09，
+  // 2026-10-24 裁定）。关联任务全都不可见时**不返回**（保留敏感保护，见文件头）。
+  // 排序 `dueDate asc, id asc`。
   const milestoneWhere: Prisma.MilestoneWhereInput = isGlobal
     ? { projectId }
-    : { projectId, tasks: { some: { taskId: { in: visibleTaskIds ?? [] } } } }
+    : {
+        projectId,
+        OR: [
+          { tasks: { none: {} } },
+          { tasks: { some: { taskId: { in: visibleTaskIds ?? [] } } } },
+        ],
+      }
   const milestoneRows = await prisma.milestone.findMany({
     where: milestoneWhere,
     orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],

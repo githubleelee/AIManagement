@@ -308,3 +308,9 @@
 - **value:** #34（US-14 站内通知）的 AC1 计数口径经项目负责人 2026-10-24 裁定**降级**：以「任务分配（`task.assigned`）、逾期（`task.overdue`）、验收结果（`acceptance.submitted` / `acceptance.approved` / `acceptance.rejected`）、风险预警（`risk.created` / `risk.level-raised`）、关键节点提醒（`milestone.due`）」**五类**的真实端到端送达为达标依据；`task.mentioned`（@提及）作为**明确后置缺口**单独登记，不计入本阶段 AC1。降级仅作用于 AC1 的**计数口径**，不改变 AC2 的「事件到落库 ≤60 秒」目标，不改变 AC3（越权 404）、AC4（敏感只带引用）、AC5（已读状态）、AC6（只经 #37 订阅）的判定，也不削减任何已交付能力。
 - **timestamp:** 2026-10-24T20:40:00+08:00
 - **rationale:** @提及需新建 Mention 数据模型与真实来源，属独立的新功能，与本票核心口径（落库 / 列表 / 已读 / 60 秒 / 权限 / 敏感）无耦合；若坚持「六类全绿」为唯一门槛，会让已成立的核心能力因一个后置项长期无法结项。判定依据为 A 于 2026-10-24 补齐任务域事件通道后的 5/6 真实端到端证据（`task.assigned` → 收件人=负责人，latency 1836ms；`acceptance.submitted` → 收件人=验收人，latency 1962ms，均 `withinDeliveryTarget=true`），见 `docs/ai-records/A/issue-34/evidence/probe-task-events-output.json`。本条目为**追加**记录，不改写既有通知相关条目；`task.mentioned` 仍保持 UNAVAILABLE，不伪造可用。
+
+## `gantt.milestone-visibility-unlinked`
+
+- **value:** 甘特读端点（`GET /projects/:projectId/gantt`）的里程碑可见性口径经项目负责人 2026-10-24 裁定**放宽**：非 PM（MEMBER / VIEWER）现在也看得到**无关联任务的里程碑**（`tasks` 为空），此前该情形一律不返回（fail-closed）。**保留敏感保护**：有关联任务、且**全部**关联任务都在该成员可见范围之外（敏感对象或超出授权范围）的里程碑**仍然不返回**，不得因本次放宽而泄漏存在性。PM 口径**完全不变**（项目内全部里程碑）。
+- **timestamp:** 2026-10-24T21:20:00+08:00
+- **rationale:** 无关联任务的里程碑对非 PM 隐藏是登记为已知限制的 fail-closed 行为（`docs/role-b-gantt-design.md` §9.5；Product Backlog PB-09），效果是「PM 先建里程碑、后挂任务」期间该里程碑对成员凭空消失。负责人裁定改为按**关联任务的可见性**判定，把披露面严格限制在「项目内成员 + 不含任何不可见关联任务」范围内。实现见 `src/modules/gantt/service.ts`，用例与设计文档已同步；`src/modules/ai-scheduling/source.ts` 的 AI 上下文过滤**未随之放宽**（仍要求关联任务全部可见），两者差异为刻意保留。本条目为**追加**记录，不改写既有甘特相关条目。
