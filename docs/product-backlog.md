@@ -13,11 +13,11 @@
 
 | ID | 原票 | 条目 | 已交付 | 剩余缺口 | 责任方 | 状态 |
 |---|---|---|---|---|---|---|
-| **PB-01** | #32 | AI 排期建议（PM-only 生成/查看/采纳/修改后采纳/拒绝/审计） | C 的实现已进 main（`455701e`），共享三表/幂等/审计基础就绪 | **B 的 5 项装配**：tx-aware `authorization(tx)` + #32 专项 `readAuthorization`（审计另能力）；`writeDates(tx, …)` 走真实 FS 守卫；`appendAudit/readAudit/recordFailure` adapter；正式挂载（注册点 + 页面/导航 + 注入参数）；真正支持 `SCHEDULING` 的模型端口（现 `LocalStubAiProvider` 仅支持 REQUIREMENT_BREAKDOWN） | **B** | OPEN |
+| **PB-01** | #32 | AI 排期建议（PM-only 生成/查看/采纳/修改后采纳/拒绝/审计） | C 的实现已进 main（`455701e`），共享三表/幂等/审计基础就绪；**✅ 第 ⑤ 项已解除**：D 的 SCHEDULING 模型端口已合入 main（`feat/D-scheduling-model-port`，`scheduling-provider.ts` + 兼容性/单测） | **B 的 4 项装配**（原 5 项，模型端口已交付）：tx-aware `authorization(tx)` + #32 专项 `readAuthorization`（审计另能力）；`writeDates(tx, …)` 走真实 FS 守卫；`appendAudit/readAudit/recordFailure` adapter；正式挂载（注册点 + 页面/导航 + 注入参数） | **B** | OPEN |
 | PB-02 | #32 | 排程的 12 个验收门禁 | — | 依赖 PB-01 完成后由 C 做真实生产装配的 API/浏览器闭环，逐项收掉 12 TODO | C | BLOCKED |
-| **PB-03** | #33 | AI 质量 / 进度 / 风险 / 效率分析（服务于仪表盘、人工确认、记录处置） | 四类指标纯函数（`src/modules/ai-insights/*`）+ 2 个测试文件 | 无端点/注册/页面/消费方；AC 的"服务于仪表盘""人工确认与处置记录"未实现。**另：GitHub #33 已关闭，需负责人核对关闭依据（并入 #30/#31 收口还是误关）** | A（+ 负责人裁定） | OPEN |
+| **PB-03** | #33 | AI 质量 / 进度 / 风险 / 效率分析（服务于仪表盘、人工确认、记录处置） | 四类指标纯函数（`src/modules/ai-insights/*`）+ 2 个测试文件（48 例）；口径与 #30/#27 同源（进度 = CLOSED ÷ 总数、未解决风险 = OPEN+IN_PROGRESS、负载 = 非 CLOSED 含 DONE） | 无端点/注册/页面/消费方；AC1/AC2/AC3/AC5 未实现，AC4/AC6 因无消费入口无法验收。**关闭依据已由 DRI 核对（2026-10-24）：原 `completed` 关闭不成立，处置为不重开、回退本 Backlog、保留纯函数与测试作为后续实施基础**（核对结论见 #33 票内说明） | A（+ 负责人裁定） | OPEN |
 | **PB-04** | #34 | 站内通知的剩余 2 类真实生产方 | 运行时/存储/桥接/顶栏/定时全就绪；9 个事件名中 6 个真实端到端（latency ≤60s 达标） | `task.assigned`、`acceptance.submitted` 的真实生产方（C 的任务域），以及 `task.mentioned` 的明确后置联调；补齐后 #34 才可勾 AC1/AC2 并关闭 | C（+ @提及后续） | BLOCKED |
-| **PB-05** | #36 | 任务附件的两处真实接线 | D 模块 + B 公共层就绪（`integrate/attach-candidate-on-main@f516b20`：100 例通过、migrate diff 无漂移） | ① 任务 `DELETE` 事务内调 `TaskAttachmentLifecyclePort.markForTaskDeletion(tx, taskId)` + 提交后清理；② `web/src/pages/task/TaskSection.tsx` 挂 `TaskAttachmentPanel`。缺任一条，删任务留 `ACTIVE/taskId:null` 孤儿 | C | BLOCKED |
+| **PB-05** | #36 | 任务附件的两处真实接线 | D 模块 + **B 公共层均已合入 main**（`6d4cfbc`，原候选 `integrate/attach-candidate-on-main`；含 `Attachment` 表/迁移、DB 仓储、清理状态机、窄生命周期端口、上传解析器封装、`routes.ts` 注册；100 例通过、migrate diff 无漂移） | **仅剩 C 的两处**：① 任务 `DELETE` 事务内调 `TaskAttachmentLifecyclePort.markForTaskDeletion(tx, taskId)` + 提交后清理；② `web/src/pages/task/TaskSection.tsx` 挂 `TaskAttachmentPanel`。缺任一条，删任务留 `ACTIVE/taskId:null` 孤儿 | C | BLOCKED |
 
 > 说明：上表 4 项对应 GitHub 的 #32 / #33 / #34 / #36，均**不关闭原票**；#34/#36 已有大量真实交付，回退的是**最后的验收门禁**而非全部工作。
 
@@ -50,3 +50,4 @@
 | 日期 | 变更 |
 |---|---|
 | 2026-10-24 | 建立本文；从本阶段 Sprint 结项回退 PB-01~PB-05（#32/#33/#34/#36）；登记 PB-06~PB-13（收口项/已知限制/运维注意） |
+| 2026-10-24 | DRI 分支合并后同步真实状态：PB-01 第 ⑤ 项（SCHEDULING 模型端口）已由 D 交付并合入 main，剩余缺口由 5 项降为 4 项；PB-05 的 B 公共层已从"分支候选"变为**已合入 main**（`6d4cfbc`）；PB-03 的关闭依据核对完成（不重开、回退 Backlog） |
