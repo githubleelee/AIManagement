@@ -106,7 +106,8 @@ type Seed = {
   pm: string; otherPm: string; member: string; viewer: string; outsider: string
   projectId: string; outsiderProjectId: string
   storyId: string; today: string
-  preTaskId: string; aTaskId: string; bTaskId: string; doingTaskId: string; milestoneId: string
+  preTaskId: string; aTaskId: string; bTaskId: string; doingTaskId: string
+  milestoneId: string; unlinkedMilestoneId: string
   pmToken: string; otherPmToken: string; memberToken: string; viewerToken: string; outsiderToken: string
 }
 let s: Seed
@@ -165,9 +166,16 @@ async function seed(): Promise<Seed> {
     projectId, name: 'M1', dueDate: shiftDays(today, 30), ownerUserId: pm,
   } })
   await db.prisma.taskMilestone.create({ data: { milestoneId: milestone.id, taskId: aTaskId } })
+  // 无关联任务的里程碑：按 PB-09（2026-10-24 裁定）它属于可见范围，因此必须进**排程来源**
+  // （影响 revision 与整份过期判定，见门禁 9）；但按 C 的 policy 口径**不进模型输入**
+  // （「无关联不编造」）。门禁 1 与门禁 9 分别钉住这两面。
+  const unlinkedMilestone = await db.prisma.milestone.create({ data: {
+    projectId, name: 'M-unlinked', dueDate: shiftDays(today, 45), ownerUserId: pm,
+  } })
   return {
     pm, otherPm, member, viewer, outsider, projectId, outsiderProjectId, storyId: story.id, today,
     preTaskId, aTaskId, bTaskId, doingTaskId, milestoneId: milestone.id,
+    unlinkedMilestoneId: unlinkedMilestone.id,
     pmToken: await tokenFor(pm), otherPmToken: await tokenFor(otherPm), memberToken: await tokenFor(member),
     viewerToken: await tokenFor(viewer), outsiderToken: await tokenFor(outsider),
   }
@@ -291,6 +299,10 @@ describe('US12 final integration gates — real HTTP, real SQLite, real loopback
       .toEqual(['id', 'ownerUserId', 'planEnd', 'planStart', 'status', 'title'])
     expect(input.dependencies).toEqual([{ predecessorId: s.preTaskId, successorId: s.aTaskId }])
     expect(input.milestones).toEqual([{ id: s.milestoneId, taskIds: [s.aTaskId], date: shiftDays(s.today, 30) }])
+    // 夹具里另有一个**无关联任务**的里程碑（PB-09 之后它属于可见范围）：它必须进排程来源
+    // （否则整份建议不会因它变化而过期，见门禁 9），但按 policy 口径**不进模型输入**
+    // ——「无关联不编造」。这就是对齐后的边界，这里把它钉死。
+    expect(input.milestones).toHaveLength(1)
     // 负载 = 可见子集内非 CLOSED 任务数（含 DONE）；前置任务已 CLOSED 故不计入。
     expect(input.workload).toEqual(expect.arrayContaining([
       { userId: s.member, openTaskCount: 2 }, { userId: s.pm, openTaskCount: 1 },
@@ -646,6 +658,13 @@ describe('US12 final integration gates — real HTTP, real SQLite, real loopback
           tasks: { create: { taskId: s.bTaskId } } } }) },
         revert: async () => { await db.prisma.milestone.deleteMany({
           where: { projectId: s.projectId, name: 'M2' } }) },
+      },
+      {
+        name: 'unlinked milestone（PB-09 对齐）',
+        mutate: () => db.prisma.milestone.update({ where: { id: s.unlinkedMilestoneId },
+          data: { dueDate: shiftDays(s.today, 46) } }).then(() => undefined),
+        revert: () => db.prisma.milestone.update({ where: { id: s.unlinkedMilestoneId },
+          data: { dueDate: shiftDays(s.today, 45) } }).then(() => undefined),
       },
       {
         name: 'new task in scope',

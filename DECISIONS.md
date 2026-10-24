@@ -314,3 +314,15 @@
 - **value:** 甘特读端点（`GET /projects/:projectId/gantt`）的里程碑可见性口径经项目负责人 2026-10-24 裁定**放宽**：非 PM（MEMBER / VIEWER）现在也看得到**无关联任务的里程碑**（`tasks` 为空），此前该情形一律不返回（fail-closed）。**保留敏感保护**：有关联任务、且**全部**关联任务都在该成员可见范围之外（敏感对象或超出授权范围）的里程碑**仍然不返回**，不得因本次放宽而泄漏存在性。PM 口径**完全不变**（项目内全部里程碑）。
 - **timestamp:** 2026-10-24T21:20:00+08:00
 - **rationale:** 无关联任务的里程碑对非 PM 隐藏是登记为已知限制的 fail-closed 行为（`docs/role-b-gantt-design.md` §9.5；Product Backlog PB-09），效果是「PM 先建里程碑、后挂任务」期间该里程碑对成员凭空消失。负责人裁定改为按**关联任务的可见性**判定，把披露面严格限制在「项目内成员 + 不含任何不可见关联任务」范围内。实现见 `src/modules/gantt/service.ts`，用例与设计文档已同步；`src/modules/ai-scheduling/source.ts` 的 AI 上下文过滤**未随之放宽**（仍要求关联任务全部可见），两者差异为刻意保留。本条目为**追加**记录，不改写既有甘特相关条目。
+
+## `ai.scheduling-source-milestone-alignment`
+
+- **value:** 排程来源（`src/modules/ai-scheduling/source.ts`）的里程碑取数与 `gantt.milestone-visibility-unlinked` **对齐**：**无关联任务的里程碑也纳入来源快照**（因此计入 `revision`，其新增/改动会使整份建议过期），但**不进入模型输入**——`policy.ts` 仍排除 `taskIds` 为空的里程碑（「无关联不编造」）。有关联任务、且关联任务全部不可见的里程碑，仍走 `requires-private-validation` 分支（不进模型输入、由服务端私有复核），敏感保护不变。
+- **timestamp:** 2026-10-24T22:10:00+08:00
+- **rationale:** 负责人 2026-10-24 裁定「`source.ts` 的 AI 上下文跟 PB-09 对齐」。此前甘特读端点已按 PB-09 让无关联里程碑可见，而排程来源完全取不到这类里程碑，导致同一里程碑在两处口径不一致（且改它不会让建议过期）。对齐后：可见性判定与读端点一致，模型侧仍不接收无关联任务的里程碑。验证方式为 `src/modules/ai-scheduling/integration.pending.test.ts` 门禁 9 的「unlinked milestone」用例——该用例只在来源包含无关联里程碑时才会通过（其余门禁不变）。**本条目为追加记录，不改写 PB-09 条目。**
+
+## `ai.no-real-provider-this-phase`
+
+- **value:** 本阶段（教学 / 玩具项目定位）**不配置真实 AI 供应商、模型与密钥**：`SCHEDULING_AI_*` 保持未配置，排期模型因此**显式不可用**（`AI_SERVICE_UNAVAILABLE`，不静默回桩、不落伪建议）。**「真实供应商大模型终验」不在本期验收范围**，不因此判为缺口；@12 门禁与浏览器走查使用的模型出口是本机 `127.0.0.1` 回环合成服务（`SYNTHETIC_DEMO`）。真实外发仍**禁止**真实凭据与个人信息（`role-d.ai.demo-external-api-scope` 不变）。
+- **timestamp:** 2026-10-24T22:15:00+08:00
+- **rationale:** 负责人 2026-10-24 明确「供应商和密钥先空着，这只是玩具项目，只是用于教学」。据此把「未配置真实供应商」从**待办缺口**改记为**已裁定的本期范围决定**，避免后续把它当未完成项反复登记；同时保留未配置即显式失败的行为，禁止用本地桩冒充真实模型。

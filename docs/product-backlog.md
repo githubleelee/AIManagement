@@ -30,7 +30,7 @@
 | PB-06 | UML 图→任务的 `#task-<id>` 锚点 | C 提交 / B 挂载 | OPEN | 现链接跳到需求页但不高亮任务（AC4 已满足"可跳转"，此为提高定位体验） |
 | PB-07 | UML 的 5 项非阻断跟进 | C | OPEN | `P2003` 一律映射成 `edges.sourceNodeId`（建图/关联行失败时字段不存在）；`fromWire`/`toWire` 缺 vitest 往返；P2002 兜底缺 `DUPLICATE` 字段码；`uml.http.test.ts` 注释与 `docs/role-c/issue-35/verification.md` 过期；详情端点计时型侧信道 |
 | PB-08 | 工作台「被提及」块文案过期 | A | CLOSED | **已修正**：`src/modules/workbench/service.ts` 的 `note` 由「通知模块（别人负责的票）尚未交付」改为「通知模块已交付（#34），但 @提及来源尚未接入」；`state='unavailable'` 与 `total=null` 的三态口径不变——数据源仍缺，不得用 0 冒充"没有" |
-| PB-09 | 里程碑可见性口径 | A | CLOSED | 原口径：无关联任务的里程碑对非 PM 不返回（fail-closed，`src/modules/gantt/service.ts`）。**DRI 2026-10-24 裁定改为**：无关联任务的里程碑对项目内非 PM 成员**可见**；**保留敏感保护**——有关联任务、且全部关联任务都在可见范围之外的里程碑仍不可见；PM 行为完全不变。已落地并留痕：实现 `src/modules/gantt/service.ts`（`OR: [{ tasks: { none: {} } }, { tasks: { some: { taskId: { in: visibleTaskIds } } } }]`）、新增 4 条用例（gantt 61 例全通过）、`docs/role-b-gantt-design.md` §9.5 更新、决策记录 `DECISIONS.md` `gantt.milestone-visibility-unlinked`。注：`src/modules/ai-scheduling/source.ts` 的 AI 上下文过滤**刻意未放宽**（仍要求关联任务全部可见） |
+| PB-09 | 里程碑可见性口径 | A | CLOSED | 原口径：无关联任务的里程碑对非 PM 不返回（fail-closed，`src/modules/gantt/service.ts`）。**DRI 2026-10-24 裁定改为**：无关联任务的里程碑对项目内非 PM 成员**可见**；**保留敏感保护**——有关联任务、且全部关联任务都在可见范围之外的里程碑仍不可见；PM 行为完全不变。已落地并留痕：实现 `src/modules/gantt/service.ts`（`OR: [{ tasks: { none: {} } }, { tasks: { some: { taskId: { in: visibleTaskIds } } } }]`）、新增 4 条用例（gantt 61 例全通过）、`docs/role-b-gantt-design.md` §9.5 更新、决策记录 `DECISIONS.md` `gantt.milestone-visibility-unlinked`。注：`src/modules/ai-scheduling/source.ts` 的里程碑取数**已与 PB-09 对齐**（2026-10-24，决策 `DECISIONS.md` `ai.scheduling-source-milestone-alignment`）：无关联任务的里程碑纳入来源快照（影响 revision 与整份过期），但仍**不进模型输入**（无关联不编造）；验证见门禁 9 的「unlinked milestone」用例 |
 | PB-10 | 上阶段 US-05 的权限 AC 文案与现行 `task.progress` 不一致 | A | CLOSED | `docs/sprint1-baseline.md` §2.4.2 的 AC-US-05-08「仅 PM 可创建 / 编辑任务，Member 只读」与附录 B 表 4 的 ⑤ 属 Sprint 1 历史口径。按该文档「历史基线、原文不改」的自身规则，**以文首 2026-10-24 追加修订说明为准**：创建 / 编辑（标题、描述、负责人、验收人、计划日期）/ 删除任务仍 **PM-only**；**任务负责人本人可更新本人任务的状态与进度**（非负责人 MEMBER `403`、本人负责 `200`）。无需改代码 |
 
 ---
@@ -41,7 +41,7 @@
 |---|---|---|
 | PB-11 | 通知定时生产与 `NODE_ENV` | `NODE_ENV=test` 会关闭 10s 扫描（能力如实降级）；部署不得设 `NODE_ENV=test` |
 | PB-12 | 附件上传目录 | `var/uploads/` 不得注册为公开静态目录；下载只走带鉴权的 `GET /attachments/:attachmentId/download` |
-| PB-13 | 外部 AI 调用边界 | 只允许合成/演示数据；仍禁止外发真实凭据与个人信息；AC-13 不声称满足（`DECISIONS.md` `role-d.ai.demo-external-api-scope`） |
+| PB-13 | 外部 AI 调用边界 | 只允许合成/演示数据；仍禁止外发真实凭据与个人信息；AC-13 不声称满足（`DECISIONS.md` `role-d.ai.demo-external-api-scope`）。**另：本阶段不配置真实供应商/模型/密钥**（负责人 2026-10-24 裁定，教学项目定位），排期模型保持显式不可用，真实供应商终验不在本期范围（`DECISIONS.md` `ai.no-real-provider-this-phase`） |
 
 ---
 
@@ -54,3 +54,4 @@
 | 2026-10-24 | 负责人裁定「直接接手」#32 门禁：核实 B 的四项生产装配确已合入 main（`8d88996`，PR #123），**PB-01 转 CLOSED**、**PB-02 解除 `BLOCKED` 并改由 A 执行**；**PB-08 文案已修正**为「通知模块已交付（#34），但 @提及来源尚未接入」，三态口径不变 |
 | 2026-10-24 | 负责人裁定「PB-09 与 PB-10 都改」：**PB-10 转 CLOSED**（`docs/sprint1-baseline.md` 文首追加 2026-10-24 修订说明，历史原文不改；创建/编辑/删除任务仍 PM-only，负责人本人可改本人任务进度）；**PB-09 转 CLOSED**（里程碑可见性放宽并保留敏感保护，决策记录 `DECISIONS.md` `gantt.milestone-visibility-unlinked`）；**PB-02 已落地 11/12 条门禁并通过**，第 12 条（G6 浏览器走查）实施中 |
 | 2026-10-24 | **PB-02 转 CLOSED**：#32 的 12 条验收门禁全部落成真实用例并通过（含 G6 真实浏览器走查，0 个 `it.todo`）；落地后经**独立对抗性复核**并据其补强三类哨兵（门禁 6/7 的「同一事务 / 整份回滚」真反证、门禁 5 的「模型已坏仍成功」动态反证、两处恒真/过弱断言），首轮浏览器失败为**测试侧选择器过宽**（已修）而非产品缺陷 |
+| 2026-10-24 | 负责人追加裁定两条并已落地：① `src/modules/ai-scheduling/source.ts` 的里程碑取数与 PB-09 **对齐**（无关联里程碑进来源、不进模型输入；决策 `ai.scheduling-source-milestone-alignment`）；② **本阶段不配置真实 AI 供应商/密钥**（教学项目定位），排期模型保持显式不可用，真实供应商终验不在本期范围（决策 `ai.no-real-provider-this-phase`）；PB-13 与 PB-09 注记同步 |
