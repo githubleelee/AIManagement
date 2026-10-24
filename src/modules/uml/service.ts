@@ -78,7 +78,20 @@ async function transaction<T>(prisma: PrismaClient, work: (db: Db) => Promise<T>
       if (['P2002', 'P2034', 'P1008', 'P2028'].includes(error.code)) {
         throw new AppError(409, 'CONFLICT', '并发冲突，请重试')
       }
-      if (error.code === 'P2003') throw invalid('edges.sourceNodeId', '边端点不属于本图或关联对象已变更')
+      // Project/owner/ref foreign keys are not edge fields; unknown context stays field-free.
+      if (error.code === 'P2003') throw new AppError(422, 'VALIDATION_FAILED', '关联对象或项目成员已变更，请刷新后重试')
+    }
+    throw error
+  }
+}
+
+/** Only a known write context may attach a field to a database constraint error. */
+async function constraintWrite<T>(field: string, work: () => Promise<T>, edgeEndpoints = false): Promise<T> {
+  try { return await work() }
+  catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002') throw new AppError(409, 'CONFLICT', '关联或关系已存在', [{ field, code: 'DUPLICATE' }])
+      if (error.code === 'P2003' && edgeEndpoints) throw invalid('edges.sourceNodeId', '边端点不属于本图或关联对象已变更')
     }
     throw error
   }
@@ -129,11 +142,11 @@ async function replaceContent(db: Db, diagramId: string, kind: string, content: 
   await db.umlEdge.deleteMany({ where: { diagramId } })
   await db.umlNode.deleteMany({ where: { diagramId } })
   if (nodes.length) await db.umlNode.createMany({ data: nodes })
-  if (content.edges.length) await db.umlEdge.createMany({ data: content.edges.map((edge, index) => ({
+  if (content.edges.length) await constraintWrite('edges', () => db.umlEdge.createMany({ data: content.edges.map((edge, index) => ({
     id: randomUUID(), diagramId, edgeType: edge.edgeType,
     sourceNodeId: aliases.get(edge.sourceNodeId)!, targetNodeId: aliases.get(edge.targetNodeId)!,
     label: edge.label ?? null, seq: kind === 'SEQUENCE' ? index + 1 : null,
-  })) })
+  })) }), true)
   // Explicit update even when content becomes empty: metadata PATCH and content share updatedAt.
   await db.umlDiagram.update({ where: { id: diagramId }, data: { updatedAt: new Date() } })
 }
@@ -169,16 +182,16 @@ async function replaceRefs(db: Db, diagramId: string, projectId: string, input: 
     }
     if (spec.links === 'umlDiagramGoal') {
       await db.umlDiagramGoal.deleteMany({ where: { diagramId } })
-      if (ids.length) await db.umlDiagramGoal.createMany({ data: ids.map(goalId => ({ diagramId, goalId })) })
+      if (ids.length) await constraintWrite(spec.field, () => db.umlDiagramGoal.createMany({ data: ids.map(goalId => ({ diagramId, goalId })) }))
     } else if (spec.links === 'umlDiagramActivity') {
       await db.umlDiagramActivity.deleteMany({ where: { diagramId } })
-      if (ids.length) await db.umlDiagramActivity.createMany({ data: ids.map(activityId => ({ diagramId, activityId })) })
+      if (ids.length) await constraintWrite(spec.field, () => db.umlDiagramActivity.createMany({ data: ids.map(activityId => ({ diagramId, activityId })) }))
     } else if (spec.links === 'umlDiagramStory') {
       await db.umlDiagramStory.deleteMany({ where: { diagramId } })
-      if (ids.length) await db.umlDiagramStory.createMany({ data: ids.map(storyId => ({ diagramId, storyId })) })
+      if (ids.length) await constraintWrite(spec.field, () => db.umlDiagramStory.createMany({ data: ids.map(storyId => ({ diagramId, storyId })) }))
     } else {
       await db.umlDiagramTask.deleteMany({ where: { diagramId } })
-      if (ids.length) await db.umlDiagramTask.createMany({ data: ids.map(taskId => ({ diagramId, taskId })) })
+      if (ids.length) await constraintWrite(spec.field, () => db.umlDiagramTask.createMany({ data: ids.map(taskId => ({ diagramId, taskId })) }))
     }
   }
 }

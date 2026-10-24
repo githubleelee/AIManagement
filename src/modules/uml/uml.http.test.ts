@@ -330,7 +330,8 @@ describe('US-15 real authorization seam and sticky no-declassification guard', (
   })
   it('current task/story intersection still hides a graph if any associated target becomes invisible', async () => {
     const saved = await create('USECASE', { storyIds: [storyId], taskIds: [taskId] })
-    // Association was ordinary. Post-association sticky propagation is a separate B decision.
+    // Factory mutation deliberately bypasses B's real sensitivity setter: isolate the live intersection.
+    // Real setter sticky propagation is covered by uml-late-sensitivity.http.test.ts.
     await makeSensitive('story', storyId, [member])
     await makeSensitive('task', taskId, [])
     for (const identity of ['member', 'viewer'] as const) {

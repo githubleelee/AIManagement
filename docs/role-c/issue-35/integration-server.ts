@@ -3,12 +3,16 @@
  * Temporary test credentials are sent through IPC only, never printed or archived.
  */
 import { createServer } from 'vite'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { createHttpTestContext, setActiveDatabase } from '../../../test/helpers.js'
 import { makeActivity, makeGoal, makeMember, makeProject, makeStory, makeTask, makeUser } from '../../../test/factories.js'
 import { registerUmlRoutes } from '../../../src/modules/uml/plugin.js'
 
 if (!process.send) throw new Error('This test server requires the verifier IPC channel')
-const ctx = await createHttpTestContext()
+const uploadRoot = await mkdtemp(join(tmpdir(), 'uml-formal-upload-'))
+const ctx = await createHttpTestContext({ uploadRoot })
 setActiveDatabase(ctx.db)
 const pm = await makeUser('uml-browser-pm@example.invalid')
 const viewer = await makeUser('uml-browser-viewer@example.invalid')
@@ -24,7 +28,9 @@ for (let i = 1; i <= 51; i++) extraGoalIds.push(await makeGoal(projectId, `上�
 const emptyProjectId = (await makeProject(pm.id, '空候选合成项目')).projectId
 const otherProjectId = (await makeProject(pm.id, '跨项目候选合成项目')).projectId
 const foreignGoalId = await makeGoal(otherProjectId, '跨项目候选不应出现')
-if (!ctx.app.hasRoute({ method: 'POST', url: '/projects/:projectId/uml-diagrams' })) registerUmlRoutes(ctx.app, { prisma: ctx.db })
+const registered = ctx.app.hasRoute({ method: 'POST', url: '/projects/:projectId/uml-diagrams' })
+if (process.argv.includes('--formal') && !registered) throw new Error('Production UML routes are not registered; formal acceptance cannot use a test fallback')
+if (!registered) registerUmlRoutes(ctx.app, { prisma: ctx.db })
 const address = await ctx.app.listen({ host: '127.0.0.1', port: 0 })
 const vite = await createServer({ configFile: 'web/vite.config.ts', server: {
   host: '127.0.0.1', port: 0, strictPort: false,
@@ -41,6 +47,7 @@ async function close() {
   closing = true
   await vite.close()
   await ctx.dispose()
+  await rm(uploadRoot, { recursive: true, force: true })
   process.exit(0)
 }
 process.on('message', value => { if (value === 'close') void close() })
