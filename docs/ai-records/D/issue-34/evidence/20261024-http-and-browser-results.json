@@ -1,0 +1,16 @@
+{
+  "generatedAt": "2026-10-24T05:11:43.825Z",
+  "issue": 34,
+  "syntheticData": true,
+  "mockedRequests": 0,
+  "cases": [],
+  "page": {
+    "actualHttpStatus": 401,
+    "errorVisible": true,
+    "loadingHintVisible": false,
+    "scope": "production AppLayout + real notification HTTP"
+  },
+  "limitations": [
+    "six-class delivery remains incomplete; production source gaps unchanged"
+  ]
+}

@@ -14,7 +14,9 @@ export class InMemoryNotificationRepository implements NotificationRepositoryPor
   private readonly idsByDedupeKey = new Map<string, string>()
 
   /** Test fixture only. Production scope filtering belongs in ROLE-B's DB adapter. */
-  constructor(private readonly canView: (actor: string, record: NotificationRecord) => boolean = () => true) {}
+  constructor(private readonly canView: (actor: string, record: NotificationRecord) => boolean) {
+    if (typeof canView !== 'function') throw new TypeError('内存通知夹具必须显式提供可见性检查')
+  }
 
   private visible(actor: string, record: NotificationRecord): boolean {
     return record.recipientUserId === actor && this.canView(actor, copy(record))

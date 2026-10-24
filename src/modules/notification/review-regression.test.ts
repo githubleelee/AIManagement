@@ -24,6 +24,9 @@ function harness() {
   return { repository, service, revoke: () => { visible = false }, setNow: (value: string) => { now = value } }
 }
 describe('notification review regressions', () => {
+  it('fixture refuses a missing visibility policy instead of implicitly allowing access', () => {
+    expect(() => new InMemoryNotificationRepository(undefined as never)).toThrow('必须显式提供可见性检查')
+  })
   it('repository read failure is explicit UNAVAILABLE with no false empty total', async () => {
     const h = harness()
     vi.spyOn(h.repository, 'listByRecipient').mockRejectedValue(new Error('private DB details'))
@@ -84,7 +87,7 @@ describe('notification review regressions', () => {
     let handler: NotificationEventHandler | undefined
     let current = health()
     let resolverReady = false
-    const module = createNotificationModule({ repository: new InMemoryNotificationRepository(),
+    const module = createNotificationModule({ repository: new InMemoryNotificationRepository(() => true),
       recipientResolver: { resolve: async () => resolverReady ? { state: 'AVAILABLE', recipients: [] }
         : { state: 'UNAVAILABLE', note: 'resolver unavailable' } },
       eventSource: { health: () => current, subscribe: (_name, _id, fn) => { handler = fn; return () => undefined } } })
@@ -102,7 +105,7 @@ describe('notification review regressions', () => {
   it('third subscribe failure disposes earlier callbacks, stop is idempotent', () => {
     let calls = 0
     const disposed: number[] = []
-    const module = createNotificationModule({ repository: new InMemoryNotificationRepository(),
+    const module = createNotificationModule({ repository: new InMemoryNotificationRepository(() => true),
       recipientResolver: { resolve: async () => ({ state: 'AVAILABLE', recipients: [] }) },
       eventSource: { health, subscribe: () => { const call = ++calls
         if (call === 3) throw new Error('register failed')
@@ -113,7 +116,7 @@ describe('notification review regressions', () => {
     expect(disposed).toEqual([1, 2])
   })
   it('source health exceptions fail closed without losing source capability list', () => {
-    const module = createNotificationModule({ repository: new InMemoryNotificationRepository(),
+    const module = createNotificationModule({ repository: new InMemoryNotificationRepository(() => true),
       recipientResolver: { resolve: async () => ({ state: 'AVAILABLE', recipients: [] }) },
       eventSource: { health: () => { throw new Error('source fault') }, subscribe: () => () => undefined } })
     expect(module.start()).toMatchObject({ state: 'UNAVAILABLE' })
