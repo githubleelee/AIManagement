@@ -191,6 +191,15 @@ describe('C scheduling generation via shared AI ports (unit tests, not final int
     expect(h.recordFailure).toHaveBeenCalledWith({ ...request, code: 'GENERATION_SAVE_FAILED' })
   })
 
+  it.each(['AI_TIMEOUT', 'AI_SERVICE_UNAVAILABLE', 'AI_INVALID_RESPONSE'])('preserves safe shared provider failure tag %s', async (code) => {
+    const h = harness()
+    h.generate.mockRejectedValue(Object.assign(new Error('secret provider detail'), { code }))
+    await createSchedulingGenerator(h.ports)(request)
+    expect(h.saved[0]!.generation.error?.code).toBe(code)
+    expect(h.saved[0]!.generation.status).toBe(code === 'AI_TIMEOUT' ? 'TIMED_OUT' : 'FAILED')
+    expect(JSON.stringify(h.saved)).not.toContain('secret provider detail')
+  })
+
   it('keeps a failure-evidence write failure observable', async () => {
     const h = harness()
     h.decide.mockResolvedValue({ allow: false, status: 403, code: 'FORBIDDEN' })

@@ -1,0 +1,24 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ai-management@0.1.0 build
+> npm run build:server && npm run build:web
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ai-management@0.1.0 build:server
+> tsc -p tsconfig.build.json
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ai-management@0.1.0 build:web
+> vite build --config web/vite.config.ts
+
+vite v6.4.3 building for production...
+transforming...
+✓ 107 modules transformed.
+rendering chunks...
+computing gzip size...
+../dist/web/index.html                   0.41 kB │ gzip:   0.30 kB
+../dist/web/assets/index-DyzZkJRJ.css   73.84 kB │ gzip:  13.56 kB
+../dist/web/assets/index-Cy7kpqUG.js   351.73 kB │ gzip: 105.58 kB
+✓ built in 1.86s

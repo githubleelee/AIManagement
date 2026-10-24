@@ -20,8 +20,10 @@
  *   3. 读路径不做形状校验之外的任何自行判权，全部走 `can()` + `visibilityScope()`。
  */
 import type { FastifyInstance } from 'fastify'
+import type { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { AppError } from '../../shared/errors.js'
+import type { TaskStartGuardPort } from '../../shared/task-execution.js'
 import { toFieldErrors } from '../../shared/validation.js'
 import { currentUserId, requireAuth } from '../../auth/actor.js'
 import type { RouteContext } from '../../routes.js'
@@ -81,6 +83,18 @@ export function registerAcceptanceRoutes(app: FastifyInstance, context: RouteCon
     )
   }
 
+  // FS 开工守卫端口（`src/shared/task-execution.ts`，实现由 `src/modules/task/rules.ts` 提供、
+  // 在 `src/app.ts` 唯一组装点装配）。缺失即 fail-fast：**不设默认放行**——
+  // 默认放行会让「驳回把任务打回 DOING」重新变成绕过 FS 的后门。
+  const taskStartGuard: TaskStartGuardPort<Prisma.TransactionClient> | undefined =
+    context.taskStartGuard
+  if (!taskStartGuard) {
+    throw new Error(
+      '验收路由组装缺失：RouteContext.taskStartGuard 未注入。请在 src/app.ts 用 ' +
+        'createTaskStartGuardPort<Prisma.TransactionClient>() 组装后传入（不得默认放行）。',
+    )
+  }
+
   // -------------------------------------------------------------------------
   // 端点 A：POST /tasks/:taskId/acceptance —— 执行验收
   // -------------------------------------------------------------------------
@@ -96,7 +110,14 @@ export function registerAcceptanceRoutes(app: FastifyInstance, context: RouteCon
     if (!parsed.success) throw validationFailed(parsed.error)
 
     // ③ 业务规则 + 落库（状态机、驳回必填原因、CAS 防并发重复验收）
-    const result = await submitAcceptance(prisma, events, actorUserId, task, parsed.data)
+    const result = await submitAcceptance(
+      prisma,
+      events,
+      taskStartGuard,
+      actorUserId,
+      task,
+      parsed.data,
+    )
     return reply.status(200).send(result)
   })
 

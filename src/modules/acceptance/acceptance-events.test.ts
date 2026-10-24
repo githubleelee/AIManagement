@@ -244,9 +244,17 @@ describe('验收域领域事件（同事务追加 + 幂等键 + 敏感判定）'
         throw new Error('event-store-down')
       },
     }
+    // 本用例走 PASS（目标 CLOSED），FS 守卫不应被调用；一旦被调用就说明接线错了。
+    const unusedGuard = {
+      async assertCanEnterDoing(): Promise<void> {
+        throw new Error('PASS 不应触发 FS 守卫')
+      },
+    }
 
     await expect(
-      submitAcceptance(ctx.db, failingEvents, acceptor.id, taskRow, { conclusion: 'PASS' }),
+      submitAcceptance(ctx.db, failingEvents, unusedGuard, acceptor.id, taskRow, {
+        conclusion: 'PASS',
+      }),
     ).rejects.toThrow('event-store-down')
 
     // 任务仍是 DONE（状态流转回滚），且没有留下验收记录与事件

@@ -1,0 +1,17 @@
+{
+  "baseline": "b540705",
+  "B_candidate": "902cfa1e2cbe8a4dfbc29f9c2653a8abc834a20e",
+  "files": {
+    "src/modules/attachment/local-storage.test.ts": "ef14124e1f2fe366cafda61c78c96cc547ed3b7c6e69e8d9d6958c22d18eed1c",
+    "src/modules/attachment/in-memory-repository.ts": "534c3bb6fd1fe0b3de94330a4f4279fb09f848e19270c393d057ee9cd1dcc4dd",
+    "src/modules/attachment/index.ts": "1d1aeb26036147d012a0bc0cd2a4af983df70eed3eaa9dcb3c98b70e3767d5b3",
+    "src/modules/attachment/service.ts": "df0454f1868a5314188b625037a282fddac06427cf076b539f2c7a1faee752cc",
+    "src/modules/attachment/plugin.test.ts": "135a6ab6e6cefc036cf3a72f9f1ddf7f700b224ca0866b45b2c2b501348b8688",
+    "src/modules/attachment/service.test.ts": "6b41a1a8d0f786bb76a3afd3b7f4be3760e5f9111ba08b9cb46b5b4a784fc5c1",
+    "src/modules/attachment/local-storage.ts": "d5c404d7208eaaa24418d2a87c38a37fb9fa3ac180f58b99cfe09376f58c9e19",
+    "src/modules/attachment/plugin.ts": "6f64d777790cb175ff5984c9cc3b88763f478335b25c5d666243c9576ec69f94",
+    "src/modules/attachment/errors.ts": "9f6376f8092ee907ba2ee651300b523d31c713e34138137ef4511f6d799b3752",
+    "src/modules/attachment/contracts.ts": "1b3bcc08893b3ffc0c339f7156eb04b041adccb6a679e9f1ed1a4eda6eafe27f",
+    "web/src/pages/attachment/TaskAttachmentPanel.tsx": "053d2bc58624b92cd70c87c108994bf17f8dedb1e176a5e093417d6f0a38620d"
+  }
+}

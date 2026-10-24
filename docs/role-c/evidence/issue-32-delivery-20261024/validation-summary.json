@@ -1,0 +1,67 @@
+{
+  "capturedAt": "2026-10-24T08:11:05.273Z",
+  "main": "aa62c0de502d5c75ac965ba8815f59ac81eed082",
+  "integrationHead": "a82cfc4b3b7cea06b00647ef68a3dfb4a8a90418",
+  "results": {
+    "scheduling-result": {
+      "success": true,
+      "total": 185,
+      "passed": 173,
+      "failed": 0,
+      "todo": 12
+    },
+    "frontend-result": {
+      "success": true,
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "todo": 0
+    }
+  },
+  "typechecks": {
+    "server": "exit0",
+    "web": "exit0",
+    "serverBuildTypes": "exit0"
+  },
+  "webBuild": "exit0",
+  "timeouts": [
+    {
+      "scope": "generate + typechecks + scheduling/task/store combined",
+      "seconds": 180,
+      "completeReport": false
+    },
+    {
+      "scope": "task + shared AI repository",
+      "seconds": 150,
+      "completeReport": false
+    }
+  ],
+  "fullSuitePassed": false,
+  "finalUS12Acceptance": false,
+  "hashes": {
+    "src/modules/ai-scheduling/browser-smoke.mjs": "66f5bfbc4dcbdae8a465a261071101a5b67f2216ad6c5fb4b51c0fcfee6e25d8",
+    "src/modules/ai-scheduling/core.http.test.ts": "16109c0ca21e995decb0be4ec6ee19f79981d9b5b35bed7ad860491983990932",
+    "src/modules/ai-scheduling/digests.test.ts": "5123af7645ae22295f3c20a313dbc1c8af2fd6cd914da92d0dfab52926668260",
+    "src/modules/ai-scheduling/frontend.vitest.config.ts": "6052c5b3ae2bfc3d2d12441f9d5063ad6b493cad8f70f0302ef96d5a39595561",
+    "src/modules/ai-scheduling/generation.db.test.ts": "0c1be4a1235174dc17b4b845dd567751f0297fa3ecdd932a47a9d10273c3d8f1",
+    "src/modules/ai-scheduling/generation.test.ts": "c4b0a9c238a8eadfdc775e948c245787c5193560ff5817ba74c2fc6fcef4b15b",
+    "src/modules/ai-scheduling/generation.ts": "3f9cf8658639b6f9b01e6610ea403a3541a06e7857ec3e8747df5f45123eead1",
+    "src/modules/ai-scheduling/integration.pending.test.ts": "1b930bc445648475bfb14e7489a2b5d61ff5ea91efbe7579872b3c75c0a31319",
+    "src/modules/ai-scheduling/plugin.ts": "9607adbdc18a99523c808b56fa62fd1ccecca44ccbf0514af72edb5825f8f77a",
+    "src/modules/ai-scheduling/policy.http.test.ts": "4187b50a41f34861e297a5d2656af7b85af61c1069a491af4c73fc9484d21bd6",
+    "src/modules/ai-scheduling/policy.ts": "126474f477ed1e58663acfeab3eefbdb428276c2508e32a93d36a64a08e6a2d2",
+    "src/modules/ai-scheduling/schemas.ts": "9c85010124f6420eea51c9cc7d4e18e44d868720cc3c9c41de9e4c5ef5659a9e",
+    "src/modules/ai-scheduling/source.ts": "bea42a1d6b1750364526a36b5c5e51a10717ded874535accc821c6294dbbb6d1",
+    "src/modules/ai-scheduling/verification.ts": "f32a29ecb031a2a0ca9134973c17c0e05d77e707251f31559086cd4b06128389",
+    "src/modules/ai-scheduling/workflow.db.test.ts": "9a16b2a1f50296536ebac97f2e196b8b42e8df15c3710cec4c3c056a55e09043",
+    "src/modules/ai-scheduling/workflow.ts": "36effa7e0a7163f575a0e1e0f538950884b22795b3516e2634cc1c81deeb6691",
+    "web/src/pages/scheduling/api.test.ts": "8f3ed7120af802c211e97f6e73a942083621c1f43e2c3e2158f9e2a4f94218ca",
+    "web/src/pages/scheduling/api.ts": "60c4dc6924e6695a70c02522ed4bee5abcad0882be614f7d6505f291067951b5",
+    "web/src/pages/scheduling/browser.fixture.html": "3a150b45c82c374d1356343eb6ceda699a5dc710be112c21cbe0ba10700aef82",
+    "web/src/pages/scheduling/browser.fixture.tsx": "a998d32017b4dd0bf057035a9ddee52bdf6cf0c533c27948eda8ec4d6ffb0e30",
+    "web/src/pages/scheduling/preview.html": "5b2d619040ad8201bdd3831169115fb0396bc21c40364d7d926dc575abcf5911",
+    "web/src/pages/scheduling/preview.tsx": "c93bffb89df128badb8200ddf6e9a0b58ff9d85195bc8bec9e7e3a0b725b82ba",
+    "web/src/pages/scheduling/scheduling.css": "9fa9f3d955c2e9d4f1b4a9fc08afa3d3bc2a2db906ab6dc61badbcdd90d192ee",
+    "web/src/pages/scheduling/SchedulingPage.tsx": "654c3d896ba7fae468eb114c7387795ec8509da487f1cb6c7bf358b5007b7125"
+  }
+}
