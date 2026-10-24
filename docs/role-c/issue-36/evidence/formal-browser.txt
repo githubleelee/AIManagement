@@ -1,0 +1,12 @@
+START 2026-10-24T09:35:13.155Z limit=90s
+PASS MEMBER owner opens actual TaskSection and uploads through the real service
+PASS actual download event preserves binary content and filename
+PASS single attachment DELETE removes the visible item; reupload remains possible
+PASS VIEWER and non-owner MEMBER see real read-only attachments, never upload/delete controls
+PASS PM deletes via real task confirmation; row, attachment metadata and physical file disappear
+PASS switching between real tasks unmounts the previous attachment panel
+PASS VIEWER assigned as owner still gets no attachment write controls
+PASS real sensitivity revocation plus focus clears filenames; reopening reauthorizes and stays hidden
+PASS outsider production project route hides task and attachment UI
+PASS 9 formal attachment browser checks
+END exit=0 signal=none elapsed=15.80s

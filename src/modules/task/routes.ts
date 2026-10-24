@@ -195,6 +195,8 @@ async function loadTaskView(prisma: PrismaClient, task: TaskRow): Promise<TaskVi
 /** 任务模块路由插件。由冻结文件 src/routes.ts 集中注册（T5-07 已补上注册行）。 */
 export function registerTaskRoutes(app: FastifyInstance, context: RouteContext): void {
   const prisma = context.prisma
+  const attachmentCleanup = context.attachmentCleanup
+  if (!attachmentCleanup) throw new Error('任务删除需要已装配的附件生命周期端口')
   // 鉴权与可见性入口在注册时创建一次；函数内部每次调用都现查库（决策 I-10：无缓存）。
   const { can, visibilityScope } = createAuthorization(prisma)
 
@@ -548,20 +550,19 @@ export function registerTaskRoutes(app: FastifyInstance, context: RouteContext):
     // ★ 契约决策 I-7「ObjectVisibility 的特殊约定」：objectId 是多态列、无真实外键，
     // 数据库不会替我们清理。必须在**同一事务**内手动清理，漏掉不会报错、只会留下悬空数据。
     //
-    // 删除顺序：可见性记录 → 任务。数组形式 `$transaction` 在一个事务内按顺序执行，
-    // 任一步失败则整体回滚，因此不会出现「任务已删但可见性记录残留」或反向的中间态。
+    // 删除顺序：附件标记 → 可见性记录 → 任务，全部在原调用方事务内。
+    // 文件必须等提交后再清理；任一步失败都回滚标记和删除，不能留下 ACTIVE/null 孤儿。
     //
     // ★ 并发双删竞态：第二个请求的 `task.delete` 会因行已被删而抛 Prisma P2025。
     //   按契约 I-3，映射为与「任务不存在」逐字一致的 404；`$transaction` 会自动
-    //   回滚第一步的 `deleteMany`，可见性记录不会被误删（事务语义由测试断言）。
+    //   回滚本请求的附件标记和 `deleteMany`，可见性记录不会被误删（事务语义由测试断言）。
     //   只捕获 P2025，其它错误仍原样抛出转 500。
     try {
-      await prisma.$transaction([
-        prisma.objectVisibility.deleteMany({
-          where: { objectType: 'task', objectId: task.id },
-        }),
-        prisma.task.delete({ where: { id: task.id } }),
-      ])
+      await prisma.$transaction(async tx => {
+        await attachmentCleanup.markForTaskDeletion(tx, task.id)
+        await tx.objectVisibility.deleteMany({ where: { objectType: 'task', objectId: task.id } })
+        await tx.task.delete({ where: { id: task.id } })
+      })
     } catch (error) {
       if (isRecordNotFoundError(error)) {
         throw notFound()
@@ -569,6 +570,13 @@ export function registerTaskRoutes(app: FastifyInstance, context: RouteContext):
       throw error
     }
 
+    // The task is committed. Cleanup failure must remain observable/retryable, not pretend rollback.
+    try {
+      const result = await attachmentCleanup.run()
+      if (result.failed.length) request.log.error({ taskId: task.id, failedCount: result.failed.length }, '任务附件清理失败，保留状态等待重试')
+    } catch {
+      request.log.error({ taskId: task.id }, '任务附件清理执行失败，保留状态等待后台重试')
+    }
     // 契约决策 I-3：删除成功返回 HTTP 204，无响应体。
     return reply.status(204).send()
   })

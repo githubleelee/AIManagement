@@ -1,0 +1,19 @@
+START 2026-10-24T09:44:14.384Z limit=90s
+PASS real ProjectLayout navigation exposes the production UML route
+PASS PM creates sequence and all four refs through real API, fresh server ids, correct persisted seq
+PASS refresh restores actual server document and editable content
+PASS picker search and selection edit only the draft, survive offline retry, and preserve unknown IDs
+PASS picker enforces the 50-selection boundary without discarding an existing draft
+PASS metadata save preserves unsubmitted content draft; content save preserves other metadata draft
+PASS invalid association returns real 422 without replacing draft or saved metadata
+PASS picker removals and additions persist only after metadata save and survive refresh
+PASS wire adapters preserve reverse associations, custom labels, null labels and both directed association tuples
+PASS ordinary VIEWER reads persisted graph and refs without edit or create controls
+PASS late sensitivity through the real setter hides the diagram even from whitelist VIEWER after unlink and clears drafts
+PASS PM deletes via confirmed actual DELETE, then document is absent after refresh
+PASS PM edits use-case relations/labels through the production component and restores SVG after real save/refresh
+PASS a real empty project shows all four empty picker states without borrowing other project candidates
+PASS saved task link reaches and focuses the visible row through actual routing, refresh, hash changes and history
+PASS VIEWER hidden-task hash never focuses or requests the hidden task
+PASS 16 real-API browser checks; no full-ticket acceptance claimed
+END exit=0 signal=none elapsed=23.37s

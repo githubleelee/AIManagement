@@ -7,10 +7,12 @@
  * 负责人 / 验收人候选、敏感可见成员，都来自 `GET /projects/:id/members`（真实成员，非占位）。
  */
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useLocation } from 'react-router-dom'
 import type { ProjectMemberView, TaskView } from '../../../../src/shared/types'
 import { ApiError, listMembers } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import TaskUpdateForm from './TaskUpdateForm'
+import TaskAttachmentSlot from './TaskAttachmentSlot'
 import { SensitivityEditor } from '../SensitivityEditor'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { TaskStatusBadge } from './TaskStatusBadge'
@@ -193,6 +195,7 @@ function TaskForm(props: {
 }
 
 export default function TaskSection({ storyId, projectId, isPm, onCountChange }: Props) {
+  const { hash } = useLocation()
   const [tasks, setTasks] = useState<TaskView[] | null>(null)
   const [members, setMembers] = useState<ProjectMemberView[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -203,8 +206,18 @@ export default function TaskSection({ storyId, projectId, isPm, onCountChange }:
   const deletingRef = useRef(false)
   // US-08：哪一行打开了「更新」表单（状态 / 进度 / 卡住原因）
   const [updateFormFor, setUpdateFormFor] = useState<string | null>(null)
+  const [attachmentFor, setAttachmentFor] = useState<string | null>(null)
   const { user } = useAuth()
   const myId = user?.id ?? null
+
+  useEffect(() => { setAttachmentFor(null) }, [projectId, storyId, myId])
+  useEffect(() => {
+    // Do not retain file names/download controls across tab/account revalidation.
+    const clear = () => setAttachmentFor(null)
+    window.addEventListener('focus', clear)
+    window.addEventListener('storage', clear)
+    return () => { window.removeEventListener('focus', clear); window.removeEventListener('storage', clear) }
+  }, [])
 
   const reload = useCallback(async () => {
     setError(null)
@@ -220,6 +233,17 @@ export default function TaskSection({ storyId, projectId, isPm, onCountChange }:
   useEffect(() => {
     void reload()
   }, [reload])
+
+  useEffect(() => {
+    if (!hash.startsWith('#task-')) return
+    let target: string
+    try { target = decodeURIComponent(hash.slice(6)) } catch { return }
+    // Navigation never grants visibility or requests a hidden task by arbitrary id.
+    if (!tasks?.some(task => task.id === target)) return
+    const row = document.getElementById(`task-${target}`)
+    row?.scrollIntoView({ block: 'center' })
+    row?.focus({ preventScroll: true })
+  }, [tasks, hash])
 
   useEffect(() => {
     listMembers(projectId)
@@ -329,7 +353,7 @@ export default function TaskSection({ storyId, projectId, isPm, onCountChange }:
           </thead>
           <tbody>
             {tasks.map((t) => (
-              <tr key={t.id}>
+              <tr key={t.id} id={`task-${t.id}`} tabIndex={-1}>
                 <td><span className="task-row-title">{t.title}</span></td>
                 <td className="req-mono">{t.owner?.account ?? t.ownerUserId}</td>
                 <td className="req-mono">{t.acceptor?.account ?? t.acceptorUserId}</td>
@@ -341,6 +365,9 @@ export default function TaskSection({ storyId, projectId, isPm, onCountChange }:
                 </td>
                 <td className="req-mono nowrap">{t.progress === null ? '—' : String(t.progress) + '%'}</td>
                 <td className="nowrap">
+                  <button type="button" className="req-button-small req-button-plain"
+                    aria-label={`任务附件：${t.title}`} aria-expanded={attachmentFor === t.id}
+                    onClick={() => setAttachmentFor(attachmentFor === t.id ? null : t.id)}>附件</button>
                   {canUpdateRow(t) ? (
                     <button
                       type="button"
@@ -375,6 +402,9 @@ export default function TaskSection({ storyId, projectId, isPm, onCountChange }:
         </table>
         </div>
       )}
+
+      {attachmentFor && tasks?.some(task => task.id === attachmentFor) && <TaskAttachmentSlot
+        key={`${projectId}:${storyId}:${myId}:${attachmentFor}`} projectId={projectId} taskId={attachmentFor} actorId={myId} />}
 
       {updateFormFor && (() => {
         const target = tasks?.find((item) => item.id === updateFormFor)

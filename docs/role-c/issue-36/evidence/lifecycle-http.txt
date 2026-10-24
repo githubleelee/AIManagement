@@ -1,0 +1,19 @@
+START 2026-10-24T09:31:10.390Z limit=75s
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/临时项目/AIManagement-C-attachments[39m
+
+ [32m✓[39m src/modules/task/task-attachment-lifecycle.http.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 37823[2mms[22m[39m
+   [33m[2m✓[22m[39m real task DELETE consumes the injected attachment lifecycle[2m > [22mreal upload then task DELETE removes task, attachment row and actual file after commit [33m461[2mms[22m[39m
+   [33m[2m✓[22m[39m real task DELETE consumes the injected attachment lifecycle[2m > [22ma real database deletion failure rolls back the attachment mark and visibility cleanup, without deleting files [33m485[2mms[22m[39m
+   [33m[2m✓[22m[39m real task DELETE consumes the injected attachment lifecycle[2m > [22mreal file deletion failure keeps retry state; the actual 30s background loop recovers without a manual cleanup call [33m31535[2mms[22m[39m
+   [33m[2m✓[22m[39m real task DELETE consumes the injected attachment lifecycle[2m > [22mowner cannot delete a task or trigger cleanup [33m776[2mms[22m[39m
+   [33m[2m✓[22m[39m real task DELETE consumes the injected attachment lifecycle[2m > [22mviewer cannot delete a task or trigger cleanup [33m506[2mms[22m[39m
+   [33m[2m✓[22m[39m real task DELETE consumes the injected attachment lifecycle[2m > [22mother cannot delete a task or trigger cleanup [33m560[2mms[22m[39m
+   [33m[2m✓[22m[39m real task DELETE consumes the injected attachment lifecycle[2m > [22msensitive revocation hides download and list with the exact unknown-object envelope [33m602[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m7 passed[39m[22m[90m (7)[39m
+[2m   Start at [22m 17:31:11
+[2m   Duration [22m 39.35s[2m (transform 556ms, setup 0ms, collect 1.15s, tests 37.82s, environment 0ms, prepare 94ms)[22m
+
+END exit=0 signal=none elapsed=40.35s

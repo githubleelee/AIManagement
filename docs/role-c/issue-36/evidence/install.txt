@@ -1,0 +1,4 @@
+START 2026-10-24T09:06:07.221Z limit=90s
+
+added 273 packages in 12s
+END exit=0 signal=none elapsed=11.81s
