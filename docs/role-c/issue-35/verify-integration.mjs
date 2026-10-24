@@ -224,13 +224,17 @@ try {
     await page.getByRole('heading', { name: '编辑图：元数据已保存', exact: true }).waitFor()
     await page.getByLabel('图标题', { exact: true }).fill('必须清除的草稿')
   })
-  await check('real restricted-graph denial clears existing graph, drafts and saved association titles', async () => {
-    await page.evaluate(async ({ id, taskId }) => {
+  await check('late sensitivity through the real setter hides the diagram even from whitelist VIEWER after unlink and clears drafts', async () => {
+    await page.evaluate(async ({ id, taskId, viewerId }) => {
       const api = await import('/src/pages/uml/api.ts')
-      await api.patchUml(id, { taskIds: [taskId] })
-      // Removing the last sensitive association must NOT make it readable again.
+      const response = await fetch(`/api/tasks/${taskId}/sensitivity`, { method: 'PUT', headers: {
+        'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('aim.token')}`,
+      }, body: JSON.stringify({ isSensitive: true, visibleMemberIds: [viewerId] }) })
+      await response.text()
+      if (response.status !== 200) throw new Error(`Real sensitivity setter failed: ${response.status}`)
+      // The originally ordinary task was already linked; B's transaction must propagate the guard.
       await api.patchUml(id, { taskIds: [] })
-    }, { id: firstId, taskId: fixture.restrictedTaskId })
+    }, { id: firstId, taskId: fixture.taskId, viewerId: fixture.viewerId })
     await page.evaluate(token => localStorage.setItem('aim.token', token), fixture.viewerToken)
     const deniedStatus = await page.evaluate(async id => {
       const response = await fetch(`/api/uml-diagrams/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('aim.token')}` } })
@@ -304,7 +308,7 @@ try {
   assert.equal(pageErrors.length, 0, JSON.stringify(pageErrors))
   assert(requests.filter(r => r.method !== 'GET').every(r => r.hasAuthorization))
   await writeFile(path.join(evidence, 'integration-browser-results.json'), JSON.stringify({ checks, requests, pageErrors,
-    limitations: ['Synthetic isolated migrated DB and explicit test registration, not production mounting', 'Association-time sticky guard and ordinary VIEWER reads exercised; later target sensitivity propagation still requires B confirmation', 'Task href only, target anchor not exercised', 'No real project data or credentials archived'] }, null, 2))
+    limitations: ['Synthetic isolated migrated DB and explicit test registration, not production mounting', 'Association-time and later-target-sensitivity guards integrated; unknown unlinked history and formal mounting/task anchor are not accepted by these component checks', 'Task href only, target anchor not exercised', 'No real project data or credentials archived'] }, null, 2))
   console.log(`PASS ${checks.length} real-API browser checks; no full-ticket acceptance claimed`)
 } catch (error) {
   const alerts = page ? await page.getByRole('alert').allTextContents().catch(() => []) : []

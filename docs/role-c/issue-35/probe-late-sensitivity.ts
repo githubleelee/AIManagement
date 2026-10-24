@@ -6,6 +6,7 @@ import { writeFile } from 'node:fs/promises'
 import { createHttpTestContext, setActiveDatabase } from '../../../test/helpers.js'
 import { makeActivity, makeGoal, makeMember, makeProject, makeStory, makeTask, makeUser } from '../../../test/factories.js'
 import { registerUmlRoutes } from '../../../src/modules/uml/plugin.js'
+const expectProtected = process.argv.includes('--expect-protected')
 const ctx = await createHttpTestContext()
 setActiveDatabase(ctx.db)
 try {
@@ -47,10 +48,13 @@ try {
     const result = { kind, initial, currentHidden, whitelistAfterSensitivity, afterUnlink, afterTargetOrdinary, beforeDelete, afterDelete }
     observations.push(result)
     console.log(JSON.stringify(result))
+    if (expectProtected) assert.deepEqual(result, { kind, initial: 200, currentHidden: 404,
+      whitelistAfterSensitivity: 404, afterUnlink: 404, afterTargetOrdinary: 404, beforeDelete: 404, afterDelete: 404 })
   }
-  await writeFile('docs/role-c/issue-35/evidence/guard-late-sensitivity-observed.json', JSON.stringify({
-    diagnosticOnly: true, acceptancePassed: false,
-    limitation: 'Association-time guard does not propagate from later sensitivity writes. 200 after unlink/delete is an observed unresolved disclosure boundary, NOT an accepted policy.',
+  await writeFile(`docs/role-c/issue-35/evidence/guard-late-sensitivity-${expectProtected ? 'protected' : 'observed'}.json`, JSON.stringify({
+    diagnosticOnly: !expectProtected, acceptancePassed: expectProtected,
+    limitation: expectProtected ? 'Actual isolated HTTP late-sensitivity protection only; does not establish formal UI routing or full-ticket acceptance.'
+      : 'Observational mode only; inspect statuses against the current write-side baseline, not an acceptance assertion.',
     observations,
   }, null, 2))
 } finally { await ctx.dispose() }

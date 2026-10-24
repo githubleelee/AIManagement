@@ -33,7 +33,7 @@ const vite = await createServer({ configFile: 'web/vite.config.ts', server: {
 await vite.listen()
 const webAddress = vite.httpServer!.address()
 if (!webAddress || typeof webAddress === 'string') throw new Error('No test web address')
-process.send({ type: 'ready', url: `http://127.0.0.1:${webAddress.port}`, projectId, goalId, activityId, storyId, taskId, restrictedTaskId, extraGoalIds, emptyProjectId, foreignGoalId,
+process.send({ type: 'ready', url: `http://127.0.0.1:${webAddress.port}`, projectId, goalId, activityId, storyId, taskId, viewerId: viewer.id, restrictedTaskId, extraGoalIds, emptyProjectId, foreignGoalId,
   pmToken: ctx.loginAs(pm.id), viewerToken: ctx.loginAs(viewer.id) })
 let closing = false
 async function close() {
