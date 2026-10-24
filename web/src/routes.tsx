@@ -22,6 +22,7 @@ import RiskPage from './pages/risk/RiskPage'
 import GanttPage from './pages/gantt/GanttPage'
 import BoardPage from './pages/board/BoardPage'
 import UmlPage from './pages/uml/UmlPage'
+import ProjectSchedulingPage from './pages/scheduling/ProjectSchedulingPage'
 
 /**
  * 路由表（见 docs/frontend-routes.md，冻结）。
@@ -64,6 +65,7 @@ export default function AppRoutes() {
             <Route path="board" element={<BoardPage />} />
             {/* US-15 UML（工单 #35）：用例图 / 时序图编辑与关联；写权限 uml.write 仅 PM，受限图对非 PM 404，入口在左导航 */}
             <Route path="uml" element={<UmlPage />} />
+            <Route path="scheduling" element={<ProjectSchedulingPage />} />
             <Route path="members" element={<ProjectMembersPage />} />
           </Route>
         </Route>

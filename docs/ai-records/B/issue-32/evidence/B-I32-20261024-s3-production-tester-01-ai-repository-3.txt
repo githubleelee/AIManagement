@@ -1,0 +1,14 @@
+# cmd: npx vitest run src/db/ai-repository.test.ts
+
+ RUN  v2.1.9 /home/lee/aim-wt/b-sprint3-remaining
+
+(node:185909) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ src/db/ai-repository.test.ts (20 tests) 2025ms
+
+ Test Files  1 passed (1)
+      Tests  20 passed (20)
+   Start at  18:36:30
+   Duration  2.84s (transform 354ms, setup 0ms, collect 560ms, tests 2.02s, environment 0ms, prepare 52ms)
+
+# exit=0

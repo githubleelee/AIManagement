@@ -1,0 +1,6 @@
+# cmd: npx tsc -p tsconfig.json --noEmit
+test/scheduling-production.http.test.ts(261,45): error TS2322: Type '{ projectId: string; predecessorTaskId: string; successorTaskId: string | undefined; type: string; }' is not assignable to type '(Without<TaskDependencyCreateInput, TaskDependencyUncheckedCreateInput> & TaskDependencyUncheckedCreateInput) | (Without<...> & TaskDependencyCreateInput)'.
+  Types of property 'successorTaskId' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+# exit=2
