@@ -17,10 +17,10 @@
  *   - 门禁 12 的「真实供应商实调」仍需部署负责人配置供应商/模型/密钥，未在本文件声称通过。
  */
 import { randomUUID } from 'node:crypto'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { FastifyInstance } from 'fastify'
 import request from 'supertest'
@@ -31,12 +31,50 @@ import { createTempDatabase, resetDatabase, type TestDatabase } from '../../db/t
 import { makeMember, makeProject, makeUser } from '../../../test/http-support.js'
 import { shanghaiToday } from './policy.js'
 
+/** Portable browser-gate prerequisites. No other machine's absolute path may be hardcoded:
+ * a fresh clone must either find a real browser+driver or SKIP the gate loudly (never fake it).
+ * Set US12_REQUIRE_BROWSER=1 in CI to turn a missing prerequisite into a hard failure. */
+function firstExisting(candidates: Array<string | undefined>): string | undefined {
+  return candidates.find((candidate) => candidate !== undefined && existsSync(candidate))
+}
+function browserPrerequisites(fixtureEntry: string): { ok: true; fixture: string; playwright: string; chrome: string }
+  | { ok: false; reason: string } {
+  if (!existsSync(fixtureEntry)) return { ok: false, reason: `门禁夹具缺失：${fixtureEntry}` }
+  const home = homedir()
+  const playwright = firstExisting([
+    process.env.US12_PLAYWRIGHT_CORE,
+    join(process.cwd(), 'node_modules/playwright-core/index.js'),
+    ...[safeReadDir(join(home, '.cache/codex-runtimes'))].flatMap((runs) => runs.map((run) =>
+      join(home, '.cache/codex-runtimes', run, 'dependencies/node/node_modules/playwright-core/index.js'))),
+  ])
+  if (!playwright) return { ok: false, reason: '未找到 playwright-core（可用 US12_PLAYWRIGHT_CORE 指定）' }
+  const chrome = firstExisting([
+    process.env.US12_CHROME_PATH,
+    'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+    'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium',
+    ...[safeReadDir(join(home, 'AppData/Local/ms-playwright'))].flatMap((dirs) => dirs
+      .filter((dir) => dir.startsWith('chromium-'))
+      .map((dir) => join(home, 'AppData/Local/ms-playwright', dir, 'chrome-win64/chrome.exe'))),
+  ])
+  if (!chrome) return { ok: false, reason: '未找到 Chrome/Chromium 可执行文件（可用 US12_CHROME_PATH 指定）' }
+  return { ok: true, fixture: fixtureEntry, playwright, chrome }
+}
+function safeReadDir(dir: string): string[] {
+  try { return readdirSync(dir) } catch { return [] }
+}
+
 const MODEL = 'synthetic-scheduling-model'
 const API_KEY = 'synthetic-key'
 /** 模型/服务端超时（毫秒）：够小以便「超时」门禁在测试里可等待。 */
 const TIMEOUT_MS = 700
 
 type Behaviour = 'proposal' | 'malformed' | 'http-500' | 'hang'
+/** Recorded when G6 could not run here (no browser/driver); surfaced in the JSON evidence. */
+let skippedBrowserGate: string | undefined
 let behaviour: Behaviour = 'proposal'
 /** 回环模型服务被调用的次数（门禁 5「确认不二次调用模型」靠它取证）。 */
 let calls = 0
@@ -900,12 +938,16 @@ describe('US12 final integration gates — real HTTP, real SQLite, real loopback
     const evidenceDir = process.env.US12_EVIDENCE_DIR
       ? nodePath.resolve(process.env.US12_EVIDENCE_DIR)
       : nodeFs.mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'us12-g6-evidence-'))
-    const playwrightEntry = process.env.US12_PLAYWRIGHT_CORE
-      ?? 'C:/Users/24314/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright-core/index.js'
-    const chromePath = process.env.US12_CHROME_PATH ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe'
-    if (!nodeFs.existsSync(fixtureEntry)) throw new Error(`门禁 11 夹具缺失：${fixtureEntry}`)
-    if (!nodeFs.existsSync(playwrightEntry)) throw new Error(`未找到 playwright-core：${playwrightEntry}（可用 US12_PLAYWRIGHT_CORE 指定）`)
-    if (!nodeFs.existsSync(chromePath)) throw new Error(`未找到 Chrome 可执行文件：${chromePath}（可用 US12_CHROME_PATH 指定）`)
+    const prerequisites = browserPrerequisites(fixtureEntry)
+    if (!prerequisites.ok) {
+      const reason = `G6 浏览器门禁未执行：${prerequisites.reason}`
+      if (process.env.US12_REQUIRE_BROWSER === '1') throw new Error(reason)
+      skippedBrowserGate = reason
+      console.warn(`[US12 G6] ${reason}`)
+      return
+    }
+    const playwrightEntry = prerequisites.playwright
+    const chromePath = prerequisites.chrome
     nodeFs.mkdirSync(evidenceDir, { recursive: true })
 
     const shot = (name: string) => nodePath.join(evidenceDir, name)
