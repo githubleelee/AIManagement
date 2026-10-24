@@ -42,9 +42,11 @@ import { createNotificationScheduler, type NotificationScheduler, type Scheduled
  *   - `task.overdue` / `milestone.due`：B 自己的定时生产（调度未运行时降级 UNAVAILABLE）；
  *   - `risk.created`：A 的风险域真实生产（PR #95）；
  *   - `risk.level-raised`、`acceptance.approved`、`acceptance.rejected`：A 的真实生产
- *     （PR #100 经 PR #109 合入 main），已用真实事件 → 桥接 → 通知行端到端验证。
- * 仍缺生产方的只剩 `task.assigned`、`acceptance.submitted`（C 域）与后置的 `task.mentioned`，
- * 保持 UNAVAILABLE，不伪造可用。
+ *     （PR #100 经 PR #109 合入 main），已用真实事件 → 桥接 → 通知行端到端验证；
+ *   - `task.assigned`、`acceptance.submitted`：2026-10-24 由 A 补齐任务域事件通道
+ *     （`src/modules/task/event-port.ts`，生产点为端点 24 创建 / 端点 28 改派与进入 DONE），
+ *     缩窄为只缺后置的 `task.mentioned`。
+ * 仍缺生产方的只剩后置的 `task.mentioned`，保持 UNAVAILABLE，不伪造可用。
  */
 /** 生产方已在、且已端到端验证过的域事件（不含由调度是否运行决定的两类）。 */
 const LIVE_DOMAIN_EVENTS: ReadonlySet<string> = new Set([
@@ -52,12 +54,12 @@ const LIVE_DOMAIN_EVENTS: ReadonlySet<string> = new Set([
   'risk.level-raised',
   'acceptance.approved',
   'acceptance.rejected',
+  'task.assigned',
+  'acceptance.submitted',
 ])
 
 const NOT_CONNECTED_NOTES: Record<string, string> = {
-  'task.assigned': '任务域分配事件生产方尚未接入通知公共运行时',
   'task.mentioned': '@提及真实来源尚未接入（后置单向联调项）',
-  'acceptance.submitted': '验收域事件生产方尚未接入通知公共运行时',
 }
 
 /** 九个事件的来源接线清单（调度未运行时，B 自产的两个降级为 UNAVAILABLE）。 */

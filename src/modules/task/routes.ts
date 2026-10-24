@@ -36,9 +36,10 @@
  * 数据库一律从注册时的 `context.prisma` 取得，不 import 全局单例。
  */
 import type { FastifyInstance } from 'fastify'
-import type { PrismaClient } from '@prisma/client'
+import type { Prisma, PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import { AppError } from '../../shared/errors.js'
+import type { JsonObject } from '../../shared/events.js'
 import { dateSchema, taskProgressSchema, taskStatusSchema, toFieldErrors } from '../../shared/validation.js'
 import type {
   TaskStatus,
@@ -49,6 +50,7 @@ import { currentUserId, requireAuth } from '../../auth/actor.js'
 import { createAuthorization } from '../authz/permissions.js'
 import type { RouteContext } from '../../routes.js'
 import { assertTaskAssignment, writeAssignedTask } from './rules.js'
+import type { TaskEventName, TaskEventPort } from './event-port.js'
 
 /**
  * 任务标题长度上限。
@@ -197,6 +199,61 @@ export function registerTaskRoutes(app: FastifyInstance, context: RouteContext):
   const prisma = context.prisma
   const attachmentCleanup = context.attachmentCleanup
   if (!attachmentCleanup) throw new Error('任务删除需要已装配的附件生命周期端口')
+
+  // 任务域事件端口（#34 的 `task.assigned` / `acceptance.submitted` 两处生产点）。
+  // 缺失即 fail-fast：**不静默跳过发布**，否则通知会无声停发而测试仍绿。
+  const taskEvents: TaskEventPort | undefined = context.taskEvents
+  if (!taskEvents) {
+    throw new Error(
+      '任务路由组装缺失：RouteContext.taskEvents 未注入。请在 src/app.ts 用 ' +
+        'createTaskEventPort({ repository }) 组装后传入。',
+    )
+  }
+  // 收窄为非空常量，供下方闭包内使用（TS 不会把外层 const 的收窄带进闭包）。
+  const events: TaskEventPort = taskEvents
+
+  /**
+   * 在**调用方事务内**追加一条任务域事件。
+   *
+   * - 敏感判定在同一事务内读 `Task.isSensitive`（契约 I-6）：事务外读会与并发的
+   *   敏感开关产生"事件敏感度落后于实际"的窗口，把受保护对象泄漏给非授权成员。
+   * - 敏感任务的载荷**只能**是 `{references}`；非敏感载荷只放**结构与标识**
+   *   （状态 / 负责人 id / 前后状态），**不放**标题、描述、阻塞原因等正文。
+   * - 收件人**不进载荷**：由通知公共运行时按 `Task.ownerUserId` / `acceptorUserId` 现查解析。
+   */
+  async function publishTaskEvent(
+    tx: Prisma.TransactionClient,
+    args: {
+      eventName: TaskEventName
+      projectId: string
+      actorUserId: string
+      taskId: string
+      payload: JsonObject
+    },
+  ): Promise<void> {
+    const row = await tx.task.findUnique({
+      where: { id: args.taskId },
+      select: { isSensitive: true },
+    })
+    const base = {
+      eventName: args.eventName,
+      projectId: args.projectId,
+      object: { objectType: 'task', objectId: args.taskId },
+      actor: { kind: 'USER' as const, userId: args.actorUserId },
+      occurredAt: new Date().toISOString(),
+    }
+    await events.publish(
+      row?.isSensitive
+        ? {
+            ...base,
+            sensitive: true,
+            payload: { references: [{ objectType: 'task', objectId: args.taskId }] },
+          }
+        : { ...base, sensitive: false, payload: args.payload },
+      tx,
+    )
+  }
+
   // 鉴权与可见性入口在注册时创建一次；函数内部每次调用都现查库（决策 I-10：无缓存）。
   const { can, visibilityScope } = createAuthorization(prisma)
 
@@ -349,20 +406,39 @@ export function registerTaskRoutes(app: FastifyInstance, context: RouteContext):
       planEnd: body.planEnd,
     })
 
-    const task = await prisma.task.create({
-      data: {
-        // projectId 从 storyId 所属故事推导，不接受请求体传入（契约决策 I-10）
+    // ★ 创建与 `task.assigned` 必须在**同一事务**内：#34 要求"真实创建分配时在原业务
+    //   写事务内追加事件"，且发布失败必须让整笔创建回滚（宁可不建任务，也不产生
+    //   "任务已存在但通知丢失"）。因此把原先的裸 `create` 包进事务。
+    const task = await prisma.$transaction(async (tx) => {
+      const created = await tx.task.create({
+        data: {
+          // projectId 从 storyId 所属故事推导，不接受请求体传入（契约决策 I-10）
+          projectId: story.projectId,
+          storyId: story.id,
+          title: body.title,
+          description: body.description ?? null,
+          ownerUserId: body.ownerUserId,
+          acceptorUserId: body.acceptorUserId,
+          planStart: body.planStart,
+          planEnd: body.planEnd,
+          // status 默认 TODO、isSensitive 默认 false，由 schema 默认值保证，
+          // 请求体无法覆盖这两个字段（契约决策 I-10 的敏感字段写入路径）。
+        },
+      })
+
+      // 创建即首次分配 → `task.assigned`。
+      await publishTaskEvent(tx, {
+        eventName: 'task.assigned',
         projectId: story.projectId,
-        storyId: story.id,
-        title: body.title,
-        description: body.description ?? null,
-        ownerUserId: body.ownerUserId,
-        acceptorUserId: body.acceptorUserId,
-        planStart: body.planStart,
-        planEnd: body.planEnd,
-        // status 默认 TODO、isSensitive 默认 false，由 schema 默认值保证，
-        // 请求体无法覆盖这两个字段（契约决策 I-10 的敏感字段写入路径）。
-      },
+        actorUserId,
+        taskId: created.id,
+        payload: {
+          ownerUserId: created.ownerUserId,
+          status: created.status,
+        },
+      })
+
+      return created
     })
 
     const view = await loadTaskView(prisma, task)
@@ -503,12 +579,51 @@ export function registerTaskRoutes(app: FastifyInstance, context: RouteContext):
       // ★ FS 开工守卫的「前置读取 → 校验 → 真实写入」全在本事务内完成（守卫只接收本事务
       //   客户端、不自开也不提前提交）：与端点 28 原有的单条 SQL update 语义一致，混合
       //   字段仍是一次 update，失败时整事务回滚、不落部分写。
-      updated = await prisma.$transaction((tx) =>
-        writeAssignedTask(tx, task.projectId, task.id, {
+      updated = await prisma.$transaction(async (tx) => {
+        const written = await writeAssignedTask(tx, task.projectId, task.id, {
           ...merged,
           blockedReason: nextBlockedReason,
-        }),
-      )
+        })
+
+        // ---------------------------------------------------------------------
+        // #34 的两处事件生产点：都在**本事务内**、写入成功之后追加。
+        // ---------------------------------------------------------------------
+        // 1) `task.assigned`：**负责人实际变化**才发（同值不发）。改派是真实的业务动作，
+        //    因此按"发生次"计幂等键，第二次真实改派不会被去重吞掉。
+        if (merged.ownerUserId !== task.ownerUserId) {
+          await publishTaskEvent(tx, {
+            eventName: 'task.assigned',
+            projectId: task.projectId,
+            actorUserId,
+            taskId: task.id,
+            payload: {
+              ownerUserId: written.ownerUserId,
+              previousOwnerUserId: task.ownerUserId,
+              status: written.status,
+            },
+          })
+        }
+
+        // 2) `acceptance.submitted`：任务**真实进入 `DONE`**（提交验收）才发；
+        //    重复设置 `DONE` 不重复发。该事件只表达"提交了验收"，
+        //    验收**结果**由验收域的 `acceptance.approved` / `acceptance.rejected` 表达，
+        //    两者不互相冒充（#34 明确要求）。
+        if (merged.status === 'DONE' && task.status !== 'DONE') {
+          await publishTaskEvent(tx, {
+            eventName: 'acceptance.submitted',
+            projectId: task.projectId,
+            actorUserId,
+            taskId: task.id,
+            payload: {
+              fromStatus: task.status,
+              toStatus: 'DONE',
+              ownerUserId: written.ownerUserId,
+            },
+          })
+        }
+
+        return written
+      })
     } catch (error) {
       if (isRecordNotFoundError(error)) {
         throw notFound()

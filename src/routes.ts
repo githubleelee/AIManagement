@@ -32,6 +32,7 @@ import type { GanttEventPort } from './modules/gantt/types.js'
 import type { RequirementEventPort } from './modules/requirement/service.js'
 import type { RiskEventPort } from './modules/risk/types.js'
 import type { AcceptanceEventPort } from './modules/acceptance/types.js'
+import type { TaskEventPort } from './modules/task/event-port.js'
 import type { TaskStartGuardPort } from './shared/task-execution.js'
 
 export type RouteContext = {
@@ -77,6 +78,15 @@ export type RouteContext = {
    * 事件名见 `src/modules/acceptance/types.ts` 的 `AcceptanceEventName`。
    */
   acceptanceEvents?: AcceptanceEventPort
+  /**
+   * 任务域事件发布端口（由 `src/app.ts` 用 `createTaskEventPort` 显式组装注入）。
+   *
+   * 与上面四个域端口同构。承载 #34 的两处生产点：`task.assigned`（真实创建分配 /
+   * 负责人实际变化）与 `acceptance.submitted`（任务真实进入 `DONE`）。
+   * 可选；缺省时 `registerTaskRoutes` 会 fail-fast 报组装缺失（不得静默跳过发布）。
+   * 事件名与幂等键口径见 `src/modules/task/event-port.ts`。
+   */
+  taskEvents?: TaskEventPort
   /**
    * #34 站内通知服务（由 `src/app.ts` 用真实仓储 / 接收者解析器 / #37 适配器显式组装）。
    *

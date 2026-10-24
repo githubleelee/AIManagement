@@ -40,6 +40,7 @@ import { createRequirementEventPort } from './modules/requirement/event-port.js'
 import { createRiskEventPort } from './modules/risk/event-port.js'
 import { createNotificationRuntime } from './db/notification-runtime.js'
 import { createAcceptanceEventPort } from './modules/acceptance/event-port.js'
+import { createTaskEventPort } from './modules/task/event-port.js'
 import { PrismaAiSuggestionRepository, createAiAuthorizationPort } from './db/ai-repository.js'
 import { PrismaAttachmentRepository, createAttachmentAuthorizationPort } from './db/attachment-repository.js'
 import { createAttachmentLifecycle } from './db/attachment-cleanup.js'
@@ -173,6 +174,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   context.requirementEvents = createRequirementEventPort({ repository: eventRepository })
   context.riskEvents = createRiskEventPort({ repository: eventRepository })
   context.acceptanceEvents = createAcceptanceEventPort({ repository: eventRepository })
+  // 任务域事件端口（#34 的 `task.assigned` / `acceptance.submitted` 两处生产点）。
+  context.taskEvents = createTaskEventPort({ repository: eventRepository })
   // #34 站内通知公共运行时：真实 DB 仓储 + 权威接收者解析器 + #37 订阅适配器 + 提交后消费桥接
   // + B 自己的定时生产点（task.overdue / milestone.due）。与事件基础设施共用**同一个**
   // `PrismaEventRepository` 实例（否则会出现「查询看不到域内写入」的裂缝）。D 的消费模块零改动。
