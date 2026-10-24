@@ -165,3 +165,10 @@ now():Date
 首个 generate+typecheck+排期/task/仓储联合命令180秒超时，未取得完整报告；拆开类型检查和排期定点后通过。后续单独 task+共享仓储回归150秒也超时，**本基线不宣称全 task 或全仓通过**；旧014555b基线的387通过不能移作本基线结论。没有反复拉长超时。
 
 机器报告/截图见 `docs/role-c/evidence/issue-32-delivery-20261024/`。仍待 B 公共权限/日期/审计/失败证据装配、正式路由/页面挂载和适用模型端口；到位后再做正式 API/浏览器闭环，12 TODO 保留。
+
+## 实际交付与回帖回执
+
+- 代码交付：`455701e55ced689026e572d5d6e586b44a314c66`，已推送 `origin/feat/US12-scheduling-core`，未直接合 main。
+- 已核验账号 `brucelyce-ux` 经用户授权代 C 回复 B 的六项事实：[comment-6381884082](https://github.com/githubleelee/AIManagement/issues/32#issuecomment-6381884082)，回读正文核验一致，没有重复发布。
+- [发布回执](evidence/issue-32-delivery-20261024/interface-delivery-publish-receipt.json)。此后 docs-only 回执归档不改变该代码提交或测试基线。
+- 工作树中另有非本会话创建的 `issue-32-interface-facts.md`、`issue-36-consumer-window-request.md`、独立 evidence 及既有历史脏文档，均未纳入本批，不覆盖、不冒充本会话成果。
