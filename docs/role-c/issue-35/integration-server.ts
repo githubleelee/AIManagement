@@ -31,6 +31,9 @@ const foreignGoalId = await makeGoal(otherProjectId, '跨项目候选不应出�
 const registered = ctx.app.hasRoute({ method: 'POST', url: '/projects/:projectId/uml-diagrams' })
 if (process.argv.includes('--formal') && !registered) throw new Error('Production UML routes are not registered; formal acceptance cannot use a test fallback')
 if (!registered) registerUmlRoutes(ctx.app, { prisma: ctx.db })
+// Synchronous test-session writes must precede the real onReady worker writers.
+const pmToken = ctx.loginAs(pm.id)
+const viewerToken = ctx.loginAs(viewer.id)
 const address = await ctx.app.listen({ host: '127.0.0.1', port: 0 })
 const vite = await createServer({ configFile: 'web/vite.config.ts', server: {
   host: '127.0.0.1', port: 0, strictPort: false,
@@ -40,7 +43,7 @@ await vite.listen()
 const webAddress = vite.httpServer!.address()
 if (!webAddress || typeof webAddress === 'string') throw new Error('No test web address')
 process.send({ type: 'ready', url: `http://127.0.0.1:${webAddress.port}`, projectId, goalId, activityId, storyId, taskId, viewerId: viewer.id, restrictedTaskId, extraGoalIds, emptyProjectId, foreignGoalId,
-  pmToken: ctx.loginAs(pm.id), viewerToken: ctx.loginAs(viewer.id) })
+  pmToken, viewerToken })
 let closing = false
 async function close() {
   if (closing) return

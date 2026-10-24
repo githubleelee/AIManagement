@@ -18,6 +18,8 @@ const storyId = await makeStory(await makeActivity(await makeGoal(projectId)), {
 const taskId = await makeTask(storyId, users.owner.id, users.pm.id, { title: '合成附件任务' })
 const secondTaskId = await makeTask(storyId, users.owner.id, users.pm.id, { title: '第二附件任务' })
 const viewerTaskId = await makeTask(storyId, users.viewer.id, users.pm.id, { title: 'VIEWER负责人任务' })
+// loginAs synchronously writes SQLite: mint sessions before onReady starts real worker writers.
+const tokens = Object.fromEntries(Object.entries(users).map(([key, user]) => [key, ctx.loginAs(user.id)]))
 const address = await ctx.app.listen({ host: '127.0.0.1', port: 0 })
 const vite = await createServer({ configFile: 'web/vite.config.ts', server: { host: '127.0.0.1', port: 0,
   proxy: { '/api': { target: address, changeOrigin: true, rewrite: value => value.replace(/^\/api/, '') } },
@@ -26,7 +28,7 @@ await vite.listen()
 const bound = vite.httpServer!.address()
 if (!bound || typeof bound === 'string') throw new Error('No loopback browser endpoint')
 process.send({ type: 'ready', url: `http://127.0.0.1:${bound.port}`, projectId, storyId, taskId, secondTaskId, viewerTaskId,
-  tokens: Object.fromEntries(Object.entries(users).map(([key, user]) => [key, ctx.loginAs(user.id)])) })
+  tokens })
 let closing = false
 async function close() {
   if (closing) return

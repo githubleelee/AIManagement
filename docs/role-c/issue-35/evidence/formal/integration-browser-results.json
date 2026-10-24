@@ -86,7 +86,7 @@
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
       "status": 200,
       "hasAuthorization": true
     },
@@ -98,67 +98,67 @@
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/tasks",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/tasks",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/goals",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/goals",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "POST",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 201,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/goals",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/tasks",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/tasks",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/goals",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
@@ -182,7 +182,7 @@
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
       "status": 200,
       "hasAuthorization": true
     },
@@ -194,187 +194,181 @@
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/goals",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/goals",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/tasks",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/tasks",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/tasks",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/tasks",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/goals",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/goals",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "PATCH",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "PUT",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2/content",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576/content",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "PUT",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2/content",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576/content",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "PATCH",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 422,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "PATCH",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "PATCH",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/auth/me",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
@@ -392,7 +386,13 @@
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
+      "path": "/api/auth/me",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
       "status": 200,
       "hasAuthorization": true
     },
@@ -404,121 +404,67 @@
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/tasks",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/goals",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/goals",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/tasks",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "POST",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 201,
       "hasAuthorization": true
     },
     {
       "method": "PUT",
-      "path": "/api/uml-diagrams/fdc4198a-a4fd-4d64-9edd-58a4a84cf84e/content",
+      "path": "/api/uml-diagrams/b5491394-1d19-4bee-8486-104d887784fe/content",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "PUT",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2/content",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576/content",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "PUT",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2/content",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/auth/me",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/me/notifications",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/auth/me",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/me/notifications",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576/content",
       "status": 200,
       "hasAuthorization": true
     },
@@ -542,7 +488,7 @@
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
       "status": 200,
       "hasAuthorization": true
     },
@@ -554,115 +500,121 @@
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/goals",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/tasks",
+      "path": "/api/auth/me",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/notifications",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/notifications",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/goals",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/tasks",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "PUT",
-      "path": "/api/tasks/75f0d371-9240-4eba-a0f8-d95158c85efe/sensitivity",
+      "path": "/api/tasks/9a9cf8d3-1c00-41c3-93d2-60dec479845d/sensitivity",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "PATCH",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 404,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/goals",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/tasks",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/tasks",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/goals",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
-      "status": 404,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/auth/me",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/auth/me",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/me/notifications",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/me/notifications",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 404,
       "hasAuthorization": true
     },
@@ -686,7 +638,7 @@
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
       "status": 200,
       "hasAuthorization": true
     },
@@ -698,49 +650,97 @@
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
+      "status": 404,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/tasks",
+      "path": "/api/auth/me",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/goals",
+      "path": "/api/me/notifications",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/notifications",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/goals",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/tasks",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "DELETE",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 204,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 200,
       "hasAuthorization": true
     },
@@ -764,7 +764,7 @@
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
       "status": 200,
       "hasAuthorization": true
     },
@@ -776,247 +776,247 @@
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/cc89519b-9485-4ace-baf4-cca57a9ae9b2",
+      "path": "/api/uml-diagrams/d9731c1b-135b-440b-8e78-c75f33bc6576",
       "status": 404,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/goals",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/goals",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/tasks",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "POST",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
-      "status": 201,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/uml-diagrams/a51cb890-31d6-4fc1-82a7-89bfcffb795e",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/auth/me",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/me/notifications",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/auth/me",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/me/notifications",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/uml-diagrams/a51cb890-31d6-4fc1-82a7-89bfcffb795e",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/tasks",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/goals",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/uml-diagrams/a51cb890-31d6-4fc1-82a7-89bfcffb795e",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/uml-diagrams/a51cb890-31d6-4fc1-82a7-89bfcffb795e",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/auth/me",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/auth/me",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/me/notifications",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/ddc7abfe-1d34-4083-90ff-b25ca2b0f24b",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/me/notifications",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/ddc7abfe-1d34-4083-90ff-b25ca2b0f24b",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/ddc7abfe-1d34-4083-90ff-b25ca2b0f24b/uml-diagrams",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/ddc7abfe-1d34-4083-90ff-b25ca2b0f24b/tasks",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/ddc7abfe-1d34-4083-90ff-b25ca2b0f24b/goals",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/auth/me",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/auth/me",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/me/notifications",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/me/notifications",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/uml-diagrams/a51cb890-31d6-4fc1-82a7-89bfcffb795e",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/tasks",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/goals",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/tasks",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "POST",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
+      "status": 201,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/f6fe8b73-1c44-4d81-a574-19dab88a7862",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/notifications",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/notifications",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/f6fe8b73-1c44-4d81-a574-19dab88a7862",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/goals",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/tasks",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/f6fe8b73-1c44-4d81-a574-19dab88a7862",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/f6fe8b73-1c44-4d81-a574-19dab88a7862",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/notifications",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/c84ad2c9-cda0-43f4-a23b-bf9455b9d49e",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/notifications",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/c84ad2c9-cda0-43f4-a23b-bf9455b9d49e",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/c84ad2c9-cda0-43f4-a23b-bf9455b9d49e/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/c84ad2c9-cda0-43f4-a23b-bf9455b9d49e/tasks",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/c84ad2c9-cda0-43f4-a23b-bf9455b9d49e/goals",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/notifications",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/notifications",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/uml-diagrams/f6fe8b73-1c44-4d81-a574-19dab88a7862",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/goals",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/tasks",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 201,
       "hasAuthorization": true
     },
@@ -1040,7 +1040,7 @@
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
       "status": 200,
       "hasAuthorization": true
     },
@@ -1052,103 +1052,103 @@
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/uml-diagrams/c2cbb7ab-eff7-486f-89aa-e9baba4635f2",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/uml-diagrams",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/uml-diagrams",
+      "path": "/api/uml-diagrams/c5246a7d-7e95-462d-ad0c-a5a2773d4f83",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/goals",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/tasks",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/tasks",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/goals",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/stories/857058f5-5b61-43e2-9d65-d39bfb97f316",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/members",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/members",
+      "path": "/api/stories/a66f2216-a8f4-44b5-96a9-ac8825f68e3a",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/goals",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/goals",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/members",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/members",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/stories/857058f5-5b61-43e2-9d65-d39bfb97f316",
+      "path": "/api/stories/a66f2216-a8f4-44b5-96a9-ac8825f68e3a",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/goals",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/goals",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/stories/857058f5-5b61-43e2-9d65-d39bfb97f316/ai-suggestions",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/stories/a66f2216-a8f4-44b5-96a9-ac8825f68e3a/ai-suggestions",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/members",
+      "path": "/api/stories/a66f2216-a8f4-44b5-96a9-ac8825f68e3a/tasks",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/stories/857058f5-5b61-43e2-9d65-d39bfb97f316/tasks",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/members",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/stories/857058f5-5b61-43e2-9d65-d39bfb97f316/ai-suggestions",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/stories/a66f2216-a8f4-44b5-96a9-ac8825f68e3a/ai-suggestions",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/members",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/members",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/stories/857058f5-5b61-43e2-9d65-d39bfb97f316/tasks",
+      "path": "/api/stories/a66f2216-a8f4-44b5-96a9-ac8825f68e3a/tasks",
       "status": 200,
       "hasAuthorization": true
     },
@@ -1172,7 +1172,7 @@
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
       "status": 200,
       "hasAuthorization": true
     },
@@ -1184,79 +1184,79 @@
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/members",
+      "path": "/api/stories/a66f2216-a8f4-44b5-96a9-ac8825f68e3a",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/stories/857058f5-5b61-43e2-9d65-d39bfb97f316",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/members",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/goals",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/goals",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/members",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/members",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/stories/857058f5-5b61-43e2-9d65-d39bfb97f316",
+      "path": "/api/stories/a66f2216-a8f4-44b5-96a9-ac8825f68e3a",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/goals",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/goals",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/stories/857058f5-5b61-43e2-9d65-d39bfb97f316/ai-suggestions",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/stories/a66f2216-a8f4-44b5-96a9-ac8825f68e3a/ai-suggestions",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/stories/857058f5-5b61-43e2-9d65-d39bfb97f316/tasks",
+      "path": "/api/stories/a66f2216-a8f4-44b5-96a9-ac8825f68e3a/tasks",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/members",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/members",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/stories/857058f5-5b61-43e2-9d65-d39bfb97f316/ai-suggestions",
+      "path": "/api/stories/a66f2216-a8f4-44b5-96a9-ac8825f68e3a/tasks",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/members",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/members",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/stories/857058f5-5b61-43e2-9d65-d39bfb97f316/tasks",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/stories/a66f2216-a8f4-44b5-96a9-ac8825f68e3a/ai-suggestions",
       "status": 200,
       "hasAuthorization": true
     },
@@ -1268,19 +1268,13 @@
     },
     {
       "method": "GET",
-      "path": "/api/me/notifications",
-      "status": 200,
-      "hasAuthorization": true
-    },
-    {
-      "method": "GET",
       "path": "/api/auth/me",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
       "status": 200,
       "hasAuthorization": true
     },
@@ -1292,67 +1286,73 @@
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891",
+      "path": "/api/me/notifications",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/stories/857058f5-5b61-43e2-9d65-d39bfb97f316",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/stories/857058f5-5b61-43e2-9d65-d39bfb97f316",
+      "path": "/api/stories/a66f2216-a8f4-44b5-96a9-ac8825f68e3a",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/goals",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/goals",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/goals",
+      "path": "/api/stories/a66f2216-a8f4-44b5-96a9-ac8825f68e3a",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/members",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/members",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/stories/857058f5-5b61-43e2-9d65-d39bfb97f316/ai-suggestions",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/stories/a66f2216-a8f4-44b5-96a9-ac8825f68e3a/ai-suggestions",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/members",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/goals",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/projects/2188f09b-a6cd-4d55-9d5b-7a6d5ef53891/stories/857058f5-5b61-43e2-9d65-d39bfb97f316/ai-suggestions",
+      "path": "/api/stories/a66f2216-a8f4-44b5-96a9-ac8825f68e3a/tasks",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/stories/857058f5-5b61-43e2-9d65-d39bfb97f316/tasks",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/members",
       "status": 200,
       "hasAuthorization": true
     },
     {
       "method": "GET",
-      "path": "/api/stories/857058f5-5b61-43e2-9d65-d39bfb97f316/tasks",
+      "path": "/api/projects/b3f6e5ca-3559-492b-8acf-3987ad8bc426/stories/a66f2216-a8f4-44b5-96a9-ac8825f68e3a/ai-suggestions",
+      "status": 200,
+      "hasAuthorization": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/stories/a66f2216-a8f4-44b5-96a9-ac8825f68e3a/tasks",
       "status": 200,
       "hasAuthorization": true
     }
