@@ -90,18 +90,25 @@ describe('ATTACH isolated HTTP plugin', () => {
     }
   })
   it.each(['image/svg+xml', 'application/x-executable', 'application/octet-stream'])(
-    'unsupported MIME %s returns unified 422', async mime => {
+    'unsupported MIME %s preserves framework 415', async mime => {
       const response = await upload('owner', mime)
-      expect(response.statusCode).toBe(422)
-      expect(response.json().error).toMatchObject({ code: 'VALIDATION_FAILED',
-        details: [{ field: 'mimeType', code: 'INVALID_VALUE' }] })
+      expect(response.statusCode).toBe(415)
     })
   it('extension/MIME mismatch returns 422', async () => {
     expect((await upload('owner', 'image/png')).statusCode).toBe(422)
   })
-  it('oversize parser failure also uses 422, not 413', async () => {
+  it('oversize parser failure preserves framework 413', async () => {
     const response = await upload('owner', 'application/zip', 'a.zip', Buffer.alloc(MAX_ATTACHMENT_BYTES + 2))
+    expect(response.statusCode).toBe(413)
+  })
+  it('parsed content one byte above the business limit remains 422', async () => {
+    const response = await upload('owner', 'application/pdf', 'a.pdf', Buffer.alloc(MAX_ATTACHMENT_BYTES + 1))
     expect(response.statusCode).toBe(422)
     expect(response.json().error.code).toBe('VALIDATION_FAILED')
+  })
+  it('the exact business size limit is accepted', async () => {
+    const response = await upload('owner', 'application/pdf', 'a.pdf', Buffer.alloc(MAX_ATTACHMENT_BYTES))
+    expect(response.statusCode).toBe(201)
+    expect(response.json().sizeBytes).toBe(MAX_ATTACHMENT_BYTES)
   })
 })
