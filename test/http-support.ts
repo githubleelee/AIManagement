@@ -85,6 +85,11 @@ export async function createHttpTestContext(
   // （200+ 调用点直接 `ctx.asUser(ctx.loginAs(x))`）。Prisma 无同步 API，故用
   // Node 内置 `node:sqlite` 的 DatabaseSync 直连同一临时库写入哈希。
   const sqlite = new DatabaseSync(tempDb.file)
+  // 这条连接是 Prisma 之外的**第二条连接**。SQLite 默认 `busy_timeout = 0`，一旦 Prisma 那边
+  // 恰好持有写锁（并行跑、机器被超订时很容易发生），这里会立刻抛 `database is locked`
+  // —— 这正是此前在 `beforeEach` 的 `ctx.loginAs` 上偶发失败的原因。
+  // 调大等待时间即可让它在锁释放后继续，而不是把测试判成失败。
+  sqlite.exec('PRAGMA busy_timeout = 30000;')
   const setSession = sqlite.prepare(
     'UPDATE "User" SET "sessionTokenHash" = ?, "sessionTokenExpiresAt" = ? WHERE "id" = ?',
   )
