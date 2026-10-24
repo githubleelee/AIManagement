@@ -1,0 +1,2 @@
+# cmd: npx tsc -p web/tsconfig.json --noEmit
+# exit=0

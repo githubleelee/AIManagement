@@ -1,0 +1,28 @@
+{
+  "capturedAt": "2026-10-24T14:14:44.731Z",
+  "baseline": "e517d44",
+  "gateFile": "src/modules/ai-scheduling/integration.pending.test.ts",
+  "gateRun": {
+    "command": "vitest run src/modules/ai-scheduling/integration.pending.test.ts",
+    "tests": 12,
+    "passed": 12,
+    "failed": 0,
+    "todo": 0,
+    "envOverrides": false
+  },
+  "portabilityFinding": "G6 previously hardcoded C:/Users/24314/... and Program Files Chrome; failed on a clean clone. Now discovered portably; missing prerequisites skip loudly unless US12_REQUIRE_BROWSER=1.",
+  "fullSuite": {
+    "command": "vitest run (repo config, 8 workers)",
+    "testFiles": "104 passed / 105",
+    "tests": "2066 passed / 2 skipped / 0 failed",
+    "exitCode": 1,
+    "error": "1x Worker exited unexpectedly (tinypool); no assertion failures; root cause unverified",
+    "durationSeconds": 192.33
+  },
+  "otherFinding": "GET nonexistent scheduling suggestion returns message 资源不可访问 for PM vs 资源不存在 for non-member (both 404 NOT_FOUND); wording not yet unified in src/scheduling.ts (B-owned).",
+  "typechecks": {
+    "server": "exit0",
+    "web": "exit0",
+    "serverBuildTypes": "exit0"
+  }
+}

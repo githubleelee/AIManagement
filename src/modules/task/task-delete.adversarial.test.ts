@@ -200,13 +200,59 @@ function countTaskVisibility(id: string): Promise<number> {
  * 返回 restore 函数，务必在 finally 中调用。
  */
 function installFailingTaskDelete(): () => void {
-  const delegate = ctx.db.task as unknown as {
-    delete: (...args: unknown[]) => unknown
+  const client = ctx.db as unknown as {
+    $transaction: (arg: unknown, ...rest: unknown[]) => unknown
   }
-  const original = delegate.delete
-  delegate.delete = () => ctx.db.$queryRawUnsafe('SELECT * FROM "__t5_injected_missing_table__"')
+  const original = client.$transaction
+
+  const fail = () => {
+    // 未预期的数据库错误（不是 P2025），用于验证「只映射 P2025、其它错误转 500」。
+    throw new Error('injected task.delete failure')
+  }
+
+  /**
+   * 把事务客户端包一层，只让 `task.delete` 抛错；其余成员原样透传给真实 tx。
+   *
+   * ★ 为什么不再替换 `ctx.db.task.delete`：端点 29 已从「数组事务」
+   *   `$transaction([deleteMany, delete])` 改为「callback 事务」
+   *   `$transaction(async tx => { markForTaskDeletion(tx); deleteMany; tx.task.delete })`。
+   *   事务内的 delegate 挂在 `tx` 上，与根客户端的 `ctx.db.task` **不是同一个对象**，
+   *   旧注入点因此失效（用例会退化成"注入没生效、删除照常成功"的**空转**用例）。
+   *   现改为拦截 `$transaction`，只对 callback 形式注入失败。
+   */
+  const wrapTx = (tx: unknown): unknown =>
+    new Proxy(tx as Record<string | symbol, unknown>, {
+      get(target, prop) {
+        if (prop === 'task') {
+          const delegate = Reflect.get(target, 'task') as Record<string | symbol, unknown>
+          return new Proxy(delegate, {
+            get(delegateTarget, delegateProp) {
+              if (delegateProp === 'delete') return fail
+              const value = Reflect.get(delegateTarget, delegateProp)
+              return typeof value === 'function'
+                ? (value as (...a: unknown[]) => unknown).bind(delegateTarget)
+                : value
+            },
+          })
+        }
+        const value = Reflect.get(target, prop)
+        return typeof value === 'function'
+          ? (value as (...a: unknown[]) => unknown).bind(target)
+          : value
+      },
+    })
+
+  client.$transaction = function (arg: unknown, ...rest: unknown[]) {
+    // 数组形式（如其它端点的批量事务）不注入，保持原行为。
+    if (typeof arg !== 'function') {
+      return (original as (...a: unknown[]) => unknown).call(client, arg, ...rest)
+    }
+    const wrapped = (tx: unknown) => (arg as (t: unknown) => unknown)(wrapTx(tx))
+    return (original as (...a: unknown[]) => unknown).call(client, wrapped, ...rest)
+  }
+
   return () => {
-    delegate.delete = original
+    client.$transaction = original
   }
 }
 
@@ -284,14 +330,20 @@ describe('A 引用完整性：ObjectVisibility 同事务清理', () => {
   })
 
   it('A4 事务原子性（真正经端点 29）：task.delete 注入未预期失败 → 500，且可见性清理回滚（实测 count 不变）', async () => {
-    // 断言语义：端点 29 的 `$transaction([deleteMany(visibility), delete(task)])` 是
-    // 一个原子单元。这里用故障注入让第二句 `task.delete` 以**未预期错误**失败，从而：
+    // 断言语义：端点 29 的 callback 事务（附件标记 → 可见性清理 → 任务删除）是一个
+    // 原子单元。这里用故障注入让最后一步 `tx.task.delete` 以**未预期错误**失败，从而：
     //   (a) 端点必须返回 500（未预期错误不得被 P2025 映射误吞成 404）；
-    //   (b) 第一句 `deleteMany` 必须回滚，可见性记录保持删除前后一致的**真实 count**。
+    //   (b) 前两步必须回滚，可见性记录保持删除前后一致的**真实 count**。
     //
     // 为什么必须经端点：此前 A4 只是在测试里复刻 `$transaction`（模式验证），
     // 没有走真实 handler，无法证明实现确实使用了事务。这里改为真实 HTTP 请求 +
     // 真实断言的组合。
+    //
+    // ★ 2026-10-24 注入点修正（C 的附件接线把端点 29 从事务数组改成 callback 事务）：
+    //   旧注入替换的是根客户端的 `ctx.db.task.delete`，而新实现走事务内的 `tx.task.delete`，
+    //   两者不是同一个 delegate，旧注入因此失效（用例会退化成空转）。现由
+    //   `installFailingTaskDelete()` 拦截 `$transaction` 对 callback 形式注入，注入点与
+    //   实现路径一致。C 在 `task-attachment-lifecycle.http.test.ts` 另有等价用例，二者互相印证。
     await grantVisibility('task', taskId, member.id)
     await grantVisibility('task', taskId, viewer.id)
     const before = await countTaskVisibility(taskId)

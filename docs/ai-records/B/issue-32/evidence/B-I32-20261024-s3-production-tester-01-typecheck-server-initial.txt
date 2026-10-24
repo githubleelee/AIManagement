@@ -1,0 +1,9 @@
+# cwd: /home/lee/aim-wt/b-sprint3-remaining
+# cmd: npx tsc -p tsconfig.json --noEmit
+src/scheduling.ts(143,60): error TS2345: Argument of type '"DISPOSED" | "APPLICATION_FAILED" | AiDb' is not assignable to parameter of type 'TransactionClient'.
+  Type 'string' is not assignable to type 'TransactionClient'.
+src/scheduling.ts(147,7): error TS2322: Type '(tx: TaskWriteDb, projectId: string, changes: readonly TaskPlanDates[]) => Promise<TaskPlanDates[]>' is not assignable to type '(tx: "DISPOSED" | "APPLICATION_FAILED" | AiDb, projectId: string, changes: readonly { planStart: string; planEnd: string; taskId: string; }[]) => Promise<{ planStart: string; planEnd: string; taskId: string; }[]>'.
+  Types of parameters 'tx' and 'tx' are incompatible.
+    Type '"DISPOSED" | "APPLICATION_FAILED" | AiDb' is not assignable to type 'TaskWriteDb'.
+      Type 'string' is not assignable to type 'TaskWriteDb'.
+# exit=2

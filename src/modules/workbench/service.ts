@@ -13,7 +13,8 @@
  *    `loadTaskView()`，本模块也**不 import 它**，而是自己查 Prisma 并按共享类型
  *    `TaskView` 组装。（跨模块只允许经由 HTTP，见交接文档 §8。）
  *
- * 3. **三态而不是两态**。通知模块（别人的票）尚未交付，所以「被提及」返回
+ * 3. **三态而不是两态**。通知模块已交付（#34），但 @提及来源（`task.mentioned`）
+ *    尚无生产方，所以「被提及」返回
  *    `state='unavailable'` 且 `total=null`，**不得**返回 `0` —— 否则界面会把
  *    "还没接上"显示成"你没有消息"。
  *
@@ -237,7 +238,7 @@ export async function buildWorkbench(
       state: 'unavailable',
       total: null,
       rows: [],
-      note: '通知模块（别人负责的票）尚未交付，这里还没有数据源；这不代表"没有消息"。',
+      note: '通知模块已交付（#34），但 @提及来源尚未接入，这里还没有数据源；这不代表"没有消息"。',
     },
     { key: 'upcoming', state: 'ok', total: upcoming.total, rows: upcoming.rows },
   ]
@@ -253,7 +254,7 @@ function emptyBlocks(): WorkbenchBlock[] {
     total: key === 'mention' ? null : 0,
     rows: [],
     ...(key === 'mention'
-      ? { note: '通知模块（别人负责的票）尚未交付，这里还没有数据源；这不代表"没有消息"。' }
+      ? { note: '通知模块已交付（#34），但 @提及来源尚未接入，这里还没有数据源；这不代表"没有消息"。' }
       : {}),
   }))
 }

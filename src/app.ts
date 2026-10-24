@@ -40,6 +40,7 @@ import { createRequirementEventPort } from './modules/requirement/event-port.js'
 import { createRiskEventPort } from './modules/risk/event-port.js'
 import { createNotificationRuntime } from './db/notification-runtime.js'
 import { createAcceptanceEventPort } from './modules/acceptance/event-port.js'
+import { createTaskEventPort } from './modules/task/event-port.js'
 import { PrismaAiSuggestionRepository, createAiAuthorizationPort } from './db/ai-repository.js'
 import { PrismaAttachmentRepository, createAttachmentAuthorizationPort } from './db/attachment-repository.js'
 import { createAttachmentLifecycle } from './db/attachment-cleanup.js'
@@ -50,6 +51,7 @@ import { createAiBreakdownService } from './modules/ai/factory.js'
 import { createPrismaAiStorySource } from './modules/ai/story-source.js'
 import { createTaskStartGuardPort } from './modules/task/rules.js'
 import type { RequirementBreakdownRecord } from './shared/ai.js'
+import { createSchedulingRuntime, schedulingOptionsFromEnvironment, type SchedulingRuntimeOptions } from './scheduling.js'
 import type {
   DomainEventPublisherPort,
   DomainEventQueryPort,
@@ -94,6 +96,8 @@ export type BuildAppOptions = {
    * 测试传入 `mkdtemp` 独占临时目录，仅清理自己的目录，**绝不**清理真实 `var/uploads/`。
    */
   uploadRoot?: string
+  /** Server-owned provider/deployment configuration; never accepted from HTTP input. */
+  scheduling?: SchedulingRuntimeOptions
 }
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
@@ -132,6 +136,15 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     storage: attachmentStorage,
   })
 
+  // #32: caller-tx PM-only authorization, task date foundation and same-tx success audit.
+  // No configured model is explicitly unavailable; no breakdown-stub or fixture fallback.
+  context.scheduling = createSchedulingRuntime(
+    context.prisma, options.scheduling ?? schedulingOptionsFromEnvironment(process.env),
+    async ({ projectId, actorUserId, requestId, code }) => {
+      app.log.warn({ projectId, actorUserId, requestId, code }, '排期操作失败/安全证据')
+    },
+  )
+
   // #37 领域事件：显式注入 DB 仓储 + 统一鉴权适配器，组装 D 的事件实现。
   // 业务域通过 `app.events` 使用 publisher / query 端口，不 import D 的 service（契约 I-9）。
   // ★ 同一个 `PrismaEventRepository` 实例同时供 D 的基础设施与两个域内事件适配器使用：
@@ -161,6 +174,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   context.requirementEvents = createRequirementEventPort({ repository: eventRepository })
   context.riskEvents = createRiskEventPort({ repository: eventRepository })
   context.acceptanceEvents = createAcceptanceEventPort({ repository: eventRepository })
+  // 任务域事件端口（#34 的 `task.assigned` / `acceptance.submitted` 两处生产点）。
+  context.taskEvents = createTaskEventPort({ repository: eventRepository })
   // #34 站内通知公共运行时：真实 DB 仓储 + 权威接收者解析器 + #37 订阅适配器 + 提交后消费桥接
   // + B 自己的定时生产点（task.overdue / milestone.due）。与事件基础设施共用**同一个**
   // `PrismaEventRepository` 实例（否则会出现「查询看不到域内写入」的裂缝）。D 的消费模块零改动。
@@ -240,6 +255,15 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Actor 解析：只把「当前是谁」注入 request，不做权限判定（权限一律由 can() 现查库）。
   // 采用 onRequest 钩子而非全局强制鉴权，避免误拦公开端点（如端点 1 登录）。
   registerActorResolver(app, context.prisma)
+  // Read/audit/assessment denials also need safe HTTP evidence. This uses the server request
+  // correlation ID, never a client prompt/body/provider error, and cannot change authorization.
+  app.addHook('onResponse', async (request, reply) => {
+    if (reply.statusCode < 400
+      || !request.routeOptions.url?.startsWith('/projects/:projectId/scheduling-suggestions')) return
+    const { projectId } = request.params as { projectId?: string }
+    app.log.warn({ projectId, actorUserId: request.actorUserId, requestId: request.id,
+      code: `HTTP_${reply.statusCode}` }, '排期HTTP失败/安全证据')
+  })
   registerRoutes(app, context)
 
   return app

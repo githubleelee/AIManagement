@@ -7,8 +7,11 @@
  *
  * 覆盖（对应主代理下发的用例清单）：
  *   - PM 看到全项目故事 / 任务 / 里程碑 / 依赖，`basis='全项目'`；
- *   - MEMBER 只看可见范围：敏感任务、「仅由隐藏任务关联的里程碑」、
+ *   - MEMBER 只看可见范围：敏感任务、「关联任务全部不可见的里程碑」、
  *     「含隐藏任务端点的依赖边」都不出现；
+ *   - 里程碑可见性口径（PB-09，项目负责人 2026-10-24 裁定）：非 PM 下
+ *     「无关联任务的里程碑**可见**」/「部分关联可见 → 可见（taskIds 只含可见任务）」/
+ *     「关联任务全部不可见 → **仍不返回**（保留敏感保护）」；PM 口径完全不变；
  *   - 未授权敏感故事不出现（含其下任务不泄漏）；被指名的敏感故事可见；
  *   - 空项目返回空数组而非报错；
  *   - `aggregation='candidate-minmax'`（日期仍为候选）；故事进度按 C10 口径计算
@@ -371,6 +374,79 @@ describe('GET /projects/:projectId/gantt —— MEMBER 可见范围', () => {
     const view = await fetchGantt(member.id)
     expect(view.stories.map((s) => s.id)).toEqual([secretStory])
     expect(storyById(view, secretStory).tasks.map((t) => t.id)).toEqual([task])
+  })
+})
+
+describe('GET /projects/:projectId/gantt —— 里程碑可见性口径（PB-09，2026-10-24 裁定）', () => {
+  /** 造一个「可见故事 + 可见任务 + 全不可见的敏感任务」，供三条语义共用。 */
+  async function seedVisibleAndHiddenTasks() {
+    const story = await seedStory({ title: '里程碑口径故事' })
+    const visibleTask = await seedTask({
+      storyId: story,
+      ownerUserId: member.id,
+      title: '可见任务',
+    })
+    const hiddenTask = await seedTask({
+      storyId: story,
+      ownerUserId: member.id,
+      title: '机密任务',
+      isSensitive: true,
+    })
+    await makeSensitive('task', hiddenTask, []) // 除 PM 外无人可见
+    return { story, visibleTask, hiddenTask }
+  }
+
+  it('★ 无关联任务的里程碑对非 PM 成员可见（PB-09 改口径：不再 fail-closed 隐藏）', async () => {
+    const { visibleTask } = await seedVisibleAndHiddenTasks()
+    const unlinked = await seedMilestone({ name: '无关联里程碑', dueDate: '2026-02-01' })
+
+    const view = await fetchGantt(member.id)
+
+    expect(view.basis.scopeLabel).toBe('可见范围')
+    expect(view.stories.map((s) => s.tasks.map((t) => t.id))).toEqual([[visibleTask]])
+    expect(view.milestones.map((m) => m.id)).toEqual([unlinked])
+    expect(view.milestones[0]?.taskIds).toEqual([])
+  })
+
+  it('★ 关联任务部分可见的里程碑对非 PM 可见，taskIds 只含可见任务', async () => {
+    const { visibleTask, hiddenTask } = await seedVisibleAndHiddenTasks()
+    const mixed = await seedMilestone({ name: '部分可见里程碑', dueDate: '2026-02-01' })
+    await linkTaskMilestone(visibleTask, mixed)
+    await linkTaskMilestone(hiddenTask, mixed)
+
+    const view = await fetchGantt(member.id)
+
+    expect(view.milestones.map((m) => m.id)).toEqual([mixed])
+    // 敏感关联任务既不出现 id，也不影响里程碑本身的可见性
+    expect(view.milestones[0]?.taskIds).toEqual([visibleTask])
+  })
+
+  it('★ 关联任务全部不可见的里程碑对非 PM 仍不返回（保留敏感保护，不泄漏存在性）', async () => {
+    const { hiddenTask } = await seedVisibleAndHiddenTasks()
+    const allHidden = await seedMilestone({ name: '全隐藏关联里程碑', dueDate: '2026-02-01' })
+    await linkTaskMilestone(hiddenTask, allHidden)
+
+    const view = await fetchGantt(member.id)
+
+    // 与「仅由隐藏任务关联的里程碑」同一条保护，本次改动不得放开
+    expect(view.milestones).toEqual([])
+    expect(JSON.stringify(view)).not.toContain(allHidden)
+  })
+
+  it('PM 口径完全不变：无关联 / 部分可见 / 全部不可见的里程碑都返回', async () => {
+    const { visibleTask, hiddenTask } = await seedVisibleAndHiddenTasks()
+    const unlinked = await seedMilestone({ name: '无关联里程碑', dueDate: '2026-02-01' })
+    const mixed = await seedMilestone({ name: '部分可见里程碑', dueDate: '2026-02-02' })
+    const allHidden = await seedMilestone({ name: '全隐藏关联里程碑', dueDate: '2026-02-03' })
+    await linkTaskMilestone(visibleTask, mixed)
+    await linkTaskMilestone(hiddenTask, mixed)
+    await linkTaskMilestone(hiddenTask, allHidden)
+
+    const view = await fetchGantt(pm.id)
+
+    expect(view.basis.scopeLabel).toBe('全项目')
+    expect(view.milestones.map((m) => m.id)).toEqual([unlinked, mixed, allHidden])
+    expect(view.milestones.map((m) => m.taskIds)).toEqual([[], [visibleTask, hiddenTask].sort(), [hiddenTask]])
   })
 })
 

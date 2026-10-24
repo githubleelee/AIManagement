@@ -1,0 +1,16 @@
+# cwd: /home/lee/aim-wt/b-sprint3-remaining
+# cmd: npx vitest run test/probe-b-s3-production.http.test.ts
+
+ RUN  v2.1.9 /home/lee/aim-wt/b-sprint3-remaining
+
+(node:168036) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ test/probe-b-s3-production.http.test.ts (8 tests) 3092ms
+   ✓ B production assembly (buildApp) probe > runs generate -> assess -> accept -> audit -> replay -> revoke over HTTP 302ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  18:08:37
+   Duration  3.91s (transform 356ms, setup 0ms, collect 576ms, tests 3.09s, environment 0ms, prepare 44ms)
+
+# exit=0

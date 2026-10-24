@@ -1,0 +1,19 @@
+# cwd: /home/lee/aim-wt/b-sprint3-remaining
+# captured: 2026-10-24 18:38:23 CST (+0800)
+# cmd: npm run build:web
+# sha256 web/src/routes.tsx: fe9e7a256f1999cdeae084e7bd9e1be189dfcd14d65e1674c2736fe28be35022
+# sha256 web/src/pages/scheduling/ProjectSchedulingPage.tsx: 064e8f0a10989f1bebe0b0f67c6bb0af1178c5932bc513dda4af137c314533e3
+
+> ai-management@0.1.0 build:web
+> vite build --config web/vite.config.ts
+
+vite v6.4.3 building for production...
+transforming...
+✓ 125 modules transformed.
+rendering chunks...
+computing gzip size...
+../dist/web/index.html                   0.41 kB │ gzip:   0.30 kB
+../dist/web/assets/index-DasWNo-d.css   81.07 kB │ gzip:  15.21 kB
+../dist/web/assets/index-ydd2r3GC.js   463.26 kB │ gzip: 136.11 kB
+✓ built in 1.03s
+# exit=0

@@ -8,12 +8,16 @@ import { makeUser, makeProject, makeMember, makeGoal, makeActivity, makeStory, m
 let ctx: HttpTestContext, root: string
 let pm: string, owner: string, viewer: string, other: string, projectId: string, taskId: string
 const pdf = Buffer.from('%PDF-1.4\nC isolated task cleanup fixture\n')
+// ★ 钩子超时显式放宽：`createHttpTestContext` 要建临时库并应用全部迁移，
+//   在机器负载较高时会超过 vitest 默认的 10s `hookTimeout`，表现为
+//   `Hook timed out in 10000ms` 且整个套件被 skip（用例本身没跑）。
+//   本文件是真实 DB + 真实磁盘的集成测试，钩子耗时属预期，故显式给足时间。
 beforeAll(async () => {
   root = await mkdtemp(join(tmpdir(), 'c-attachment-http-'))
   ctx = await createHttpTestContext({ uploadRoot: root }); setActiveDatabase(ctx.db)
   await ctx.app.ready()
-})
-afterAll(async () => { await ctx?.dispose(); if (root) await rm(root, { recursive: true, force: true }) })
+}, 120_000)
+afterAll(async () => { await ctx?.dispose(); if (root) await rm(root, { recursive: true, force: true }) }, 120_000)
 beforeEach(async () => {
   await ctx.reset()
   pm = (await makeUser('attach-pm@example.invalid')).id

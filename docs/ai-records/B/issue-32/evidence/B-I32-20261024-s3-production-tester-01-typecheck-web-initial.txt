@@ -1,0 +1,3 @@
+# cwd: /home/lee/aim-wt/b-sprint3-remaining
+# cmd: npx tsc -p web/tsconfig.json --noEmit
+# exit=0

@@ -1,0 +1,44 @@
+﻿{
+  "nodeEnv": "development",
+  "startedAt": "2026-10-24T12:23:47.371Z",
+  "ids": {
+    "projectId": "26fdb8ae-7e01-4d61-8e77-0320428a1c21",
+    "storyId": "03184958-8ec4-4372-acc9-0649d414eca4",
+    "pm": "c9dace8a-5462-4d11-bb1b-63b266c4642a",
+    "owner": "24a1848d-6682-4cdf-abc7-40bff5df0578",
+    "acceptor": "52fa360b-449b-43d6-bc79-067b44382f61"
+  },
+  "taskId": "6b32cbb5-7ced-4dc3-890a-b6ed8af95767",
+  "taskAssigned": {
+    "recipient": "owner",
+    "expectedRecipient": "owner",
+    "recipientMatches": true,
+    "contentTitle": "新任务分配",
+    "latencyMs": 1836,
+    "withinDeliveryTarget": true,
+    "storedAt": "2026-10-24T12:23:49.382Z"
+  },
+  "acceptanceSubmitted": {
+    "recipient": "acceptor",
+    "expectedRecipient": "acceptor",
+    "recipientMatches": true,
+    "contentTitle": "任务已提交验收",
+    "latencyMs": 1962,
+    "withinDeliveryTarget": true,
+    "storedAt": "2026-10-24T12:23:51.391Z"
+  },
+  "domainEvents": [
+    {
+      "eventName": "task.assigned",
+      "objectId": "6b32cbb5-7ced-4dc3-890a-b6ed8af95767",
+      "sensitive": false
+    },
+    {
+      "eventName": "acceptance.submitted",
+      "objectId": "6b32cbb5-7ced-4dc3-890a-b6ed8af95767",
+      "sensitive": false
+    }
+  ],
+  "result": "PASS",
+  "finishedAt": "2026-10-24T12:23:51.402Z"
+}

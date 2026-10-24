@@ -173,15 +173,23 @@ describe('#34 通知 HTTP 端点', () => {
     const capabilities = list.body.sourceCapabilities as Array<{ eventName: string; state: string }>
     expect(capabilities).toHaveLength(9)
     const stateOf = (name: string) => capabilities.find((cap) => cap.eventName === name)?.state
-    // 真实生产方已在（A 的风险/验收域），核心事实不因测试环境降级。
-    for (const name of ['risk.created', 'risk.level-raised', 'acceptance.approved', 'acceptance.rejected']) {
+    // 真实生产方已在（A 的风险/验收域；2026-10-24 补齐任务域两处后扩到六类），
+    // 核心事实不因测试环境降级。
+    for (const name of [
+      'risk.created',
+      'risk.level-raised',
+      'acceptance.approved',
+      'acceptance.rejected',
+      'task.assigned',
+      'acceptance.submitted',
+    ]) {
       expect(stateOf(name)).toBe('AVAILABLE')
     }
     // 测试环境（NODE_ENV === 'test'）不自动启调度：B 自产的两类如实降级。
     expect(stateOf('task.overdue')).toBe('UNAVAILABLE')
     expect(stateOf('milestone.due')).toBe('UNAVAILABLE')
-    // 未接来源不伪造可用。
-    for (const name of ['task.assigned', 'task.mentioned', 'acceptance.submitted']) {
+    // 未接来源不伪造可用（只剩后置的 @提及）。
+    for (const name of ['task.mentioned']) {
       expect(stateOf(name)).toBe('UNAVAILABLE')
     }
   })

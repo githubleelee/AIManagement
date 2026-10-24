@@ -167,7 +167,7 @@ Dependencies: #11 [FS]
 ## #15 验收并交付甘特图
 Status: done
 Outcome: GitHub #26 AC1–AC7 证据包及交付 C 域 GitHub #32 的数据契约。
-Evidence: 骑写路径 PR #68、事件 PR #90、UI 走查 PR #69→记录 PR #70；FS 开工路径随 #13（PR #114）覆盖。**合并后复核**（main `e7bc546`，隔离库 + 真实 API/Vite/Chromium）：PM 编辑器齐全、里程碑 201、依赖 201、重复 409 DUPLICATE、反向成环 409 INVALID_VALUE、member1 写控件 0 且直连 403、故事进度 0%（0/3）。记录 `docs/ai-records/B/issue-26/B-I26-20261024c-gantt-final-acceptance-01.md`。另登记实现口径：无可见关联任务的里程碑对非 PM 不返回（fail-closed，设计稿 §9.5 已登记为已决+已知限制）。
+Evidence: 骑写路径 PR #68、事件 PR #90、UI 走查 PR #69→记录 PR #70；FS 开工路径随 #13（PR #114）覆盖。**合并后复核**（main `e7bc546`，隔离库 + 真实 API/Vite/Chromium）：PM 编辑器齐全、里程碑 201、依赖 201、重复 409 DUPLICATE、反向成环 409 INVALID_VALUE、member1 写控件 0 且直连 403、故事进度 0%（0/3）。记录 `docs/ai-records/B/issue-26/B-I26-20261024c-gantt-final-acceptance-01.md`。另登记实现口径：无可见关联任务的里程碑对非 PM 不返回（fail-closed，设计稿 §9.5 已登记为已决+已知限制）。**口径更新（2026-10-24，项目负责人 DRI 裁定，依据 PB-09）**：上句的「无关联任务的里程碑对非 PM 不返回」已改 —— 无关联任务的里程碑对非 PM **可见**；只有「关联任务全都在可见范围外」的里程碑仍不返回（保留敏感保护）。见设计稿 §9.5 与 `src/modules/gantt/service.ts`。
 Done when: 公共层（B 单写授权）完成必要路由与页面挂载；本模块测试与 `npm run typecheck` 通过；浏览器验证展开、汇总、里程碑；覆盖 FS、环、跨项目、敏感过滤及真实任务开工路径；C2 已确认口径留证；事件联调保留真实证据，不能只用模拟替代；未决或外部不可验证项不勾完成，不建立对 GitHub #32 的反向依赖。
 Dependencies: #12 [FS], #13 [FS], #14 [FS]
 

@@ -19,6 +19,8 @@ import { registerUmlRoutes } from './modules/uml/plugin.js'
 import { registerWorkbenchRoutes } from './modules/workbench/plugin.js'
 import { registerRequirementRoutes } from './modules/requirement/plugin.js'
 import { registerAiRoutes } from './modules/ai/plugin.js'
+import { registerSchedulingRoutes } from './modules/ai-scheduling/plugin.js'
+import type { createSchedulingRuntime } from './scheduling.js'
 import { registerNotificationRoutes } from './modules/notification/plugin.js'
 import type { NotificationService } from './modules/notification/service.js'
 import { registerAttachmentRoutes } from './modules/attachment/plugin.js'
@@ -30,6 +32,7 @@ import type { GanttEventPort } from './modules/gantt/types.js'
 import type { RequirementEventPort } from './modules/requirement/service.js'
 import type { RiskEventPort } from './modules/risk/types.js'
 import type { AcceptanceEventPort } from './modules/acceptance/types.js'
+import type { TaskEventPort } from './modules/task/event-port.js'
 import type { TaskStartGuardPort } from './shared/task-execution.js'
 
 export type RouteContext = {
@@ -43,6 +46,11 @@ export type RouteContext = {
    * 可选：模块测试可能只构造 `{ prisma }` 并注册部分路由；缺省时跳过 AI 路由注册。
    */
   aiService?: AiBreakdownService
+  /** #32 production composition; separate PM-only scenario, never generic AI read.
+   * Required by the full registerRoutes assembly (like notificationService/attachmentService).
+   * Module-only tests register their own plugin instead; missing full-app wiring fails fast.
+   */
+  scheduling?: ReturnType<typeof createSchedulingRuntime>
   /**
    * 甘特域事件发布端口（由 `src/app.ts` 用 `createGanttEventPort` 显式组装注入）。
    *
@@ -70,6 +78,15 @@ export type RouteContext = {
    * 事件名见 `src/modules/acceptance/types.ts` 的 `AcceptanceEventName`。
    */
   acceptanceEvents?: AcceptanceEventPort
+  /**
+   * 任务域事件发布端口（由 `src/app.ts` 用 `createTaskEventPort` 显式组装注入）。
+   *
+   * 与上面四个域端口同构。承载 #34 的两处生产点：`task.assigned`（真实创建分配 /
+   * 负责人实际变化）与 `acceptance.submitted`（任务真实进入 `DONE`）。
+   * 可选；缺省时 `registerTaskRoutes` 会 fail-fast 报组装缺失（不得静默跳过发布）。
+   * 事件名与幂等键口径见 `src/modules/task/event-port.ts`。
+   */
+  taskEvents?: TaskEventPort
   /**
    * #34 站内通知服务（由 `src/app.ts` 用真实仓储 / 接收者解析器 / #37 适配器显式组装）。
    *
@@ -169,6 +186,10 @@ export function registerRoutes(app: FastifyInstance, context: RouteContext): voi
   // 不在 Sprint 1 契约的 30 个端点内，属本阶段新增；服务由 `src/app.ts` 组装后经 context 注入。
   // 三个入口均 `requireAuth`，服务端逐次走 `can()`（read 复用 project.read；生成 / 处置仅 PM）。
   if (context.aiService) registerAiRoutes(app, { service: context.aiService })
+
+  // #32 C owns the seven handlers; B supplies the production transaction/authorization ports.
+  if (!context.scheduling) throw new Error('排期运行时未组装：必须由 src/app.ts 注入')
+  registerSchedulingRoutes(app, context.scheduling)
 
   // #34 站内通知（B 公共接入）：GET /me/notifications、GET /notifications/:id、
   // PATCH /notifications/:id/read。不在 Sprint 1 契约的 30 个端点内，属本阶段新增。

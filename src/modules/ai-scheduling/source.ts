@@ -88,8 +88,14 @@ export function createSchedulingReader(authorize: SchedulingReadAuthorizer) {
         where: { projectId, OR: [{ predecessorTaskId: { in: ids } }, { successorTaskId: { in: ids } }] },
         select: { id: true, predecessorTaskId: true, successorTaskId: true, type: true },
       })
+      // 里程碑口径与甘特读端点对齐（PB-09，2026-10-24 裁定）：**无关联任务的里程碑**
+      // 也纳入来源；有关联任务、且关联任务全部不可见的里程碑仍走下面的私有校验分支
+      // （不进模型输入、由服务端私有复核），与读端点"保留敏感保护"的边界一致。
       const milestones = await tx.milestone.findMany({
-        where: { projectId, tasks: { some: { taskId: { in: ids } } } },
+        where: {
+          projectId,
+          OR: [{ tasks: { none: {} } }, { tasks: { some: { taskId: { in: ids } } } }],
+        },
         select: { id: true, dueDate: true, tasks: { select: { taskId: true } } },
       })
       const privateIds = [...new Set(edges.flatMap((edge) => [edge.predecessorTaskId, edge.successorTaskId]))]

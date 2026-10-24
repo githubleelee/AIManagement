@@ -81,7 +81,7 @@
 | #35-UML | AC4 的任务锚点：图→`requirements/{storyId}#task-{taskId}`，但 `TaskSection` 未提供 `#task-<id>` 锚点，落页后不会定位/高亮该任务 | 由 C 按其 `task-anchor-proposal.md` 提交、B 挂载 |
 | #35-UML | C 的 5 项非阻断跟进（任何 `P2003` 都映射成 `edges.sourceNodeId`、`fromWire`/`toWire` 缺 vitest 往返、P2002 兜底缺 `DUPLICATE` 字段码、测试注释与 `verification.md` 过期、详情端点计时型侧信道） | C 在自有窗口处理（已发 #35 评论 6381862601） |
 | #28-工作台 | 「被提及」块文案仍写"通知模块（别人负责的票）尚未交付"——通知模块已于 #104 交付且已挂载，只有 @提及来源仍缺 | A 改文案为「@提及来源尚未接入」；不改变数据源缺失的事实 |
-| 里程碑可见性 | 无关联任务的里程碑对非 PM 不返回（fail-closed） | 已登记于 `docs/role-b-gantt-design.md` §9.5；是否改口径待负责人裁定 |
+| 里程碑可见性 | ~~无关联任务的里程碑对非 PM 不返回（fail-closed）~~ | ✅ **已裁定改口径（2026-10-24，项目负责人 DRI；依据 PB-09）**：无关联任务的里程碑对非 PM **可见**；只有「关联任务全都在可见范围外」的里程碑仍不返回（**保留敏感保护**）。新实现 `where` 与边界见 `docs/role-b-gantt-design.md` §9.5 |
 | 上一阶段口径 | 上阶段 US-05 的 AC「仅 PM 可创建/编辑任务，Member 只读」与现行 `task.progress`（负责人可编辑本人任务）不一致；当年 AC 未随后的扩展同步更新 | 负责人确认后更新 AC 文案即可，无需改代码 |
 
 ---
